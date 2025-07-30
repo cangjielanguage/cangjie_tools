@@ -8,7 +8,7 @@
 
 系统架构图如下：
 
-![SystemArchitecture](./finger/SystemArchitecture.png)
+![SystemArchitecture](./figures/SystemArchitecture.png)
 
 ## 目录结构
 
