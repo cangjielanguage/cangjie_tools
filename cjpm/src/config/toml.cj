@@ -13,13 +13,13 @@ import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
 
 // Top-level fields
-const PACKAGE = "package"
-const DEPENDENCIES = "dependencies"
-const TEST_DEPENDENCIES = "test-dependencies"
-const SCRIPT_DEPENDENCIES = "script-dependencies"
-const REPLACE = "replace"
-const PROFILE = "profile"
-const TARGET_CONFIG = "target"
+public const PACKAGE = "package"
+public const DEPENDENCIES = "dependencies"
+public const TEST_DEPENDENCIES = "test-dependencies"
+public const SCRIPT_DEPENDENCIES = "script-dependencies"
+public const REPLACE = "replace"
+public const PROFILE = "profile"
+public const TARGET_CONFIG = "target"
 
 public class TomlInfo <: Serializable<TomlInfo> {
     public var pkg: Package = Package()

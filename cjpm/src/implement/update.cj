@@ -92,8 +92,9 @@ func updateDepMap(depMap: HashMap<String, DepInfo>, path: String, preName: Strin
     UPDATE_DEP_PATH_MAP[tomlInfo.pkg.name] = curModulePath
 
     tomlInfo.pkg.path = curModulePath
-    return updateDepModule(depMap, tomlInfo.dependencies, curModulePath, "dependencies") &&
-        updateDepModule(depMap, tomlInfo.testDependencies, curModulePath, "test-dependencies")
+    return updateDepModule(depMap, tomlInfo.dependencies, curModulePath, DEPENDENCIES) &&
+        updateDepModule(depMap, tomlInfo.testDependencies, curModulePath, TEST_DEPENDENCIES) &&
+        updateDepModule(depMap, tomlInfo.scriptDependencies, curModulePath, SCRIPT_DEPENDENCIES)
 }
 
 func updateDepModule(depMap: HashMap<String, DepInfo>, requires: HashMap<String, DepInfo>, prePath: String,
