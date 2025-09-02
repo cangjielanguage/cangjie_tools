@@ -24,7 +24,7 @@ public class AppSettings {
 	 * @brief getInstance(): AppSettings
 	 */
     public static func getInstance(): AppSettings {
-        jsObjApiCall < AppSettings >(getClassConstructorObj("my_module_dts2025042808724", "AppSettings"),  "getInstance", emptyArg) {
+        jsObjApiCall < AppSettings >(getClassConstructorObj("my_module_issue7", "AppSettings"),  "getInstance", emptyArg) {
             ctx, info => AppSettings.fromJSValue(ctx, info)
         }
     }
