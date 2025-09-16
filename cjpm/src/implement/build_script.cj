@@ -265,7 +265,7 @@ func relocateScript(scriptConfig: ScriptConfig): Bool {
 
 func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<ArrayList<String>> {
     var arguments = ArrayList<String>(["-p", modulePath, "--scan-dependency"])
-    let (scanFlag, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, arguments)
+    let (scanFlag, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, arguments, spawnForScript: true)
     let scanDepCmd: String = COMPILE_TOOL + " " + String.join(arguments.toArray(), delimiter: " ")
     if (!scanFlag) {
         eprintln(errInfo)
@@ -403,7 +403,7 @@ func makeScriptExe(scriptConfig: ScriptConfig, buildConfig: BuildConfig): Bool {
     }
 
     let (envs, args) = getCompileArgs(scriptConfig, buildConfig) ?? return false
-    let (flag, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, args, envMap: envs)
+    let (flag, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, args, envMap: envs, spawnForScript: true)
 
     if (!outInfo.isEmpty()) {
         println(outInfo)

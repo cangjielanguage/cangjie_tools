@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package testInterface
 
 interface I1 {
@@ -54,8 +60,3 @@ let test02 = x02_I2.I1_02()
 let x03_AA:AA = I1_A()
 let test03 = x03_AA.A_open_func()
 
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

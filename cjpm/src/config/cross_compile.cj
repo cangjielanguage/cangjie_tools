@@ -16,8 +16,11 @@ public func replaceNativeInfo(oriInfo: TargetInfo, newInfo: TargetInfo): Unit {
 public func makeTargetDylibName(fileName: String): String {
     if (crossCompileTarget.contains("mingw32") || crossCompileTarget.contains("windows-gnu")) {
         return "lib${fileName}.dll"
+    } else if (crossCompileTarget.contains("apple-ios") || crossCompileTarget.contains("darwin")) {
+        return "lib${fileName}.dylib"
+    } else {
+        return "lib${fileName}.so"
     }
-    return "lib${fileName}.so"
 }
 
 public func makeTargetExeName(exeName: String): String {

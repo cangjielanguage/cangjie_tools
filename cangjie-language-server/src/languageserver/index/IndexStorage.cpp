@@ -12,8 +12,10 @@
 #include <regex>
 #include <string>
 #include <utility>
+
 #include "../Options.h"
 #include "../common/FileStore.h"
+#include "IndexDatabase.h"
 
 namespace ark {
 namespace lsp {
@@ -39,6 +41,115 @@ std::string MergeFileName(const std::string& fullPkgName, const std::string &has
     return fullPkgName + "." + hashCode + "." + extension;
 }
 
+void ReadSymsCompletions(Symbol &res, const IdxFormat::Symbol *sym)
+{
+    if (sym->completion_items()) {
+        for (const auto &item : *sym->completion_items()) {
+            std::string label = item->label()->str();
+            std::string insert = item->insert_text()->str();
+            res.completionItems.push_back({label, insert});
+        }
+    }
+}
+
+AST::Comment convertComment(const IdxFormat::Comment &comment)
+{
+    return AST::Comment{
+        .style = static_cast<CommentStyle>(comment.style()),
+        .kind = static_cast<AST::CommentKind>(comment.kind()),
+        .info = [&]() {
+            Token token = Token(TokenKind::COMMENT);
+            token.SetValue(comment.info()->value()->str());
+            return token;
+        }()
+    };
+}
+
+CommentGroup convertCommentGroup(const IdxFormat::CommentGroup &fbGroup)
+{
+    if (!fbGroup.cms()) {
+        return {};
+    }
+
+    CommentGroup group;
+    for (auto fbCommentOffset : *fbGroup.cms()) {
+        auto &fbComment = *fbCommentOffset;
+        AST::Comment comment = convertComment(fbComment);
+        group.cms.push_back(comment);
+    }
+    return group;
+}
+
+void ReadSymsComments(Symbol &res, const IdxFormat::Symbol *sym)
+{
+    if (sym == nullptr || sym->comments() == nullptr) {
+        return;
+    }
+    if (auto leadingComments = sym->comments()->leading_comments()) {
+        std::for_each(leadingComments->begin(), leadingComments->end(),
+            [&](const auto *fbGroup) { res.comments.leadingComments.push_back(convertCommentGroup(*fbGroup)); });
+    }
+    if (auto innerComments = sym->comments()->inner_comments()) {
+        std::for_each(innerComments->begin(), innerComments->end(),
+            [&](const auto *fbGroup) { res.comments.innerComments.push_back(convertCommentGroup(*fbGroup)); });
+    }
+    if (auto trailingComments = sym->comments()->trailing_comments()) {
+        std::for_each(trailingComments->begin(), trailingComments->end(),
+            [&](const auto *fbGroup) { res.comments.trailingComments.push_back(convertCommentGroup(*fbGroup)); });
+    }
+}
+
+void ReadSymbolLocation(Symbol &res, const IdxFormat::Symbol *sym)
+{
+    if (sym->location()->begin() != nullptr) {
+        res.location.begin.fileID = sym->location()->begin()->file_id();
+        res.location.begin.line = sym->location()->begin()->line();
+        res.location.begin.column = sym->location()->begin()->column();
+    }
+    if (sym->location()->end() != nullptr) {
+        res.location.end.fileID = sym->location()->end()->file_id();
+        res.location.end.line = sym->location()->end()->line();
+        res.location.end.column = sym->location()->end()->column();
+    }
+    if (sym->location()->file_uri() != nullptr) {
+        res.location.fileUri = sym->location()->file_uri()->str();
+    }
+}
+
+void ReadSymbolDeclaration(Symbol &res, const IdxFormat::Symbol *sym)
+{
+    if (sym->declaration()->begin() != nullptr) {
+        res.declaration.begin.fileID = sym->declaration()->begin()->file_id();
+        res.declaration.begin.line = sym->declaration()->begin()->line();
+        res.declaration.begin.column = sym->declaration()->begin()->column();
+    }
+    if (sym->declaration()->end() != nullptr) {
+        res.declaration.end.fileID = sym->declaration()->end()->file_id();
+        res.declaration.end.line = sym->declaration()->end()->line();
+        res.declaration.end.column = sym->declaration()->end()->column();
+    }
+    if (sym->declaration()->file_uri() != nullptr) {
+        res.declaration.fileUri = sym->declaration()->file_uri()->str();
+    }
+}
+
+void ReadSymbolMacro(Symbol &res, const IdxFormat::Symbol *sym)
+{
+    if (sym->cur_macro_call()->begin() != nullptr) {
+        res.curMacroCall.begin.fileID = sym->cur_macro_call()->begin()->file_id();
+        res.curMacroCall.begin.line = sym->cur_macro_call()->begin()->line();
+        res.curMacroCall.begin.column = sym->cur_macro_call()->begin()->column();
+    }
+    if (sym->cur_macro_call()->end() != nullptr) {
+        res.curMacroCall.end.fileID = sym->cur_macro_call()->end()->file_id();
+        res.curMacroCall.end.line = sym->cur_macro_call()->end()->line();
+        res.curMacroCall.end.column = sym->cur_macro_call()->end()->column();
+    }
+    if (sym->cur_macro_call()->file_uri() != nullptr) {
+        res.curMacroCall.fileUri = sym->cur_macro_call()->file_uri()->str();
+    }
+}
+
 void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
 {
     res.id = sym->id();
@@ -49,49 +160,13 @@ void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
         res.scope = sym->scope()->str();
     }
     if (sym->location() != nullptr) {
-        if (sym->location()->begin() != nullptr) {
-            res.location.begin.fileID = sym->location()->begin()->file_id();
-            res.location.begin.line = sym->location()->begin()->line();
-            res.location.begin.column = sym->location()->begin()->column();
-        }
-        if (sym->location()->end() != nullptr) {
-            res.location.end.fileID = sym->location()->end()->file_id();
-            res.location.end.line = sym->location()->end()->line();
-            res.location.end.column = sym->location()->end()->column();
-        }
-        if (sym->location()->file_uri() != nullptr) {
-            res.location.fileUri = sym->location()->file_uri()->str();
-        }
+        ReadSymbolLocation(res, sym);
     }
     if (sym->declaration() != nullptr) {
-        if (sym->declaration()->begin() != nullptr) {
-            res.declaration.begin.fileID = sym->declaration()->begin()->file_id();
-            res.declaration.begin.line = sym->declaration()->begin()->line();
-            res.declaration.begin.column = sym->declaration()->begin()->column();
-        }
-        if (sym->declaration()->end() != nullptr) {
-            res.declaration.end.fileID = sym->declaration()->end()->file_id();
-            res.declaration.end.line = sym->declaration()->end()->line();
-            res.declaration.end.column = sym->declaration()->end()->column();
-        }
-        if (sym->declaration()->file_uri() != nullptr) {
-            res.declaration.fileUri = sym->declaration()->file_uri()->str();
-        }
+        ReadSymbolDeclaration(res, sym);
     }
     if (sym->cur_macro_call() != nullptr) {
-        if (sym->cur_macro_call()->begin() != nullptr) {
-            res.curMacroCall.begin.fileID = sym->cur_macro_call()->begin()->file_id();
-            res.curMacroCall.begin.line = sym->cur_macro_call()->begin()->line();
-            res.curMacroCall.begin.column = sym->cur_macro_call()->begin()->column();
-        }
-        if (sym->cur_macro_call()->end() != nullptr) {
-            res.curMacroCall.end.fileID = sym->cur_macro_call()->end()->file_id();
-            res.curMacroCall.end.line = sym->cur_macro_call()->end()->line();
-            res.curMacroCall.end.column = sym->cur_macro_call()->end()->column();
-        }
-        if (sym->cur_macro_call()->file_uri() != nullptr) {
-            res.curMacroCall.fileUri = sym->cur_macro_call()->file_uri()->str();
-        }
+        ReadSymbolMacro(res, sym);
     }
     res.kind = AST::ASTKind(sym->kind());
     if (sym->signature() != nullptr) {
@@ -104,30 +179,37 @@ void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
     res.modifier = Modifier(sym->modifier());
     res.isCjoSym = sym->is_cjo_sym();
     res.isDeprecated = sym->is_deprecated();
-    if (sym->insert_text()) {
-        res.insertText = sym->insert_text()->str();
-    }
     if (sym->cur_module()) {
         res.curModule = sym->cur_module()->str();
+    }
+    ReadSymsCompletions(res, sym);
+    ReadSymsComments(res, sym);
+    if (sym->syscap() != nullptr) {
+        res.syscap = sym->syscap()->str();
+    }
+}
+
+void ReadRefLocation(Ref &res, const IdxFormat::Ref *ref)
+{
+    if (ref->location()->begin() != nullptr) {
+        res.location.begin.fileID = ref->location()->begin()->file_id();
+        res.location.begin.line = ref->location()->begin()->line();
+        res.location.begin.column = ref->location()->begin()->column();
+    }
+    if (ref->location()->end() != nullptr) {
+        res.location.end.fileID = ref->location()->end()->file_id();
+        res.location.end.line = ref->location()->end()->line();
+        res.location.end.column = ref->location()->end()->column();
+    }
+    if (ref->location()->file_uri() != nullptr) {
+        res.location.fileUri = ref->location()->file_uri()->str();
     }
 }
 
 void ReadRef(Ref &res, const IdxFormat::Ref *ref)
 {
     if (ref->location() != nullptr) {
-        if (ref->location()->begin() != nullptr) {
-            res.location.begin.fileID = ref->location()->begin()->file_id();
-            res.location.begin.line = ref->location()->begin()->line();
-            res.location.begin.column = ref->location()->begin()->column();
-        }
-        if (ref->location()->end() != nullptr) {
-            res.location.end.fileID = ref->location()->end()->file_id();
-            res.location.end.line = ref->location()->end()->line();
-            res.location.end.column = ref->location()->end()->column();
-        }
-        if (ref->location()->file_uri() != nullptr) {
-            res.location.fileUri = ref->location()->file_uri()->str();
-        }
+        ReadRefLocation(res, ref);
     }
     res.kind = RefKind(ref->kind());
     res.container = ref->id();
@@ -139,6 +221,70 @@ void ReadRelation(Relation &res, const IdxFormat::Relation *relation)
     res.subject = relation->subject();
     res.predicate = RelationKind(relation->kind());
     res.object = relation->object();
+}
+
+void ReadCrossSymbolLocation(CrossSymbol &crossSymbol, const IdxFormat::CrossSymbol *crs)
+{
+    if (crs->location()->begin() != nullptr) {
+        crossSymbol.location.begin.fileID = crs->location()->begin()->file_id();
+        crossSymbol.location.begin.line = crs->location()->begin()->line();
+        crossSymbol.location.begin.column = crs->location()->begin()->column();
+    }
+    if (crs->location()->end() != nullptr) {
+        crossSymbol.location.begin.fileID = crs->location()->begin()->file_id();
+        crossSymbol.location.begin.line = crs->location()->begin()->line();
+        crossSymbol.location.begin.column = crs->location()->begin()->column();
+    }
+    if (crs->location()->file_uri() != nullptr) {
+        crossSymbol.location.fileUri = crs->location()->file_uri()->str();
+    }
+}
+
+void ReadCrossSymbol(CrossSymbol &crossSymbol, const IdxFormat::CrossSymbol *crs)
+{
+    crossSymbol.id = crs->id();
+    if (crs->name() != nullptr) {
+        crossSymbol.name = crs->name()->str();
+    }
+    crossSymbol.crossType = CrossType(crs->cross_type());
+    if (crs->location() != nullptr) {
+        ReadCrossSymbolLocation(crossSymbol, crs);
+    }
+    crossSymbol.container = crs->container();
+    if (crs->container_name() != nullptr) {
+        crossSymbol.containerName = crs->container_name()->str();
+    }
+}
+
+flatbuffers::Offset<IdxFormat::CommentGroups> CreateFBCommentGroups(
+    flatbuffers::FlatBufferBuilder &builder, const CommentGroups &comments)
+{
+    auto convertGroup = [&builder](const std::vector<CommentGroup> &groups) {
+        std::vector<flatbuffers::Offset<IdxFormat::CommentGroup>> fbGroups;
+        for (const auto &group : groups) {
+            std::vector<flatbuffers::Offset<IdxFormat::Comment>> fbComments;
+            for (const auto &comment : group.cms) {
+                auto value = builder.CreateString(comment.info.Value());
+                auto token = IdxFormat::CreateToken(builder, value);
+                auto fbComment = CreateComment(
+                    builder,
+                    {},
+                    {},
+                    token
+                );
+                fbComments.push_back(fbComment);
+            }
+            auto fbCms = builder.CreateVector(fbComments);
+            fbGroups.push_back(CreateCommentGroup(builder, fbCms));
+        }
+        return builder.CreateVector(fbGroups);
+    };
+
+    auto lead = convertGroup(comments.leadingComments);
+    auto inner = convertGroup(comments.innerComments);
+    auto trail = convertGroup(comments.trailingComments);
+
+    return CreateCommentGroups(builder, lead, inner, trail);
 }
 
 auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
@@ -159,7 +305,6 @@ auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
     auto decl_loc = IdxFormat::CreateLocation(builder, &decl_begin, &decl_end, decl_uri);
     auto sig = builder.CreateString(sym.signature);
     auto ret = builder.CreateString(sym.returnType);
-    auto text = builder.CreateString(sym.insertText);
     auto module = builder.CreateString(sym.curModule);
     auto macro_call_begin = IdxFormat::Position(sym.curMacroCall.begin.fileID,
                                                 sym.curMacroCall.begin.line, sym.curMacroCall.begin.column);
@@ -168,10 +313,21 @@ auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
     auto macro_call_uri = builder.CreateString(sym.curMacroCall.fileUri);
     auto macro = IdxFormat::CreateLocation(builder, &macro_call_begin,
                                            &macro_call_end, macro_call_uri);
+    std::vector<flatbuffers::Offset<IdxFormat::CompletionItem>> completion_vec;
+    for (const auto& [label, insert_text] : sym.completionItems) {
+        auto fb_label = builder.CreateString(label);
+        auto fb_insert = builder.CreateString(insert_text);
+        auto completion_item =
+            IdxFormat::CreateCompletionItem(builder, fb_label, fb_insert);
+        completion_vec.push_back(completion_item);
+    }
+    auto completion_items = builder.CreateVector(completion_vec);
+    auto comments = CreateFBCommentGroups(builder, sym.comments);
+    auto syscap = builder.CreateString(sym.syscap);
     return IdxFormat::CreateSymbol(builder, sym.id, name, scope, loc, decl_loc,
                                    static_cast<uint16_t>(sym.kind), sig, ret, sym.isMemberParam,
                                    static_cast<uint8_t>(sym.modifier), sym.isCjoSym, sym.isDeprecated,
-                                   text, module, macro);
+                                   module, macro, completion_items, comments, syscap);
 }
 
 auto StoreRef(flatbuffers::FlatBufferBuilder &builder, const Ref &ref)
@@ -196,6 +352,20 @@ auto StoreRelation(flatbuffers::FlatBufferBuilder &builder, const Relation &re)
 {
     return IdxFormat::CreateRelation(builder, re.subject, static_cast<uint16_t>(re.predicate),
                                      re.object);
+}
+
+auto StoreCrossSymbol(flatbuffers::FlatBufferBuilder &builder, const CrossSymbol &crs)
+{
+    auto name = builder.CreateString(crs.name);
+    auto begin = IdxFormat::Position(crs.location.begin.fileID, crs.location.begin.line,
+                                     crs.location.begin.column);
+    auto end = IdxFormat::Position(crs.location.end.fileID, crs.location.end.line,
+                                   crs.location.end.column);
+    auto uri = builder.CreateString(crs.location.fileUri);
+    auto loc = CreateLocation(builder, &begin, &end, uri);
+    auto containerName = builder.CreateString(crs.containerName);
+    return CreateCrossSymbol(builder, crs.id, name, static_cast<uint8_t>(crs.crossType), loc,
+        crs.container, containerName);
 }
 } // namespace
 
@@ -358,6 +528,9 @@ std::optional<std::unique_ptr<IndexFileIn>> CacheManager::LoadIndexShard(const s
 
     // read extends
     readExtends(*hashedPackage, ifi);
+
+    // read cross
+    readCrossSymbols(*hashedPackage, ifi);
     return std::move(ifi);
 }
 
@@ -413,6 +586,24 @@ void CacheManager::readExtends(
     }
 }
 
+void CacheManager::readCrossSymbols(
+        const IdxFormat::HashedPackage &package, std::unique_ptr<ark::lsp::IndexFileIn> &ifi) const
+{
+    auto crossSymbolSlab = package.cross_symbol_slab();
+    if (crossSymbolSlab == nullptr) {
+        return;
+    }
+    for (flatbuffers::uoffset_t i = 0; i < crossSymbolSlab->size(); i++) {
+        auto crs = crossSymbolSlab->Get(i);
+        if (!crs) {
+            continue;
+        }
+        CrossSymbol crossSymbol;
+        ReadCrossSymbol(crossSymbol, crs);
+        (void)ifi->crossSymbos.emplace_back(crossSymbol);
+    }
+}
+
 void CacheManager::StoreIndexShard(const std::string &curPkgName, const std::string &shardIdentifier,
                                    const IndexFileOut &shard) const
 {
@@ -455,6 +646,7 @@ void CacheManager::StoreIndexShard(const std::string &curPkgName, const std::str
         (void)relationVec.emplace_back(StoreRelation(builder, re));
     }
     auto relationSlab = builder.CreateVector(relationVec);
+
     // serialize symbol with extends
     std::vector<flatbuffers::Offset<IdxFormat::Sym2Extend>> sym2ExtendVec;
     for (const auto &pair : *shard.extends) {
@@ -467,7 +659,15 @@ void CacheManager::StoreIndexShard(const std::string &curPkgName, const std::str
         sym2ExtendVec.push_back(sym2Extend);
     }
     auto extendSlab = builder.CreateVector(sym2ExtendVec);
-    auto hashedPackage = IdxFormat::CreateHashedPackage(builder, symbolSlab, refSlab, relationSlab, extendSlab);
+
+    // serialize cross symbol
+    std::vector<flatbuffers::Offset<IdxFormat::CrossSymbol>> crossSymbolVec;
+    for (const auto &crs : *shard.crossSymbos) {
+        crossSymbolVec.push_back(StoreCrossSymbol(builder, crs));
+    }
+    auto crossSymbolSlab = builder.CreateVector(crossSymbolVec);
+
+    auto hashedPackage = CreateHashedPackage(builder, symbolSlab, refSlab, relationSlab, extendSlab, crossSymbolSlab);
     IdxFormat::FinishHashedPackageBuffer(builder, hashedPackage);
 
     std::ofstream outFile{FileStore::NormalizePath(idxFilePath).c_str(), std::ios::binary | std::ios::out};

@@ -1,1 +1,1 @@
-{"id":7,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: function_01.cj\nPackage info: default.funcPkg\n\n(function) internal func add1(a: Int32, b!: Int32 = 1): Int32\n"},"range":{"end":{"character":9,"line":8},"start":{"character":5,"line":8}}}}
+{"id":7,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: function_01.cj\nPackage info: default.funcPkg\n\n(function) internal func add1(a: Int32, b!: Int32 = 1): Int32\n"},"range":{"end":{"character":9,"line":14},"start":{"character":5,"line":14}}}}

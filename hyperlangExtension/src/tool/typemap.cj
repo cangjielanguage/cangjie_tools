@@ -70,9 +70,7 @@ public class TypeMap {
             case "bigint" => "BigInt"
             case "Uint8Array" | "ArrayBuffer" => byteArr
             case "Float32Array" => "Array<Float32>"
-            case "any" => any
-            case "---" => any
-            case "" => any
+            case "any" | "---" | "" => any
             case "common.UIAbilityContext" | "Context" | "BaseContext" | "common.Context" | "unknown" =>
                 println("WARNING: type is not supported - ${tmp}")
                 return "JSValue/* FIXME: `${tmp}` */"

@@ -41,8 +41,7 @@ public:
     virtual int64_t GetVersionByFile(const std::string &file) = 0;
     virtual void RemoveDocByFile(const std::string &file)  = 0;
     virtual bool NeedReParser(const std::string &file) = 0;
-    virtual void UpdateDoc(const std::string &file, int64_t version, bool needReParser,
-                           const std::vector<TextDocumentContentChangeEvent>& contentChanges) = 0;
+    virtual void UpdateDocNeedReparse(const std::string &file, int64_t version, bool needReParser) = 0;
     virtual void AddDocWhenInitCompile(const std::string &file) = 0;
     virtual void ReportCjoVersionErr(std::string message) = 0;
     virtual void PublishCompletionTip(const CompletionTip &params) = 0;

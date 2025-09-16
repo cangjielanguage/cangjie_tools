@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 interface I20 {
     let aclass: int32 = 1
     func test_I20(a:int32):int32
@@ -24,8 +30,3 @@ func test_Base20(){
     var b = value.test_I20(100)
 }
 
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

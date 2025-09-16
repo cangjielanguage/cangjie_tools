@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 
 class Foo1<TTT1,TTT22> {
   Foo1(a: Int64){}
@@ -36,8 +42,3 @@ extend<T> Foo<T> where T <: Eq<T> {
     return false
     }
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

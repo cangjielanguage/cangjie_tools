@@ -16,6 +16,7 @@ Build-mingw
 
 # for build dir
 **/build-lsp/*
+**/macroBin/*
 
 third_party
 

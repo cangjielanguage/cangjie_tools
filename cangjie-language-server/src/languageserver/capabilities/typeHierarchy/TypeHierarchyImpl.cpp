@@ -149,7 +149,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &resul
         return;
     }
 
-    auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
@@ -203,7 +203,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
         return;
     }
 
-    auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
@@ -216,6 +216,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
         // Subject    BASE OF    Object
         // ^                     ^
         // SuperType               SubType
+        std::cerr << "relationReq:" << relationReq.id << ", " << static_cast<uint32_t>(relationReq.predicate) << "\n";
         if (spo.subject == relationReq.id && spo.predicate == relationReq.predicate) {
             subTypeIds.emplace(spo.object);
         }
@@ -235,7 +236,10 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
     index->Lookup(lookupReq, [&results](const lsp::Symbol &sym) {
         TypeHierarchyItem item;
         item.uri.file = URI::URIFromAbsolutePath(sym.location.fileUri).ToString();
-        item.kind = AST2Symbol.find(sym.kind)->second;
+        auto it = AST2Symbol.find(sym.kind);
+        if (it != AST2Symbol.end()) {
+            item.kind = AST2Symbol.find(sym.kind)->second;
+        }
         item.name = sym.name;
         auto range = TransformFromChar2IDE({sym.location.begin, sym.location.end});
         item.selectionRange = item.range = range;

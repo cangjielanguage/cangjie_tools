@@ -24,6 +24,9 @@
 #include "capabilities/breakpoints/BreakpointsImpl.h"
 #include "capabilities/callHierarchy/CallHierarchyImpl.h"
 #include "capabilities/codeLens/CodeLensImpl.h"
+#include "capabilities/overrideMethods/FindOverrideMethodsImpl.h"
+#include "capabilities/refactor/Tweak.h"
+#include "selection/SelectionTree.h"
 
 namespace ark {
 enum class CompleteMode {
@@ -66,6 +69,9 @@ public:
 
     void LocateSymbolAt(const std::string &file, const TextDocumentPositionParams &params,
                         const Callback<ValueOrError> &reply) const;
+
+    void LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const;
+
     // Get semantic tokens for the full doc
     void FindSemanticTokensHighlight(const std::string &file, const Callback<ValueOrError> &reply) const;
 
@@ -103,6 +109,21 @@ public:
     Cangjie::Position AlterPosition(const std::string &file, const TextDocumentPositionParams &params) const;
 
     void UpdateModifierDiag(const InputsAndAST &inputAST, std::vector<DiagnosticToken> &diagnostics) const;
+
+    void FindOverrideMethods(const std::string &file,
+                                       const OverrideMethodsParams &params, const Callback<ValueOrError> &reply) const;
+
+    struct TweakRef {
+        std::string id;    // ID to pass for applyTweak.
+        std::string title; // A single-line message to show in the UI.
+        std::string kind;
+        std::map<std::string, std::string> extraOptions;
+    };
+
+    void EnumerateTweaks(const std::string &file, Range range, const Callback<std::vector<TweakRef>> &cb) const;
+
+    void ApplyTweak(const std::string &file, Range selection, const std::string &id,
+        std::map<std::string, std::string> extraOptions, const Callback<Tweak::Effect> &cb);
 
 private:
     Callbacks *callback = nullptr;

@@ -6,3 +6,6 @@
 
 file(GLOB FORMAT_SRC "*.cpp" "NodeFormatter/Decl/*.cpp" "NodeFormatter/Node/*.cpp" "NodeFormatter/Pattern/*.cpp" "NodeFormatter/Expr/*.cpp" "NodeFormatter/Type/*.cpp"  "DocProcessor/*.cpp")
 add_library(CangjieFormat OBJECT ${FORMAT_SRC} ${AUTODIFF_SRC})
+if(CJFMT_CODE_COVERAGE)
+    target_compile_options(CangjieFormat PUBLIC "-fno-exceptions")
+endif()

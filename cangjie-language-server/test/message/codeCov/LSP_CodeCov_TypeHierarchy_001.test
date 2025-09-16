@@ -4,4 +4,3 @@
 {"jsonrpc":"2.0","id":"9","method":"textDocument/typeHierarchy","params":{"textDocument":{"uri":"file:///d%3A/Work/repo/Char/Fork/cangjie_language_server/test/testChr/normalTest/Interface/src/Interface.cj"},"position":{"line":7,"character":17}}}
 {"jsonrpc":"2.0","id":1,"method":"shutdown","params":{}}
 {"jsonrpc":"2.0","method":"exit","params":{}}
-

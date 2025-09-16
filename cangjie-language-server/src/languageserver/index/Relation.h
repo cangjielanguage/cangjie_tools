@@ -16,6 +16,9 @@ enum class RelationKind : uint8_t {
     BASE_OF,    // Type inheritance relation. eg: A <: B, B is base of A.
     RIDDEND_BY, // Member relation. eg: open A.f1, override B.f1, A.f1 ridden by B.f1.
     EXTEND,     // Type extend relation. eg: extend A <: I, A extend I.
+    CALLED_BY,
+    CONTAINED_BY,
+    OVERRIDES,
 };
 
 struct Relation {

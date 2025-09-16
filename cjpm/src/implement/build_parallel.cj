@@ -11,6 +11,8 @@ import std.collection.concurrent.*
 import std.sync.*
 import std.fs.*
 import std.regex.*
+import std.time.*
+import std.env.getVariables
 import cjpm.config.*
 
 class ParallelBuilder {
@@ -91,10 +93,25 @@ class ParallelBuilder {
                     }
                 }
 
+                if (let Some(superPkgCfg) <- task.superPkgCfg) {
+                    for (dep in superPkgCfg.subPkgSet) {
+                        if (!this.checkDepFuture(dep, task, futTasks, sem)) {
+                            return false
+                        }
+                    }
+                }
+
                 if (task.checkDepCjo) {
                     var nochange: Bool = true
                     for (depPkg in task.requirePkgs) {
                         if (!checkNoChange(depPkg)) {
+                            nochange = false
+                            break
+                        }
+                    }
+                    let subPkgSet = task.superPkgCfg?.subPkgSet ?? HashSet<String>()
+                    for (subPkg in subPkgSet) {
+                        if (!checkNoChange(subPkg)) {
                             nochange = false
                             break
                         }
@@ -175,35 +192,34 @@ class ParallelBuilder {
     }
 
     func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>, isNativeForCross!: Bool = false): Bool {
-        let envs: HashMap<String, String> = HashMap<String, String>()
-        let ldPathString: String = getNativeLdLibraryConfig(ldPath)
-        if (!LD_PATH.isEmpty() && !ldPathString.isEmpty()) {
-            envs.add(LD_PATH, ldPathString)
-            if (LD_PATH == "Path") {
-                envs.add("PATH", ldPathString)
-                envs.add("path", ldPathString)
-            }
-        }
+        let envBuilder = EnvironmentBuilder()
+        envBuilder.prepend(LD_PATH, ldPath)
+
         let args: ArrayList<String> = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross)
+
         CUR_PARALLEL_SIZE.fetchAdd(1)
         if (!futJudge(args)) {
             calculateParallel(CUR_PARALLEL_SIZE.load(), args)
         }
-        let commandStr: String = makeCompilerCommand(ldPath, args)
 
+        let env = getVariables()
+        let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
         if (this.buildConfig.isVerbose) {
             let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
             if (!isNativeForCross) {
-                if (!creatAndWriteFile(resolveConfig.outLogFile, verbose)) {
+                if (!createAndWriteFile(resolveConfig.outLogFile, verbose)) {
                     return false
                 }
             } else {
-                if (!creatAndWriteFile(resolveConfig.nativeOutLog, verbose)) {
+                if (!createAndWriteFile(resolveConfig.nativeOutLog, verbose)) {
                     return false
                 }
             }
         }
 
+        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+            addStartTime(resolveConfig.fullName, commandStr)
+        }
         var execCmdFlag: Bool = false
         var outFile: File
         var errFile: File
@@ -227,9 +243,12 @@ class ParallelBuilder {
             return false
         }
         try {
-            if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envMap: envs)) {
+            if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
                 if (returnCode == 0) {
                     execCmdFlag = true
+                    if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+                        moveCjcProfToCjpmDir(resolveConfig, buildConfig.globalConfig.compilePerformanceTargetDir)
+                    }
                 } else {
                     errFile.write(("Error: failed to compile package `${resolveConfig.fullName}`, " +
                         "return code is ${returnCode}\n").toArray())
@@ -246,8 +265,42 @@ class ParallelBuilder {
         outFile.close()
         errFile.close()
 
+        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+            addEndTime(resolveConfig.fullName)
+        }
+
         return execCmdFlag
     }
+}
+
+func moveCjcProfToCjpmDir(resolveConfig: ResolveConfig, profcompilePerformancePath: String): Unit {
+    let profSuffixArray: Array<String> = [".mem.prof", ".time.prof", ".info.prof"]
+    for (profSuffix in profSuffixArray) {
+        let pkgNameProfPath = Path(resolveConfig.targetPath).join(resolveConfig.fullName + profSuffix)
+        if (exists(pkgNameProfPath)) {
+            let profPath = Path(profcompilePerformancePath).join(resolveConfig.fullName + profSuffix)
+            copy(pkgNameProfPath, to: profPath, overwrite: true)
+            remove(pkgNameProfPath)
+        } else {
+            println("Warning: cannot find ${pkgNameProfPath.toString()} file")
+        }
+    }
+    return
+}
+
+func addStartTime(fullName: String, cmdArgs: String): Unit {
+    synchronized(cacheMutex) {
+        showCache.add(PkgInfo(fullName, "B", DateTime.now().toUnixTimeStamp().toMilliseconds()))
+        commandCache.add(CommandInfo(fullName, cmdArgs))
+    }
+    return
+}
+
+func addEndTime(fullName: String): Unit {
+    synchronized(cacheMutex) {
+        showCache.add(PkgInfo(fullName, "E", DateTime.now().toUnixTimeStamp().toMilliseconds()))
+    }
+    return
 }
 
 func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
@@ -286,6 +339,7 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
             resolveConfig.requirePkgs = resolve.requires
             resolveConfig.targetPlatform = resolve.targetPlatform
             resolveConfig.nativePlatform = resolve.nativePlatform
+            resolveConfig.superPkgCfg = resolve.superPkgCfg
             resolveConfig.hasTestFiles = resolve.hasTestFiles
             if (buildConfig.isIncremental && resolveConfig.outputType == STATIC_TYPE &&
                 buildConfig.indirectRebuilds.contains(resolve.fullName)) {

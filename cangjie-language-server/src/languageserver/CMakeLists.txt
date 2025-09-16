@@ -3,13 +3,12 @@
 # with Runtime Library Exception.
 #
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
- 
-file(GLOB_RECURSE LSP_SRC  
+
+file(GLOB_RECURSE LSP_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
-# 打印找到的所有源文件
 message(STATUS "Found source files:")
 foreach(file ${LSP_SRC})
     message(STATUS "${file}")

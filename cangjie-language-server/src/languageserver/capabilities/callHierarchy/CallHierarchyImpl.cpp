@@ -99,7 +99,7 @@ CallHierarchyItem DeclToCallHierarchyItem(const lsp::Symbol&containerSym)
     return result;
 }
 
-void DealCallee(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& callee, lsp::MemIndex *index,
+void DealCallee(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& callee, lsp::SymbolIndex *index,
     vector<CallHierarchyOutgoingCall>& result)
 {
     std::unordered_set<lsp::SymbolID> declSymIds;
@@ -136,7 +136,7 @@ void DealCallee(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& callee, l
     (void) result.emplace_back(callHierarchyOutgoingCall);
 }
 
-void DealCaller(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& caller, lsp::MemIndex *index,
+void DealCaller(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& caller, lsp::SymbolIndex *index,
                 vector<CallHierarchyIncomingCall>& result)
 {
     std::unordered_set<lsp::SymbolID> containerIds;
@@ -166,7 +166,7 @@ void DealCaller(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& caller, l
     (void) result.emplace_back(callHierarchyIncomingCall);
 }
 
-void FindFuncDeclCaller(lsp::SymbolID id, lsp::MemIndex *index, vector <CallHierarchyIncomingCall> &result)
+void FindFuncDeclCaller(lsp::SymbolID id, lsp::SymbolIndex *index, vector <CallHierarchyIncomingCall> &result)
 {
     if (id == lsp::INVALID_SYMBOL_ID) {
         return;
@@ -240,7 +240,7 @@ void CallHierarchyImpl::FindOnOutgoingCallsImpl(vector <CallHierarchyOutgoingCal
     if (declSymId == lsp::INVALID_SYMBOL_ID) {
         return;
     }
-    const auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
@@ -287,7 +287,7 @@ void CallHierarchyImpl::FindOnIncomingCallsImpl(vector <CallHierarchyIncomingCal
     if (callHierarchyItem.symbolId == lsp::INVALID_SYMBOL_ID) {
         return;
     }
-    const auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../../../json-rpc/Protocol.h"
+#include "../../common/SyscapCheck.h"
 #include "../../CompilerCangjieProject.h"
 #include "CompletionImpl.h"
 
@@ -55,7 +56,9 @@ public:
 
     void DeepComplete(Ptr<Node> node, const Position pos);
 
-    void CompleteInParseCache(const std::string &parentClassLikeName);
+    void SemaCacheComplete(Ptr<Node> node, const Position pos);
+
+    bool CompleteInParseCache(const std::string &parentClassLikeName);
 
     void CompleteInSemaCache(const std::string &parentClassLikeName);
 
@@ -131,13 +134,17 @@ public:
 
     std::map<std::string, Ptr<Decl>> aliasMap = {};
 
+    std::unordered_set<Ptr<Node>> visitedNodes;
+
     void AddCompletionItem(
         const std::string &name, const std::string &signature, const CodeCompletion &completion, bool overwrite = true);
+
+    void SetSyscap(const std::string &moduleName);
 
 private:
     static bool Contain(Ptr<Node> node, const Position pos)
     {
-        return node && node->GetBegin() <= pos && pos < node->GetEnd();
+        return node && node->GetBegin().fileID == pos.fileID && node->GetBegin() <= pos && pos < node->GetEnd();
     };
 
     void DealFuncDecl(Ptr<Node> node, const Position pos);
@@ -192,6 +199,8 @@ private:
 
     void DealVarDecl(Ptr<Node> node, const Position pos);
 
+    void DealVarWithPatternDecl(Ptr<Node> node, const Position pos);
+
     void DealPropDecl(Ptr<Node> node, const Position pos);
 
     void DealMatchExpr(Ptr<Node> node, const Position pos);
@@ -233,6 +242,12 @@ private:
                               bool isType = false,
                               bool isInScope = false);
 
+    void CompleteFollowLambda(const Cangjie::AST::Node &node, Cangjie::SourceManager *sourceManager,
+        CodeCompletion &completion, const std::string &initFuncReplace = "");
+
+    void CompleteParamListFuncTypeVarDecl(const Cangjie::AST::Node &node, Cangjie::SourceManager *sourceManager,
+        CodeCompletion &completion);
+
     bool CheckInsideVarDecl(const Cangjie::AST::Decl &decl) const;
 
     bool RefToDecl(Ptr<Cangjie::AST::Node> node, bool insideFunction, bool deepestFunction);
@@ -259,7 +274,13 @@ private:
 
     unsigned int filter = 0;
 
+    bool isCompleteFunction = false;
+    
+    SyscapCheck syscap;
+
     bool IsSignatureInItems(const std::string &name, const std::string &signature);
+
+    void CompleteFunctionName(CodeCompletion &completion, bool isRawIdentifier);
 };
 
 using StatusFunc = void (ark::CompletionEnv::*)(Ptr<Node>, Position);

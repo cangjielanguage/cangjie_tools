@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 /**
 *test hover
 *test_hover_test033
@@ -31,8 +37,3 @@ class test_hover_test033_s <: test_hover_test033 {
         this.a = a
     }
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

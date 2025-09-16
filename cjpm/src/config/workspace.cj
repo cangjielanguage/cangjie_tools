@@ -32,6 +32,7 @@ public class CommonInfo {
     public var scriptDependencies: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
     public var replaceDeps: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
     public var ffi: ForeignInterfaces = ForeignInterfaces()
+    public var crossFfi: ForeignInterfaces = ForeignInterfaces()
     public var targetConfigMap: HashMap<String, TargetConfig> = HashMap<String, TargetConfig>()
     public var collectCjoPlatName: HashSet<String> = HashSet<String>()
     public var localPkgMap: HashMap<String, RequiresPackagesInfo> = HashMap<String, RequiresPackagesInfo>()
@@ -198,7 +199,12 @@ public func checkForWorkspace(rootPath: String, tomlInfo: TomlInfo, memberModule
     }
     COMMON_INFO.scriptDependencies = tomlInfo.scriptDependencies
     COMMON_INFO.replaceDeps = tomlInfo.replaceDeps
-    COMMON_INFO.ffi = tomlInfo.ffi
+    if (buildCheckFfi(tomlInfo, targetConfigName, tomlInfo.ffi.cLibs, isDebug)) {
+        COMMON_INFO.ffi = tomlInfo.ffi
+    }
+    if (buildCheckFfi(tomlInfo, crossCompileTarget, tomlInfo.crossFfi.cLibs, isDebug)) {
+        COMMON_INFO.crossFfi = tomlInfo.crossFfi
+    }
 
     COMMON_INFO.targetConfigMap = tomlInfo.targetConfigMap
     if (crossCompileTarget.isEmpty()) {
@@ -337,4 +343,25 @@ public func searchModuleFromWorkspace(tomlInfo: TomlInfo, rootPkgName: String, p
         }
     }
     return ""
+}
+
+public func buildCheckFfi(tomlInfo: TomlInfo, targetName: String, cLibs: HashMap<String, String>, isDebug: Bool): Bool {
+    if (!tomlInfo.targetConfigMap.contains(targetName)) {
+        return true
+    }
+
+    var targetFfiCLibsMap = tomlInfo.targetConfigMap[targetName].commonTargetInfo.ffi.cLibs
+    for ((k, v) in targetFfiCLibsMap) {
+        cLibs.add(k, v)
+    }
+    if (isDebug) {
+        targetFfiCLibsMap = tomlInfo.targetConfigMap[targetName].debugTargetInfo.ffi.cLibs
+    } else {
+        targetFfiCLibsMap = tomlInfo.targetConfigMap[targetName].releaseTargetInfo.ffi.cLibs
+    }
+    for ((k, v) in targetFfiCLibsMap) {
+        cLibs.add(k, v)
+    }
+
+    return true
 }

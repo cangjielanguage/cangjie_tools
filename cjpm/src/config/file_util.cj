@@ -6,34 +6,10 @@
 
 package cjpm.config
 
-import std.collection.*
 import std.fs.*
 import std.fs.remove as fsRemove
-import std.io.*
 import std.posix.*
-import std.process.*
 import std.env.*
-import cjpm.toml.*
-
-@When[os == "Windows"]
-func fixWindowsPath(env: Map<String, String>, value: String): Unit {
-    if (env.contains(PATH)) {
-        env[PATH] = value + SPLIT_ENV + env[PATH]
-    }
-    if (env.contains("PATH")) {
-        env["PATH"] = value + SPLIT_ENV + env["PATH"]
-    }
-    if (env.contains("path")) {
-        env["path"] = value + SPLIT_ENV + env["path"]
-    }
-}
-
-@When[os != "Windows"]
-func fixWindowsPath(env: Map<String, String>, value: String): Unit {
-    if (env.contains(PATH)) {
-        env[PATH] = value + SPLIT_ENV + env[PATH]
-    }
-}
 
 @When[os == "Windows"]
 public func deleteDirectory(dirPath: String): Bool {

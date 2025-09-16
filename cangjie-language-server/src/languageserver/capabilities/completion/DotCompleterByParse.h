@@ -27,6 +27,8 @@ public:
         if (context && context->curPackage && !context->curPackage->files.empty() && context->curPackage->files[0]) {
             curFilePath = context->curPackage->files[0]->filePath;
             packageNameForPath = GetPkgNameFromNode(context->curPackage->files[0].get());
+            auto moduleName = Utils::SplitQualifiedName(packageNameForPath).front();
+            syscap.SetIntersectionSet(moduleName);
         }
         InitMap();
     }
@@ -69,7 +71,10 @@ private:
 
     std::string QueryByPos(Ptr<Node> node, const Position pos);
 
-    static bool Contain(Ptr<Node> node, const Position pos) { return node && node->begin <= pos && pos < node->end; };
+    static bool Contain(Ptr<Node> node, const Position pos)
+    {
+        return node && node->begin.fileID == pos.fileID && node->begin <= pos && pos < node->end;
+    };
 
     bool CheckHasLocalDecl(const std::string &beforePrefix, const std::string &scopeName,
                            Ptr<Expr> expr, const Position &pos) const;
@@ -85,6 +90,8 @@ private:
     void FindBlock(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude);
 
     void FindVarDecl(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude);
+
+    void FindVarWithPatternDecl(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude);
 
     void FindClassDecl(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude);
 
@@ -190,6 +197,8 @@ private:
     std::set<std::string> usedPkg = {};
 
     bool isEnumCtor = false;
+
+    SyscapCheck syscap;
 };
 
 using FindFunc = void (ark::DotCompleterByParse::*)(

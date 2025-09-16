@@ -7,7 +7,6 @@
 package cjpm.implement
 
 import std.fs.*
-import std.process.*
 import std.collection.*
 import std.env.*
 import cjpm.config.*

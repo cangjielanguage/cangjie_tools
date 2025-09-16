@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 open class A11 {
     public var publicAvar:int32 = 1
     protected var protectedAvar:int32 = 1
@@ -80,8 +86,3 @@ func test_11(){
     var b2 = B11.staticAfunc(1,2)
     var b3 = B11.staticBfunc(1,2)
  }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

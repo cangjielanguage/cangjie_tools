@@ -8,11 +8,21 @@ cmake_minimum_required(VERSION 3.14.1)
 project(CANGJIE_LSP)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector")
 if (CMAKE_BUILD_TYPE MATCHES "Release")
  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORTIFY_SOURCE=2 -O2")
 endif ()
+
+if (MINGW AND CMAKE_BUILD_TYPE MATCHES "Debug")
+    add_compile_options("-Wa,-mbig-obj")
+endif ()
+
+if (APPLE)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+endif ()
+
 # set default build type to debug
 add_compile_definitions(NOT_RELEASE_VERSION_CODE)
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

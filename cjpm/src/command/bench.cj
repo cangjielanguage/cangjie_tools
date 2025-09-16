@@ -8,9 +8,9 @@ package cjpm.command
 
 import cjpm.implement.*
 
-let BENCH_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclude-tags=", "verbose", "no-run",
-    "skip-build", "target=", "target-dir=", "jobs=", "no-color", "random-seed=", "member=", "report-format=",
-    "report-path=", "baseline-path=", "skip-script", "module=", "incremental", "dry-run"]
+let BENCH_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclude-tags=", "verbose", "no-run", "skip-build",
+    "target=", "target-dir=", "jobs=", "no-color", "random-seed=", "member=", "report-format=", "report-path=",
+    "baseline-path=", "skip-script", "module=", "incremental", "dry-run", "show-tags"]
 let BENCH_USAGE: String = """
 Build and run benchmarks for all packages.
 If you specify some package paths, it will only execute benchmarks in those specified packages.
@@ -36,6 +36,7 @@ Available options:
   --include-tags <value>                  run tests with specified tags
   --exclude-tags <value>                  run tests without specified tags
   --no-color                              enable colorless result output
+  --show-tags                             print tags in text report
   --random-seed <N>                       enable random seed
   --report-path <value>                   specify path to directory of report
   --report-format <value>                 specify format of report

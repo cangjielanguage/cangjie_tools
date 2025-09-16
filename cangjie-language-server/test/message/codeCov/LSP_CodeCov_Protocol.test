@@ -8,17 +8,3 @@
 {"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///d%3A/sourceCode/IDETest/TestVscode/icsl/empty/test123.cj","version":3},"contentChanges":[{"range":{"start":{"line":9,"character":1},"end":{"line":10,"character":0}},"rangeLength":1}]}}
 {"jsonrpc":"2.0","id":"9","method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///d:/test_char/src/a.cj"},"position":{"line":6,"character":24}}}
 {"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///d%3A/sourceCode/IDETest/TestVscode/icsl/empty/test.cj","version":3},"contentChanges":[{"range":{"start":{"line":9,"character":1},"end":{}},"rangeLength":1,"text":""}]}}
-{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///d%3A/sourceCode/IDETest/TestVscode/icsl/empty/test.cj","version":3},"contentChanges":[{"range":{"start":{"line":9,"character":1},"rangeLength":1,"text":""}]}}
-{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///d%3A/sourceCode/IDETest/TestVscode/icsl/empty/test.cj","version":3},"contentChanges":[{"range":{"start":{"line":9,"character":1},"end":{"line":10}},"rangeLength":1,"text":""}]}}
-{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":""}}}
-{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{}}}
-{"jsonrpc":"2.0","method":"textDocument/didSave","params":{}}
-{"jsonrpc":"2.0","method":"textDocument/didSave1","params":{}}
-{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":"中文"}}}
-{"jsonrpc":"2.0"}
-{"jsonrpc":"2.0","id":10,"result":"error"}
-{"jsonrpc":"2.0","id":11,"error":{}}}
-{"jsonrpc":"2.0","id":12,"method":"shutdown","params":{}}
-{"jsonrpc":"2.0","id":13,"method":"shutdown","params":{}}
-{"jsonrpc":"2.0","method":"shutdown","params":{}}
-{"jsonrpc":"2.0","method":"exit","params":{}}

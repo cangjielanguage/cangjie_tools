@@ -77,7 +77,6 @@ public:
     std::string DocToString(Doc& doc, int& pos, std::string& formatted);
     void AddAnnotations(Doc& doc, const std::vector<OwnedPtr<Cangjie::AST::Annotation>>& annotations, int level,
         bool changeLine = true);
-    static void AddCustomization(Doc& doc, const std::set<std::string>& customization, int level);
     void AddGenericParams(Doc& doc, const Cangjie::AST::Generic& generic, int level);
     void AddGenericBound(Doc& doc, const Cangjie::AST::Generic& generic, int level);
     void AddBreakLineParam(
@@ -92,16 +91,6 @@ public:
     bool IsMultipleLineExpr(const std::vector<OwnedPtr<Cangjie::AST::Expr>>& children);
     bool IsMultipleLine(const OwnedPtr<Cangjie::AST::Expr>& expr);
     int DepthInMultipleMethodChain(const Cangjie::AST::MemberAccess& memberAccess);
-
-    void CheckHasInvalidExpr(bool& hasInvalidExpr, AST::Annotation& annotation)
-    {
-        for (auto& arg : annotation.args) {
-            if (arg->expr && arg->expr->astKind == AST::ASTKind::INVALID_EXPR) {
-                hasInvalidExpr = true;
-                break;
-            }
-        }
-    }
 
     template <typename T> void MacroProcessor(const T& macro, Doc& doc, int level)
     {
@@ -166,7 +155,9 @@ public:
         parser.ParseAnnotationArguments(*annotation);
 
         bool hasInvalidExpr = false;
-        CheckHasInvalidExpr(hasInvalidExpr, *annotation);
+        if (parser.GetDiagnosticEngine().GetErrorCount() > 0) {
+            hasInvalidExpr = true;
+        }
 
         if (macro->invocation.leftSquarePos != INVALID_POSITION) {
             doc.members.emplace_back(DocType::STRING, level, "[");

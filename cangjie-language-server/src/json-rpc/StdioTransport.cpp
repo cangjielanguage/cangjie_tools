@@ -125,20 +125,33 @@ void Trim(std::string &s)
     (void)s.erase(s.find_last_not_of(' ') + 1);
 }
 
+bool isLineEmpty(const std::string& line)
+{
+    for (char c : line) {
+        if (!std::isspace(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string StdioTransport::ReadStandardMessage()
 {
     unsigned long long contentLength = 0;
     std::string line;
     Logger &logger = Logger::Instance();
+    bool headersEnded = false;
     for (;;) {
         if (feof(pFileIn) || ferror(pFileIn) || !ReadLine(pFileIn, line)) { return ""; }
-
         if (line.front() == '#') { continue; }
         Trim(line);
-        auto found = line.find("Content-Length:");
-        if (found == std::string::npos && strlen(line.c_str())) {
+
+        if (isLineEmpty(line)) {
+            headersEnded = true;
             break;
         }
+
+        auto found = line.find("Content-Length:");
         if (found != std::string::npos) {
             if (contentLength != 0) {
                 logger.LogMessage(MessageType::MSG_WARNING, "Duplicate Content-Length header received.");
@@ -149,6 +162,11 @@ std::string StdioTransport::ReadStandardMessage()
             stream.clear();
         }
     }
+    if (!headersEnded) {
+        logger.LogMessage(MessageType::MSG_WARNING, "Headers not properly terminated.");
+        return "";
+    }
+
     if (contentLength > 1 << MAX_MESSAGE_LENGTH) {
         logger.LogMessage(MessageType::MSG_WARNING, "Refusing to read message with too long Content-Length.");
         return "";

@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\r\nPackage info: test2025021205787\r\n\r\n// In class Foo\r\n(function) public prop a.get(): Int64\r\n"},"range":{"end":{"character":11,"line":4},"start":{"character":8,"line":4}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\r\nPackage info: test2025021205787\r\n\r\n// In class Foo\r\n(function) public prop a.get(): Int64\r\n"},"range":{"end":{"character":11,"line":10},"start":{"character":8,"line":10}}}}

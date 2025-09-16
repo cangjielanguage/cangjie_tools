@@ -14,11 +14,11 @@ The system architecture diagram is as follows:
 
 ```text
 cangjie-language-server/
-|- build          # Folder containing build scripts for language service source code  
-|- doc            # Folder containing developer guides and user manuals  
-|- generate       # Folder containing custom index structure files for language service  
-|  |- index.fbs   # Custom index structure file for language service  
-└─ src            # Source code folder for language service  
+|- build          # Folder containing build scripts for language service source code
+|- doc            # Folder containing developer guides and user manuals
+|- generate       # Folder containing custom index structure files for language service
+|  |- index.fbs   # Custom index structure file for language service
+└─ src            # Source code folder for language service
 ...
 ```
 

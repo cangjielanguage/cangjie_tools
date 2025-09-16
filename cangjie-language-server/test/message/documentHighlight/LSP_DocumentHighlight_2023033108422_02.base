@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":[{"kind":1,"range":{"end":{"character":14,"line":1},"start":{"character":9,"line":1}}},{"kind":1,"range":{"end":{"character":17,"line":9},"start":{"character":12,"line":9}}}]}
+{"id":"9","jsonrpc":"2.0","result":[{"kind":1,"range":{"end":{"character":14,"line":7},"start":{"character":9,"line":7}}},{"kind":1,"range":{"end":{"character":17,"line":15},"start":{"character":12,"line":15}}}]}

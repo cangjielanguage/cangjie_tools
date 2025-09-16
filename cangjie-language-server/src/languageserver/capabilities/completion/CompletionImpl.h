@@ -46,7 +46,6 @@ struct CodeCompletion {
     std::string insertText;
     std::string container;
     uint8_t itemDepth = 0;
-
     std::optional<std::vector<TextEdit>> additionalTextEdits;
     ark::lsp::SymbolID id = 0;
 
@@ -76,6 +75,8 @@ public:
 
     static bool needImport;
 
+    static std::unordered_set<std::string> externalImportSym;
+
 private:
     static void FasterComplete(const ArkAST &input, Cangjie::Position pos,
                               CompletionResult &result, int index, std::string &prefix);
@@ -83,7 +84,10 @@ private:
     static void NormalParseImpl(const ArkAST &input, const Cangjie::Position &pos,
                                 CompletionResult &result, int index, std::string &prefix);
 
-    static void AutoImportPackageComplete(const ArkAST &input, CompletionResult &result);
+    static void AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix);
+
+    static void HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg, const lsp::Symbol &sym,
+        const lsp::CompletionItem &completionItem, Range textEditRange);
 };
 } // namespace ark
 

@@ -87,6 +87,19 @@ namespace ark {
         return true;
     }
 
+    void DocCache::UpdateDocNeedReparse(const std::string &file, int64_t version, bool needReParser)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        const auto entryIt = Docs.find(file);
+        if (entryIt == Docs.end()) {
+            return;
+        }
+        Doc &curDoc = entryIt->second;
+        if (version == curDoc.version) {
+            curDoc.needReParser = needReParser;
+        }
+    }
+
     void DocCache::RemoveDoc(const std::string &file)
     {
         std::lock_guard<std::mutex> lock(mutex);

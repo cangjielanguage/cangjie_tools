@@ -17,54 +17,39 @@
 #include "cangjie/Basic/Match.h"
 
 namespace ark {
+const std::string PKG_NAME_WHERE_APILEVEL_AT = "ohos.labels";
+const std::string APILEVEL_ANNO_NAME = "APILevel";
+const std::string LEVEL_IDENTGIFIER = "level";
+const std::string SYSCAP_IDENTGIFIER = "syscap";
+
 class HoverImpl {
 public:
-    static int FindHover(const ArkAST& ast, Hover& result, Cangjie::Position pos);
-
-    static std::string GetDeclCommentByIndex(const std::vector<Cangjie::Token>&,
-                                             const unsigned int, const int, const int);
-
-    static std::string GetDeclCommentOfBack(const std::vector<Cangjie::Token>&, const int);
-
-    static std::string GetDeclCommentOfAbove(const std::vector<Cangjie::Token>&, const unsigned int, bool&, const int);
+    static int FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos);
 
     static int GetHoverMessage(Ptr<Cangjie::AST::Decl>, Hover &, const ArkAST &ast);
 
 private:
     static std::string curFilePath;
 
-    static std::vector<std::string> StringSplit(const std::string& src, const std::string& separateCharacter);
+    static Decl *GetRealDecl(const std::vector<Ptr<Decl>> &decls);
 
-    static void TrimSpaceAndTab(std::string& s);
+    static void TrimSpaceAndTab(std::string &s);
 
-    static void TrimBlankLines(std::vector<std::string>&);
+    static std::string GetHoverMessageByOuterDecl(const Decl &);
 
-    static void GetEffectiveContent(std::string& content, bool isHeadOrTail);
+    static void RemoveStar(const std::string &content, std::string &result);
 
-    static void ResolveDocMapAndDocKey(
-        std::unordered_map<std::string, std::vector<std::string>>&, std::vector<std::string>&, std::string);
+    static void RemoveAboveBlank(const std::string &content, std::vector<std::string> &lines, size_t &minIndent);
 
-    static std::string GetHoverMessageForBlockComment(const std::vector<std::string>&);
+    static void RemoveBlankAndStar(const std::string &content, std::string &result);
 
-    static std::string GetEffectiveDocComment(std::vector<std::string>&, const std::string&);
-
-    static std::string GetHoverMessageForDocComment(const std::vector<std::string>&);
-
-    static std::string GetHoverMessageByOuterDecl(const Decl&);
-
-    static std::string ResolveComment(const std::string& comment, const CommentKind kind);
+    static std::string ResolveComment(const std::string &comment, const CommentKind kind);
 
     static std::string GetDeclApiKey(const Ptr<Decl> &decl);
 
-    static bool ValidTag(const char ch);
+    static bool IsAnnoAPILevel(Ptr<Annotation> anno, Ptr<ASTContext> ctx);
 
-    /**
-     * get var decl for real modifier when ast kind is func param
-     *
-     * @param decls decls
-     * @return var decl
-     */
-    static Decl* GetRealDecl(const std::vector<Ptr<Decl>> &decls);
+    static std::string GetDeclApiLevelAnnoInfo(Decl &decl, const ArkAST &ast);
 };
 } // namespace ark
 

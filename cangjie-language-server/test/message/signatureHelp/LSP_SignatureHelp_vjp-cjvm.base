@@ -1,1 +1,0 @@
-{"id":"9","jsonrpc":"2.0","result":{"activeParameter":1,"activeSignature":0,"signatures":[{"label":"add(x: Float64, y: Float64) -> Float64","parameters":[{"label":"x: Float64"},{"label":"y: Float64"}]}]}}

@@ -5,7 +5,8 @@
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 set(TEST_SRC
-    common.cpp)
+    common.cpp
+    TestUtils.cpp)
 
 add_library(Common OBJECT ${TEST_SRC})
 

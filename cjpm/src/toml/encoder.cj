@@ -178,14 +178,9 @@ public struct Encoder {
     func encodeMap(key: Key, to: TomlObject, inline: Bool) {
         let mapKeysDirect = ArrayList<String>()
         let mapKeysSub = ArrayList<String>()
-        let mapKeysSub2 = ArrayList<String>()
         for ((k, tv) in to.value) {
             if (isTable(tv)) {
-                if (hasSubObject(tv)) {
-                    mapKeysSub2.add(k)
-                } else {
-                    mapKeysSub.add(k)
-                }
+                mapKeysSub.add(k)
             } else {
                 mapKeysDirect.add(k)
             }
@@ -193,9 +188,8 @@ public struct Encoder {
         if (inline) {
             this.sb.append('{')
         }
-        writeMapKeys(mapKeysDirect, mapKeysSub.size + mapKeysSub2.size > 0, key, to, inline)
+        writeMapKeys(mapKeysDirect, mapKeysSub.size > 0, key, to, inline)
         writeMapKeys(mapKeysSub, false, key, to, inline)
-        writeMapKeys(mapKeysSub2, false, key, to, inline)
         if (inline) {
             this.sb.append('}')
             this.newline()

@@ -8,12 +8,10 @@ package cjpm.config
 
 import std.collection.*
 import std.fs.*
-import std.fs.remove as fsRemove
 import std.sync.*
 import std.env.*
 import stdx.encoding.json.*
-@When[os == "Windows"]
-import std.io.*
+import stdx.serialization.serialization.*
 
 public const STATIC_TYPE: String = "static"
 public const DYNAMIC_TYPE: String = "dynamic"
@@ -30,11 +28,12 @@ public const DEBUG: String = "debug"
 public const DIR_SRC: String = "src"
 public const CONFIG_FILE_NAME: String = "cjpm.toml"
 public const HISTORY_FILE_NAME: String = ".cjpm-history"
+public const DIR_COV_OUTPUT: String = "cov_output"
 public const BUILD_GCNO_OUTPUT: String = "build_gcno_output"
 public const TEST_GCNO_OUTPUT: String = "test_gcno_output"
 public const INCREMENTAL_CACHE: String = "cjpm-cache.json"
 public const WORKSPACE_NAME: String = "cjpm-workspace"
-public const BIN_INCREMENTAO_CACHE: String = ".bin-cache"
+public const BIN_INCREMENTAL_CACHE: String = ".bin-cache"
 public var maxParallelSize: Int64 = Int64.Max
 public let CUR_PARALLEL_SIZE: AtomicInt64 = AtomicInt64(0)
 public var crossCompileTarget: String = ""
@@ -236,25 +235,6 @@ public func getNativeLdLibraryConfig(ldPath: HashSet<String>): String {
     return path
 }
 
-@When[os == "Windows"]
-public func appendLdLibraryConfig(envConfig: HashMap<String, String>, ldPath: HashSet<String>): Unit {
-    if (ldPath.isEmpty()) {
-        return
-    }
-    let pathList: ArrayList<String> = ArrayList<String>()
-    for (k in ldPath) {
-        if (directoryExists(k)) {
-            pathList.add(k)
-        }
-    }
-    let path: String = String.join(pathList.toArray(), delimiter: ";")
-    if (envConfig.contains(LD_PATH)) {
-        envConfig[LD_PATH] = envConfig[LD_PATH] + ";" + path
-    } else {
-        envConfig.add(LD_PATH, path)
-    }
-}
-
 @When[os == "Linux" || os == "macOS"]
 public let HOME_ENV: String = "HOME"
 @When[os == "Windows"]
@@ -274,25 +254,6 @@ public const COMPILE_TOOL: String = "cjc"
 @When[os == "Linux" || os == "macOS"]
 public const CJPM_TOOL: String = "cjpm"
 
-@When[os == "Linux" || os == "macOS"]
-public func appendLdLibraryConfig(envConfig: HashMap<String, String>, ldPath: HashSet<String>): Unit {
-    if (ldPath.isEmpty()) {
-        return
-    }
-    let pathList: HashSet<String> = HashSet<String>()
-    for (k in ldPath) {
-        if (directoryExists(k)) {
-            pathList.add(k)
-        }
-    }
-    let path: String = String.join(pathList.toArray(), delimiter: ":")
-    if (envConfig.contains(LD_PATH)) {
-        envConfig[LD_PATH] = envConfig[LD_PATH] + ":" + path
-    } else {
-        envConfig.add(LD_PATH, path)
-    }
-}
-
 public let LTO_TYPE_LIST: Array<String> = ["thin", "full"]
 
 @When[os == "macOS"]
@@ -303,10 +264,68 @@ public func initCjcPath(): Unit {
     }
 }
 
+public let commandCache: ArrayList<CommandInfo> = ArrayList<CommandInfo>()
+public let showCache: ArrayList<PkgInfo> = ArrayList<PkgInfo>()
+public let cjpmCompileInfo: HashMap<String, Float64> = HashMap<String, Float64>()
+public let cacheMutex: Mutex = Mutex()
+public var memProcess: Future<Thread> = spawn { => return Thread.currentThread}
+
+public class PkgInfo <: Serializable<PkgInfo> {
+    public var name: String = ""
+    public var pid: String = "CJPM"
+    public var tid: Int64 = 0
+    public var ph: String = ""
+    public var ts: Int64 = 0
+
+    public init() {}
+
+    public init(name: String, ph: String, ts: Int64) {
+        this.name = name
+        this.ph = ph
+        this.ts = ts
+    }
+
+    public func serialize(): DataModel {
+        return DataModelStruct()
+            .add(field<String>(PACKAGE_NAME, this.name))
+            .add(field<String>("pid", this.pid))
+            .add(field<String>("tid", this.tid.toString()))
+            .add(field<String>("ph", this.ph))
+            .add(field<String>("ts", this.ts.toString()))
+    }
+
+    public static func deserialize(_: DataModel): PkgInfo {
+        return PkgInfo()
+    }
+}
+
+public class CommandInfo <: Serializable<CommandInfo> {
+    public var pkgName: String = ""
+    public var pkgCommand: String = ""
+
+    public init() {}
+
+    public init(pkgName: String, pkgCommand: String) {
+        this.pkgName = pkgName
+        this.pkgCommand = pkgCommand
+    }
+
+    public func serialize(): DataModel {
+        return DataModelStruct()
+            .add(field<String>("pkgName", this.pkgName))
+            .add(field<String>("pkgCommand", this.pkgCommand))
+    }
+
+    public static func deserialize(_: DataModel): CommandInfo {
+        return CommandInfo()
+    }
+}
+
 public var GLOBAL_CJPM_CONFIG_DIR: Path = Path(getVariable("CJPM_CONFIG") ??
     DEFAULT_CONFIG_LOCATION + PATH_SPLIT_CHAR + ".cjpm")
 
 public open class CommandConfig {
+    public var isCov: Bool = false
     public var isVerbose: Bool = false
     public var isCrossCompile: Bool = false
     public var targetDir: String = ""
@@ -356,9 +375,14 @@ public class BuildConfig <: CommandConfig {
 
     // External config
     public var scriptConfig: ScriptConfig = ScriptConfig()
+    public var superPkgMap: HashMap<String, SuperPackageConfig> = HashMap<String, SuperPackageConfig>()
+    public var superPkgSubMap: HashMap<String, String> = HashMap<String, String>()
 
     public func getOptionCacheData(): ArrayList<String> {
         var cacheData = ArrayList<String>()
+        if (isCov) {
+            cacheData.add("--coverage")
+        }
         cacheData.add(all: customizedOption)
         return cacheData
     }
@@ -377,11 +401,11 @@ public class TestConfig <: CommandConfig {
     public var noColor: Bool = false
     public var timeoutEach: ?String = None
     public var nWorkers: ?String = None
+    public var showTags: Bool = false
     public var noCaptureOutput: Bool = false
     public var showAllOutput: Bool = false
     public var randomSeed: ?String = None
     public var isSpecifiedConcurrency: Bool = false
-    public var ldPath: String = ""
     public var testModule: HashSet<String> = HashSet<String>()
     public var testPath: HashSet<String> = HashSet<String>()
     public var isModuleTest: Bool = true
@@ -402,6 +426,7 @@ public class TestConfig <: CommandConfig {
     public var isProgressReportDisabled: Bool = false
     public var isProgressReportBrief: Bool = false
     public var progressReportEntriesLimit: ?Int64 = None
+    public var superPkgSubMap: HashMap<String, String> = HashMap<String, String>()
 
     public prop origCommand: String {
         get() {
@@ -464,6 +489,15 @@ public struct PackageInfo {
     ) {}
 }
 
+public class SuperPackageConfig {
+    public SuperPackageConfig(
+        public let pkgName: String,
+        public let outputType: String
+    ) {}
+
+    public let subPkgSet: HashSet<String> = HashSet<String>()
+}
+
 public enum InstallType {
     | Default | Git | Local
 }
@@ -497,7 +531,6 @@ public class InstallConfig {
     // output root
     public var root: String = ""
     public var rootBin: String = ""
-    public var rootRepo: String = ""
     public var rootLibs: String = ""
     public var rootList: String = ""
 }
@@ -571,12 +604,15 @@ public class GlobalConfig {
     public var isInstall: Bool = false
     public var isCross: Bool = false
     public var isIncremental: Bool = false
+    public var isForScript: Bool = false
     public var isSkipScript: Bool = false
+    public var isAnalysisCompilePerformance: Bool = false
     public var rootName: String = WORKSPACE_NAME
     public var resolveType: String = RESOLVE_CHECK
     public var rootPath: String = DIR_CURRENT
     public var modulePath: String = DIR_CURRENT
     public var targetDir: String = TARGET
+    public var compilePerformanceTargetDir: String = ""
     public var originDir: String = ""
     public var nativeDir: String = ""
     public var lockFile: String = LOCK_FILE_NAME
@@ -584,6 +620,7 @@ public class GlobalConfig {
     public var scriptList: ArrayList<ScriptConfig> = ArrayList<ScriptConfig>()
     public var cjPathList: ArrayList<String> = ArrayList<String>()
     public var cLibLinkMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
+    public var crossCLibLinkMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
     public var ldPath: HashSet<String> = HashSet<String>()
     public var overrideCompileOption: String = ""
     public var nativeOverrideOption: String = ""
@@ -600,6 +637,7 @@ public class GlobalConfig {
         this.isInstall = globalConfig.isInstall
         this.isCross = globalConfig.isCross
         this.isIncremental = globalConfig.isIncremental
+        this.isForScript = globalConfig.isForScript
         this.isSkipScript = globalConfig.isSkipScript
         this.resolveType = globalConfig.resolveType
         this.rootName = globalConfig.rootName
@@ -613,6 +651,7 @@ public class GlobalConfig {
         this.cjPathList.add(all: globalConfig.cjPathList)
         this.ldPath.add(all: globalConfig.ldPath)
         this.cLibLinkMap = globalConfig.cLibLinkMap.clone()
+        this.crossCLibLinkMap = globalConfig.crossCLibLinkMap.clone()
         for (scriptConfig in globalConfig.scriptList) {
             this.scriptList.add(ScriptConfig(scriptConfig))
         }
@@ -642,6 +681,7 @@ public struct ResolveConfig {
     public var targetPlatform: Bool = true
     public var nativePlatform: Bool = false
     public var checkDepCjo: Bool = false
+    public var superPkgCfg: ?SuperPackageConfig = None
     public var hasTestFiles: Bool = false
 }
 
@@ -680,6 +720,24 @@ public func linkPackage(libName: String, libPath: String, _: Bool): ArrayList<St
     return res
 }
 
+@When[os == "Linux" || os == "Windows"]
+public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+    return linkPackage(libName, libPath, isLto)
+}
+
+@When[os == "macOS"]
+public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+    var res = ArrayList<String>()
+    let staticLibPath = Path(libPath).join(makeCangjieStaticlibName(libName)).toString()
+    let dyLibPath = Path(libPath).join("lib${libName}.dylib").toString()
+    if (fileExists(staticLibPath)) {
+        res.add(staticLibPath)
+    } else if (fileExists(dyLibPath)) {
+        res.add(all: linkPackage(libName, libPath, isLto))
+    }
+    return res
+}
+
 @When[os == "Windows"]
 public func isPackageExist(fileName: String, filePath: String, logFlag: Bool, path: String, _: Bool): Bool {
     let dylib: String = Path(filePath).join("lib${fileName}.so").toString()
@@ -714,6 +772,10 @@ public func isPackageExist(fileName: String, filePath: String, logFlag: Bool, pa
     return false
 }
 
+public func isSuperPackageExist(fileName: String, filePath: String, isCrossBin: Bool): Bool {
+    return isDyLibExist(fileName.split(".")[0], filePath, isCrossBin)
+}
+
 @When[os == "Linux"]
 public let DYLIB_POSTFIX: String = ".so"
 @When[os == "Windows"]
@@ -721,8 +783,17 @@ public let DYLIB_POSTFIX: String = ".dll"
 @When[os == "macOS"]
 public let DYLIB_POSTFIX: String = ".dylib"
 
-public func isDyLibExist(pkgName: String, path: String): Bool {
-    return fileExists(Path(path).join("lib${pkgName}${DYLIB_POSTFIX}").toString())
+public func isDyLibExist(pkgName: String, path: String, isCrossBin: Bool): Bool {
+    if (!isCrossBin) {
+        return fileExists(Path(path).join("lib${pkgName}${DYLIB_POSTFIX}").toString())
+    }
+    if (crossCompileTarget.contains("darwin") || crossCompileTarget.contains("apple")) {
+        return fileExists(Path(path).join("lib${pkgName}.dylib").toString())
+    } else if (crossCompileTarget.contains("windows") || crossCompileTarget.contains("w64")) {
+        return fileExists(Path(path).join("lib${pkgName}.dll").toString())
+    } else {
+        return fileExists(Path(path).join("lib${pkgName}.so").toString())
+    }
 }
 
 public func isCLibExist(fileName: String, filePath: String, path: String): Bool {

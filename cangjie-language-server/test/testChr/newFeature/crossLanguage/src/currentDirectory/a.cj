@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package currentDirectory
 @C
 struct P1{
@@ -22,8 +28,3 @@ foreign func cstring(a:CString,b:CPointer<CString>):CString
 foreign func p1(a:P1,b:CPointer<P1>):P1
 foreign func p2(a:P1,b:CPointer<CPointer<P1>>):P1
 foreign func error(a:Float16):Unit
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

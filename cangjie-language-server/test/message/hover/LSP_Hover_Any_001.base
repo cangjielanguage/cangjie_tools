@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Any.cj\nPackage info: default\n\n(variable) var i_ANY: Any = A1()\nok"},"range":{"end":{"character":9,"line":8},"start":{"character":4,"line":8}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Any.cj\nPackage info: default\n\n(variable) var i_ANY: Any = A1()\n"},"range":{"end":{"character":9,"line":14},"start":{"character":4,"line":14}}}}

@@ -60,7 +60,8 @@ public class ForeignInterfaces <: Serializable<ForeignInterfaces> {
     }
 }
 
-func verifyCLibConfig(cLibs: HashMap<String, String>, path: String, jsonPath: String): Bool {
+func verifyCLibConfig(cLibs: HashMap<String, String>, path: String,
+    jsonPath: String, targetString!: String = String()): Bool {
     var flag = true
     for ((cLibName, cLibPath) in cLibs) {
         if (!cLibNameCheck(cLibName, jsonPath)) {
@@ -69,12 +70,12 @@ func verifyCLibConfig(cLibs: HashMap<String, String>, path: String, jsonPath: St
 
         // Path normalization in foreignRequires.
         cLibs[cLibName] = getPath(path, cLibPath)
-        if (!safeCheck(cLibs[cLibName], "'ffi.c' field at ${jsonPath}")) {
+        if (!safeCheck(cLibs[cLibName], "'${targetString}ffi.c' field at ${jsonPath}")) {
             flag = false
         }
 
         // File exist Check.
-        if (!isCLibExist(cLibName, cLibs[cLibName], "'ffi.c' field at ${jsonPath}")) {
+        if (!isCLibExist(cLibName, cLibs[cLibName], "'${targetString}ffi.c' field at ${jsonPath}")) {
             flag = false
         }
     }

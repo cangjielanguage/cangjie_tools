@@ -24,11 +24,13 @@
 #include "capabilities/diagnostic/LSPDiagObserver.h"
 #include "common/Utils.h"
 #include "common/Constants.h"
+#include "index/IndexDatabase.h"
+#include "index/BackgroundIndexDB.h"
 
 namespace ark {
 class ArkLanguageServer : public Callbacks {
 public:
-    explicit ArkLanguageServer(Transport &transport, Environment environmentVars);
+    explicit ArkLanguageServer(Transport &transport, Environment environmentVars, lsp::IndexDatabase *db);
 
     ~ArkLanguageServer() override;
 
@@ -46,8 +48,7 @@ public:
 
     bool NeedReParser(const std::string &file) override;
 
-    void UpdateDoc(const std::string &file, std::int64_t version, bool needReParser,
-                   const std::vector<TextDocumentContentChangeEvent>& contentChanges) override;
+    void UpdateDocNeedReparse(const std::string &file, int64_t version, bool needReParser) override;
 
     void AddDocWhenInitCompile(const std::string &file) override;
 
@@ -62,6 +63,11 @@ public:
     void ReportCjoVersionErr(std::string message) override;
 
     void PublishCompletionTip(const CompletionTip &params) override;
+
+    lsp::IndexDatabase *GetIndexDB() const
+    {
+        return arkIndexDB;
+    }
 
 private:
     void PublishDiagnostics(const PublishDiagnosticsParams &params);
@@ -85,6 +91,8 @@ private:
     void OnReference(const TextDocumentPositionParams &params, nlohmann::json id);
 
     void OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id);
+
+    void OnCrossLanguageGoToDefinition(const CrossLanguageJumpParams &params, nlohmann::json id);
 
     void OnSignatureHelp(const SignatureHelpParams &params, nlohmann::json id);
 
@@ -132,10 +140,27 @@ private:
 
     void OnDocumentSymbol(const DocumentSymbolParams &params, nlohmann::json id);
 
+    void OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id);
+
     void AutoImportQuickFixPrepare(DiagnosticToken &diagnostic, ArkAST *arkAst);
 
     void AddAutoImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier, Ptr<const File> file,
         Cangjie::ImportManager *importManager);
+
+    void HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
+        const lsp::Symbol &sym, Range textEditRange, const std::string &uri);
+
+    void OnCodeAction(const CodeActionParams &,  nlohmann::json id);
+
+    void OnCommand(const ExecuteCommandParams &,  nlohmann::json id);
+
+    void OnCommandApplyTweak(const TweakArgs &,  nlohmann::json id);
+
+    void AddAllImportCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string& uri);
+
+    bool NeedCollect2AllImport(const DiagnosticToken &diagnostic);
+
+    void CollectCA2AllImport(std::vector<CodeAction> &allImports, const std::vector<CodeAction> &codeActions);
 
     void ReplyError(const nlohmann::json &id) const
     {
@@ -163,6 +188,8 @@ private:
     Environment envs;
 
     TextDocumentSyncKind syncKind {TextDocumentSyncKind::SK_NONE};
+
+    lsp::IndexDatabase *arkIndexDB = nullptr;
 };
 } // namespace ark
 

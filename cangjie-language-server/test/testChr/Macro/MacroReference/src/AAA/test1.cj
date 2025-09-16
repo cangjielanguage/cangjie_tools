@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 macro package AAA
 
 
@@ -37,8 +43,3 @@ public macro E(input: Tokens) {
     println("{\"id\":0,\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"completionProvider\":{\"resolveProvider\":false,\"triggerCharacters\":[\".\"]},\"definitionProvider\":true,\"documentHighlightProvider\":true,\"documentLinkProvider\":{\"resolveProvider\":true},\"documentSymbolProvider\":true,\"hoverProvider\":true,\"referencesProvider\":true,\"semaHighlightProvider\":true,\"semanticTokensProvider\":{\"full\":{\"delta\":true},\"legend\":{\"tokenModifiers\":[\"declaration\",\"documentation\",\"static\",\"abstract\",\"deprecated\",\"async\",\"readonly\"],\"tokenTypes\":[\"comment\",\"keyword\",\"string\",\"number\",\"regexp\",\"operator\",\"namespace\",\"type\",\"struct\",\"class\",\"interface\",\"enum\",\"typeParameter\",\"function\",\"member\",\"property\",\"macro\",\"variable\",\"parameter\",\"label\"]},\"range\":false},\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},\"textDocumentSync\":2,\"workspaceSymbolProvider\":true},\"serverInfo\":{\"name\":\"Cangjie language server\",\"version\":\"1.0\"}}}")
     input
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

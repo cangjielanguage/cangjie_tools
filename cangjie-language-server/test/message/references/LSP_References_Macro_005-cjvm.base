@@ -1,1 +1,0 @@
-{"id":7,"jsonrpc":"2.0","result":[{"range":{"end":{"character":21,"line":54},"start":{"character":12,"line":54}},"uri":"file://***//lsp/test/testChr/Macro/MacroReference/src/d1.cj"},{"range":{"end":{"character":29,"line":6},"start":{"character":20,"line":6}},"uri":"file://***//lsp/test/testChr/Macro/MacroReference/src/main.cj"}]}

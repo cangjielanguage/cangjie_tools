@@ -56,6 +56,7 @@ Available options:
   -j, --jobs <N>                the number of jobs to spawn in parallel during the build process
   -V, --verbose                 enable verbose
   -g                            enable compile debug version target
+  --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
@@ -240,17 +241,18 @@ cjpm tree success
 - `-j, --jobs <N>` 用于指定并行编译的最大并发数，最终的最大并发数取 `N` 和 `2倍 CPU 核数` 的最小值
 - `-V, --verbose` 用于展示编译日志
 - `-g` 用于生成 `debug` 版本的输出产物
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考 `profile.customized-option` 章节
+- `--coverage` 用于生成覆盖率信息，默认情况下不开启覆盖率功能
+- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考  `profile.customized-option` 章节
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口
 - `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
 - `--target-dir <value>` 用于指定输出产物的存放路径
-- `-o, --output <value>` 用于指定输出可执行文件的名称，默认名称为 `main`（`Windows` 系统下则默认为 `main.exe`）
+- `-o, --output <value>` 用于指定输出可执行文件的名称，默认名称为 `main`（`Windows` 系统下则默认为 `main.exe`）。注意，当前不支持编译名称为 `cjc` 的可执行文件
 - `--mock` 带有此选项的构建版本中的类可用于在测试中进行 `mock` 测试
 - `--skip-script` 配置后，将会跳过构建脚本的编译运行
 
 > **注意：**
 >
-> - `-i, --incremental` 选项仅会开启 `cjpm` 包级别的增量编译。开发者可以在配置文件的 `compile-option` 字段自行透传 `--incremental-compile` 编译选项，从而开启 `cjc` 编译器提供的函数粒度增量功能。
+> - `-i, --incremental` 选项仅会开启 `cjpm` 包级别的增量编译。开发者可以在配置文件的 `compile-option` 字段自行透传 `--incremental-compile` 和 `--experimental` 编译选项，从而开启 `cjc` 编译器提供的函数粒度增量功能。
 > - `-i, --incremental` 选项目前仅支持基于源码的增量分析。如果导入的库内容有变更，需要开发者重新使用全量方式构建。
 
 编译生成的中间文件默认会存放在 `target` 文件夹，而可执行文件会根据编译模式存放到 `target/release/bin` 或 `target/debug/bin` 文件夹。运行可执行文件的方式可参考 `run`。
@@ -439,6 +441,7 @@ cjpm build success
 - `-i, --incremental` 用于指定测试代码的增量编译，默认情况下是全量编译
 - `--no-run` 用于仅编译单元测试产物
 - `--skip-build` 用于仅执行单元测试产物
+- `--coverage` 用于生成覆盖率原始数据。使用 `cjpm test --coverage` 统计覆盖率时，源代码中的 `main` 不会再作为程序入口执行，因此会显示为未被覆盖。建议使用 `cjpm test` 之后，不再手写多余的 `main`
 - `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项
 - `--module <value>` 用于指定目标测试模块，指定的模块需要被当前模块直接或间接依赖（或者是该模块本身），也可以通过 `--module "module1 module2"` 的方式指定多个符合要求的模块。不指定时默认只测试当前模块
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定测试单个模块
@@ -480,6 +483,13 @@ cjpm build success
     - `n` 其中 `n` 是正整数，指定终端上可以同时显示的最大条目
 
 `cjpm test` 参数选项使用示例:
+
+```text
+输入：
+cjpm test src --coverage
+输出：cjpm test success
+覆盖率数据生成：在 cov_output 目录下对应模块的目录中，会生成 gcno 和 gcda 文件
+```
 
 ```text
 输入: cjpm test --filter=*
@@ -583,7 +593,7 @@ Summary: TOTAL: 1
 
 ### clean
 
-`clean` 用于清理构建过程中的临时产物（`target` 文件夹）。该命令支持通过短选项 `-g` 指定仅清理 `debug` 版本的产物。该命令支持通过长选项 `--target-dir <value>` 用于指定清理的产物存放路径，开发者需自身保证清理该目录行为的安全性。同时，该命令也支持通过 `--skip-script` 配置跳过构建脚本的编译运行。
+`clean` 用于清理构建过程中的临时产物（`target` 文件夹）。该命令支持通过短选项 `-g` 指定仅清理 `debug` 版本的产物。该命令支持通过长选项 `--target-dir <value>` 用于指定清理的产物存放路径，开发者需自身保证清理该目录行为的安全性。如果使用了 `cjpm build --coverage` 或者 `cjpm test --coverage` 功能，还会清除 `cov_output` 文件夹，以及当前目录下的 `*.gcno` 文件和 `*.gcda` 文件。同时，该命令也支持通过 `--skip-script` 配置跳过构建脚本的编译运行。
 
 例如：
 
@@ -969,8 +979,8 @@ abc = { path = "libs" }
 
 ```text
 [dependencies]
-  pro0 = { git = "git://github.com/org/pro0.git", tag = "v1.0.0"}
-  pro1 = { git = "https://gitee.com/anotherorg/pro1", branch = "dev"}
+  pro0 = { git = "https://github.com/example", tag = "v1.0.0"}
+  pro1 = { git = "https://gitee.com/example", branch = "dev"}
 ```
 
 在这种情况下， `cjpm` 将下载对应存储库的最新版本，并将当前 `commit-hash` 保存在 `cjpm.lock` 文件中。所有后续的 `cjpm` 调用都将使用保存的版本，直到使用 `cjpm update`。
@@ -982,7 +992,7 @@ abc = { path = "libs" }
 ```text
 [dependencies]
   pro0 = { path = "./pro0", output-type = "static" }
-  pro1 = { git = "https://gitee.com/anotherorg/pro1", output-type = "dynamic" }
+  pro1 = { git = "https://gitee.com/example", output-type = "dynamic" }
 ```
 
 进行如上配置后，将会忽略 `pro0` 和 `pro1` 的 `cjpm.toml` 中的 `output-type` 配置，将这两个模块的产物分别编译成 `static` 和 `dynamic` 类型。
@@ -1047,6 +1057,8 @@ abc = { path = "libs" }
 hello = { path = "./src/" }
 ```
 
+若需要指定不同平台可使用的 `c` 库配置，请参见 [target](./user_guide.md#target)。
+
 ### "profile"
 
 `profile` 作为一种命令剖面配置项，用于控制某个命令执行时的默认配置项。目前支持如下场景：`build`、`test`、`bench`、`run` 和 `customized-option`。
@@ -1055,13 +1067,83 @@ hello = { path = "./src/" }
 
 ```text
 [profile.build]
-lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，仅 `Linux` 平台支持该功能。
+lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，仅 `Linux` 平台支持该功能
+performance_analysis = true # 开启编译性能分析功能
 incremental = true # 是否默认开启增量编译
+[profile.build.combined]
+demo = "dynamic" # 将模块整体编译成一个动态库文件，key 值为模块名
 ```
 
 编译流程的控制项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.build` 项才会生效。
 
 `lto` 配置项的取值为 `full` 或 `thin`，对应 `LTO` 优化支持的两种编译模式：`full LTO` 将所有编译模块合并到一起，在全局上进行优化，这种方式可以获得最大的优化潜力，同时也需要更长的编译时间；`thin LTO` 在多模块上使用并行优化，同时默认支持链接时增量编译，编译时间比 `full LTO` 短，但是因为失去了更多的全局信息，所以优化效果不如 `full LTO`。
+
+`performance_analysis` 配置项的取值为 `true` 或 `false`，代表是否开启编译性能分析功能。当开启此功能时，`cjpm` 会在编译产物目录下的 `performance_analysis` 目录中生成 `.prof` 和 `.json` 文件，这些文件记录了编译过程中的时间和内存消耗。例如，编译产物目录默认为 `target` 目录，且编译模式为 `debug`，则产物目录结构如下：
+
+```text
+demo
+├── cjpm.toml
+├── src
+|   └── demo.cj
+└── target
+    └── debug
+        └── performance_analysis
+            ├── xxx1.prof
+            ├── ...
+            ├── xxxN.prof
+            ├── xxx1.json
+            ├── ...
+            └── xxxN.json
+```
+
+`combined` 配置项是一个键值对，其中键为模块名，即 `package.name`，值为 `dynamic`。配置该配置项之前，该模块会根据 `package.output-type` 配置将各个包编译成独立的动态库或静态库文件；配置后，该模块的编译方式改为：
+
+- 模块内除 `root` 包以外的子包以静态库形式编译；
+- `root` 包以动态库形式编译，并且链接所有子包的静态库，无论子包是否被 `root` 包依赖。其他模块以二进制依赖形式依赖该动态库时，可以使用所有子包内的符号。
+
+例如，假设模块 `demo` 的结构如下：
+
+```text
+demo
+├── cjpm.toml
+└── src
+     ├── aoo
+     |    └── aoo.cj
+     ├── boo
+     |    └── boo.cj
+     └── demo.cj
+```
+
+模块配置文件 `cjpm.toml` 内配置如下：
+
+```text
+[package]
+name = "demo"
+
+[profile.build.combined]
+demo = "dynamic"
+```
+
+在编译之后，最终的编译产物目录 `target/release/demo` 中的产物列表如下（以 `Linux` 为例）：
+
+```text
+|-- libdemo.so
+|-- libdemo.aoo.a
+|-- libdemo.boo.a
+|-- demo.cjo
+|-- demo.aoo.cjo
+|-- demo.boo.cjo
+```
+
+模块开发者可以将上述产物列表中的所有 `cjo` 文件和 `root` 包动态库 `libdemo.so` 提供给其他模块作为二进制依赖，无需提供子包的静态库文件。其他模块依赖该动态库之后，可以在代码中依赖其所有子包，例如可以通过 `import demo.aoo` 的方式依赖 `demo.aoo` 包。
+
+> **注意：**
+>
+> - 在应用此配置时，编译 `root` 包动态库需要使用其所有子包的静态库，因此需要保证 `root` 包不被其子包直接或间接导入。
+> - 目前 `profile.build.combined` 配置项为实验特性，暂不稳定，开发者若想启用该配置，需要注意如下限制：
+>     - 如果配置了该字段的模块直接或间接依赖了其他源码模块，那么这些依赖模块也需要配置该字段；
+>     - 构建脚本依赖的源码模块中，若配置了 `profile.build.combined`，不会生效；
+>     - 编译产物目标平台为 `macOS` 时，暂不支持 `profile.build.combined` 选项。
 
 #### "profile.test"
 
@@ -1188,6 +1270,8 @@ cfg3 = "-O2"
     "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
     "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
     "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
+  [target.x86_64-unknown-linux-gnu.ffi.c] # C 二进制库依赖
+    "ctest" = "./test/c"
 
 [target.x86_64-unknown-linux-gnu.debug] # Linux 系统的 debug 配置项
   [target.x86_64-unknown-linux-gnu.debug.test-dependencies]
@@ -1206,6 +1290,7 @@ cfg3 = "-O2"
 - `dependencies`：源码依赖配置项，结构同 `dependencies` 字段
 - `test-dependencies`：测试阶段依赖配置项，结构同 `test-dependencies` 字段
 - `bin-dependencies`：仓颉二进制库依赖，结构在下文中介绍
+- `ffi.c`：仓颉模块外部依赖 `c` 库的配置，结构同 `ffi.c` 字段
 - `compile-macros-for-target`：交叉编译时的宏包控制项，该选项不支持区分下述的 `debug` 和 `release` 编译模式
 
 开发者可以通过配置 `target.target-name.debug` 和 `target.target-name.release` 字段为该 `target` 额外配置在 `debug` 和 `release` 编译模式下特有的配置，可配置的配置项同上。配置于此类字段的配置项将仅应用于该 `target` 的对应编译模式。
@@ -1709,10 +1794,10 @@ cj_project
     或者
 
     ```shell
-    cjpm test src src/koo pro/src/zoo
+    cjpm test src src/koo pro0/src/zoo
     ```
 
-- 想要手动删除 `target` 等中间件时，执行如下命令：
+- 想要手动删除 `target` 、`cov_output` 文件夹、`*.gcno` 、`*.gcda` 等中间件时，执行如下命令：
 
     ```shell
     cjpm clean

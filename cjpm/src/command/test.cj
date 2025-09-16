@@ -6,16 +6,15 @@
 
 package cjpm.command
 
-import std.ast.Node
 import std.collection.*
 import std.convert.*
 import cjpm.implement.*
 import cjpm.config.*
 
 public let TEST_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclude-tags=", "verbose", "no-run",
-    "skip-build", "target=", "target-dir=", "jobs=", "no-color", "random-seed=", "timeout-each=",
+    "skip-build", "target=", "target-dir=", "coverage", "jobs=", "no-color", "random-seed=", "timeout-each=",
     "parallel=", "member=", "report-format=", "report-path=", "skip-script", "no-capture-output", "show-all-output",
-    "module=", "incremental", "dry-run", "no-progress", "progress-brief", "progress-entries-limit="]
+    "module=", "incremental", "dry-run", "no-progress", "progress-brief", "progress-entries-limit=", "show-tags"]
 let TEST_USAGE: String = """
 Build and run unittest for all packages in current module.
 If you specify some package paths, it will only test those specified packages.
@@ -31,6 +30,7 @@ Available options:
   -i, --incremental                       enable incremental compilation
   --no-run                                compile, but don't run tests
   --skip-build                            skip compile, only run tests
+  --coverage                              enable coverage
   --cfg                                   enable the customized option 'cfg'
   --module <value|"value1 value2">        specify modules to test, default as current module
   -m, --member <value>                    specify a member module of the workspace
@@ -44,6 +44,7 @@ Available options:
   --random-seed <N>                       enable random seed
   --timeout-each=%d[millis|s|m|h]         specify default timeout for test cases
   --parallel <N>                          specify number of workers running tests
+  --show-tags                             print tags in text report
   --show-all-output                       enable test output printing for all test cases including passed ones
   --no-capture-output                     disable test output capturing, output will be printed during test execution immediately
   --report-path <value>                   specify path to directory of report
@@ -99,7 +100,9 @@ class TestCommand <: Handle {
 
     static func processTestCliOptions(argMap: HashMap<String, String>, unparseArgs: Array<String>): ?TestConfig {
         let testConfig = TestConfig()
+        testConfig.isCov = getBoolOption(argMap, "--coverage")
         testConfig.noRun = getBoolOption(argMap, "--no-run")
+        testConfig.showTags = getBoolOption(argMap, "--show-tags")
         testConfig.noCaptureOutput = getBoolOption(argMap, "--no-capture-output")
         testConfig.showAllOutput = getBoolOption(argMap, "--show-all-output")
         testConfig.skipBuild = getBoolOption(argMap, "--skip-build")

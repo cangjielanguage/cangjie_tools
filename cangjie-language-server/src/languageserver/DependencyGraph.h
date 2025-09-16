@@ -18,6 +18,16 @@
 #include "logger/Logger.h"
 
 namespace ark {
+
+enum EdgeType: uint8_t {
+    PRIVATE,
+    INTERNEL,
+    PROTECTED,
+    PUBLIC
+};
+
+using MarkedEdgesMap = std::unordered_map<std::string, std::unordered_map<std::string, EdgeType>>;
+
 class DependencyGraph {
 public:
     // Get all packages that package 'a' directly depends on
@@ -37,7 +47,8 @@ public:
     }
 
     // Update dependencies for a package
-    void UpdateDependencies(const std::string &package, const std::set<std::string> &newDependencies)
+    void UpdateDependencies(const std::string &package, const std::set<std::string> &newDependencies,
+                            const std::unordered_map<std::string, EdgeType>& edges)
     {
         std::lock_guard<std::mutex> lock(graphMutex);
 
@@ -45,6 +56,7 @@ public:
         if (dependencies.find(package) != dependencies.end()) {
             for (const auto &dep : dependencies[package]) {
                 reverseDependencies[dep].erase(package);
+                reverseDependencyEdges[dep].erase(package);
             }
             dependencies[package].clear();
         }
@@ -60,7 +72,39 @@ public:
                 Trace::Elog("dependencies insert failed");
             }
             reverseDependencies[newDep].insert(package);
+            reverseDependencyEdges[newDep][package] = edges.at(newDep);
         }
+    }
+
+    std::unordered_set<std::string> FindMayDependents(const std::string& package) const
+    {
+        std::unordered_set<std::string> visited;
+        std::unordered_set<std::string> mayDeps;
+
+        std::function<void(const std::string&, const std::string&)> dfs =
+            [&](const std::string& up, const std::string& down)-> void {
+                if (visited.count(down)) {
+                    return;
+                }
+                visited.insert(down);
+                if (reverseDependencyEdges.find(up) == reverseDependencyEdges.end() ||
+                    reverseDependencyEdges.at(up).find(down) == reverseDependencyEdges.at(up).end()) {
+                    return;
+                }
+                mayDeps.insert(down);
+                if (reverseDependencyEdges.at(up).at(down) == EdgeType::PRIVATE) {
+                    return;
+                }
+                for (const std::string& dep: this->GetDependents(down)) {
+                    dfs(down, dep);
+                }
+            };
+
+        for (const auto& downPkg: GetDependents(package)) {
+            dfs(package, downPkg);
+        }
+
+        return mayDeps;
     }
 
     // Find all dependencies (direct and transitive) of a given package using DFS
@@ -88,7 +132,7 @@ public:
     }
 
     // Topological Sort
-    std::vector<std::string> TopologicalSort() const
+    std::vector<std::string> TopologicalSort(bool reverse = false) const
     {
         std::unordered_set<std::string> visited;
         std::unordered_set<std::string> recStack;
@@ -104,6 +148,22 @@ public:
             }
         }
 
+        if (reverse) {
+            std::reverse(result.begin(), result.end());
+        }
+        return result;
+    }
+
+    std::vector<std::string> PartialTopologicalSort(std::unordered_set<std::string>& selected,
+                                                    bool reverse = false) const
+    {
+        auto fullTopoResult = TopologicalSort(reverse);
+        std::vector<std::string> result;
+        for (auto& node: fullTopoResult) {
+            if (selected.count(node)) {
+                result.emplace_back(node);
+            }
+        }
         return result;
     }
 
@@ -139,7 +199,21 @@ public:
                 std::cerr << "No dependencies";
             } else {
                 for (const auto &dep : deps) {
-                    std::cerr << dep << " ";
+                    auto edge = reverseDependencyEdges.at(dep).at(package);
+                    std::string import;
+                    switch (edge) {
+                        case ark::EdgeType::PRIVATE:
+                            import = "private";break;
+                        case ark::EdgeType::INTERNEL:
+                            import = "internel"; break;
+                        case ark::EdgeType::PROTECTED:
+                            import = "protected"; break;
+                        case ark::EdgeType::PUBLIC:
+                            import = "public"; break;
+                        default:
+                            import = "unknown";
+                    }
+                    std::cerr << dep << "/" << import << " ";
                 }
             }
             std::cerr << "\n";
@@ -147,8 +221,9 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, std::unordered_set<std::string>> dependencies;        // 上游包
-    std::unordered_map<std::string, std::unordered_set<std::string>> reverseDependencies; // 下游包
+    std::unordered_map<std::string, std::unordered_set<std::string>> dependencies;        // {down pkg, up pkgs}
+    std::unordered_map<std::string, std::unordered_set<std::string>> reverseDependencies; // {up pkg, down pkgs}
+    MarkedEdgesMap reverseDependencyEdges; // {up pkg, {down pkg, import accessibility}}
     mutable std::mutex graphMutex;
 
     // Helper function for find all dependencies, will be called with pre-acquired lock

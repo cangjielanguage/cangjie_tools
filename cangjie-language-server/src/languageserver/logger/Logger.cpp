@@ -17,7 +17,7 @@ const int Logger::messageQueueSize = 50;
 std::unordered_map<std::thread::id, std::vector<ark::KernelLog>> Logger::kernelLog;
 std::mutex Logger::logMtx;
 std::string Logger::pathBuf;
-bool Logger::enableLog = true;
+bool Logger::enableLog = false;
 
 std::string Logger::LogInfo(MessageType type, const std::string &message)
 {

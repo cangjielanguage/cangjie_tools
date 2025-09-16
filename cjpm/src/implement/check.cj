@@ -11,10 +11,10 @@ import std.fs.*
 import cjpm.config.*
 
 // Dependency resolve.
-func resolve(globalConfig: GlobalConfig, noLock!: Bool = false): (DepModel, Bool, Bool) {
+func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel, Bool, Bool) {
     var dm = DepModel(globalConfig)
 
-    let (loadFlag, lockFile) = if (noLock) {
+    let (loadFlag, lockFile) = if (isScriptDep) {
         (true, ModuleLock())
     } else {
         loadLockFile(globalConfig.rootPath)
@@ -31,7 +31,7 @@ func resolve(globalConfig: GlobalConfig, noLock!: Bool = false): (DepModel, Bool
     // Don't lock path dependencies since it would only cause problems for transitive path dependencies
     dm.depMap.removeIf {_, v => v.path.isSome()}
 
-    if (!noLock) {
+    if (!isScriptDep) {
         var lockFilePath: String = Path(globalConfig.rootPath).join(LOCK_FILE_NAME).toString()
         // Overwrite file only if we have meaningful changes in case field serialization order got changed
         if (lockFile.requires != dm.depMap || !fileExists(lockFilePath)) {
@@ -45,6 +45,8 @@ func resolve(globalConfig: GlobalConfig, noLock!: Bool = false): (DepModel, Bool
         }
     }
 
+    dealWithSuperPkg(dm)
+
     // Circular dependency check.
     if (!topoSort(dm)) {
         return (dm, false, mockUsed)
@@ -55,7 +57,49 @@ func resolve(globalConfig: GlobalConfig, noLock!: Bool = false): (DepModel, Bool
         return (dm, false, mockUsed)
     }
 
+    for ((superPkgName, _) in dm.superPkgMap) {
+        dm.packageDepMap[superPkgName].requires.remove(all: dm.packageDepMap[superPkgName].forcedRequires)
+    }
+
     return (dm, true, mockUsed)
+}
+
+func dealWithSuperPkg(dm: DepModel): Unit {
+    let notSupportSet = HashSet<String>()
+    for ((superPkgName, superPkgCfg) in dm.superPkgMap) {
+        if (dm.packageDepMap[superPkgName].isMacroPackage) {
+            println("Warning: field 'profile.build.combined' is not supported for macro root package ${superPkgName}")
+            notSupportSet.add(superPkgName)
+            continue
+        }
+        if (isCombinedForMac()) {
+            println("Warning: field 'profile.build.combined' is not supported on macOS, " +
+                "so output targeted for macOS of module '${superPkgName}' will not be combined")
+            notSupportSet.add(superPkgName)
+            continue
+        }
+        for (pkgName in dm.packageDepMap.keys()) {
+            if (superPkgName != pkgName.split(".")[0] || superPkgName == pkgName) {
+                continue
+            }
+            superPkgCfg.subPkgSet.add(pkgName)
+            if (!dm.packageDepMap[pkgName].isMacroPackage) {
+                dm.packageDepMap[pkgName].outputType = STATIC_TYPE
+            }
+        }
+        dm.packageDepMap[superPkgName].superPkgCfg = superPkgCfg
+        if (dm.packageDepMap[superPkgName].outputType != DYNAMIC_TYPE) {
+            println("Warning: output-type of combined root package '${superPkgName}' in " +
+                "${Path(dm.globalConfig.rootPath).join(CONFIG_FILE_NAME).toString()} is not 'dynamic', " +
+                "final output will be dynamic library")
+            dm.packageDepMap[superPkgName].outputType = DYNAMIC_TYPE
+        }
+    }
+    for (notSupport in notSupportSet) {
+        dm.superPkgMap.remove(notSupport)
+    }
+
+    dm.checkSuperPkgDep()
 }
 
 public func doCheck(memberModule: String, testCheck: Bool): Bool {
@@ -114,4 +158,14 @@ func checkParentChildPkg(parentPkg: String, parentLevel: String, subPkg: String,
     }
 
     return true
+}
+
+@When[os == "macOS"]
+func isCombinedForMac(): Bool {
+    return crossCompileTarget.isEmpty() || crossCompileTarget.contains("darwin")
+}
+
+@When[os != "macOS"]
+func isCombinedForMac(): Bool {
+    return crossCompileTarget.contains("darwin")
 }

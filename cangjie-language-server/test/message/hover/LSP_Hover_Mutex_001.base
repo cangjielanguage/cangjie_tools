@@ -1,1 +1,1 @@
-{"id":"13","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: mutex.cj\nPackage info: default\n\n(variable) internal var m: MultiConditionMonitor = MultiConditionMonitor()\n"},"range":{"end":{"character":5,"line":18},"start":{"character":4,"line":18}}}}
+{"id":"13","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: mutex.cj\nPackage info: default\n\n(variable) internal var m: MultiConditionMonitor = MultiConditionMonitor()\n"},"range":{"end":{"character":5,"line":24},"start":{"character":4,"line":24}}}}

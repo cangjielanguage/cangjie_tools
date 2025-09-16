@@ -218,11 +218,12 @@ private:
     ArkLanguageServer &server;
 };
 
-ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environmentVars)
+ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environmentVars, lsp::IndexDatabase *db)
     : transp(transport), MsgHandler(std::make_unique<MessageHandler>(*this)), Server(std::make_unique<ArkServer>(this)),
-      envs(environmentVars)
+      envs(environmentVars), arkIndexDB(db)
 {
-    CompilerCangjieProject::InitInstance(this);
+    CompilerCangjieProject::InitInstance(this, arkIndexDB);
+
     MsgHandler->Bind("initialize", &ArkLanguageServer::OnInitialize);
     MsgHandler->Bind("initialized", &ArkLanguageServer::OnInitialized);
     MsgHandler->Bind("shutdown", &ArkLanguageServer::OnShutdown);
@@ -252,6 +253,10 @@ ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environme
     MsgHandler->Bind("workspace/didChangeWatchedFiles", &ArkLanguageServer::OnDidChangeWatchedFiles);
     MsgHandler->Bind("textDocument/documentSymbol", &ArkLanguageServer::OnDocumentSymbol);
     MsgHandler->Bind("textDocument/breakpoints", &ArkLanguageServer::OnBreakpoints);
+    MsgHandler->Bind("textDocument/crossLanguageDefinition", &ArkLanguageServer::OnCrossLanguageGoToDefinition);
+    MsgHandler->Bind("codeGenerator/overrideMethods", &ArkLanguageServer::OnOverrideMethods);
+    MsgHandler->Bind("textDocument/codeAction", &ArkLanguageServer::OnCodeAction);
+    MsgHandler->Bind("workspace/executeCommand", &ArkLanguageServer::OnCommand);
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
         MsgHandler->Bind("textDocument/codeLens", &ArkLanguageServer::OnCodeLens);
     }
@@ -292,8 +297,9 @@ nlohmann::json GetServerCapabilities(int syncKind)
     serverCapabilities["completionProvider"]["resolveProvider"] = false;
     serverCapabilities["breakpointsProvider"] = true;
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
-        serverCapabilities["codeLensProvider"] = true;
+        serverCapabilities["codeLensProvider"]["resolveProvider"] = true;
     }
+    serverCapabilities["crossLanguageDefinition"] = true;
     std::set<std::string> triggerCharacters = {".", "`"};
     for (const std::string& item : triggerCharacters) {
         (void)serverCapabilities["completionProvider"]["triggerCharacters"].push_back(item);
@@ -312,6 +318,11 @@ nlohmann::json GetServerCapabilities(int syncKind)
     // adapt for vscode clangd
     serverCapabilities["semanticTokensProvider"]["range"] = false;
     serverCapabilities["semanticTokensProvider"]["full"]["delta"] = true;
+
+    if (MessageHeaderEndOfLine::GetIsDeveco()) {
+        serverCapabilities["codeActionProvider"] = true;
+        serverCapabilities["executeCommandProvider"]["commands"] = { Command::APPLY_EDIT_COMMAND };
+    }
 
     return serverCapabilities;
 }
@@ -382,13 +393,9 @@ bool ArkLanguageServer::NeedReParser(const std::string &file)
     return doc.needReParser;
 }
 
-void ArkLanguageServer::UpdateDoc(const std::string &file, int64_t version, bool needReParser,
-                                  const std::vector<TextDocumentContentChangeEvent>& contentChanges)
+void ArkLanguageServer::UpdateDocNeedReparse(const std::string &file, int64_t version, bool needReParser)
 {
-    Logger &logger = Logger::Instance();
-    if (!DocMgr.UpdateDoc(file, version, needReParser, contentChanges)) {
-        logger.LogMessage(MessageType::MSG_WARNING, "file:" + file + " not exist");
-    }
+    DocMgr.UpdateDocNeedReparse(file, version, needReParser);
 }
 
 void ArkLanguageServer::AddDocWhenInitCompile(const std::string &file)
@@ -408,7 +415,7 @@ void ArkLanguageServer::OnShutdown(nlohmann::json id)
 void ArkLanguageServer::OnDocumentDidOpen(const DidOpenTextDocumentParams &params)
 {
     std::string file = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
-    if (!CheckFileInCangjieProject(file)) {
+    if (!FileUtil::FileExist(file) || !CheckFileInCangjieProject(file)) {
         return;
     }
     DocCache::Doc doc = DocMgr.GetDoc(file);
@@ -839,6 +846,17 @@ void ArkLanguageServer::OnGoToDefinition(const TextDocumentPositionParams &param
     Server->LocateSymbolAt(file, params, std::move(reply));
 }
 
+void ArkLanguageServer::OnCrossLanguageGoToDefinition(const CrossLanguageJumpParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnCrossLanguageGoToDefinition in");
+    auto reply = [id, this](ValueOrError result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), std::move(result));
+    };
+    Server->LocateCrossSymbolAt(params, std::move(reply));
+}
+
 bool ArkLanguageServer::AllowCompletion(const CompletionParams &params)
 {
     std::stringstream log;
@@ -1077,8 +1095,8 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
         notification.version.value() = version;
     }
     notification.uri.file = URI::URIFromAbsolutePath(file).ToString();
+    ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(file);
     for (auto &diagnostic: diagnostics) {
-        ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(file);
         diagnostic.range = TransformFromIDE2Char(diagnostic.range);
         if (arkAst != nullptr) {
             UpdateRange(arkAst->tokens, diagnostic.range, *arkAst->file, false);
@@ -1088,10 +1106,92 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
             AutoImportQuickFixPrepare(diagnostic, arkAst);
         }
     }
+    if (arkAst && arkAst->file) {
+        AddAllImportCodeAction(diagnostics, URI::URIFromAbsolutePath(arkAst->file->filePath).ToString());
+    }
+
     notification.diagnostics = std::move(diagnostics);
 
     // Send a notification to the LSP client.
     PublishDiagnostics(notification);
+}
+
+void ArkLanguageServer::AddAllImportCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string& uri)
+{
+    if (diagnostics.empty()) {
+        return;
+    }
+    std::map<Range, std::vector<DiagnosticToken*>> groups;
+    for (auto &diagnostic : diagnostics) {
+        groups[diagnostic.range].push_back(&diagnostic);
+    }
+    for (auto &[range, diags] : groups) {
+        if (diags.size() <= 1) {
+            continue;
+        }
+        std::vector<CodeAction> allImports;
+        int insertIdx = -1;
+        for (int i = 0; i < diags.size(); ++i) {
+            if (!diags[i] || !NeedCollect2AllImport(*diags[i])) {
+                continue;
+            }
+            if (insertIdx == -1) {
+                insertIdx = i;
+            }
+            CollectCA2AllImport(allImports, diags[i]->codeActions.value());
+        }
+        if (allImports.size() <= 1 || !diags[insertIdx]) {
+            continue;
+        }
+        CodeAction allImportCA;
+        allImportCA.kind = "fix auto import";
+        allImportCA.title = "import all packages";
+        WorkspaceEdit edit;
+        std::set<TextEdit> textEdits;
+        for (const auto &ca : allImports) {
+            TextEdit textEdit;
+            if (!ca.edit) {
+                continue;
+            }
+            auto& changes = ca.edit->changes;
+            auto it = changes.find(uri);
+            if (it != changes.end() && !it->second.empty()) {
+                textEdit.range = it->second[0].range;
+                textEdit.newText = it->second[0].newText;
+                textEdits.insert(textEdit);
+            }
+        }
+        std::vector<TextEdit> textEditVec(textEdits.begin(), textEdits.end());
+        edit.changes[uri] = textEditVec;
+        allImportCA.edit = std::move(edit);
+        diags[insertIdx]->codeActions.value().insert(diags[insertIdx]->codeActions.value().begin(),
+            std::move(allImportCA));
+    }
+}
+
+bool ArkLanguageServer::NeedCollect2AllImport(const DiagnosticToken &diagnostic)
+{
+    if (!diagnostic.codeActions || diagnostic.codeActions.value().empty()) {
+        return false;
+    }
+    int quickFixCount = 0;
+    for (const auto &codeAction : diagnostic.codeActions.value()) {
+        if (codeAction.kind == "fix auto import") {
+            quickFixCount++;
+        }
+    }
+    return quickFixCount == 1;
+}
+
+void ArkLanguageServer::CollectCA2AllImport(std::vector<CodeAction> &allImports,
+    const std::vector<CodeAction> &codeActions)
+{
+    for (const auto &codeAction : codeActions) {
+        if (codeAction.kind == "fix auto import") {
+            allImports.push_back(codeAction);
+            break;
+        }
+    }
 }
 
 void ArkLanguageServer::ReportCjoVersionErr(std::string message)
@@ -1171,35 +1271,17 @@ void ArkLanguageServer::AutoImportQuickFixPrepare(DiagnosticToken &diagnostic, A
     int index = arkAst->GetCurTokenByPos(diagPos, 0,
         static_cast<int>(arkAst->tokens.size()) - 1);
     std::string identifier = GetSubStrBetweenSingleQuote(diagnostic.message);
-    if (identifier.empty()) {
+    if (identifier.empty() || !arkAst->packageInstance) {
         return;
     }
-    if (index >= 0) {
-        auto curToken = arkAst->tokens[static_cast<size_t>(index)];
-        arkAst->PostProcessGetToken(diagPos, curToken, index);
-        // filter pos search err result
-        if (!(curToken.Begin().line == diagPos.line
-                && (curToken.Begin().column > diagPos.column || curToken.Value().length()
-                < static_cast<size_t>(diagPos.column - curToken.Begin().column))) && arkAst->packageInstance) {
-            std::string curTokenVal = curToken.Value();
-            if (curToken.kind == TokenKind::AT) {
-                curTokenVal = identifier;
-            }
-            AddAutoImportQuickFix(
-                diagnostic, curTokenVal, arkAst->file, &arkAst->packageInstance->importManager);
-        }
-    } else {
-        if (arkAst->packageInstance) {
-            AddAutoImportQuickFix(
-                diagnostic, identifier, arkAst->file, &arkAst->packageInstance->importManager);
-        }
-    }
+    AddAutoImportQuickFix(
+        diagnostic, identifier, arkAst->file, &arkAst->packageInstance->importManager);
 }
 
 void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier,
     Ptr<const File> file, Cangjie::ImportManager *importManager)
 {
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
@@ -1229,12 +1311,16 @@ void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const
     GetCurFileImportedSymbolIDs(importManager, file, importedSyms);
     index->FindImportSymsOnQuickFix(
         curPackage, curModule, importedSyms, identifier,
-        [&actions, &fixSet, &textEditRange, uri](const std::string &pkg, const lsp::Symbol &sym) {
+        [&actions, &fixSet, &textEditRange, uri, this](const std::string &pkg, const lsp::Symbol &sym) {
             std::string fullSymName = pkg + ":" + sym.name;
             if (fixSet.count(fullSymName)) {
                 return;
             } else {
                 fixSet.insert(fullSymName);
+            }
+            if (CompletionImpl::externalImportSym.count(fullSymName)) {
+                ArkLanguageServer::HandleExternalImportSym(actions, pkg, sym, textEditRange, uri);
+                return;
             }
             CodeAction codeAction;
             codeAction.kind = "fix auto import";
@@ -1248,5 +1334,210 @@ void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const
             actions.push_back(codeAction);
         });
     diagnostic.codeActions = actions;
+}
+
+void ArkLanguageServer::HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
+    const lsp::Symbol &sym, Range textEditRange, const std::string &uri)
+{
+    if (sym.name == "Interop" && pkg == "ohos.ark_interop_macro") {
+        CodeAction codeAction;
+        codeAction.kind = "fix auto import";
+        codeAction.title = "import " + pkg + "." + sym.name;
+        WorkspaceEdit edit;
+        ark::TextEdit textEdit;
+        textEdit.range = textEditRange;
+        textEdit.newText = "import ohos.ark_interop_macro.*\nimport ohos.ark_interop.*\n";
+        edit.changes[uri].push_back(textEdit);
+        codeAction.edit = edit;
+        actions.push_back(codeAction);
+        return;
+    }
+}
+
+void ArkLanguageServer::OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnOverrideMethods in");
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
+    if (!CheckFileInCangjieProject(file)) {
+        ReplyError(id);
+        return;
+    }
+    DocCache::Doc doc = DocMgr.GetDoc(file);
+    if (doc.version == -1) {
+        std::stringstream log;
+        CleanAndLog(log, "No didopen was received before OnOverrideMethods, file:" + file);
+        Logger::Instance().LogMessage(MessageType::MSG_WARNING, log.str());
+        ReplyError(id);
+        return;
+    }
+
+    auto reply = [id, this](ValueOrError result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), std::move(result));
+    };
+    Server->FindOverrideMethods(file, params, std::move(reply));
+}
+
+CodeAction toCodeAction(const ArkServer::TweakRef &T, const std::string &uri, Range range)
+{
+    CodeAction CA;
+    CA.title = T.title;
+    CA.kind = T.kind;
+    Command command;
+    command.title = T.title;
+    command.command = Command::APPLY_EDIT_COMMAND;
+    ExecutableRange args;
+    args.tweakId = T.id;
+    args.uri = uri;
+    args.range = range;
+    args.extraOptions = T.extraOptions;
+    command.arguments.insert(args);
+    CA.command = std::move(command);
+    return CA;
+}
+
+void ArkLanguageServer::OnCodeAction(const CodeActionParams &params, nlohmann::json id)
+{
+    Trace::Log("ArkLanguageServer::OnCodeAction in");
+
+    auto reply = [id, this](const ValueOrError &result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), result);
+    };
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
+    if (!CheckFileInCangjieProject(file)) {
+        ReplyError(id);
+        return;
+    }
+    DocCache::Doc doc = DocMgr.GetDoc(file);
+    if (doc.version == -1) {
+        std::stringstream log;
+        CleanAndLog(log, "No didopen was received before CodeAction, file:" + file);
+        Logger::Instance().LogMessage(MessageType::MSG_WARNING, log.str());
+        ReplyError(id);
+        return;
+    }
+    std::string uri = params.textDocument.uri.file;
+    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+    if (fileId < 0) {
+        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+        reply(value);
+        return;
+    }
+    Range range;
+    range.start = Cangjie::Position{
+        static_cast<unsigned int>(fileId),
+        params.range.start.line,
+        params.range.start.column
+    };
+    range.end = Cangjie::Position{
+        static_cast<unsigned int>(fileId),
+        params.range.end.line,
+        params.range.end.column
+    };
+
+    auto consumeActions = [reply = std::move(reply), uri, params](
+                              const std::vector<ArkServer::TweakRef> &tweaks) mutable {
+        std::vector<CodeAction> actions;
+        for (const auto &T : tweaks) {
+            // toCodeAction():Transforms a tweak into a code action that would apply it if executed.
+            actions.push_back(toCodeAction(T, uri, params.range));
+        }
+        nlohmann::json results;
+        for (auto &action : actions) {
+            nlohmann::json temp;
+            ToJSON(action, temp);
+            results.push_back(temp);
+        }
+        reply(ValueOrError(ValueOrErrorCheck::VALUE, results));
+    };
+
+    Server->EnumerateTweaks(file, range, std::move(consumeActions));
+}
+
+void ArkLanguageServer::OnCommand(const ExecuteCommandParams &params,  nlohmann::json id)
+{
+    Trace::Log("ArkLanguageServer::OnCommand in");
+
+    auto reply = [id, this](const ValueOrError &result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), result);
+    };
+
+    if (params.arguments.empty()) {
+        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+        reply(value);
+        return;
+    }
+
+    TweakArgs args;
+    if (params.command == Command::APPLY_EDIT_COMMAND && FromJSON(params.arguments[0], args)) {
+        OnCommandApplyTweak(args, id);
+    }
+}
+
+void ArkLanguageServer::OnCommandApplyTweak(const TweakArgs &args, nlohmann::json id)
+{
+    Trace::Log("ArkLanguageServer::OnCommandApplyTweak in");
+
+    auto reply = [id, this](const ValueOrError &result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), result);
+    };
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(args.file.file));
+    if (!CheckFileInCangjieProject(file)) {
+        ReplyError(id);
+        return;
+    }
+    DocCache::Doc doc = DocMgr.GetDoc(file);
+    if (doc.version == -1) {
+        std::stringstream log;
+        CleanAndLog(log, "No didopen was received before CommandApplyTweak, file:" + file);
+        Logger::Instance().LogMessage(MessageType::MSG_WARNING, log.str());
+        ReplyError(id);
+        return;
+    }
+
+    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(args.file.file);
+    if (fileId < 0) {
+        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+        reply(value);
+        return;
+    }
+    Range range;
+    range.start = Cangjie::Position{
+        static_cast<unsigned int>(fileId),
+        args.selection.start.line,
+        args.selection.start.column
+    };
+    range.end = Cangjie::Position{
+        static_cast<unsigned int>(fileId),
+        args.selection.end.line,
+        args.selection.end.column
+    };
+
+    auto action = [this, reply = std::move(reply)](Tweak::Effect effect) mutable {
+        if (effect.applyEdits.empty()) {
+            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+            reply(value);
+            return;
+        }
+        ValueOrError commandValue(ValueOrErrorCheck::VALUE, nullptr);
+        reply(commandValue);
+
+        ApplyWorkspaceEditParams editParams;
+        editParams.edit.changes = std::move(effect.applyEdits);
+        nlohmann::json res;
+        ToJSON(editParams, res);
+
+        ValueOrError value(ValueOrErrorCheck::VALUE, res);
+        Notify("workspace/applyEdit", value);
+        return;
+    };
+    Server->ApplyTweak(file, range, args.tweakID, args.extraOptions, std::move(action));
 }
 } // namespace ark

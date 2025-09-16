@@ -19,12 +19,11 @@ foreign func system(command: CString): Int32
 // Simply execute the command.
 // For expand command and without env config
 public func execAndToTerminal(exeTool: String, arguments: Array<String>, timeout!: Option<Duration> = None,
-    workingDirectory!: ?Path = None): Bool {
+    envBuilder!: EnvironmentBuilder = EnvironmentBuilder(), originalEnv!: ?Collection<(String, String)> = None, workingDirectory!: ?Path = None): Bool {
     try {
-        let subProcess: SubProcess
-        var returnCode: Int64
-        subProcess = launch(exeTool, arguments, workingDirectory: workingDirectory)
-        returnCode = subProcess.wait(timeout: timeout)
+        let env = envBuilder.finish(originalEnv ?? getVariables())
+        let subProcess = launch(exeTool, arguments, environment: env, workingDirectory: workingDirectory)
+        let returnCode = subProcess.wait(timeout: timeout)
         return returnCode == 0
     } catch (e: Exception) {
         eprintln(e.message)
@@ -34,7 +33,7 @@ public func execAndToTerminal(exeTool: String, arguments: Array<String>, timeout
 
 // Execute the command and store the output.
 public func execWithOutput(exeTool: String, arguments: ArrayList<String>,
-    envMap!: HashMap<String, String> = HashMap<String, String>(), timeout!: Option<Duration> = None,
+    envMap!: HashMap<String, String> = HashMap(), timeout!: Option<Duration> = None,
     workingDirectory!: ?Path = None, spawnForScript!: Bool = false): (Bool, String, String) {
     let subProcess: SubProcess
     var returnCode: Int64
@@ -80,47 +79,15 @@ public func exec(command: String): Bool {
 
 // Execute commands through pipes and redirect the output to files.
 public func execAndToFile(exeTool: String, arguments: ArrayList<String>, outFile: File, errFile: File,
-    envMap!: HashMap<String, String> = HashMap<String, String>(), workingDirectory!: ?Path = None): Option<Int64> {
-    let subProcess: SubProcess
+    envBuilder!: EnvironmentBuilder = EnvironmentBuilder(), originalEnv!: ?Collection<(String, String)> = None, workingDirectory!: ?Path = None): Option<Int64> {
     try {
-        let env = HashMap<String, String>(getVariables())
-        for ((k, v) in envMap) {
-            if (env.contains(k)) {
-                env[k] = v + env[k]
-            } else {
-                env[k] = v
-            }
-        }
-        subProcess = launch(exeTool, arguments.toArray(), workingDirectory: workingDirectory, environment: env,
+        let env = envBuilder.finish(originalEnv ?? getVariables())
+        let subProcess = launch(exeTool, arguments.toArray(), workingDirectory: workingDirectory, environment: env,
             stdOut: ProcessRedirect.FromFile(outFile), stdErr: ProcessRedirect.FromFile(errFile))
         return subProcess.wait()
     } catch (e: Exception) {
         errFile.write("${e.message}\n".toArray())
         return Option.None
-    }
-}
-
-// Execute the executable product for run command.
-public func execWithEnvReplace(exeTool: String, arguments: Array<String>,
-    envMap!: HashMap<String, String> = HashMap<String, String>(), timeout!: Option<Duration> = None,
-    workingDirectory!: ?Path = None): Unit {
-    try {
-        let subProcess: SubProcess
-        let env = HashMap<String, String>(getVariables())
-        for ((k, v) in envMap) {
-            if (k == PATH) {
-                fixWindowsPath(env, v)
-            } else if (k == LD_PATH && env.contains(k)) {
-                env[k] = v + SPLIT_ENV + env[k]
-            } else {
-                env[k] = v
-            }
-        }
-        subProcess = launch(exeTool, arguments, environment: env, workingDirectory: workingDirectory)
-        subProcess.wait(timeout: timeout)
-        return
-    } catch (e: Exception) {
-        eprintln(e.message)
     }
 }
 
@@ -234,14 +201,8 @@ public func checkParentDir(dir1: String, dir2: String): Bool {
 
 public func getRootPkgName(name: String): String {
     var idx = 0
-    if (name[idx] == UInt8(UInt32(r'`'))) {
-        if (let Some(next) <- name.indexOf(UInt8(UInt32(r'`')), idx + 1)) {
-            return name[0..=next]
-        }
-    } else {
-        if (let Some(next) <- name.indexOf(UInt8(UInt32(r'.')), idx + 1)) {
-            return name[0..next]
-        }
+    if (let Some(next) <- name.indexOf(UInt8(UInt32(r'.')), idx + 1)) {
+        return name[0..next]
     }
     return name
 }

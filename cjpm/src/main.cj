@@ -6,7 +6,6 @@
 
 package cjpm
 
-import std.process.*
 import std.env.*
 import cjpm.command.*
 

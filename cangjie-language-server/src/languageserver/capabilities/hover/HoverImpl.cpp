@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "HoverImpl.h"
+#include "../definition/LocateDefinition4Import.h"
 #include "cangjie/Lex/Token.h"
 
 namespace {
@@ -20,20 +21,18 @@ using namespace CONSTANTS;
 
 std::string HoverImpl::curFilePath = "";
 
-std::vector<std::string> HoverImpl::StringSplit(const std::string &src, const std::string &separateCharacter)
+Decl* HoverImpl::GetRealDecl(const std::vector<Ptr<Decl>> &decls)
 {
-    std::vector<std::string> strs;
-    size_t separateCharacterLen = separateCharacter.size();
-    size_t lastPosition = 0;
-    size_t index = 0;
-    while ((index = src.find(separateCharacter, lastPosition)) != std::string::npos) {
-        strs.push_back(src.substr(lastPosition, index - lastPosition));
-        lastPosition = index + separateCharacterLen;
+    Decl *decl = decls[0];
+    if (decl->astKind == Cangjie::AST::ASTKind::FUNC_PARAM) {
+        for (auto D : decls) {
+            if (D->astKind == Cangjie::AST::ASTKind::VAR_DECL) {
+                return D;
+            }
+        }
     }
-    std::string lastString = src.substr(lastPosition);
-    if (!lastString.empty())
-        strs.push_back(lastString);
-    return strs;
+
+    return decl;
 }
 
 void HoverImpl::TrimSpaceAndTab(std::string &s)
@@ -72,273 +71,127 @@ void HoverImpl::TrimSpaceAndTab(std::string &s)
     s = begin > end ? "" : s.substr(begin, (end - begin) + 1);
 }
 
-void HoverImpl::GetEffectiveContent(std::string &content, bool isHeadOrTail)
+std::string ReplaceNewlines(const std::string &input)
 {
-    TrimSpaceAndTab(content);
-    if (isHeadOrTail) {
-        if (content == "/**" ||
-            (content.size() > NUMBER_FOR_DOC_COMMENT && content.substr(0, NUMBER_FOR_DOC_COMMENT) == "/**" &&
-             content[NUMBER_FOR_DOC_COMMENT] != '/')) {
-            content = content.substr(NUMBER_FOR_DOC_COMMENT);
-        } else if (content.substr(0, NUMBER_FOR_BLOCK_COMMENT) == "/*") {
-            content = content.substr(NUMBER_FOR_BLOCK_COMMENT);
-        } else if (content.size() > 1 && content.substr(content.size() - NUMBER_FOR_BLOCK_COMMENT) == "*/") {
-            content = content.substr(0, content.size() - NUMBER_FOR_BLOCK_COMMENT);
-        }
-    } else {
-        auto index = content.find_first_not_of('*');
-        if (index != std::string::npos) {
-            content = content.substr(index);
+    std::string result;
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (input[i] == '\n') {
+            if (i == 0 || input[i - 1] != '\r') {
+                result += "\r\n";
+            } else {
+                result += '\n';
+            }
         } else {
-            content = "";
+            result += input[i];
         }
     }
-    TrimSpaceAndTab(content);
+    return result;
 }
 
-void HoverImpl::TrimBlankLines(std::vector<std::string> &result)
+void HoverImpl::RemoveStar(const std::string& content, std::string &result)
 {
-    if (result.empty()) {
-        return;
-    }
-    bool isValidHead = false;
-    bool isValidTail = false;
-    for (auto &str : result) {
-        TrimSpaceAndTab(str);
-    }
-    // the first and last element that is not a newline character, skip /** and */
-    std::vector<std::string> str;
-    // struct whether each result has been processed
-    std::vector<bool> hasMarked(result.size());
-    size_t begin = 0;
-    size_t end = result.size() - 1;
-    GetEffectiveContent(result[begin], true);
-    GetEffectiveContent(result[end], true);
-    while (begin < end && (!isValidHead || !isValidTail)) {
-        if (!hasMarked[begin]) {
-            hasMarked[begin] = true;
-            GetEffectiveContent(result[begin], false);
-        }
-        if (!hasMarked[end]) {
-            hasMarked[end] = true;
-            GetEffectiveContent(result[end], false);
-        }
-        if (!isValidHead) {
-            if (!result[begin].empty()) {
-                isValidHead = true;
-            } else {
-                begin++;
+    std::istringstream iss(content);
+    std::string line;
+
+    while (std::getline(iss, line)) {
+        size_t starPos = line.find('*');
+        if (starPos != std::string::npos) {
+            line = line.substr(starPos + 1);
+            if (!line.empty() && line[0] == ' ') {
+                line = line.substr(1);
             }
         }
-        if (!isValidTail) {
-            if (!result[end].empty()) {
-                isValidTail = true;
-            } else {
-                end--;
+
+        result += line;
+        if (!iss.eof() && iss.peek() != EOF) {
+            result += "\n";
+        }
+    }
+}
+
+
+void HoverImpl::RemoveAboveBlank(const std::string& content, std::vector<std::string> &lines, size_t &minIndent)
+{
+    std::istringstream iss(content);
+    std::string line;
+    minIndent = std::string::npos;
+    // First collect all lines and calculate the minimum indentation
+    while (std::getline(iss, line)) {
+        const size_t nonSpace = line.find_first_not_of(" \t\r");
+        if (nonSpace != std::string::npos) {
+            if (minIndent == std::string::npos || nonSpace < minIndent) {
+                minIndent = nonSpace;
             }
         }
+        lines.push_back(line);
     }
-    for (; begin <= end; begin++) {
-        if (!hasMarked[begin]) {
-            hasMarked[begin] = true;
-            GetEffectiveContent(result[begin], false);
-        }
-        str.push_back(result[begin]);
-    }
-    result = str;
 }
 
-std::string HoverImpl::GetHoverMessageForBlockComment(const std::vector<std::string> &result)
-{
-    std::string retBlockComment = "";
-    for (const auto &str : result) {
-        retBlockComment += str + CONSTANTS::BLANK;
-    }
-    if (!retBlockComment.empty()) {
-        retBlockComment = retBlockComment.substr(0, retBlockComment.size() - CONSTANTS::BLANK.size());
-    }
-    return retBlockComment;
-}
+void HoverImpl::RemoveBlankAndStar(const std::string &content, std::string &result)
+    {
+        std::vector<std::string> lines;
+        size_t minIndent;
+        RemoveAboveBlank(content, lines, minIndent);
 
-std::string HoverImpl::GetEffectiveDocComment(std::vector<std::string> &content, const std::string &blockTag)
-{
-    // 4 spaces for indent
-    const std::string indent = "    ";
-    std::string retContent;
-    if (content.empty()) {
-        return "";
-    }
-    if (blockTag != "@param") {
-        for (auto str : content) {
-            ConvertCarriageToSpace(str);
-            TrimSpaceAndTab(str);
-            if (blockTag != "@default" && blockTag != "@brief") {
-                retContent += indent + str + CONSTANTS::BLANK;
-                continue;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            auto &line = lines[i];
+            if (minIndent != std::string::npos && line.size() >= minIndent) {
+                line = line.substr(minIndent);
             }
-            retContent += str + CONSTANTS::BLANK;
-        }
-        return retContent;
-    }
-    size_t maxLenParam = 0U;
-    auto locationOfFirstSpace = std::string::npos;
-    for (auto &str : content) {
-        ConvertCarriageToSpace(str);
-        TrimSpaceAndTab(str);
-        locationOfFirstSpace = str.find_first_of(' ');
-        if (locationOfFirstSpace != std::string::npos) {
-            maxLenParam = std::max(maxLenParam, locationOfFirstSpace);
-        }
-    }
-    for (const auto &str : content) {
-        locationOfFirstSpace = str.find_first_of(' ');
-        if (locationOfFirstSpace == std::string::npos) {
-            retContent += indent + str + CONSTANTS::BLANK;
-            continue;
-        }
-        std::string alignment;
-        if (maxLenParam > locationOfFirstSpace) {
-            alignment = std::string(maxLenParam - locationOfFirstSpace, ' ');
-        }
-        std::string tempStr = str;
-        retContent += indent + tempStr.insert(locationOfFirstSpace, alignment) + CONSTANTS::BLANK;
-    }
-    return retContent;
-}
-
-bool HoverImpl::ValidTag(const char ch)
-{
-    // TagName can be @[Chinese][English][_]
-    return (static_cast<unsigned char>(ch) & 0x80) || isalnum(ch) || ch == '_';
-}
-
-Decl* HoverImpl::GetRealDecl(const std::vector<Ptr<Decl>> &decls)
-{
-    Decl *decl = decls[0];
-    if (decl->astKind == Cangjie::AST::ASTKind::FUNC_PARAM) {
-        for (auto D : decls) {
-            if (D->astKind == Cangjie::AST::ASTKind::VAR_DECL) {
-                return D;
+            // remove trailing spaces and tabs from the last line
+            if (i == lines.size() - 1) {
+                line.erase(line.find_last_not_of(" \t\r") + 1);
             }
+            RemoveStar(line, result);
         }
     }
-
-    return decl;
-}
-
-void HoverImpl::ResolveDocMapAndDocKey(std::unordered_map<std::string, std::vector<std::string>> &doc,
-                                       std::vector<std::string> &keyOfDoc, std::string resultToString)
-{
-    std::string docKey = "";
-    std::string docValue = "";
-    bool hasAt = false;
-    // the head and tail of substring
-    unsigned int begin = 0;
-    unsigned int end = 0;
-    unsigned int resultLength = static_cast<unsigned int>(resultToString.size());
-    const auto numOfChineseChar = 3U;
-    while (end < resultLength) {
-        if (end + 1 < resultLength && resultToString[end] == '@' && ValidTag(resultToString[end + 1]) && !hasAt) {
-            docValue = ((end >= 1 && begin == end - 1) ||
-                    (end >= numOfChineseChar && begin == end - numOfChineseChar)) ?
-                       "" : resultToString.substr(begin, end - begin);
-            TrimSpaceAndTab(docValue);
-            if (docKey.empty()) {
-                doc["@default"].push_back(docValue);
-            } else if (!doc.count(docKey) && docKey != "@brief") {
-                keyOfDoc.push_back(docKey);
-                doc[docKey].push_back(docValue);
-            } else {
-                doc[docKey].push_back(docValue);
-            }
-            begin = end;
-            hasAt = true;
-        } else if (!ValidTag(resultToString[end]) && hasAt) {
-            docKey = resultToString.substr(begin, end - begin);
-            if (resultToString[end] == '@') {
-                end -= (end >= numOfChineseChar &&
-                    (static_cast<unsigned char>(resultToString[end - numOfChineseChar]) & 0x80))
-                    ? numOfChineseChar
-                    : 1;
-            }
-            begin = end;
-            hasAt = false;
-        }
-        end += (static_cast<unsigned char>(resultToString[end]) & 0x80) ?
-               static_cast<unsigned int>(numOfChineseChar) : 1;
-    }
-    docValue = resultToString.substr(begin, end - begin);
-    TrimSpaceAndTab(docValue);
-    if (docKey.empty()) {
-        doc["@default"].push_back(docValue);
-    } else {
-        if (!doc.count(docKey) && docKey != "@brief") {
-            keyOfDoc.push_back(docKey);
-        }
-        doc[docKey].push_back(docValue);
-    }
-}
-
-// cangjiedoc includes description and block tags. block tags include @brief, @param and  @return
-std::string HoverImpl::GetHoverMessageForDocComment(const std::vector<std::string> &result)
-{
-    // key is block tag, value is content of block tag.
-    std::unordered_map<std::string, std::vector<std::string>> doc;
-    std::vector<std::string> keyOfDoc;
-    (void)keyOfDoc.emplace_back("@brief");
-    (void)keyOfDoc.emplace_back("@default");
-    std::string resultToString = "";
-    for (const auto str:result) {
-        resultToString += str + CONSTANTS::BLANK;
-    }
-    ResolveDocMapAndDocKey(doc, keyOfDoc, resultToString);
-    std::string retDocComment = "";
-    if (doc.count("@brief")) {
-        retDocComment += GetEffectiveDocComment(doc["@brief"], "@brief");
-    }
-    if (doc.count("@default")) {
-        retDocComment += GetEffectiveDocComment(doc["@default"], "@default");
-    }
-    retDocComment += retDocComment.empty() ? "" : CONSTANTS::BLANK;
-    for (size_t i = 2; i < keyOfDoc.size(); i++) {
-        std::string str = keyOfDoc[i].substr(1);
-        if (!str.empty() && isalpha(str[0])) {
-            str[0] = static_cast<char>(std::toupper(static_cast<int>(str[0])));
-        }
-        retDocComment += str + CONSTANTS::BLANK;
-        retDocComment += GetEffectiveDocComment(doc[keyOfDoc[i]], keyOfDoc[i]);
-    }
-    if (!retDocComment.empty()) {
-        retDocComment = retDocComment.substr(0, retDocComment.size() - CONSTANTS::BLANK.size());
-    }
-    return retDocComment;
-}
 
 std::string HoverImpl::ResolveComment(const std::string &comment, const CommentKind kind)
 {
-    std::string retComment = "";
     if (comment.empty()) {
         return "";
     }
+    std::string retComment;
     switch (kind) {
-        case CommentKind::NO_COMMENT: {
+        case CommentKind::NO_COMMENT:
             break;
-        }
         case CommentKind::LINE_COMMENT: {
-            retComment = comment.substr(NUMBER_FOR_LINE_COMMENT);
+            size_t pos = comment.find("//");
+            if (pos != std::string::npos) {
+                retComment = comment.substr(pos + NUMBER_FOR_LINE_COMMENT);
+            } else {
+                retComment = comment;
+            }
             TrimSpaceAndTab(retComment);
             break;
         }
         case CommentKind::BLOCK_COMMENT: {
-            std::vector<std::string> result = StringSplit(comment, CONSTANTS::BLANK);
-            TrimBlankLines(result);
-            retComment = GetHoverMessageForBlockComment(result);
+            size_t start = comment.find("/*");
+            size_t end = comment.rfind("*/");
+            if (start == std::string::npos || end == std::string::npos || end <= start + NUMBER_FOR_BLOCK_COMMENT) {
+                retComment = comment;
+                break;
+            }
+            std::string content =
+                comment.substr(start + NUMBER_FOR_BLOCK_COMMENT, end - start - NUMBER_FOR_BLOCK_COMMENT);
+            std::string result;
+            RemoveBlankAndStar(content, result);
+            retComment = result;
             break;
         }
         case CommentKind::DOC_COMMENT: {
-            std::vector<std::string> result = StringSplit(comment, CONSTANTS::BLANK);
-            TrimBlankLines(result);
-            retComment = GetHoverMessageForDocComment(result);
+            size_t start = comment.find("/**");
+            size_t end = comment.rfind("*/");
+            if (start == std::string::npos || end == std::string::npos || end <= start + NUMBER_FOR_DOC_COMMENT) {
+                retComment = comment;
+                break;
+            }
+
+            std::string content =
+                comment.substr(start + NUMBER_FOR_DOC_COMMENT, end - start - NUMBER_FOR_DOC_COMMENT);
+            std::string result;
+            RemoveBlankAndStar(content, result);
+            retComment = result;
             break;
         }
         default:
@@ -347,91 +200,61 @@ std::string HoverImpl::ResolveComment(const std::string &comment, const CommentK
     return retComment;
 }
 
-std::string HoverImpl::GetDeclCommentOfBack(const std::vector<Cangjie::Token> &tokens, const int lastTokenIndexOnLine)
+bool HoverImpl::IsAnnoAPILevel(Ptr<Annotation> anno, Ptr<ASTContext> ctx)
 {
-    Logger &logger = Logger::Instance();
-    logger.LogMessage(MessageType::MSG_LOG, "HoverImpl::GetDeclCommentOfBack in.");
-    std::string commentOfBack;
-    auto index = static_cast<std::vector<Cangjie::Token>::size_type>(static_cast<unsigned int>(lastTokenIndexOnLine));
-    std::string retCommentOfBack = "";
-    if (index >= tokens.size()) { return retCommentOfBack; }
-    if (tokens[index] == "\n" || tokens[index] == "\r\n") {
-        commentOfBack = tokens[index - 1].Value();
-    } else {
-        commentOfBack = tokens[index].Value();
+    if (ctx && ctx->curPackage && ctx->curPackage->fullPackageName == PKG_NAME_WHERE_APILEVEL_AT) {
+        return anno->identifier == APILEVEL_ANNO_NAME;
     }
-    CommentKind kind = GetCommentKind(commentOfBack);
-    if (lastTokenIndexOnLine > 1 && (kind == CommentKind::LINE_COMMENT || kind == CommentKind::BLOCK_COMMENT)) {
-        retCommentOfBack = ResolveComment(commentOfBack, kind);
+    if (!anno || anno->identifier != APILEVEL_ANNO_NAME) {
+        return false;
     }
-    return retCommentOfBack;
+    auto target = anno->baseExpr ? anno->baseExpr->GetTarget() : nullptr;
+    if (target && target->curFile && target->curFile->curPackage &&
+        target->curFile->curPackage->fullPackageName != PKG_NAME_WHERE_APILEVEL_AT) {
+        return false;
+    }
+    return true;
 }
 
-std::string HoverImpl::GetDeclCommentOfAbove(const std::vector<Cangjie::Token> &tokens,
-                                             const unsigned int firstTokenIndexOnLine,
-                                             bool &hasDocComment,
-                                             const int prevLineFirstIndexOnLine)
+std::string MapToApiLevelString(const std::map<std::string, std::string> &map)
 {
-    Logger &logger = Logger::Instance();
-    logger.LogMessage(MessageType::MSG_LOG, "HoverImpl::GetDeclCommentOfAbove in.");
-    // format is "comment + decl", so minus 1 to get comments
-    if (tokens.empty() || firstTokenIndexOnLine < 1) {
-        return "";
+    std::string result;
+    const std::string indent = "    ";
+    result += "@!APILevel[\n";
+    for (const auto &[key, value] : map) {
+        if (key == "") {
+            result += indent + value + ",\n";
+        } else if (key == SYSCAP_IDENTGIFIER) {
+            result += indent + key + ": " + "\"" + value + "\"" + "\n";
+        } else {
+            result += indent + key + ": " + value + ",\n";
+        }
     }
+    result.append("]\n");
+    return result;
+}
 
-    // only find preSibling element
-    // -1 is line separator
-    // -2 is effective preSibling element
-    int indexForDocComment = static_cast<int>(firstTokenIndexOnLine) - 2;
-    // reorganize the comment string
-    std::string retAboveComment = "";
-    if (indexForDocComment >= 0) {
-        std::string value = tokens[indexForDocComment].Value();
-        if (tokens[indexForDocComment].kind == TokenKind::COMMENT) {
-            CommentKind kind = GetCommentKind(value);
-            hasDocComment = kind == CommentKind::DOC_COMMENT;
-            if (kind == CommentKind::LINE_COMMENT && prevLineFirstIndexOnLine < indexForDocComment) {
-                return "";
+std::string HoverImpl::GetDeclApiLevelAnnoInfo(Decl &decl, const ArkAST &ast)
+{
+    std::map<std::string, std::string> map;
+    for (auto& anno : decl.annotations) {
+        if (!anno || !IsAnnoAPILevel(anno.get(), ast.packageInstance->ctx) || anno->args.size() < 1) {
+            continue;
+        }
+
+        for (const auto& arg : anno->args) {
+            if (!arg) {
+                continue;
             }
-            std::string str = ResolveComment(value, kind);
-            if (!str.empty()) {
-                retAboveComment = str;
+            if (auto lce = DynamicCast<LitConstExpr>(arg->expr.get())) {
+                map[arg->name.Val()] = lce->stringValue;
             }
         }
     }
-
-    if (EndsWith(retAboveComment, CONSTANTS::BLANK)) {
-        retAboveComment = retAboveComment.substr(0, retAboveComment.size() - CONSTANTS::BLANK.size());
+    if (!map.empty()) {
+        return MapToApiLevelString(map);
     }
-
-    return retAboveComment;
-}
-
-/**
- * @brief Get the comments above and after the decl.$$Comments consisting of multiple tokens can be supported later$$
- * @tokens All tokens in the curfile
- * @firstTokenIndexOnLine The first token in the row where the declaration is located.
- * @lastTokenIndexOnLine The last token in the row where the declaration is located.
- * @return A string consisting of comments
- * */
-std::string HoverImpl::GetDeclCommentByIndex(const std::vector<Cangjie::Token> &tokens,
-                                             const unsigned int firstTokenIndexOnLine, const int lastTokenIndexOnLine,
-                                             const int prevLineFirstIndexOnLine)
-{
-    Logger &logger = Logger::Instance();
-    logger.LogMessage(MessageType::MSG_LOG, "HoverImpl::GetDeclCommentByIndex in.");
-    bool hasDocComment = false;
-    // comments in the above
-    std::string retCommentTop = GetDeclCommentOfAbove(tokens, firstTokenIndexOnLine,
-                                                      hasDocComment, prevLineFirstIndexOnLine);
-    // comments in the back
-    std::string retCommentBack = "";
-    if (!hasDocComment) {
-        retCommentBack = GetDeclCommentOfBack(tokens, lastTokenIndexOnLine);
-    }
-
-    return ((retCommentTop.empty() || hasDocComment) ? retCommentTop :
-            (retCommentTop + CONSTANTS::BLANK)) + retCommentBack;
+    return "";
 }
 
 std::string HoverImpl::GetHoverMessageByOuterDecl(const Decl &node)
@@ -491,25 +314,37 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
     if (MessageHeaderEndOfLine::GetIsDeveco()) {
         result.markedString.push_back(GetDeclApiKey(decl));
     }
+    // get Annotations
+    if (!decl->annotations.empty()) {
+        result.markedString.push_back(GetDeclApiLevelAnnoInfo(*decl, ast));
+    }
+
     // get decl arkAST
     if (!decl) {
         return 0;
     }
-    ArkAST *declAST = instance->GetArkAST(path);
-    if (declAST == nullptr || declAST->tokens.empty()) {
-        return 0;
-    }
-    // get comment
-    int firstTokenIndexOnLine = GetFirstTokenOnCurLine(declAST->tokens, decl->GetIdentifierPos().line);
-    int lastTokenIndexOnLine = GetLastTokenOnCurLine(declAST->tokens, decl->GetIdentifierPos().line);
-    if (firstTokenIndexOnLine == -1 || lastTokenIndexOnLine == -1) {
+    std::vector<std::string> comments;
+
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
         return 1;
     }
-    // prev line first token index
-    int prevLineFirstIndexOnLine = GetFirstTokenOnCurLine(declAST->tokens, decl->GetIdentifierPos().line - 1);
-    std::string comment = GetDeclCommentByIndex(declAST->tokens, static_cast<const unsigned int>(firstTokenIndexOnLine),
-        lastTokenIndexOnLine, prevLineFirstIndexOnLine);
-    result.markedString.push_back(comment);
+    auto symFromIndex = index->GetAimSymbol(*decl);
+    if (symFromIndex.id == lsp::INVALID_SYMBOL_ID) {
+        return 1;
+    }
+    index->FindComment(symFromIndex, comments);
+    for (size_t i = 0; i < comments.size(); ++i) {
+        CommentKind kind = GetCommentKind(comments[i]);
+        const std::string comment = ReplaceNewlines(comments[i]);
+        std::string resolveComment = ResolveComment(comment, kind);
+        // config Vscode and DevEco(without \r)
+        if (i == comments.size() - 1) {
+            result.markedString.push_back(resolveComment + "\n");
+        } else {
+            result.markedString.push_back(resolveComment + "\r\n");
+        }
+    }
     return 1;
 }
 
@@ -561,11 +396,11 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
             firstTy = false;
         }
         signature += ')';
-        apiKey += signature;
+        apiKey += signature + "\r\n";
         return apiKey;
     }
     // return empty apiKey:
-    return "apiKey:";
+    return "apiKey:\r\n";
 }
 
 int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos)
@@ -583,7 +418,9 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
     // get curFilePath
     curFilePath = ast.file ? ast.file->filePath : "";
     int index = ast.GetCurTokenByPos(pos, 0, static_cast<int>(ast.tokens.size()) - 1);
-    if (index < 0 || ast.tokens[static_cast<size_t>(index)].kind == TokenKind::MAIN) {
+    bool incorrectIndex = !ast.packageInstance || index < 0 ||
+                        ast.tokens[static_cast<size_t>(index)].kind == TokenKind::MAIN;
+    if (incorrectIndex) {
         logger.LogMessage(MessageType::MSG_INFO, "this token does not need to hover.");
         return -1;
     }
@@ -597,9 +434,6 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
 
     std::string query = "_ = (" + std::to_string(pos.fileID) + ", "
                         + std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
-    if (!ast.packageInstance) {
-        return -1;
-    }
     auto syms = SearchContext(ast.packageInstance->ctx, query);
     if (syms.empty()) {
         logger.LogMessage(MessageType::MSG_WARNING, "the result of search is empty.");
@@ -618,11 +452,16 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
     if (isMarkPosition) { return -1; }
     std::vector<Ptr<Decl> > decls = ast.FindRealDecl(ast, syms, query, pos, {true, false});
     bool isDeclEmpty = decls.empty() || decls[0] == nullptr;
+    Ptr<Decl> decl;
     if (isDeclEmpty) {
-        logger.LogMessage(MessageType::MSG_WARNING, "the decl is null.");
-        return -1;
+        LocateDefinition4Import::getImportDecl(syms, ast, pos, decl);
+        if (!decl) {
+            logger.LogMessage(MessageType::MSG_WARNING, "the decl is null.");
+            return -1;
+        }
+    } else {
+        decl = GetRealDecl(decls);
     }
-    Ptr<Decl> decl = GetRealDecl(decls);
     if (decl->TestAttr(Attribute::DEFAULT, Attribute::COMPILER_ADD)) {
         query = "_ = (" + std::to_string(decl->identifier.Begin().fileID) +
             ", " + std::to_string(decl->identifier.Begin().line) +

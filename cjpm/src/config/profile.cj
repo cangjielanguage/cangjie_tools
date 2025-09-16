@@ -7,15 +7,25 @@
 package cjpm.config
 
 import std.collection.*
-import std.env.*
+import std.convert.*
+import std.fs.*
+@When[os == "Linux" || os == "macOS"]
+import std.io.*
+import std.time.*
+import std.deriving.Derive
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
+@When[os == "Windows" || os == "macOS"]
+import std.runtime.*
 
 const TEST_COMPILATION_OPTIONS = "build"
 const CUSTOMIZED_OPTION = "customized-option"
 const ENV_CONFIG = "env"
 const ENV_VALUE = "value"
 const ENV_SPLICE_TYPE = "splice-type"
+const kByte: Float64 = 1024.0
+let pageSize: Float64 = getOSPageSize() // unit: Byte
+public const COMPILE_PERFORMANCE_DIR = "performance_analysis"
 
 public class Profile <: Serializable<Profile> {
     public var build: BuildProfile = BuildProfile()
@@ -48,6 +58,8 @@ public class Profile <: Serializable<Profile> {
 public class BuildProfile <: Serializable<BuildProfile> {
     public var ltoValue: String = ""
     public var incremental: Bool = false
+    public var analysisCompilePerformance: Bool = false
+    public var combined: HashMap<String, String> = HashMap<String, String>()
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -62,6 +74,10 @@ public class BuildProfile <: Serializable<BuildProfile> {
         var result = BuildProfile()
         result.ltoValue = String.deserialize((dms.get("lto") as DataModelString) ?? DataModelString(""))
         result.incremental = Bool.deserialize((dms.get("incremental") as DataModelBool) ?? DataModelBool(false))
+        result.analysisCompilePerformance = Bool.deserialize(
+            (dms.get("performance_analysis") as DataModelBool) ?? DataModelBool(false))
+        result.combined = HashMap<String, String>.deserialize(
+            (dms.get("combined") as DataModelStruct) ?? DataModelStruct())
         return result
     }
 }
@@ -168,7 +184,7 @@ public class TestProfile <: Serializable<TestProfile> {
         fields.remove(TEST_COMPILATION_OPTIONS)
         fields.remove(ENV_CONFIG)
 
-        return JsonObject(fields).toJsonString().replace("\"", "\\\"").replace("\r", "").replace("\n", "")
+        return JsonObject(fields).toJsonString().replace("\r", "").replace("\n", "")
     }
 
     private func compilationBoolOptionByName(name: String): Bool {
@@ -215,9 +231,49 @@ public class RunProfile <: Serializable<RunProfile> {
     }
 }
 
-public class EnvInfo <: Serializable<EnvInfo> {
-    public var envValue: String = ""
-    public var spliceType: String = ""
+@Derive[Equatable]
+public enum SpliceType <: ToString {
+    | ABSENT
+    | REPLACE
+    | PREPEND
+    | APPEND
+    | Unknown(String)
+
+    static func fromString(value: String): SpliceType {
+        match {
+            case value == "absent" => ABSENT
+            case value == "replace" || value.isEmpty() => REPLACE
+            case value == "prepend" => PREPEND
+            case value == "append" => APPEND
+            case _ => Unknown(value)
+        }
+    }
+
+    public func toString(): String {
+        match (this) {
+            case ABSENT => "absent"
+            case REPLACE => "replace"
+            case PREPEND => "prepend"
+            case APPEND => "append"
+            case Unknown(s) => s
+        }
+    }
+
+    public prop isAbsent: Bool {
+        get() {
+            match (this) {
+                case ABSENT | Unknown(_) => true
+                case _ => false
+            }
+        }
+    }
+}
+
+public struct EnvInfo <: Serializable<EnvInfo> {
+    private EnvInfo(
+        public let envValue: String,
+        public let spliceType: SpliceType
+    ) {}
 
     public func serialize(): DataModel {
         return DataModelStruct()
@@ -228,25 +284,17 @@ public class EnvInfo <: Serializable<EnvInfo> {
             case data: DataModelStruct => data
             case _ => throw Exception("this data is not DataModelStruct")
         }
-        var result = EnvInfo()
-        result.envValue = String.deserialize((dms.get(ENV_VALUE) as DataModelString) ?? DataModelString(""))
-        result.spliceType = String.deserialize((dms.get(ENV_SPLICE_TYPE) as DataModelString) ?? DataModelString(""))
-        return result
-    }
-}
 
-public func envConfigToMap(envConfig: HashMap<String, EnvInfo>): HashMap<String, String> {
-    let res: HashMap<String, String> = HashMap<String, String>()
-    for ((envName, envInfo) in envConfig) {
-        var spliceType = envInfo.spliceType
-        let envs: HashMap<String, String> = HashMap(getVariables())
-        if (!envs.contains(envName)) {
-            res.add(envName, getFinalEnvValue(envName, envInfo.envValue, "replace"))
-        } else if (spliceType != "absent") {
-            res.add(envName, getFinalEnvValue(envName, envInfo.envValue, spliceType))
+        let spliceTypeString = match (dms.get(ENV_SPLICE_TYPE)) {
+            case _: DataModelNull => ""
+            case s: DataModelString => s.getValue()
+            case _ => "invalid"
         }
+        return EnvInfo(
+            String.deserialize((dms.get(ENV_VALUE) as DataModelString) ?? DataModelString("")),
+            SpliceType.fromString(spliceTypeString)
+        )
     }
-    return res
 }
 
 @When[os == "Linux" || os == "macOS"]
@@ -256,13 +304,7 @@ public func envMapToString(envMap: HashMap<String, String>): String {
     }
     var res: String = ""
     for ((key, value) in envMap) {
-        if (key == LD_PATH) {
-            res += "${key}=${value}:$${LD_PATH} "
-        } else if (key == PATH) {
-            res += "${key}=${value}:$${PATH} "
-        } else {
-            res += "${key}=${value} "
-        }
+        res += "${key}=${value} "
     }
     return res
 }
@@ -274,11 +316,7 @@ public func envMapToString(envMap: HashMap<String, String>): String {
     }
     var res: String = "cmd /V /C \""
     for ((key, value) in envMap) {
-        if (key == PATH) {
-            res += "set ${key}=${value};%${PATH}%&& "
-        } else {
-            res += "set ${key}=${value}&& "
-        }
+        res += "set ${key}=${value}&& "
     }
     return res
 }
@@ -289,31 +327,13 @@ public let ENV_HEAD_PATCH: String = ""
 public let ENV_PATCH: String = ""
 
 @When[os == "Linux" || os == "macOS"]
-public func getFinalEnvValue(envName: String, envValue: String, spliceType: String): String {
-    if (spliceType == "replace") {
-        return "${envValue}"
+public func getFinalEnvValue(envName: String, envValue: String, spliceType: SpliceType): String {
+    match (spliceType) {
+        case REPLACE => "${envValue}"
+        case PREPEND => "${envValue}:$${envName}"
+        case APPEND => "$${envName}:${envValue}"
+        case _ => ""
     }
-    if (spliceType == "prepend") {
-        return "${envValue}:$${envName}"
-    }
-    if (spliceType == "append") {
-        return "$${envName}:${envValue}"
-    }
-    return ""
-}
-
-@When[os == "Linux" || os == "macOS"]
-func setFinalEnvValue(envName: String, envValue: String, spliceType: String): String {
-    if (spliceType == "replace") {
-        return "${envName}=\"${envValue}\""
-    }
-    if (spliceType == "prepend") {
-        return "${envName}=\"${envValue}\":$${envName}"
-    }
-    if (spliceType == "append") {
-        return "${envName}=$${envName}:\"${envValue}\""
-    }
-    return ""
 }
 
 @When[os == "Windows"]
@@ -322,39 +342,37 @@ public let ENV_HEAD_PATCH: String = "cmd /V /C \""
 public let ENV_PATCH: String = "\""
 
 @When[os == "Windows"]
-public func getFinalEnvValue(envName: String, envValue: String, spliceType: String): String {
-    if (spliceType == "replace") {
-        return "${envValue}"
+public func getFinalEnvValue(envName: String, envValue: String, spliceType: SpliceType): String {
+    match (spliceType) {
+        case REPLACE => "${envValue}"
+        case PREPEND => "${envValue};%${envName}%"
+        case APPEND => "%${envName}%;${envValue}"
+        case _ => ""
     }
-    if (spliceType == "prepend") {
-        return "${envValue};%${envName}%"
-    }
-    if (spliceType == "append") {
-        return "%${envName}%;${envValue}"
-    }
-    return ""
 }
 
-@When[os == "Windows"]
-func setFinalEnvValue(envName: String, envValue: String, spliceType: String): String {
-    return "set ${envName}=${getFinalEnvValue(envName, envValue, spliceType)}&& "
-}
-
-public func appendEnvConfig(envConfig: HashMap<String, EnvInfo>): ArrayList<String> {
-    var res = ArrayList<String>()
-    for ((envName, envInfo) in envConfig) {
-        var spliceType = envInfo.spliceType
-        let envs: HashMap<String, String> = HashMap(getVariables())
-        if (!envs.contains(envName)) {
-            res.add(setFinalEnvValue(envName, envInfo.envValue, "replace"))
-        } else if (spliceType != "absent") {
-            res.add(setFinalEnvValue(envName, envInfo.envValue, spliceType))
+public func verifyCombinedField(cfg: TomlInfo, path: String): Bool {
+    var flag = true
+    for ((pkgName, outputType) in cfg.profile.build.combined) {
+        if (pkgName != cfg.pkg.name) {
+            eprintln(
+                "Error: field 'profile.build.combined' in ${Path(path).join(CONFIG_FILE_NAME).toString()} " +
+                    "can only used for root package '${cfg.pkg.name}', current value is '${pkgName}'")
+            flag = false
+            continue
         }
-        if (!res.isEmpty() && !ENV_HEAD_PATCH.isEmpty()) {
-            res[0] = ENV_HEAD_PATCH + res[0]
+        if (outputType != DYNAMIC_TYPE) {
+            eprintln(
+                "Error: field 'profile.build.combined.${cfg.pkg.name}' in " +
+                    "${Path(path).join(CONFIG_FILE_NAME).toString()} can only configured as 'dynamic'")
+            flag = false
+            continue
         }
+        eprintln("Warning: field 'profile.build.combined' in '${Path(path).join(CONFIG_FILE_NAME).toString()}' " +
+            "is experimental, it is unstable and has some limitations, " +
+            "please refer to related documentation for more details")
     }
-    return res
+    return flag
 }
 
 func verifyCustomizedOption(customizedOption: HashMap<String, String>, path: String): Bool {
@@ -362,7 +380,7 @@ func verifyCustomizedOption(customizedOption: HashMap<String, String>, path: Str
         if (!customizedOptionCheck(k, path)) {
             return false
         }
-        let ownOptions = ["jobs", "verbose", "incremental", "help", "mock", "bench"]
+        let ownOptions = ["jobs", "coverage", "verbose", "incremental", "help", "mock", "bench"]
         if (ownOptions.contains(k)) {
             eprintln("Error: '${k}' is an option used by cjpm, it does not allow to be used as a customized key")
             return false
@@ -380,13 +398,195 @@ public func verifyEnvConfig(envConfig: HashMap<String, EnvInfo>, cmd: String, co
         if (!envNameCheck(envName, cmd, configFilePath)) {
             return false
         }
-        let envSpliceType: String = envInfo.spliceType
-        if (!envSpliceType.isEmpty() && envSpliceType != "absent" && envSpliceType != "replace" &&
-            envSpliceType != "prepend" && envSpliceType != "append") {
-            eprintln("Error: splice type of environment variable '${envName}' in profile '${cmd}' " +
-                "in ${configFilePath} can be only 'absent', 'replace', 'prepend' or 'append'")
+        if (let Unknown(_) <- envInfo.spliceType) {
+            eprintln(
+                "Error: splice type of environment variable '${envName}' in profile '${cmd}' " +
+                    "in ${configFilePath} can be only '${SpliceType.ABSENT}', '${SpliceType.REPLACE}', '${SpliceType.PREPEND}' or '${SpliceType.APPEND}'")
             return false
         }
     }
     return true
+}
+
+func GetMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float64 {
+    var memoryStr = String.empty
+    try {
+        let targetBeginPos: Int64 = meminfoStr.indexOf(target).getOrThrow()
+        let targetEndPos: Int64 = targetBeginPos + target.size
+        let kBBeginPos: Int64 = meminfoStr.indexOf("kB", targetEndPos).getOrThrow()
+        memoryStr = meminfoStr[targetEndPos + 1..kBBeginPos]
+    } catch (_) {
+    }
+
+    return Float64.parse(memoryStr) / kByte // unit: MB
+}
+
+/**
+ * @brief Get memory usage of current OS, including all tasks, the format of `/proc/meminfo` is like:
+ *      MemTotal:        xxx kB
+ *      MemFree:         xxx kB  // totally unused memory
+ *      MemAvailable:    xxx kB  // estimated available memory
+ *      Buffers:         xxx kB  // can be released if memory is not enough
+ *      Cached:          xxx kB  // can be released if memory is not enough
+ *      ...
+ *      SReclaimable:    xxx kB  // can be reclaimed in slab
+ *      ...
+ */
+@When[os == "Linux"]
+public func getMemInfo(): Float64 {
+    let linuxMemPath = Path("/proc/meminfo")
+    let meminfo = File(linuxMemPath, Read)
+    let meminfoBuffer = readToEnd(meminfo)
+    let meminfoStr = String.fromUtf8(meminfoBuffer)
+    let totalMemory = GetMemoryValueFromMeminfoString(meminfoStr, "MemTotal:")
+    let memoryAvailableList: Array<String> = ["MemFree:", "Buffers:", "Cached:", "SReclaimable:"]
+    var memoryAvailable: Float64 = 0.0
+    for (item in memoryAvailableList) {
+        memoryAvailable += GetMemoryValueFromMeminfoString(meminfoStr, item)
+    }
+    return totalMemory - memoryAvailable
+}
+
+/**
+ * @brief Get memory usage of current process, the format of `/proc/self/statm` is like:
+ *      num1 num2 num3 num4 num5 num6 num7
+ * Just seven numbers in one line, their meanings are:
+ *      num1: total memory
+ *      num2: real used memory
+ *      num3: shared memory
+ *      num4: text segment memory
+ *      num5: dynamic lib memory
+ *      num6: data segment memory
+ *      num7: dirty page memory
+ * the unit of these memory is page, not KB or MB, 1 page = 4 KB
+ */
+@When[os == "Linux"]
+public func getCjpmMemInfo(): Float64 {
+    let usedMemoryIdx = 1
+    let linuxCjpmInitMemPath: Path = Path("/proc/self/statm")
+    let statm: File = File(linuxCjpmInitMemPath, Read)
+    let statmBuffer = readToEnd(statm)
+    let statmStr = String.fromUtf8(statmBuffer)
+    let statmArray = statmStr.split(" ")
+    return Float64.parse(statmArray[usedMemoryIdx]) * pageSize / kByte / kByte // unit: MB
+}
+
+@C
+struct MEMORYSTATUSEX {
+    var dwLength: UInt32 = 0
+    var dwMemoryLoad: UInt32 = 0
+    var ullTotalPhys: UInt64 = 0
+    var ullAvailPhys: UInt64 = 0
+    var ullTotalPageFile: UInt64 = 0
+    var ullAvailPageFile: UInt64 = 0
+    var ullTotalVirtual: UInt64 = 0
+    var ullAvailVirtual: UInt64 = 0
+    var ullAvailExtendedVirtual: UInt64 = 0
+}
+
+@When[os == "Windows"]
+foreign func GlobalMemoryStatusEx(memory: CPointer<MEMORYSTATUSEX>): Bool
+
+@When[os == "Windows"]
+public func getMemInfo(): Float64 {
+    unsafe {
+        var memory: MEMORYSTATUSEX = MEMORYSTATUSEX()
+        memory.dwLength = 64
+        GlobalMemoryStatusEx(inout memory)
+        var memInfo = Float64(memory.ullTotalPhys - memory.ullAvailPhys) / kByte / kByte
+        return memInfo
+    }
+}
+
+@When[os == "Windows"]
+public func getCjpmMemInfo(): Float64 {
+    var cjpmMemInfo = Float64(getUsedHeapSize()) / kByte / kByte
+    return cjpmMemInfo
+}
+
+@C
+struct vm_statistics64_data_t {
+    var free_count: UInt32 = 0
+    var active_count: UInt32 = 0
+    var inactive_count: UInt32 = 0
+    var wire_count: UInt32 = 0
+    var zero_fill_count: UInt64 = 0
+    var reactivations: UInt64 = 0
+    var pageins: UInt64 = 0
+    var pageouts: UInt64 = 0
+    var faults: UInt64 = 0
+    var cow_faults: UInt64 = 0
+    var lookups: UInt64 = 0
+    var hits: UInt64 = 0
+    var purges: UInt64 = 0
+    var purgeable_count: UInt32 = 0
+    var speculative_count: UInt32 = 0
+    var decompressions: UInt64 = 0
+    var compressions: UInt64 = 0
+    var swapins: UInt64 = 0
+    var swapouts: UInt64 = 0
+    var compressor_page_count: UInt32 = 0
+    var throttled_count: UInt32 = 0
+    var external_page_count: UInt32 = 0
+    var internal_page_count: UInt32 = 0
+    var total_uncompressed_pages_in_compressor: UInt64 = 0
+}
+
+@When[os == "macOS"]
+foreign func host_statistics64(mach_host: Int64, HOST_VM_INFO64: Int32, memoryData: CPointer<vm_statistics64_data_t>,
+    mach_msg_type_number_t: CPointer<UInt32>): Int64
+
+@When[os == "macOS"]
+foreign func mach_host_self(): Int64
+
+@When[os == "macOS"]
+foreign func getpagesize(): Int64
+
+@When[os == "macOS"]
+func getOSPageSize(): Float64 {
+    unsafe {
+        return Float64(getpagesize())
+    }
+}
+
+@When[os != "macOS"]
+func getOSPageSize(): Float64 {
+    return 4.0 * kByte
+}
+
+@When[os == "macOS"]
+public func getMemInfo(): Float64 {
+    unsafe {
+        var memoryData = vm_statistics64_data_t()
+        // there are 38 32-bit data in vm_statistics64_data_t
+        var mach_msg_type_number_t: UInt32 = 38
+        // `HOST_VM_INFO64` is global var in <mac/mac.h>, and its value is always 4, that means we want memory info
+        const HOST_VM_INFO64: Int32 = 4
+        host_statistics64(mach_host_self(), HOST_VM_INFO64, inout memoryData, inout mach_msg_type_number_t)
+        return Float64(memoryData.active_count + memoryData.wire_count) * pageSize / kByte / kByte // unit: MB
+    }
+}
+
+@When[os == "macOS"]
+public func getCjpmMemInfo(): Float64 {
+    return Float64(getUsedHeapSize()) / kByte / kByte
+}
+
+public func addMemoryProcess(): Future<Thread> {
+    let cjpmMemOffset = getMemInfo() - getCjpmMemInfo()
+    cjpmCompileInfo.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCjpmMemInfo())
+    let memoryProcess = spawn {
+        =>
+            while (true) {
+                if (Thread.currentThread.hasPendingCancellation) {
+                    return Thread.currentThread
+                }
+                sleep(100 * Duration.millisecond)
+                var cjpmRealTimeSystemPhysicalMemory = getMemInfo() - cjpmMemOffset
+                var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
+                cjpmCompileInfo.add(cjpmTime, cjpmRealTimeSystemPhysicalMemory)
+            }
+            return Thread.currentThread
+    }
+    return memoryProcess
 }

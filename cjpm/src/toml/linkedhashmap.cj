@@ -25,7 +25,7 @@ public class LinkedHashMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K>
     public init(elements: Collection<(K, V)>) {
         this.table = HashMap<K, V>(elements)
         for (i in elements) {
-            ordering.append(i[0])
+            ordering.addLast(i[0])
         }
     }
 
@@ -45,7 +45,7 @@ public class LinkedHashMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K>
         match (table.add(key, value)) {
             case Some(n) => return n
             case _ =>
-                ordering.append(key)
+                ordering.addLast(key)
                 return None
         }
     }

@@ -4,113 +4,32 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include<cstdio>
-#include<cstdlib>
-#include<iostream>
-#include<string>
-#include<unistd.h>
-#include<algorithm>
-#include<common.h>
-#include<SingleInstance.h>
+#include "common.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <unistd.h>
+
+
+#include "SingleInstance.h"
 #include "../../src/languageserver/ArkLanguageServer.h"
+
 #ifdef _WIN32
 #else
 #include<sys/types.h>
 #include<sys/wait.h>
 #endif
 
-using namespace Cangjie::FileUtil;
 using namespace std;
-
+using namespace Cangjie::FileUtil;
+using namespace TestUtils;
 
 SingleInstance *SingleInstance::m_pInstance = nullptr;
 
 namespace {
-#ifdef _WIN32
-    const std::string TEST_FILE_SEPERATOR = "\\";
-#else
-    const std::string TEST_FILE_SEPERATOR = "/";
-#endif
-
-    const std::string MACRO_PATH = "/Macro/";
-    const int MAX_LEN = 1024 * 1024;
-
-    std::string replaceCrLf(const std::string &str) {
-        std::string result = str;
-        size_t start_pos = 0;
-        while ((start_pos = result.find("\\r\\n", start_pos)) != std::string::npos) {
-            result.replace(start_pos, 4, "\\n");
-            start_pos += 1;
-        }
-        return result;
-    }
-
-    void PrintJson(const nlohmann::json &exp, const std::string &prefix) {
-        std::ostringstream actOs;
-        actOs << exp.dump(-1);
-        std::string lines = actOs.str();
-        printf("%s=%s \n", prefix.c_str(), lines.c_str());
-    }
-
-    std::optional<std::string> GetRelativePathForTest(const std::string &basePath, const std::string &path) {
-        if (basePath == path) {
-            return "";
-        }
-        auto found = path.find(basePath);
-        if (found != std::string::npos) {
-            return path.substr(found + basePath.size());
-        }
-        return "";
-    }
-
-    std::string ChangeMessageUrlOfString(const std::string &projectPath, const std::string &tmp,
-                                         std::string &rootUri,
-                                         bool &isMultiModule) {
-        std::string relativePath;
-        std::string uri;
-        if (isMultiModule) {
-            relativePath = GetRelativePathForTest(rootUri, tmp).value();
-        } else {
-            auto index = tmp.find("src");
-            if (index == std::string::npos) {
-                return "";
-            }
-            relativePath = tmp.substr(tmp.find("src"));
-        }
-        uri = ark::PathWindowsToLinux(JoinPath(projectPath, relativePath));
-        auto found = uri.find(':');
-        if (found != std::string::npos) {
-            uri.replace(found, 1, "%3A");
-        }
-        if (!uri.empty() && uri.back() == '/') {
-            uri.pop_back();
-        }
-        if (TEST_FILE_SEPERATOR == "\\") {
-            uri = "file:///" + uri;
-        } else {
-            uri = "file://" + uri;
-        }
-        return uri;
-    }
-
-    void ChangeMessageUrlOfTextDocument(const std::string &projectPath, nlohmann::json &root,
-                                        std::string &rootUri,
-                                        bool &isMultiModule) {
-        if (root.empty()) {
-            return;
-        }
-        std::string tmp = root.get<std::string>();
-        if (tmp.empty()) {
-            return;
-        }
-        std::string temp = ChangeMessageUrlOfString(projectPath, tmp, rootUri, isMultiModule);
-        if (temp.empty()) {
-            return;
-        }
-        root = temp;
-    }
-
-    // GCOVR_EXCL_START
     void ChangeMessageUrlOfChanges(const std::string &projectPath, nlohmann::json &root, std::string &rootUri,
                                    bool &isMultiModule) {
         auto size = static_cast<int>(root["params"]["changes"].size());
@@ -118,8 +37,6 @@ namespace {
             ChangeMessageUrlOfTextDocument(projectPath, root["params"]["changes"][i]["uri"], rootUri, isMultiModule);
         }
     }
-
-    // GCOVR_EXCL_STOP
 
     void ChangeMultiModuleOptionUrl(const std::string &projectPath, nlohmann::json &root, std::string &rootUri,
                                     bool &isMultiModule) {
@@ -172,9 +89,78 @@ namespace {
         root["initializationOptions"]["multiModuleOption"] = multiModuleOptionTemp;
     }
 
+    /*
+    * create json for sysconfig/syscap_api_config.json
+    */
+    void CreateJson(const std::string& projectFolder)
+    {
+        std::string filePath = JoinPath(JoinPath(projectFolder, syscapFolder), syscapPath);
+        nlohmann::json data;
+        auto phone = JoinPath(JoinPath(projectFolder, syscapFolder), phonePath);
+        auto phonehmos = JoinPath(JoinPath(projectFolder, syscapFolder), phonehmosPath);
+        data["Modules"]["default"]["deviceSysCap"]["phone"] = {phone, phonehmos};
+        std::ofstream file(filePath);
+        if (file.is_open()) {
+            file << data.dump(INDENT_LEN);
+            file.close();
+        }
+    }
+
+    void ChangeMessageUrlForAPILevel(nlohmann::json& root, const std::string& projectFolder)
+    {
+        if (root.contains("conditionCompileOption") && root["conditionCompileOption"].contains("APILevel_syscap")) {
+            std::string prefixUri{};
+            root["conditionCompileOption"]["APILevel_syscap"] = JoinPath(
+            JoinPath(projectFolder, syscapFolder), syscapPath);
+            CreateJson(projectFolder);
+        }
+    }
+
+    void ChangeInitializeUri(nlohmann::json &root, std::string &rootUri,
+                                std::string &projectPath, bool &isMultiModule)
+    {
+        rootUri = root["params"].value("rootUri", "");
+        root["params"]["rootPath"] = projectPath;
+        root["params"]["initializationOptions"]["targetLib"] = SingleInstance::GetInstance()->binaryPath;
+        auto projectUri = projectPath;
+        auto found = projectPath.find(':');
+        if (found != std::string::npos) {
+            projectUri.replace(found, 1, "%3A");
+        }
+        if (TEST_FILE_SEPERATOR == "\\") {
+            root["params"]["rootUri"] = "file:///" + projectUri;
+        } else {
+            root["params"]["rootUri"] = "file://" + projectPath;
+        }
+        ChangeMultiModuleOptionUrl(projectPath, root["params"], rootUri, isMultiModule);
+        if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
+                "conditionCompilePaths")) {
+            root["params"]["initializationOptions"]["conditionCompilePaths"][0] = projectPath;
+        }
+        if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
+                "stdCjdPathOption")) {
+            root["params"]["initializationOptions"]["stdCjdPathOption"] = JoinPath(
+                JoinPath(SingleInstance::GetInstance()->pathPwd, "stdlib"), "cjdecl");
+        }
+        if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
+                "ohosCjdPathOption")) {
+            root["params"]["initializationOptions"]["ohosCjdPathOption"] = JoinPath(
+                JoinPath(SingleInstance::GetInstance()->pathPwd, "ohoslib"), "cjdecl");
+        }
+        if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
+                "cjdCachePathOption")) {
+            root["params"]["initializationOptions"]["cjdCachePathOption"] = JoinPath(
+                SingleInstance::GetInstance()->pathPwd, "cjdIdx");
+        }
+        if (root["params"].contains("initializationOptions")) {
+            ChangeMessageUrlForAPILevel(root["params"]["initializationOptions"], projectPath);
+        }
+    }
+
     std::string ChangeMessageUrlForTestFile(const std::string &message, const std::string &proFolder,
                                             std::string &rootUri,
-                                            bool &isMultiModule) {
+                                            bool &isMultiModule)
+    {
         std::string projectPath = SingleInstance::GetInstance()->workPath + "/test/testChr/" + proFolder;
 
         nlohmann::json root;
@@ -197,42 +183,10 @@ namespace {
         }
 
         if (root.value("method", "") == "initialize") {
-            rootUri = root["params"].value("rootUri", "");
-            root["params"]["rootPath"] = projectPath;
-            root["params"]["initializationOptions"]["targetLib"] = SingleInstance::GetInstance()->binaryPath;
-            auto projectUri = projectPath;
-            auto found = projectPath.find(':');
-            if (found != std::string::npos) {
-                projectUri.replace(found, 1, "%3A");
-            }
-            if (TEST_FILE_SEPERATOR == "\\") {
-                root["params"]["rootUri"] = "file:///" + projectUri;
-            } else {
-                root["params"]["rootUri"] = "file://" + projectPath; // GCOVR_EXCL_LINE
-            }
-            ChangeMultiModuleOptionUrl(projectPath, root["params"], rootUri, isMultiModule);
-            if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
-                    "conditionCompilePaths")) {
-                root["params"]["initializationOptions"]["conditionCompilePaths"][0] = projectPath;
-            }
-            if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
-                    "stdCjdPathOption")) {
-                root["params"]["initializationOptions"]["stdCjdPathOption"] = JoinPath(
-                    JoinPath(SingleInstance::GetInstance()->pathPwd, "stdlib"), "cjdecl");
-            }
-            if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
-                    "ohosCjdPathOption")) {
-                root["params"]["initializationOptions"]["ohosCjdPathOption"] = JoinPath(
-                    JoinPath(SingleInstance::GetInstance()->pathPwd, "ohoslib"), "cjdecl");
-            }
-            if (root["params"].contains("initializationOptions") && root["params"]["initializationOptions"].contains(
-                    "cjdCachePathOption")) {
-                root["params"]["initializationOptions"]["cjdCachePathOption"] = JoinPath(
-                    SingleInstance::GetInstance()->pathPwd, "cjdIdx");
-            }
+            ChangeInitializeUri(root, rootUri, projectPath, isMultiModule);
         } else {
             if (root["params"].contains("changes")) {
-                ChangeMessageUrlOfChanges(projectPath, root, rootUri, isMultiModule); // GCOVR_EXCL_LINE
+                ChangeMessageUrlOfChanges(projectPath, root, rootUri, isMultiModule);
             }
 
             if (root["params"].contains("textDocument")) {
@@ -242,6 +196,13 @@ namespace {
 
             if (root["params"].contains("item")) {
                 ChangeMessageUrlOfTextDocument(projectPath, root["params"]["item"]["uri"], rootUri, isMultiModule);
+            }
+
+            if (root["params"].contains("arguments") && !root["params"]["arguments"].empty()) {
+                for (int i = 0; i < root["params"]["arguments"].size(); i++) {
+                    ChangeMessageUrlOfTextDocument(
+                        projectPath, root["params"]["arguments"][i]["file"], rootUri, isMultiModule);
+                }
             }
         }
         std::ostringstream os;
@@ -263,11 +224,11 @@ namespace {
             }
             root = nlohmann::json::parse(message);
         } catch (nlohmann::detail::parse_error &errs) {
-            return pair; // GCOVR_EXCL_LINE
+            return pair;
         }
 
         if (!root.contains("caseFolder")) {
-            return pair; // GCOVR_EXCL_LINE
+            return pair;
         }
 
         caseFolder = root.value("caseFolder", "");
@@ -282,66 +243,45 @@ namespace {
         return pair;
     }
 
-    std::string GetFileUrl(const std::string &file) {
-        std::string filePath;
-        auto loc = file.find("test/testChr");
-        if (loc == std::string::npos) {
-            if (file.find("output/bin/stdlib/cjdecl/") != std::string::npos) {
-                return file;
+    void ChangeApplyEditUrlForBaseFile(const std::string &testFilePath, nlohmann::json &resultBase, std::string &rootUri,
+        bool &isMultiModule)
+    {
+        std::ifstream infile;
+        std::string message;
+        std::string caseFolder;
+        infile.open(testFilePath);
+        if (infile.is_open() && infile.good() && !infile.eof()) {
+            char buf[MAX_LEN] = {0};
+            infile.getline(buf, MAX_LEN);
+            message = std::string(buf);
+            if (message.length() == 0) {
+                return;
             }
-            return filePath;
+            std::pair<std::string, std::string> caseAndBinaryFolder = GetCaseAndBinaryFolder(message);
+            caseFolder = caseAndBinaryFolder.first;
+            infile.close();
         }
-
-        std::string subUri = "/" + file.substr(loc, file.length());
-        filePath = SingleInstance::GetInstance()->workPath + subUri;
-        return filePath;
+        std::string projectPath = SingleInstance::GetInstance()->workPath + "/test/testChr/" + caseFolder;
+        if (resultBase.empty() || !resultBase.contains("params") || !resultBase["params"].contains("edit")) {
+            return;
+        }
+        if (resultBase["params"]["edit"]["changes"].empty()) {
+            return;
+        }
+        if (resultBase["params"]["edit"]["changes"].is_object()) {
+            nlohmann::json newJson;
+            std::map<std::string, nlohmann::json> newMap;
+            for (const auto &[key, value] : resultBase["params"]["edit"]["changes"].items()) {
+                std::string newKey = ChangeMessageUrlOfString(projectPath, key, rootUri, isMultiModule);
+                newMap[newKey] = value;
+            }
+            newJson["params"]["edit"]["changes"] = newMap;
+            resultBase = newJson;
+        }
     }
 
-    struct SemanticTokensFormat {
-        int line;
-        int startChar;
-        int length;
-        int tokenType;
-        int tokenTypeModifier;
-
-        bool operator==(const SemanticTokensFormat &right) const;
-
-        bool operator<(const SemanticTokensFormat &right) const;
-    };
-
-    // GCOVR_EXCL_START
-    bool SemanticTokensFormat::operator==(const SemanticTokensFormat &right) const // GCOVR_EXCL_LINE
-    {
-        return this->line == right.line && this->startChar == right.startChar &&
-               this->length == right.length && this->tokenType == right.tokenType;
-    }
-
-    bool SemanticTokensFormat::operator<(const SemanticTokensFormat &right) const // GCOVR_EXCL_LINE
-    {
-        if (this->line < right.line) {
-            return true;
-        }
-        if (this->line == right.line && (this->startChar < right.startChar ||
-                                         this->startChar == right.startChar && this->length < right.length)) {
-            return true; // GCOVR_EXCL_LINE
-        }
-        return false;
-    }
-
-    // GCOVR_EXCL_STOP
-
-    void AdaptCjvmTest(string &baseFile, const SingleInstance *p, string &expectedFile) {
-#ifdef CANGJIE_CODEGEN_CJVM_BACKEND
-    string tempFile = p->messagePath + "/" + baseFile.substr(0, baseFile.rfind(".")) + "-cjvm.base";
-    if (!FileExist(tempFile)) {
+    void AdaptPathTest(string &baseFile, const SingleInstance *p, string &expectedFile) {
         expectedFile = p->messagePath + "/" + baseFile.substr(0, baseFile.rfind(".")) + ".base";
-    } else {
-        expectedFile = p->messagePath + "/" + baseFile.substr(0, baseFile.rfind(".")) + "-cjvm.base";
-        baseFile = baseFile.substr(0, baseFile.rfind(".")) + "-cjvm.base";
-    }
-#else
-        expectedFile = p->messagePath + "/" + baseFile.substr(0, baseFile.rfind(".")) + ".base";
-#endif
     }
 
     std::vector<std::string> SplitString(const std::string &value, char delimiter) {
@@ -473,7 +413,6 @@ namespace {
                compareResult.second.c_str());
     }
 
-    // GCOVR_EXCL_START
     ark::Range CreateRangeOrSelectionRangeStruct(const nlohmann::json &exp) {
         ark::Range result;
         if (exp.contains("range")) {
@@ -490,8 +429,6 @@ namespace {
         return result;
     }
 
-    // GCOVR_EXCL_STOP
-
     ark::Range CreateSelectionRangeStruct(const nlohmann::json &exp) {
         ark::Range result;
         if (exp.contains("selectionRange")) {
@@ -501,22 +438,6 @@ namespace {
             result.end.line = exp["selectionRange"]["end"].value("line", -1);
         }
         return result;
-    }
-
-    ark::Range CreateRangeStruct(const nlohmann::json &exp) {
-        ark::Range result;
-        if (exp.contains("range")) {
-            result.start.column = exp["range"]["start"].value("character", -1);
-            result.start.line = exp["range"]["start"].value("line", -1);
-            result.end.column = exp["range"]["end"].value("character", -1);
-            result.end.line = exp["range"]["end"].value("line", -1);
-        }
-        return result;
-    }
-
-    template<typename T>
-    bool CompareRange(const T &letf, const T &right) {
-        return letf.range < right.range;
     }
 
     template<typename T>
@@ -651,30 +572,6 @@ namespace {
         }
         return result;
     }
-
-
-    std::set<ark::ExecutableRange> CreateExecutableRangeStruct(const nlohmann::json &exp) {
-        std::set<ark::ExecutableRange> result;
-        ark::ExecutableRange executableRange;
-        executableRange.uri = GetFileUrl(exp.value("uri", ""));
-        executableRange.projectName = exp.value("projectName", "");
-        executableRange.packageName = exp.value("packageName", "");
-        executableRange.className = exp.value("className", "");
-        executableRange.functionName = exp.value("functionName", "");
-        executableRange.range = CreateRangeStruct(exp);
-        result.insert(executableRange);
-        return result;
-    }
-
-    ark::Command CreateCommandStruct(const nlohmann::json &exp) {
-        ark::Command result;
-        if (exp.contains("command")) {
-            result.command = exp.value("command", "");
-            result.title = exp.value("title", "");
-            result.arguments = CreateExecutableRangeStruct(exp["arguments"][0]);
-        }
-        return result;
-    }
 }
 
 
@@ -694,12 +591,23 @@ namespace test::common {
 #endif
     }
 
-    void StartLspServer() {
+    void StartLspServer(bool useDb) {
         SingleInstance *p = SingleInstance::GetInstance();
+        const std::string cachePath = JoinPath(p->pathPwd, p->testFolder);
+        if (!FileExist(cachePath)) {
+            CreateDirs(cachePath);
+        }
+        const std::string dbPath = JoinPath(cachePath, ".cache/index/index.db");
+        if (FileExist(dbPath)) {
+            (void)Remove(dbPath);
+        }
 #ifdef _WIN32
-        std::string cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test < " + p->testFolder +
-                              "_freopen.in > " +
-                              p->testFolder + "_freopen.out";
+        std::string cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true < " +
+                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+        if (useDb) {
+            cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true --cache-path=" +
+                      cachePath + " < " + p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+        }
 
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
@@ -710,7 +618,6 @@ namespace test::common {
 
         // Start the child process.
         if (!CreateProcess(NULL, (TCHAR *) cmdLine.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-            // GCOVR_EXCL_START
             printf(cmdLine.c_str());
             printf("StartLspServer fisrt failed (%d).\n", GetLastError());
             if (!CreateProcess(NULL, (TCHAR *) cmdLine.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
@@ -719,7 +626,6 @@ namespace test::common {
                 printf("StartLspServer failed (%d).\n", GetLastError());
                 return;
             }
-            // GCOVR_EXCL_STOP
         }
 
         // Wait until child process exits.
@@ -729,8 +635,13 @@ namespace test::common {
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
 #else
-    std::string cmd =
-        p->pathPwd + "/LSPServer --test < " + p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+        std::string cmd =
+            p->pathPwd + "/LSPServer --test --enable-log true < " + p->testFolder + "_freopen.in > " +
+            p->testFolder + "_freopen.out";
+        if (useDb) {
+            cmd =  p->pathPwd + "/LSPServer --test --enable-log true --cache-path=" + cachePath + " < " +
+                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+        }
 
     int status = system(cmd.c_str());
     if (-1 == status) {
@@ -751,7 +662,7 @@ namespace test::common {
 
     std::string GetPwd() {
         std::string result{};
-        char *buffer = getcwd(nullptr, 0);
+        auto *buffer = getcwd(nullptr, 0);
         if (buffer == nullptr) {
             return result;
         }
@@ -773,7 +684,7 @@ namespace test::common {
 
         infile.open(file);
         if (!infile.is_open()) {
-            return {}; // GCOVR_EXCL_LINE
+            return {};
         }
         while (infile.good() && !infile.eof()) {
             char buf[MAX_LEN] = {0};
@@ -782,62 +693,86 @@ namespace test::common {
             message = replaceCrLf(message);
             auto loc = message.find("Content-Length");
             if (loc != std::string::npos) {
-                std::string tmp = message.substr(0, loc);
-                try {
-                    if (tmp.empty()) {
-                        continue;
-                    }
-                    root = nlohmann::json::parse(tmp);
-                    if ((root.contains("id") && std::regex_replace(root["id"].dump(), quotePattern, "") == id) ||
-                        (!root.contains("id") && id.empty())) {
-                        return root;
-                    }
-                } catch (nlohmann::detail::parse_error &errs) {
+                message = message.substr(0, loc);
+            }
+            try {
+                if (message.empty()) {
                     continue;
                 }
-            } else {
-                try {
-                    if (message.empty()) {
-                        continue;
-                    }
-                    root = nlohmann::json::parse(message);
-                    if ((root.contains("id") && std::regex_replace(root["id"].dump(), quotePattern, "") == id) ||
-                        (!root.contains("id") && id.empty())) {
-                        return root;
-                    }
-                } catch (nlohmann::detail::parse_error &errs) {
-                    continue;
+                root = nlohmann::json::parse(message);
+                if ((root.contains("id") && std::regex_replace(root["id"].dump(), quotePattern, "") == id) ||
+                    (!root.contains("id") && id.empty())) {
+                    return root;
                 }
+            } catch (nlohmann::detail::parse_error &errs) {
+                continue;
             }
         }
-        infile.close(); // GCOVR_EXCL_LINE
-        return {}; // GCOVR_EXCL_LINE
+        infile.close();
+        return {};
+    }
+
+    nlohmann::json ReadFileByMethod(const std::string& file, const std::string& method)
+    {
+        std::string message;
+        std::ifstream infile;
+        nlohmann::json root;
+        std::string errs;
+        std::regex quotePattern("\"");
+
+        infile.open(file);
+        if (!infile.is_open()) {
+            return {};
+        }
+        while (infile.good() && !infile.eof()) {
+            char buf[MAX_LEN] = {0};
+            infile.getline(buf, MAX_LEN);
+            message = std::string(buf);
+            message = replaceCrLf(message);
+            auto loc = message.find("Content-Length");
+            if (loc != std::string::npos) {
+                message = message.substr(0, loc);
+            }
+            try {
+                if (message.empty()) {
+                    continue;
+                }
+                root = nlohmann::json::parse(message);
+                if (root.contains("method") && std::regex_replace(root["method"].dump(), quotePattern, "") == method) {
+                    return root;
+                }
+            } catch (nlohmann::detail::parse_error &errs) {
+                continue;
+            }
+        }
+        infile.close();
+        return {};
     }
 
     std::string GetRootPath(const std::string &workPath) {
         std::string result;
         auto loc = workPath.rfind("output");
-        if (loc > 0) {
-            std::string tmp = workPath.substr(0, loc);
-            if (TEST_FILE_SEPERATOR == "\\") {
-                std::istringstream iss(tmp);
-                std::string token;
-                std::vector<std::string> tokens;
-                while (std::getline(iss, token, *TEST_FILE_SEPERATOR.c_str())) {
-                    if (!token.empty()) {
-                        tokens.push_back(token);
-                    }
-                }
-                result = tokens.empty() ? "" : tokens[0];
-                transform(result.begin(), result.end(), result.begin(), ::tolower);
-                for (size_t i = 1; i < tokens.size(); ++i) {
-                    result += "/" + tokens[i];
-                }
-            } else {
-                result = workPath.substr(0, loc - 1);
-            }
+        if (loc <= 0) {
+            return result;
         }
-
+        std::string tmp = workPath.substr(0, loc);
+        if (TEST_FILE_SEPERATOR == "\\") {
+            std::istringstream iss(tmp);
+            std::string token;
+            std::vector<std::string> tokens;
+            while (std::getline(iss, token, *TEST_FILE_SEPERATOR.c_str())) {
+                if (!token.empty()) {
+                    tokens.push_back(token);
+                }
+            }
+            result = tokens.empty() ? "" : tokens[0];
+            transform(result.begin(), result.end(), result.begin(), ::tolower);
+            for (size_t i = 1; i < tokens.size(); ++i) {
+                result += "/" + tokens[i];
+            }
+        } else {
+            result = workPath.substr(0, loc - 1);
+        }
         return result;
     }
 
@@ -852,7 +787,7 @@ namespace test::common {
             infile.getline(buf, MAX_LEN);
             message = std::string(buf);
             if (message.length() == 0) {
-                return; // GCOVR_EXCL_LINE
+                return;
             }
             std::pair<std::string, std::string> caseAndBinaryFolder = GetCaseAndBinaryFolder(message);
             caseFolder = caseAndBinaryFolder.first;
@@ -903,193 +838,213 @@ namespace test::common {
         }
     }
 
-    // GCOVR_EXCL_START
     bool CheckResult(nlohmann::json exp, nlohmann::json &result, TestType testType, std::string &reason) {
         std::string jsonStr;
         std::ostringstream expOs;
         std::ostringstream actOs;
 
-        if (exp.contains("result")) {
-            nlohmann::json value = exp["result"];
-            if (result.contains("result") && value.is_null() && result["result"].is_null()) {
-                return true;
-            }
-            if (!value.is_array() && value.contains("uri")) {
-                std::string uri = GetFileUrl(value.value("uri", ""));
-                LowFileName(uri);
-                exp["result"]["uri"] = ark::URI::URIFromAbsolutePath(uri).ToString();
-            }
-            if (testType == TestType::Completion && result.contains("result") && result["result"].is_array()) {
-                for (auto &item: result["result"]) {
-                    if (item.contains("sortText")) {
-                        item["sortText"] = "";
-                    }
-                }
-            }
+        if (!exp.contains("result")) {
+            reason = " nlohmann::json exp hasn't member 'result' ";
+            return false;
+        }
 
-            actOs << result.dump(-1);
-            std::string lines = actOs.str();
-            expOs << exp.dump(-1);
-            std::string expLines = expOs.str();
-            if (lines != expLines) {
-                if (testType == TestType::SemanticHighlight) {
-                    auto getData = [](const nlohmann::json &jsonLines) {
-                        std::string dataLines;
-                        if (jsonLines.contains("result") && jsonLines["result"].contains("data")) {
-                            nlohmann::json data = jsonLines["result"]["data"];
-                            std::ostringstream expOs;
-                            expOs << data.dump(-1);
-                            dataLines = expOs.str();
-                            auto length = dataLines.length();
-                            // {"id":"2","jsonrpc":"2.0","result":{"data":[1,7,4,16,0]
-                            // remove"[" and “]” in data
-                            // dataLines = "1,7,4,16,0"
-                            if (length >= 2) {
-                                dataLines.erase(length - 1);
-                                dataLines.erase(0, 1);
-                            }
-                        }
-                        return dataLines;
-                    };
-                    auto expect = SemanticTokensAdaptor(getData(exp));
-                    auto actual = SemanticTokensAdaptor(getData(result));
-                    PrintSematicResult(expect, actual);
-                }
-                reason = "the number of lines is different between expected and actual";
-                return false;
-            }
+        nlohmann::json value = exp["result"];
+        if (result.contains("result") && value.is_null() && result["result"].is_null()) {
             return true;
         }
-        reason = " nlohmann::json exp hasn't member 'result' ";
+        if (!value.is_array() && value.contains("uri")) {
+            std::string uri = GetFileUrl(value.value("uri", ""));
+            LowFileName(uri);
+            exp["result"]["uri"] = ark::URI::URIFromAbsolutePath(uri).ToString();
+        }
+        if (testType == TestType::Completion && result.contains("result") && result["result"].is_array()) {
+            for (auto &item: result["result"]) {
+                if (item.contains("sortText")) {
+                    item["sortText"] = "";
+                }
+            }
+        }
+
+        actOs << result.dump(-1);
+        std::string lines = actOs.str();
+        expOs << exp.dump(-1);
+        std::string expLines = expOs.str();
+        if (lines == expLines) {
+            return true;
+        }
+        if (testType == TestType::SemanticHighlight) {
+            auto getData = [](const nlohmann::json &jsonLines) {
+                std::string dataLines;
+                if (jsonLines.contains("result") && jsonLines["result"].contains("data")) {
+                    nlohmann::json data = jsonLines["result"]["data"];
+                    std::ostringstream expOs;
+                    expOs << data.dump(-1);
+                    dataLines = expOs.str();
+                    auto length = dataLines.length();
+                    // {"id":"2","jsonrpc":"2.0","result":{"data":[1,7,4,16,0]
+                    // remove"[" and “]” in data
+                    // dataLines = "1,7,4,16,0"
+                    if (length >= 2) {
+                        dataLines.erase(length - 1);
+                        dataLines.erase(0, 1);
+                    }
+                }
+                return dataLines;
+            };
+            auto expect = SemanticTokensAdaptor(getData(exp));
+            auto actual = SemanticTokensAdaptor(getData(result));
+            PrintSematicResult(expect, actual);
+        }
+        reason = "the number of lines is different between expected and actual";
         return false;
     }
 
-    // GCOVR_EXCL_STOP
+    void GetScriptResult(std::string& message, std::string& result, std::smatch& match)
+    {
+        auto begin = message.cbegin();
+        auto end = message.cend();
+        std::string pattern = R"(\$\{([^}]+)\})";
+        std::regex regex(pattern);
+        while (std::regex_search(begin, end, match, regex)) {
+            // append the part before the match to the result
+            result.append(match.prefix().str());
+
+            if (match.size() > 1) {
+                std::string key = match[1].str();
+                if (SingleInstance::GetInstance()->replaceMap.find(key) != SingleInstance::GetInstance()->
+                    replaceMap.end()) {
+                    result.append(SingleInstance::GetInstance()->replaceMap[key]);
+                } else {
+                    result.append(match[0].str());
+                }
+            }
+            begin = match.suffix().first;
+        }
+        // append remaining unmatched parts
+        result.append(begin, end);
+    }
 
     bool CreateBuildScript(const std::string &execScriptPath, const std::string &testFile) {
         std::string caseScriptPath = testFile.substr(0, testFile.rfind('.')) + ".build";
         std::string caseProPath = SingleInstance::GetInstance()->caseProPath;
         std::ofstream out(execScriptPath);
-        std::string pattern = R"(\$\{([^}]+)\})";
-        std::regex regex(pattern);
         std::smatch match;
 
-        if (out.is_open()) {
-            std::ifstream infile;
-            std::string message;
-            std::string caseFolder;
-            infile.open(caseScriptPath);
-            if (infile.is_open()) {
-                while (infile.good() && !infile.eof()) {
-                    char buf[MAX_LEN] = {0};
-                    infile.getline(buf, MAX_LEN);
-                    message = std::string(buf);
-                    std::string result;
-                    if (message.length() == 0) {
-                        continue;
-                    }
-                    auto begin = message.cbegin();
-                    auto end = message.cend();
-                    while (std::regex_search(begin, end, match, regex)) {
-                        // append the part before the match to the result
-                        result.append(match.prefix().str());
-
-                        if (match.size() > 1) {
-                            std::string key = match[1].str();
-                            if (SingleInstance::GetInstance()->replaceMap.find(key) != SingleInstance::GetInstance()->
-                                replaceMap.end()) {
-                                result.append(SingleInstance::GetInstance()->replaceMap[key]);
-                            } else {
-                                result.append(match[0].str());
-                            }
-                        }
-
-                        begin = match.suffix().first;
-                    }
-                    // append remaining unmatched parts
-                    result.append(begin, end);
-                    out << result << std::endl;
-                }
-                infile.close();
-            } else {
-                out.close(); // GCOVR_EXCL_LINE
-                return false;
-            }
-        } else {
+        if (!out.is_open()) {
             return false;
         }
+        std::ifstream infile;
+        std::string message;
+        std::string caseFolder;
+        infile.open(caseScriptPath);
+        if (!infile.is_open()) {
+            out.close();
+            return false;
+        }
+        while (infile.good() && !infile.eof()) {
+            char buf[MAX_LEN] = {0};
+            infile.getline(buf, MAX_LEN);
+            message = std::string(buf);
+            std::string result;
+            if (message.length() == 0) {
+                continue;
+            }
+            GetScriptResult(message, result, match);
+            out << result << std::endl;
+        }
+        infile.close();
+        out.close();
         return true;
     }
 
     void BuildDynamicBinary(const std::string &execScriptPath) {
         std::string cmd;
 #ifdef _WIN32
-        // Windows 平台
-        // 如果你要执行 sh 脚本，需要确保系统有 Git Bash 或 Cygwin 等
         cmd = execScriptPath;
 #else
-    // Linux/Unix 平台
-    cmd = "/bin/sh " + execScriptPath;
+        cmd = "/bin/sh " + execScriptPath;
 #endif
         system(cmd.c_str());
+    }
+
+    bool CheckUseDB(const std::string &message) {
+        std::pair<std::string, std::string> pair;
+        std::string caseFolder;
+
+        nlohmann::json root;
+        std::string errs;
+
+        try {
+            if (message.empty()) {
+                return false;
+            }
+            root = nlohmann::json::parse(message);
+        } catch (nlohmann::detail::parse_error &errs) {
+            return false; // GCOVR_EXCL_LINE
+        }
+
+        if (!root.contains("useDB")) {
+            return false;
+        }
+
+        return root.value("useDB", false);
     }
 
     bool CreateMsg(const std::string &path, const std::string &testFile, std::string &rootUri, bool &isMultiModule,
                    const std::string &symbolId) {
         std::ofstream out(path);
-        if (out.is_open()) {
-            std::ifstream infile;
-            std::string message;
-            std::string caseFolder;
-            infile.open(testFile);
-            if (infile.is_open()) {
-                while (infile.good() && !infile.eof()) {
-                    char buf[MAX_LEN] = {0};
-                    infile.getline(buf, MAX_LEN);
-                    message = std::string(buf);
-                    if (message.length() == 0) {
-                        continue;
-                    }
-                    if (caseFolder.empty()) {
-                        std::pair<std::string, std::string> caseAndBinaryFolder = GetCaseAndBinaryFolder(message);
-                        caseFolder = caseAndBinaryFolder.first;
-                        SingleInstance::GetInstance()->caseProPath =
-                                SingleInstance::GetInstance()->workPath + "/test/testChr/" + caseFolder;
-                        SingleInstance::GetInstance()->replaceMap.insert_or_assign(
-                            "caseProPath", SingleInstance::GetInstance()->caseProPath);
-                        if (!caseAndBinaryFolder.second.empty()) {
-                            SingleInstance::GetInstance()->binaryPath =
-                                    SingleInstance::GetInstance()->caseProPath + "/" + caseAndBinaryFolder.second;
-                            SingleInstance::GetInstance()->replaceMap.insert_or_assign(
-                                "binaryPath", SingleInstance::GetInstance()->binaryPath);
-                        }
-                    }
-                    if (caseFolder.empty()) {
-                        break;
-                    }
-                    std::string tmp = ChangeMessageUrlForTestFile(message, caseFolder, rootUri, isMultiModule);
-                    if (!symbolId.empty()) {
-                        std::string str = "\"symbolId\":\"0\"";
-                        std::string replaceStr = "\"symbolId\":\"" + symbolId + "\"";
-                        size_t pos = tmp.find(str);
-                        if (pos != std::string::npos) {
-                            tmp.replace(pos, str.length(), replaceStr);
-                        }
-                    }
-                    auto length = tmp.length();
-
-                    out << "Content-Length:" << length << std::endl;
-                    out << std::endl;
-                    out << tmp << std::endl;
-                }
-                infile.close();
-            } else {
-                out.close(); // GCOVR_EXCL_LINE
-                return false;
-            }
-        } else {
+        if (!out.is_open()) {
             return false;
         }
+        std::ifstream infile;
+        std::string message;
+        std::string caseFolder;
+        infile.open(testFile);
+        if (!infile.is_open()) {
+            out.close();
+            return false;
+        }
+        while (infile.good() && !infile.eof()) {
+            char buf[MAX_LEN] = {0};
+            infile.getline(buf, MAX_LEN);
+            message = std::string(buf);
+            if (message.length() == 0) {
+                continue;
+            }
+            if (caseFolder.empty()) {
+                SingleInstance::GetInstance()->useDB = CheckUseDB(message);
+                std::pair<std::string, std::string> caseAndBinaryFolder = GetCaseAndBinaryFolder(message);
+                caseFolder = caseAndBinaryFolder.first;
+                SingleInstance::GetInstance()->caseProPath =
+                        SingleInstance::GetInstance()->workPath + "/test/testChr/" + caseFolder;
+                SingleInstance::GetInstance()->replaceMap.insert_or_assign(
+                    "caseProPath", SingleInstance::GetInstance()->caseProPath);
+                if (!caseAndBinaryFolder.second.empty()) {
+                    SingleInstance::GetInstance()->binaryPath =
+                            SingleInstance::GetInstance()->caseProPath + "/" + caseAndBinaryFolder.second;
+                    SingleInstance::GetInstance()->replaceMap.insert_or_assign(
+                        "binaryPath", SingleInstance::GetInstance()->binaryPath);
+                }
+            }
+            if (caseFolder.empty()) {
+                break;
+            }
+            std::string tmp = ChangeMessageUrlForTestFile(message, caseFolder, rootUri, isMultiModule);
+            if (!symbolId.empty()) {
+                std::string str = "\"symbolId\":\"0\"";
+                std::string replaceStr = "\"symbolId\":\"" + symbolId + "\"";
+                size_t pos = tmp.find(str);
+                if (pos != std::string::npos) {
+                    tmp.replace(pos, str.length(), replaceStr);
+                }
+            }
+            auto length = tmp.length();
+
+            out << "Content-Length:" << length << std::endl;
+            out << std::endl;
+            out << tmp << std::endl;
+        }
+        infile.close();
         out.close();
         return true;
     }
@@ -1098,7 +1053,7 @@ namespace test::common {
         nlohmann::json result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1135,7 +1090,7 @@ namespace test::common {
         std::vector<ark::DocumentHighlight> result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1215,7 +1170,6 @@ namespace test::common {
         return std::move(result);
     }
 
-    // GCOVR_EXCL_START
     bool CheckDocumentHighlight(std::vector<ark::DocumentHighlight> exp,
                                 std::vector<ark::DocumentHighlight> act,
                                 std::string &reason) {
@@ -1249,8 +1203,6 @@ namespace test::common {
 
         return true;
     }
-
-    // GCOVR_EXCL_STOP
 
     std::vector<ark::Location> CreateLocationStruct(const nlohmann::json &exp) {
         std::vector<ark::Location> result;
@@ -1289,7 +1241,6 @@ namespace test::common {
         std::sort(act.begin(), act.end());
 
         for (int i = 0; i < exp.size(); i++) {
-            // GCOVR_EXCL_START
             if ((exp[i].range.start.column != act[i].range.start.column) ||
                 (exp[i].range.end.column != act[i].range.end.column)) {
                 reason = "the expect and actual Location " + std::to_string(i) +
@@ -1308,13 +1259,11 @@ namespace test::common {
                 reason = "the expect and actual Location " + std::to_string(i) + " uri.file is different";
                 return false;
             }
-            // GCOVR_EXCL_STOP
         }
 
         return true;
     }
 
-    // GCOVR_EXCL_START
     std::vector<TextDocumentEditInfo> CreateTextDocumentEditStruct(const nlohmann::json &exp) {
         std::vector<TextDocumentEditInfo> result;
         TextDocumentEditInfo Item;
@@ -1409,9 +1358,6 @@ namespace test::common {
         return result;
     }
 
-    // GCOVR_EXCL_STOP
-
-    // GCOVR_EXCL_START
     bool CheckTypeHierarchyResult(TypeHierarchyResult &actualReulst, TypeHierarchyResult &expectReulst,
                                   std::string &reason) {
         auto actual = actualReulst.subOrSuperTypes;
@@ -1459,8 +1405,6 @@ namespace test::common {
         return true;
     }
 
-    // GCOVR_EXCL_STOP
-
     std::vector<TestParam> GetTestCaseList(const std::string &key) {
         std::vector<TestParam> vecParam;
         TestParam item;
@@ -1493,6 +1437,7 @@ namespace test::common {
                 item.baseFile = item.testFile.substr(0, item.testFile.rfind(".")) + ".base";
                 item.preId = root[key].value("preId", "");
                 item.id = root[key].value("id", "");
+                item.method = root[key].value("method", "");
                 vecParam.push_back(item);
             }
         }
@@ -1538,7 +1483,6 @@ namespace test::common {
         return true;
     }
 
-    // GCOVR_EXCL_START
     bool CheckDiagnosticResult(const nlohmann::json &expect, const nlohmann::json &actual, std::string &reason) {
         if (!expect.contains("params") || !actual.contains("params")) {
             reason = "expect or actual has no params";
@@ -1580,8 +1524,6 @@ namespace test::common {
         return true;
     }
 
-    // GCOVR_EXCL_STOP
-
     std::vector<ark::SymbolInformation> CreateWorkspaceSymbolStruct(const nlohmann::json &data) {
         std::vector<ark::SymbolInformation> result;
         if (data.contains("result")) {
@@ -1600,7 +1542,6 @@ namespace test::common {
         return std::move(result);
     }
 
-    // GCOVR_EXCL_START
     bool CheckWorkspaceSymbolResult(const nlohmann::json &expect, const nlohmann::json &actual, std::string &reason) {
         if (!expect.contains("result") || !actual.contains("result")) {
             return false;
@@ -1623,8 +1564,6 @@ namespace test::common {
         }
         return true;
     }
-
-    // GCOVR_EXCL_STOP
 
     bool CheckDocumentSymbolResult(const nlohmann::json &expect, const nlohmann::json &actual, std::string &reason) {
         if (!expect.contains("result") || !actual.contains("result")) {
@@ -1654,7 +1593,7 @@ namespace test::common {
         std::vector<ark::TypeHierarchyItem> result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1728,7 +1667,7 @@ namespace test::common {
         std::vector<ark::BreakpointLocation> result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1761,7 +1700,6 @@ namespace test::common {
         return result;
     }
 
-    // GCOVR_EXCL_START
     bool CheckBreakpointResult(std::vector<ark::BreakpointLocation> exp, std::vector<ark::BreakpointLocation> act,
                                std::string &reason) {
         if (!CheckResultCount(exp, act, false)) {
@@ -1794,9 +1732,6 @@ namespace test::common {
         return true;
     }
 
-    // GCOVR_EXCL_STOP
-
-
     std::vector<ark::CodeLens> CreateCodeLensStruct(const nlohmann::json &exp) {
         std::vector<ark::CodeLens> result;
         ark::CodeLens codeLensItem;
@@ -1814,7 +1749,7 @@ namespace test::common {
         std::vector<ark::CodeLens> result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1847,76 +1782,21 @@ namespace test::common {
         return result;
     }
 
-    // GCOVR_EXCL_START
     bool CheckCodeLensResult(std::vector<ark::CodeLens> exp, std::vector<ark::CodeLens> act,
                              std::string &reason) {
         if (!CheckResultCount(exp, act, false)) {
             reason = "expect and actual BreakpointLocation number is different";
             return false;
         }
-
         std::sort(exp.begin(), exp.end(), CompareRange<ark::CodeLens>);
         std::sort(act.begin(), act.end(), CompareRange<ark::CodeLens>);
-
         for (int i = 0; i < exp.size(); i++) {
-            if ((exp[i].range.start.column != act[i].range.start.column) ||
-                (exp[i].range.end.column != act[i].range.end.column)) {
-                reason = "the expect and actual " + std::to_string(i) + " range start or end column is different";
-                return false;
-            }
-
-            if ((exp[i].range.start.line != act[i].range.start.line) ||
-                (exp[i].range.end.line != act[i].range.end.line)) {
-                reason = "the expect and actual " + std::to_string(i) + " range start or end line is different";
-                return false;
-            }
-
-            if (exp[i].command.title != act[i].command.title) {
-                reason = "the expect and actual " + std::to_string(i) + " command title is different";
-                return false;
-            }
-
-            if (exp[i].command.command != act[i].command.command) {
-                reason = "the expect and actual " + std::to_string(i) + " command command is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.size() != act[i].command.arguments.size() ||
-                exp[i].command.arguments.size() == 0 || act[i].command.arguments.size() == 0) {
-                reason = "the expect and actual " + std::to_string(i) + " command arguments is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.begin()->uri != act[i].command.arguments.begin()->uri) {
-                reason = "the expect and actual " + std::to_string(i) + " arguments uri is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.begin()->projectName != act[i].command.arguments.begin()->projectName) {
-                reason = "the expect and actual " + std::to_string(i) + " arguments projectName is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.begin()->packageName != act[i].command.arguments.begin()->packageName) {
-                reason = "the expect and actual " + std::to_string(i) + " arguments packageName is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.begin()->className != act[i].command.arguments.begin()->className) {
-                reason = "the expect and actual " + std::to_string(i) + " arguments className is different";
-                return false;
-            }
-
-            if (exp[i].command.arguments.begin()->functionName != act[i].command.arguments.begin()->functionName) {
-                reason = "the expect and actual " + std::to_string(i) + " arguments functionName is different";
+            if (!CompareCodeLen(exp, act, reason, i)) {
                 return false;
             }
         }
-
         return true;
     }
-
-    // GCOVR_EXCL_STOP
 
     void LowFileName(std::basic_string<char> &filePath) {
 #ifdef _WIN32
@@ -1933,9 +1813,6 @@ namespace test::common {
 
     bool IsMacroExpandTest(const std::string &path) {
         // just filter test in cjnative_backend
-#ifdef  CANGJIE_CODEGEN_CJVM_BACKEND
-    return false;
-#else
         std::regex pathRegex(MACRO_PATH);
         std::vector<std::string> vectorString(std::sregex_token_iterator(path.begin(), path.end(), pathRegex, -1),
                                               std::sregex_token_iterator());
@@ -1944,13 +1821,12 @@ namespace test::common {
             return true;
         }
         return false;
-#endif
     }
 
     void ReadExpectedCallHierarchyResult(std::string &baseFile, CallHierarchyResult &expect) {
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
-        AdaptCjvmTest(baseFile, p, expectedFile);
+        AdaptPathTest(baseFile, p, expectedFile);
         nlohmann::json root;
         std::string errs;
         std::ifstream infile;
@@ -1992,61 +1868,155 @@ namespace test::common {
     }
 
     void CreateCallHierarchyStruct(const nlohmann::json &exp, CallHierarchyResult &actual) {
-        if (exp.contains("result")) {
-            for (int i = 0; i < exp["result"].size(); i++) {
-                if (exp["result"][i].contains("to")) {
-                    ark::CallHierarchyOutgoingCall outgoingCall;
-                    outgoingCall.to.name = exp["result"][i]["to"].value("name", "");
-                    outgoingCall.to.kind = ark::SymbolKind(exp["result"][i]["to"].value("kind", -1));
-                    outgoingCall.to.detail = exp["result"][i]["to"].value("detail", "");
-                    outgoingCall.to.uri.file = GetFileUrl(exp["result"][i]["to"].value("uri", ""));
-                    outgoingCall.to.range = CreateRangeStruct(exp["result"][i]["to"]);
-                    outgoingCall.to.selectionRange = CreateSelectionRangeStruct(exp["result"][i]["to"]);
-                    auto symbolId = exp["result"][i]["to"]["data"].value("symbolId", "");
-                    if (!symbolId.empty()) {
-                        actual.symbolId = std::stoull(symbolId);
-                    }
-                    if (exp["result"][i].contains("fromRanges")) {
-                        for (int j = 0; j < exp["result"][i]["fromRanges"].size(); ++j) {
-                            ark::Range tempRange;
-                            tempRange.start.column = exp["result"][i]["fromRanges"][j]["start"].value("character", -1);
-                            tempRange.start.line = exp["result"][i]["fromRanges"][j]["start"].value("line", -1);
-                            tempRange.end.column = exp["result"][i]["fromRanges"][j]["end"].value("character", -1);
-                            tempRange.end.line = exp["result"][i]["fromRanges"][j]["end"].value("line", -1);
-                            outgoingCall.fromRanges.emplace_back(tempRange);
-                        }
-                    }
-                    actual.outgoingCall.emplace_back(outgoingCall);
-                } else {
-                    ark::CallHierarchyIncomingCall incomingCall;
-                    incomingCall.from.name = exp["result"][i]["from"].value("name", "");
-                    incomingCall.from.kind = ark::SymbolKind(exp["result"][i]["from"].value("kind", -1));
-                    incomingCall.from.detail = exp["result"][i]["from"].value("detail", "");
-                    incomingCall.from.uri.file = GetFileUrl(exp["result"][i]["from"].value("uri", ""));
-                    incomingCall.from.range = CreateRangeStruct(exp["result"][i]["from"]);
-                    incomingCall.from.selectionRange = CreateSelectionRangeStruct(exp["result"][i]["from"]);
-                    auto symbolId = exp["result"][i]["from"]["data"].value("symbolId", "");
-                    if (!symbolId.empty()) {
-                        actual.symbolId = std::stoull(symbolId);
-                    }
-                    if (exp["result"][i].contains("fromRanges")) {
-                        for (int j = 0; j < exp["result"][i]["fromRanges"].size(); ++j) {
-                            ark::Range tempRange;
-                            tempRange.start.column = exp["result"][i]["fromRanges"][j]["start"].value("character", -1);
-                            tempRange.start.line = exp["result"][i]["fromRanges"][j]["start"].value("line", -1);
-                            tempRange.end.column = exp["result"][i]["fromRanges"][j]["end"].value("character", -1);
-                            tempRange.end.line = exp["result"][i]["fromRanges"][j]["end"].value("line", -1);
-                            incomingCall.fromRanges.emplace_back(tempRange);
-                        }
-                    }
-                    actual.incomingCall.emplace_back(incomingCall);
-                    actual.isOutgoingCall = false;
+        if (!exp.contains("result")) {
+            return;
+        }
+        auto createOutgoingCall = [&exp, &actual](int i) {
+            ark::CallHierarchyOutgoingCall outgoingCall;
+            outgoingCall.to.name = exp["result"][i]["to"].value("name", "");
+            outgoingCall.to.kind = ark::SymbolKind(exp["result"][i]["to"].value("kind", -1));
+            outgoingCall.to.detail = exp["result"][i]["to"].value("detail", "");
+            outgoingCall.to.uri.file = GetFileUrl(exp["result"][i]["to"].value("uri", ""));
+            outgoingCall.to.range = CreateRangeStruct(exp["result"][i]["to"]);
+            outgoingCall.to.selectionRange = CreateSelectionRangeStruct(exp["result"][i]["to"]);
+            auto symbolId = exp["result"][i]["to"]["data"].value("symbolId", "");
+            if (!symbolId.empty()) {
+                actual.symbolId = std::stoull(symbolId);
+            }
+            if (exp["result"][i].contains("fromRanges")) {
+                for (int j = 0; j < exp["result"][i]["fromRanges"].size(); ++j) {
+                    ark::Range tempRange;
+                    tempRange.start.column = exp["result"][i]["fromRanges"][j]["start"].value("character", -1);
+                    tempRange.start.line = exp["result"][i]["fromRanges"][j]["start"].value("line", -1);
+                    tempRange.end.column = exp["result"][i]["fromRanges"][j]["end"].value("character", -1);
+                    tempRange.end.line = exp["result"][i]["fromRanges"][j]["end"].value("line", -1);
+                    outgoingCall.fromRanges.emplace_back(tempRange);
                 }
+            }
+            actual.outgoingCall.emplace_back(outgoingCall);
+        };
+        auto createIncomingCall = [&exp, &actual](int i){
+            ark::CallHierarchyIncomingCall incomingCall;
+            incomingCall.from.name = exp["result"][i]["from"].value("name", "");
+            incomingCall.from.kind = ark::SymbolKind(exp["result"][i]["from"].value("kind", -1));
+            incomingCall.from.detail = exp["result"][i]["from"].value("detail", "");
+            incomingCall.from.uri.file = GetFileUrl(exp["result"][i]["from"].value("uri", ""));
+            incomingCall.from.range = CreateRangeStruct(exp["result"][i]["from"]);
+            incomingCall.from.selectionRange = CreateSelectionRangeStruct(exp["result"][i]["from"]);
+            auto symbolId = exp["result"][i]["from"]["data"].value("symbolId", "");
+            if (!symbolId.empty()) {
+                actual.symbolId = std::stoull(symbolId);
+            }
+            if (exp["result"][i].contains("fromRanges")) {
+                for (int j = 0; j < exp["result"][i]["fromRanges"].size(); ++j) {
+                    ark::Range tempRange;
+                    tempRange.start.column = exp["result"][i]["fromRanges"][j]["start"].value("character", -1);
+                    tempRange.start.line = exp["result"][i]["fromRanges"][j]["start"].value("line", -1);
+                    tempRange.end.column = exp["result"][i]["fromRanges"][j]["end"].value("character", -1);
+                    tempRange.end.line = exp["result"][i]["fromRanges"][j]["end"].value("line", -1);
+                    incomingCall.fromRanges.emplace_back(tempRange);
+                }
+            }
+            actual.incomingCall.emplace_back(incomingCall);
+            actual.isOutgoingCall = false;
+        };
+        for (int i = 0; i < exp["result"].size(); i++) {
+            if (exp["result"][i].contains("to")) {
+                createOutgoingCall(i);
+            } else {
+                createIncomingCall(i);
             }
         }
     }
 
-    // GCOVR_EXCL_START
+    bool CompareOutgoingCall(std::vector<ark::CallHierarchyOutgoingCall> &actualOutgoingCall,
+                             std::vector<ark::CallHierarchyOutgoingCall> &expectOutgoingCall,
+                             std::string &reason, int i)
+    {
+        for (int j = 0; j < actualOutgoingCall[i].fromRanges.size(); ++j) {
+            if (actualOutgoingCall[i].fromRanges[j] != expectOutgoingCall[i].fromRanges[j]) {
+                reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                            " have different fromRanges.";
+                return false;
+            }
+        }
+        if (actualOutgoingCall[i].to.name != expectOutgoingCall[i].to.name) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different names.";
+            return false;
+        }
+        if (actualOutgoingCall[i].to.kind != expectOutgoingCall[i].to.kind) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different kind.";
+            return false;
+        }
+        if (actualOutgoingCall[i].to.detail != expectOutgoingCall[i].to.detail) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different detail.";
+            return false;
+        }
+        if (actualOutgoingCall[i].to.uri.file != expectOutgoingCall[i].to.uri.file) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different uri.";
+            return false;
+        }
+        if (actualOutgoingCall[i].to.range != expectOutgoingCall[i].to.range) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different range.";
+            return false;
+        }
+        if (actualOutgoingCall[i].to.selectionRange != expectOutgoingCall[i].to.selectionRange) {
+            reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
+                        " have different selectionRange.";
+            return false;
+        }
+        return true;
+    }
+
+    bool CompareIncomingCall(std::vector<ark::CallHierarchyIncomingCall> &actualIncomingCall,
+                             std::vector<ark::CallHierarchyIncomingCall> &expectIncomingCall,
+                             std::string &reason, int i)
+    {
+        for (int j = 0; j < actualIncomingCall[i].fromRanges.size(); ++j) {
+            if (actualIncomingCall[i].fromRanges[j] != expectIncomingCall[i].fromRanges[j]) {
+                reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                            " have different fromRanges.";
+                return false;
+            }
+        }
+        if (actualIncomingCall[i].from.name != expectIncomingCall[i].from.name) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different names.";
+            return false;
+        }
+        if (actualIncomingCall[i].from.kind != expectIncomingCall[i].from.kind) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different kind.";
+            return false;
+        }
+        if (actualIncomingCall[i].from.detail != expectIncomingCall[i].from.detail) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different detail.";
+            return false;
+        }
+        if (actualIncomingCall[i].from.uri.file != expectIncomingCall[i].from.uri.file) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different uri.";
+            return false;
+        }
+        if (actualIncomingCall[i].from.range != expectIncomingCall[i].from.range) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different range.";
+            return false;
+        }
+        if (actualIncomingCall[i].from.selectionRange != expectIncomingCall[i].from.selectionRange) {
+            reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
+                        " have different selectionRange.";
+            return false;
+        }
+        return true;
+    }
+
     bool CheckCallHierarchyResult(CallHierarchyResult &actual, CallHierarchyResult &expect, std::string &reason) {
         if (actual.isOutgoingCall && expect.isOutgoingCall) {
             std::vector<ark::CallHierarchyOutgoingCall> actualOutgoingCall = actual.outgoingCall;
@@ -2056,41 +2026,7 @@ namespace test::common {
                 return false;
             }
             for (int i = 0; i < actualOutgoingCall.size(); ++i) {
-                for (int j = 0; j < actualOutgoingCall[i].fromRanges.size(); ++j) {
-                    if (actualOutgoingCall[i].fromRanges[j] != expectOutgoingCall[i].fromRanges[j]) {
-                        reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                                 " have different fromRanges.";
-                        return false;
-                    }
-                }
-                if (actualOutgoingCall[i].to.name != expectOutgoingCall[i].to.name) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different names.";
-                    return false;
-                }
-                if (actualOutgoingCall[i].to.kind != expectOutgoingCall[i].to.kind) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different kind.";
-                    return false;
-                }
-                if (actualOutgoingCall[i].to.detail != expectOutgoingCall[i].to.detail) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different detail.";
-                    return false;
-                }
-                if (actualOutgoingCall[i].to.uri.file != expectOutgoingCall[i].to.uri.file) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different uri.";
-                    return false;
-                }
-                if (actualOutgoingCall[i].to.range != expectOutgoingCall[i].to.range) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different range.";
-                    return false;
-                }
-                if (actualOutgoingCall[i].to.selectionRange != expectOutgoingCall[i].to.selectionRange) {
-                    reason = actualOutgoingCall[i].to.name + " and " + expectOutgoingCall[i].to.name +
-                             " have different selectionRange.";
+                if (!CompareOutgoingCall(actualOutgoingCall, expectOutgoingCall, reason, i)) {
                     return false;
                 }
             }
@@ -2106,41 +2042,7 @@ namespace test::common {
                 return false;
             }
             for (int i = 0; i < actualIncomingCall.size(); ++i) {
-                for (int j = 0; j < actualIncomingCall[i].fromRanges.size(); ++j) {
-                    if (actualIncomingCall[i].fromRanges[j] != expectIncomingCall[i].fromRanges[j]) {
-                        reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                                 " have different fromRanges.";
-                        return false;
-                    }
-                }
-                if (actualIncomingCall[i].from.name != expectIncomingCall[i].from.name) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different names.";
-                    return false;
-                }
-                if (actualIncomingCall[i].from.kind != expectIncomingCall[i].from.kind) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different kind.";
-                    return false;
-                }
-                if (actualIncomingCall[i].from.detail != expectIncomingCall[i].from.detail) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different detail.";
-                    return false;
-                }
-                if (actualIncomingCall[i].from.uri.file != expectIncomingCall[i].from.uri.file) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different uri.";
-                    return false;
-                }
-                if (actualIncomingCall[i].from.range != expectIncomingCall[i].from.range) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different range.";
-                    return false;
-                }
-                if (actualIncomingCall[i].from.selectionRange != expectIncomingCall[i].from.selectionRange) {
-                    reason = actualIncomingCall[i].from.name + " and " + expectIncomingCall[i].from.name +
-                             " have different selectionRange.";
+                if (!CompareIncomingCall(actualIncomingCall, expectIncomingCall, reason, i)) {
                     return false;
                 }
             }
@@ -2151,5 +2053,72 @@ namespace test::common {
         return true;
     }
 
-    // GCOVR_EXCL_STOP
+    ark::FindOverrideMethodResult CreateOverrideMethodsResult(const nlohmann::json& exp)
+    {
+        ark::FindOverrideMethodResult result;
+        if (!exp.contains("result")) {
+            return result;
+        }
+        for (int i = 0; i < exp["result"].size(); i++) {
+            ark::OverrideMethodsItem item;
+            item.kind = exp["result"][i].value("kind", "");
+            item.identifier = exp["result"][i].value("identifier", "");
+            item.package =  exp["result"][i].value("fullPackageName", "");
+            if (exp["result"].contains("data")) {
+                for (int j = 0; j < exp["result"]["data"].size(); j++) {
+                    ark::OverrideMethodInfo info;
+                    info.deprecated = exp["result"]["data"][i].value("deprecated", false);
+                    info.insertText = exp["result"]["data"][i].value("insertText", "");
+                    info.isProp = exp["result"]["data"][i].value("isProp", false);
+                    info.signatureWithRet = exp["result"]["data"][i].value("signatureWithRet", "");
+                    item.overrideMethodInfos.emplace_back(info);
+                }
+            }
+            result.overrideMethods.emplace_back(item);
+        }
+        return result;
+    }
+
+    bool CheckOverrideMethodsResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string& reason)
+    {
+        if (!expect.contains("result") || !actual.contains("result")) {
+            reason = "expect or actual nlohmann::json hasn't member 'result' ";
+            return false;
+        }
+        auto exp = CreateOverrideMethodsResult(expect);
+        auto act = CreateOverrideMethodsResult(actual);
+        if (act.overrideMethods.size() != exp.overrideMethods.size()) {
+            reason = "the expect and actual have different amount of super types";
+            return false;
+        }
+
+        for (auto& expTy : exp.overrideMethods) {
+            auto found = std::find_if(act.overrideMethods.begin(), act.overrideMethods.end(),
+                                                    [&expTy](ark::OverrideMethodsItem& item){
+                                        return expTy.identifier ==  item.identifier && expTy.package == item.package;
+                                    });
+            if (found == act.overrideMethods.end()) {
+                reason = expTy.package + "." + expTy.identifier + "in expect but not in actual";
+                return false;
+            }
+
+            if (expTy.overrideMethodInfos.size() != found->overrideMethodInfos.size()) {
+                reason = expTy.package + "." + expTy.identifier + "has different amount of override methods";
+                return false;
+            }
+
+            for (auto& expMethod: expTy.overrideMethodInfos) {
+                if (!std::any_of(found->overrideMethodInfos.begin(), found->overrideMethodInfos.end(),
+                                [&expMethod](ark::OverrideMethodInfo& item) {
+                            return expMethod.deprecated == item.deprecated && expMethod.isProp == item.isProp &&
+                                expMethod.signatureWithRet == item.signatureWithRet &&
+                                expMethod.insertText == item.insertText;
+                        })) {
+                    reason = expTy.package + "." + expTy.identifier + "has different override method:" + expMethod.insertText;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }

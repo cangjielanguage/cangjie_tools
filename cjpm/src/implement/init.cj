@@ -131,7 +131,7 @@ func createModule(rootPkgName: String, modPath: String, outputType: String): Boo
 
     if (outputType == EXE_TYPE) {
         let mainString = "package ${rootPkgName}\n\nmain(): Int64 {\n    println(\"hello world\")\n    return 0\n}"
-        if (!creatAndWriteFile(Path(srcDir).join("main.cj").toString(), mainString)) {
+        if (!createAndWriteFile(Path(srcDir).join("main.cj").toString(), mainString)) {
             return false
         }
     }
@@ -202,7 +202,7 @@ func createTomlFile(configFileName: String, tomlInfo: TomlInfo): Bool {
 }
 
 // Create and open a file named filePath, then write fileString to fileName.
-public func creatAndWriteFile(filePath: String, fileString: String): Bool {
+public func createAndWriteFile(filePath: String, fileString: String): Bool {
     if (directoryExists(filePath)) {
         eprintln("Error: failed to create '${filePath}', because a directory with the same name already exists")
         return false

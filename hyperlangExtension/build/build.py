@@ -39,7 +39,7 @@ def check_call(command):
         return subprocess.check_call(command, shell=True, env=env)
     except subprocess.CalledProcessError as e:
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
-        sys.exit(e.returncode) 
+        sys.exit(e.returncode)
 
 # Build HLE
 def build(args):
@@ -60,7 +60,7 @@ def build(args):
     if build_type == "debug":
         DEBUG_MODE = "-g"
 
-    if IS_WINDOWS: 
+    if IS_WINDOWS:
         COMMON_OPTION = f"--trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR, '..', 'target')}"
     else:
         COMMON_OPTION = f"-j1 --trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR, '..', 'target')}"
@@ -69,7 +69,7 @@ def build(args):
         CJC = "cjc.exe"
     else:
         CJC = "cjc"
-    
+
     # Create output directories
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'target', 'bin'), exist_ok=True)
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'target', 'hle'), exist_ok=True)
@@ -82,10 +82,10 @@ def build(args):
             returncode = check_call(f"{CJC} {COMMON_OPTION} -O2 --strip-all --no-sub-pkg -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -o libhle.{src}.a")
         if IS_CROSS_WINDOWS:
             returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} -O2 --strip-all --no-sub-pkg -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -o libhle.{src}.a")
-        if returncode != 0: 
+        if returncode != 0:
             print(f"build {src} failed")
             return returncode
-        
+
     if IS_LINUX:
         returncode = check_call(f"{CJC} {COMMON_OPTION} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main")
     if IS_MACOS:
@@ -94,7 +94,7 @@ def build(args):
         returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main.exe")
     if IS_WINDOWS:
         returncode = check_call(f"{CJC} {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main.exe")
-    if returncode != 0: 
+    if returncode != 0:
         return returncode
 
     print("Successfully build HLE!")
@@ -113,7 +113,7 @@ def install(args):
         if os.path.exists(os.path.join(CURRENT_DIR, '..', 'target', 'bin', 'main.exe')):
             shutil.copy(os.path.join(CURRENT_DIR, '..', 'target', 'bin', 'main.exe'), os.path.join(os.path.abspath(prefix), 'hle.exe'))
     print("Successfully install HLE!")
-    
+
 # Clean output of build
 def clean():
     if os.path.exists(os.path.join(CURRENT_DIR, '..', 'target')):

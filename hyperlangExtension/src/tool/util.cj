@@ -243,29 +243,30 @@ public func getParamsFromUnionType(arkMethod: MethodType): ArrayList<ArrayList<S
     var resParams: ArrayList<ArrayList<String>> = ArrayList<ArrayList<String>>()
     for (param in arkMethod.params) {
         let names = param.replace(" ", "").split(":")
-        if (names.size == 2) {
-            let unionNames = if (names[1].startsWith("{") || names[1].contains("Record")) {
-                [names[1]]
-            } else {
-                names[1].split("|")
-            }
-            if (resParams.size == 0) {
-                for (unionName in unionNames) {
-                    resParams.add(ArrayList<String>([names[0] + ":" + unionName]))
-                }
-            } else {
-                resParams = resParams |>
-                    flatMap {
-                    it: ArrayList<String> => unionNames |>
-                        map {
-                        name: String =>
-                        let newArray = it.clone();
-                        newArray.add(names[0] + ":" + name);
-                        ArrayList<String>(newArray)
-                    }
-                } |> collectArrayList<ArrayList<String>>
-            }
+        if (names.size != 2) {
+            continue
         }
+        let unionNames = if (names[1].startsWith("{") || names[1].contains("Record")) {
+            [names[1]]
+        } else {
+            names[1].split("|")
+        }
+        if (resParams.size == 0) {
+            for (unionName in unionNames) {
+                resParams.add(ArrayList<String>([names[0] + ":" + unionName]))
+            }
+            continue
+        }
+        resParams = resParams |>
+            flatMap {
+            it: ArrayList<String> => unionNames |>
+                 map {
+                name: String =>
+                let newArray = it.clone();
+                newArray.add(names[0] + ":" + name);
+                ArrayList<String>(newArray)
+            }
+        } |> collectArrayList<ArrayList<String>>
     }
     if (resParams.size == 0) {
         resParams.add(arkMethod.params)

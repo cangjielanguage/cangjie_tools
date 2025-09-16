@@ -1,1 +1,1 @@
-{"id":"104","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: atomic.cj\nPackage info: default\n\n(variable) var obj2r: AtomicReference<A> = AtomicReference(t1)\n"},"range":{"end":{"character":13,"line":25},"start":{"character":8,"line":25}}}}
+{"id":"104","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: atomic.cj\nPackage info: default\n\n(variable) var obj2r: AtomicReference<A> = AtomicReference(t1)\n"},"range":{"end":{"character":13,"line":31},"start":{"character":8,"line":31}}}}

@@ -100,6 +100,9 @@ public:
 private:
     Logger()
     {
+        if (!enableLog) {
+            return;
+        }
         CheckRemoveAndOpen();
         InitLogQueue();
     }

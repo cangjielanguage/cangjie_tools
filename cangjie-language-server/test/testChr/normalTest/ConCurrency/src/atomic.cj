@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 import std.sync.*
 
 class A {
@@ -25,8 +31,3 @@ func test1() {
     var y = obj2r.compareAndSwap(t2, A()) // t2 和 t1 不是同一个对象，CAS 失败，y:false
     y = obj2r.compareAndSwap(t1, t2) // CAS 成功，y：true
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

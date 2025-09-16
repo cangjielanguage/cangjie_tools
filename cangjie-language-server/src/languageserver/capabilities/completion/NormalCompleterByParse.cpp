@@ -5,7 +5,8 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "NormalCompleterByParse.h"
-#include "KeywordCompleter.h"
+#include "OverrideCompleter.h"
+#include "../../common/Utils.h"
 
 using namespace Cangjie;
 using namespace Cangjie::AST;
@@ -34,6 +35,18 @@ auto CollectAliasMap(const File &file)
     }
     return fileAliasMap;
 }
+
+void SetAfterAT(const ark::ArkAST &input, ark::CompletionEnv& env, int curTokenIndex)
+{
+    if (curTokenIndex > 0 && curTokenIndex < input.tokens.size()) {
+        auto preToken = input.tokens[static_cast<int>(curTokenIndex - 1)];
+        if (preToken == "@") {
+            env.isAfterAT = true;
+        }
+    }
+}
+
+std::unordered_set<TokenKind> overrideFlag = {TokenKind::RCURL, TokenKind::IDENTIFIER, TokenKind::INTEGER_LITERAL};
 }
 
 namespace ark {
@@ -43,18 +56,15 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     if (!input.file || !input.file->curPackage) {
         return true;
     }
+    auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    env.SetSyscap(curModule);
     env.prefix = prefix;
     env.curPkgName = input.file->curPackage->fullPackageName;
     env.parserAst = &input;
     env.cache = input.semaCache;
 
     int curTokenIndex = input.GetCurTokenByPos(pos, 0, static_cast<int>(input.tokens.size()) - 1);
-    if (curTokenIndex > 0) {
-        auto preToken = input.tokens[static_cast<int>(curTokenIndex - 1)];
-        if (preToken == "@") {
-            env.isAfterAT = true;
-        }
-    }
+    SetAfterAT(input, env, curTokenIndex);
 
     // Complete all imported and accessible top-level decl.
     pkgAliasMap.merge(::CollectAliasMap(*input.file));
@@ -71,7 +81,8 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     }
 
     // Complete all top-decls in files of current package, which not includes import spec.
-    Ptr<Decl> topLevelDecl = CompleteCurrentPackages(input, pos, env);
+    auto decls = CompleteCurrentPackages(input, pos, env);
+    Ptr<Decl> topLevelDecl = decls.first;
     // No code completion needed in these declaration position
     bool isMinDecl = false;
     bool isInPrimaryCtor = false;
@@ -102,17 +113,33 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
         })
         .Walk();
 
+    auto kind = FindPreFirstValidTokenKind(input, curTokenIndex);
+    Ptr<Decl> decl = nullptr;
+    bool isInclass = CheckIfOverrideComplete(topLevelDecl, decl, pos, kind);
+    Ptr<Decl> semaCacheDecl = decls.second;
+    if (isInclass && semaCacheDecl) {
+        OverrideCompleter overrideCompleter(semaCacheDecl, env.prefix);
+        if (overrideCompleter.SetCompletionConfig(decl, pos)) {
+            overrideCompleter.FindOvrrideFunction();
+            auto items = overrideCompleter.ExportItems();
+            for (auto& item : items) {
+                result.completions.push_back(item);
+            }
+        }
+    }
+
     if (isMinDecl) {
         return false;
     }
 
-    // Complete own scope decl.
-    if (topLevelDecl) {
+    if (!isInclass) {
+        // Complete own scope decl.
+        env.visitedNodes.clear();
         env.DeepComplete(topLevelDecl, pos);
+        env.visitedNodes.clear();
+        env.SemaCacheComplete(semaCacheDecl, pos);
     }
-
     AddImportPkgDecl(input, env);
-
     env.OutputResult(result);
     return true;
 }
@@ -158,15 +185,16 @@ void NormalCompleterByParse::AddImportPkgDecl(const ArkAST &input, CompletionEnv
     }
 }
 
-Ptr<Decl> NormalCompleterByParse::CompleteCurrentPackages(const ArkAST &input, const Position pos,
-                                                          CompletionEnv &env)
+std::pair<Ptr<Decl>, Ptr<Decl>> NormalCompleterByParse::CompleteCurrentPackages(const ArkAST &input, const Position pos,
+                                                                                CompletionEnv &env)
 {
     // parse info fullPackageName is "", so we need a flag to complete init Func
     env.isInPackage = true;
     Ptr<Decl> innerDecl = nullptr;
+    Ptr<Decl> semaCacheDecl = nullptr;
     bool invalid = !input.file || !input.file->curPackage;
     if (invalid) {
-        return innerDecl;
+        return {innerDecl, semaCacheDecl};
     }
     for (auto &file : input.file->curPackage->files) {
         if (!file) {
@@ -186,7 +214,7 @@ Ptr<Decl> NormalCompleterByParse::CompleteCurrentPackages(const ArkAST &input, c
                 input.semaCache->file->curPackage->files.empty();
     if (flag) {
         env.isInPackage = false;
-        return innerDecl;
+        return {innerDecl, semaCacheDecl};
     }
     // add Sema topLevel completeItem
     for (auto &file : input.semaCache->file->curPackage->files) {
@@ -196,11 +224,63 @@ Ptr<Decl> NormalCompleterByParse::CompleteCurrentPackages(const ArkAST &input, c
         for (auto &decl : file->decls) {
             if (decl && decl->astKind != Cangjie::AST::ASTKind::EXTEND_DECL) {
                 env.CompleteNode(decl.get(), false, false, true);
+                if (file->fileHash == input.file->fileHash && decl->GetBegin() <= pos &&
+                    pos <= decl->GetEnd()) {
+                    semaCacheDecl = decl.get();
+                }
             }
         }
     }
     env.isInPackage = false;
-    return innerDecl;
+    return {innerDecl, semaCacheDecl};
+}
+bool NormalCompleterByParse::CheckCompletionInParse(Ptr<Decl> decl)
+{
+    if (!decl) {
+        return false;
+    }
+    if (decl->astKind == Cangjie::AST::ASTKind::EXTEND_DECL) {
+        return false;
+    }
+    if (decl->astKind == ASTKind::MACRO_EXPAND_DECL && decl->identifier == "APILevel") {
+        return false;
+    }
+    return true;
+}
+
+bool NormalCompleterByParse::CheckIfOverrideComplete(Ptr<Decl> topLevelDecl, Ptr<Decl>& decl,
+                                                    const Position& pos, TokenKind kind)
+{
+    if (!Options::GetInstance().IsOptionSet("test") && !MessageHeaderEndOfLine::GetIsDeveco()) {
+        return false;
+    }
+    auto classLikeDecl = DynamicCast<ClassLikeDecl>(topLevelDecl);
+    auto structDecl = DynamicCast<StructDecl>(topLevelDecl);
+    auto enumDecl = DynamicCast<EnumDecl>(topLevelDecl);
+    if (!(classLikeDecl || structDecl || enumDecl)) {
+        return false;
+    }
+    if (topLevelDecl->GetMemberDecls().empty() || (topLevelDecl->GetMemberDecls().front() &&
+        topLevelDecl->GetMemberDecls().front()->GetBegin() > pos)) {
+        return enumDecl ? false : kind == TokenKind::LCURL;
+    }
+    for (auto& memberDecl : topLevelDecl->GetMemberDecls()) {
+        if (memberDecl == nullptr) {
+            continue;
+        }
+        if (memberDecl->GetBegin() <= pos && pos <= memberDecl->GetEnd()) {
+            decl = memberDecl.get();
+            if (enumDecl) {
+                return (kind == TokenKind::FUNC && memberDecl->astKind == ASTKind::FUNC_DECL) ||
+                       (memberDecl->astKind == ASTKind::VAR_DECL);
+            }
+            return (kind == TokenKind::FUNC && memberDecl->astKind == ASTKind::FUNC_DECL);
+        }
+    }
+    if (decl == nullptr) {
+        return overrideFlag.find(kind) != overrideFlag.end();
+    }
+    return true;
 }
 
 bool NormalCompleterByParse::DealDeclInCurrentPackage(Ptr<Decl> decl, CompletionEnv &env)
@@ -208,7 +288,7 @@ bool NormalCompleterByParse::DealDeclInCurrentPackage(Ptr<Decl> decl, Completion
     if (!decl) {
         return false;
     }
-    if (decl->astKind != Cangjie::AST::ASTKind::EXTEND_DECL) {
+    if (CheckCompletionInParse(decl)) {
         env.CompleteNode(decl);
     }
     auto declName = decl->identifier;

@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 
 
 
@@ -37,8 +43,3 @@ func checkRectangle() {
     print(rect.name)           // ERROR: 静态变量不能通过 struct实例访问，要通过struct名字访问
     print("${Rectangle.diagonalLength}")    // ERROR: 非静态变量不能通过struct名字访问，要通过struct实例访问
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

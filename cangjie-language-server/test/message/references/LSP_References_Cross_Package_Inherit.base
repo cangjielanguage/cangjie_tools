@@ -1,1 +1,1 @@
-{"id":3,"jsonrpc":"2.0","result":[{"range":{"end":{"character":17,"line":9},"start":{"character":12,"line":9}},"uri":"file:///d%3A/jenkins/customWorkspace/cjnative_x64_windiws_lsp_4969/lsp/test/testChr/normalTest/CrossPkgInheritable/src/interface.cj"}]}
+{"id":3,"jsonrpc":"2.0","result":[{"range":{"end":{"character":17,"line":15},"start":{"character":12,"line":15}},"uri":"file:///d%3A/jenkins/customWorkspace/cjnative_x64_windiws_lsp_4969/lsp/test/testChr/normalTest/CrossPkgInheritable/src/interface.cj"}]}

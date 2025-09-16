@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package cangjieextend.direct2.pkg1.pkg11
 
 import cangjieextend.direct2.pkg1.I2
@@ -12,8 +18,3 @@ let b3 = A3<Int64>().       // not ok, foo2 is not an extension of Int64
 
 let b4 = A2<Int64>().foo33() // ok
 let b5 = A2<Int64>().       
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

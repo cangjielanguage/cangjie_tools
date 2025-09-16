@@ -5,4 +5,3 @@
 {"jsonrpc":"2.0","method":"workspace/didChangeWatchedFiles","params":{"changes":[{"uri":"file:///d%3A/sourceCode/IDETest/TestVscode/noSrc/src/test.cj","type":3}]}}
 {"jsonrpc":"2.0","id":1,"method":"shutdown","params":{}}
 {"jsonrpc":"2.0","method":"exit","params":{}}
-

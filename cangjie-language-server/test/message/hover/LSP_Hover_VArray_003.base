@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\nPackage info: default\n\n(variable) let p: VArray<ABC, $5> = VArray<ABC, $5>(repeat: ABC())\n"},"range":{"end":{"character":9,"line":7},"start":{"character":8,"line":7}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\nPackage info: default\n\n(variable) let p: VArray<ABC, $5> = VArray<ABC, $5>(repeat: ABC())\n"},"range":{"end":{"character":9,"line":13},"start":{"character":8,"line":13}}}}

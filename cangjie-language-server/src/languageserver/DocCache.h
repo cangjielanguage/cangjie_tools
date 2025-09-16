@@ -33,6 +33,8 @@ public:
     bool UpdateDoc(const std::string &file, std::int64_t version, bool needReParser,
                    const std::vector<TextDocumentContentChangeEvent> &contentChanges);
 
+    void UpdateDocNeedReparse(const std::string &file, int64_t version, bool needReParser);
+
 private:
     mutable std::mutex mutex;
     std::map<std::string, Doc> Docs;

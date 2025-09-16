@@ -4,11 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include <queue>
-#include "../CompilerCangjieProject.h"
-#include "MemIndex.h"
-#include "CjdIndex.h"
 #include "SymbolCollector.h"
+#include <cangjie/AST/PrintNode.h>
+#include <queue>
+
+#include "../CompilerCangjieProject.h"
+#include "CjdIndex.h"
+#include "MemIndex.h"
 
 namespace {
 using namespace Cangjie;
@@ -58,7 +60,60 @@ void GetAliasInImportMulti(std::unordered_map<std::string, std::string> aliasMap
 
 inline bool NeedToObtainCjdDeclPos(bool isCjoPkg)
 {
-    return ark::MessageHeaderEndOfLine::GetIsDeveco() && ark::lsp::CjdIndexer::GetInstance() != nullptr && isCjoPkg;
+    return ark::MessageHeaderEndOfLine::GetIsDeveco() && ark::lsp::CjdIndexer::GetInstance() != nullptr && isCjoPkg &&
+           !ark::lsp::CjdIndexer::GetInstance()->GetRunningState();
+}
+
+Ptr<const Node> GetCurMacro(const Decl& decl)
+{
+    Ptr<const Node> curCall = nullptr;
+    if (decl.curMacroCall) {
+        curCall = decl.curMacroCall;
+    } else {
+        Ptr<const Decl> tmpDecl = &decl;
+        while (tmpDecl->outerDecl) {
+            tmpDecl = tmpDecl->outerDecl;
+            if (tmpDecl->curMacroCall) {
+                curCall = tmpDecl->curMacroCall;
+                break;
+            }
+        }
+    }
+    return curCall;
+}
+
+CommentGroups FindCommentsInMacroCall(const Ptr<const Decl> node, Ptr<const Node> curCall)
+{
+    if (!node || !curCall) {
+        return {};
+    }
+
+    CommentGroups foundComments;
+    std::string id = node->identifier;
+    auto begin = node->GetBegin();
+    auto end = node->GetEnd();
+
+    if (curCall) {
+        ConstWalker walker(curCall, [&foundComments, &id, &begin, &end](Ptr<const Node> node) -> VisitAction {
+            Meta::match (*node)([&foundComments, &id, &begin, &end](const Decl& decl) {
+                const auto [leadCommentGroup, innerCommentGroup, trailCommentGroup] = decl.comments;
+                if (decl.identifier == id &&
+                    begin == decl.GetBegin() &&
+                    end == decl.GetEnd() &&
+                    !decl.comments.IsEmpty()) {
+                    foundComments = decl.comments;
+                }
+            });
+
+            if (!foundComments.IsEmpty()) {
+                return VisitAction::STOP_NOW;
+            }
+            return VisitAction::WALK_CHILDREN;
+        });
+        walker.Walk();
+    }
+
+    return foundComments;
 }
 
 ark::lsp::Modifier GetDeclModifier(const Decl &decl)
@@ -73,6 +128,123 @@ ark::lsp::Modifier GetDeclModifier(const Decl &decl)
         return ark::lsp::Modifier::PRIVATE;
     }
     return ark::lsp::Modifier::UNDEFINED;
+}
+
+ark::lsp::CommentGroups GetDeclComments(const Decl &decl)
+{
+    if (!decl.comments.IsEmpty()) {
+        return decl.comments;
+    }
+    CommentGroups foundComments;
+
+    ConstWalker walker(&decl, [&foundComments](Ptr<const Node> node) -> VisitAction {
+        Meta::match (*node)([&foundComments](const Decl& decl) {
+            if (auto curCall = GetCurMacro(decl)) {
+                CommentGroups comments = FindCommentsInMacroCall(&decl, curCall);
+                if (!comments.IsEmpty()) {
+                    foundComments = comments;
+                }
+            }
+        });
+        return VisitAction::WALK_CHILDREN;
+    });
+    walker.Walk();
+
+    return foundComments;
+}
+
+bool IsExportExtendSuper(Ptr<ClassLikeDecl> decl)
+{
+    if (!decl || decl->TestAttr(Attribute::PRIVATE)) {
+        return false;
+    }
+    if (decl->TestAnyAttr(Attribute::PUBLIC, Attribute::PROTECTED, Attribute::INTERNAL)) {
+        return true;
+    }
+    // When the decl is `extend A<B>`, B may be decl without modifiers such as GenericParamDecl, BuiltinDecl.
+    // In this case, they must be exported for extend's extendType checking.
+    return true;
+}
+
+bool CheckExtendExported(const ExtendDecl* decl)
+{
+    auto extendedDecl = Ty::GetDeclPtrOfTy<InheritableDecl>(decl->ty);
+    bool isInSamePkg = extendedDecl && extendedDecl->fullPackageName == decl->fullPackageName;
+    auto isUpperBoundExport = [decl]() {
+        bool isUpperboundAllExported = true;
+        for (auto& tp : decl->generic->genericConstraints) {
+            if (!tp) { return false; }
+            for (auto& up : tp->upperBounds) {
+                if (!up || up->GetTarget() == nullptr) {
+                    continue;
+                }
+                isUpperboundAllExported = up->GetTarget()->IsExportedDecl() && isUpperboundAllExported;
+            }
+        }
+        return isUpperboundAllExported;
+    };
+    // Direct Extensions Check:
+    if (decl->inheritedTypes.empty()) {
+        // Rule 1: In `package std.core`, direct extensions of types visible outside the package are exported.
+        if (decl->fullPackageName == "std.core") {
+            return true;
+        }
+        if (isInSamePkg) {
+            // Rule 2: When direct extensions are defined in the same `package` as the extended type, whether the
+            // extension is exported is determined by the lowest access level of the type used in the extended type and
+            // the generic constraints (if any).
+            if (!decl->generic) {
+                return extendedDecl->IsExportedDecl();
+            }
+            return extendedDecl->IsExportedDecl() && isUpperBoundExport();
+        }
+        // Rule 3: When the direct extension is in a different `package` from the declaration of the type being
+        // extended, the extension is never exported and can only be used in the current `package`.
+        return false;
+    }
+    // Interface Extensions Check:
+    if (isInSamePkg) {
+        // Rule 1: When the interface extension and the extended type are in the same `package`, the extension is
+        // exported together with the extended type and is not affected by the access level of the interface type.
+        return extendedDecl->IsExportedDecl();
+    }
+    // Rule 2: When an interface extension is in a different `package` from the type being extended, whether the
+    // interface extension is exported is determined by the smallest access level of the type used in the
+    // interface type and the generic constraints (if any).
+    bool isInterfaceAllExported = false;
+    for (auto& inhertType : decl->inheritedTypes) {
+        if (!inhertType || !inhertType->GetTarget()) {
+            continue;
+        }
+        auto target = inhertType->GetTarget();
+        if (auto decl = DynamicCast<ClassLikeDecl>(target)) {
+            if (IsExportExtendSuper(decl)) {
+                isInterfaceAllExported = true;
+                break;
+            }
+        }
+    }
+    if (!decl->generic) {
+        return isInterfaceAllExported;
+    }
+    return isInterfaceAllExported && isUpperBoundExport();
+}
+
+bool IsExportedExtendDecl(const ExtendDecl* decl)
+{
+    if (!decl) {
+        return false;
+    }
+    // ExtendedType Check (Direct and Interface Extensions): If B in extend A<B> isn't exported, the extendDecl should
+    // not be exported. For imported decl, extendedType may be nullptr and not ready.
+    if (decl->extendedType != nullptr) {
+        for (auto& it : decl->extendedType->GetTypeArgs()) {
+            if (it && it->GetTarget() && !it->GetTarget()->IsExportedDecl()) {
+                return false;
+            }
+        }
+    }
+    return CheckExtendExported(decl);
 }
 } // namespace
 
@@ -138,11 +310,13 @@ void SymbolCollector::Build(const Package &package)
             } else if (auto type = DynamicCast<Type *>(node)) {
                 CreateTypeRef(*type, filePath);
             }
+            CollectCrossScopes(node);
             return VisitAction::WALK_CHILDREN;
         };
 
         auto collectPost = [this](auto node) {
             RestoreScope(*node);
+            RestoreCrossScope(*node);
             return VisitAction::WALK_CHILDREN;
         };
 
@@ -170,6 +344,17 @@ void SymbolCollector::Build(const Package &package)
     }
     scopes.pop_back();
     CollectRelations(inheritableDecls);
+}
+
+void SymbolCollector::CollectCrossScopes(Ptr<Node> node)
+{
+    if (auto assignExpr = DynamicCast<AssignExpr *>(node)) {
+        if (!crossRegisterScopes.empty() &&
+            crossRegisterScopes.back().second.first != CrossRegisterType::MODULE_REGISTER) {
+                return;
+            }
+        UpdateCrossScope(*assignExpr, CrossRegisterType::MODULE_REGISTER, "");
+    }
 }
 
 void SymbolCollector::CreateBaseOrExtendSymbol(const Decl &decl, const std::string &filePath)
@@ -213,18 +398,25 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     if (curMacroCallNode && curMacroCallNode->curFile) {
         curMacroCall = {curMacroCallNode->begin, curMacroCallNode->end, curMacroCallNode->curFile->filePath};
     }
+    SymbolLocation zeroLoc = {.begin = {0, 0}, .end = {0, 0}, .fileUri = ""};
     SymbolLocation declaration = {.begin = {0, 0}, .end = {0, 0}, .fileUri = ""};
+    CommentGroups comments = GetDeclComments(decl);
+
     if (NeedToObtainCjdDeclPos(isCjoPkg)) {
         declaration = CjdIndexer::GetInstance()->GetSymbolDeclaration(GetDeclSymbolID(decl), decl.fullPackageName);
+        comments = CjdIndexer::GetInstance()->GetSymbolComments(GetDeclSymbolID(decl), decl.fullPackageName);
     }
-    Symbol declSym{.id = GetDeclSymbolID(decl),
-                   .name = identifier,
-                   .scope = curScope,
-                   .location = loc,
-                   .declaration = declaration,
-                   .kind = decl.astKind,
-                   .signature = ItemResolverUtil::ResolveSignatureByNode(decl),
-                   .returnType = GetTypeString(decl)};
+    Symbol declSym;
+    declSym.id = GetDeclSymbolID(decl);
+    declSym.name = identifier;
+    declSym.scope = curScope;
+    declSym.location = loc;
+    declSym.declaration = declaration;
+    declSym.canonicalDeclaration = zeroLoc;
+    declSym.kind = decl.astKind;
+    declSym.signature = ItemResolverUtil::ResolveSignatureByNode(decl);
+    declSym.returnType = GetTypeString(decl);
+    declSym.idArray = GetArrayFromID(declSym.id);
     // config local lambda variables kind for callHierarchy
     bool isLocalLambda = declSym.kind == ASTKind::VAR_DECL && isLambda(decl);
     if (isLocalLambda) {
@@ -232,14 +424,9 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     }
     declSym.modifier = GetDeclModifier(decl);
     declSym.isCjoSym = isCjoPkg;
-    declSym.insertText = ItemResolverUtil::ResolveInsertByNode(decl);
-    auto funcDecl = dynamic_cast<const FuncDecl*>(&decl);
-    if (decl.TestAttr(Cangjie::AST::Attribute::MACRO_FUNC) && funcDecl && funcDecl->funcBody) {
-        declSym.signature = decl.identifier;
-        ItemResolverUtil::ResolveMacroParams(declSym.signature, funcDecl->funcBody->paramLists);
-        declSym.signature += "(input: Tokens)";
-        declSym.insertText += "(${2:input: Tokens})";
-    }
+    declSym.syscap = GetSysCapFromDecl(decl);
+    declSym.comments = comments;
+    SymbolCollector::CollectCompletionItem(decl, declSym);
     declSym.curMacroCall = curMacroCall;
     if (decl.HasAnno(AnnotationKind::DEPRECATED)) {
         declSym.isDeprecated = true;
@@ -262,6 +449,693 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     (void)symbolRefMap[declSym.id].emplace_back(refInfo);
 }
 
+void SymbolCollector::CreateCrossSymbolByInterop(const Decl &decl)
+{
+    bool isInvalidCrossSymbol = !IsGlobalOrMemberOrItsParam(decl) || !decl.TestAttr(Attribute::PUBLIC);
+    if (isInvalidCrossSymbol) {
+        return;
+    }
+    auto &identifier =
+        decl.TestAttr(Attribute::PRIMARY_CONSTRUCTOR) ? decl.identifierForLsp : decl.identifier;
+    SymbolLocation loc;
+    if (decl.TestAttr(Attribute::IMPLICIT_ADD, Attribute::CONSTRUCTOR)) {
+        loc = {.begin = {0, 0}, .end = {0, 0}, .fileUri = decl.curFile->filePath};
+    } else {
+        auto identifierPos = decl.GetIdentifierPos();
+        auto uri = decl.curFile->filePath;
+        // decl in .macroCall file
+        if (identifierPos.fileID != decl.begin.fileID) {
+            uri = decl.curFile->macroCallFilePath;
+        }
+        loc = {identifierPos, identifierPos + CountUnicodeCharacters(identifier), uri};
+    }
+    SymbolID container{};
+    std::string containerName;
+    if (decl.outerDecl) {
+        container = GetDeclSymbolID(*decl.outerDecl);
+        containerName = decl.outerDecl->identifier;
+    }
+    CrossSymbol crossSym;
+    crossSym.id = GetDeclSymbolID(decl);
+    crossSym.name = identifier;
+    crossSym.crossType = CrossType::ARK_TS_WITH_INTEROP;
+    crossSym.location = loc;
+    crossSym.container = container;
+    crossSym.containerName = containerName;
+    (void)crsSymsMap.emplace_back(crossSym);
+
+    bool isContainMember = decl.astKind == ASTKind::CLASS_DECL || decl.astKind == ASTKind::CLASS_LIKE_DECL ||
+        decl.astKind == ASTKind::INTERFACE_DECL || decl.astKind == ASTKind::STRUCT_DECL;
+    if (!isContainMember) {
+        return;
+    }
+    auto &members = decl.GetMemberDecls();
+    if (members.empty()) {
+        return;
+    }
+    for (auto &member: members) {
+        if (!member->GetConstInvocation()) {
+            CreateCrossSymbolByInterop(*member);
+            continue;
+        }
+        // macro expand node, has invocation, need to get real decl
+        const auto invocation = member->GetConstInvocation();
+        bool isInvisible = false;
+        auto realDecl = &invocation->decl;
+        while (realDecl && realDecl->get()->astKind == ASTKind::MACRO_EXPAND_DECL
+            && realDecl->get()->GetConstInvocation()) {
+            // realDecl is macro expand node, check its name, invocation and attr
+            if (realDecl->get()->symbol && realDecl->get()->symbol->name == "Interop") {
+                for (const auto &attr : realDecl->get()->GetConstInvocation()->attrs) {
+                    if (attr.Value() == "Invisible") {
+                        isInvisible = true;
+                        break;
+                    }
+                }
+            }
+            // get next decl for realDecl
+            realDecl = &realDecl->get()->GetConstInvocation()->decl;
+        }
+        if (isInvisible || !realDecl) {
+            continue;
+        }
+        CreateCrossSymbolByInterop(*realDecl->get());
+    }
+}
+
+void SymbolCollector::CreateCrossSymbolByRegister(const NameReferenceExpr &ref, const SrcIdentifier &identifier)
+{
+    if (!ref.curFile) {
+        return;
+    }
+    auto callExpr = DynamicCast<const CallExpr *>(ref.callOrPattern);
+    if (!callExpr || callExpr->args.empty()) {
+        return;
+    }
+    if (identifier == CROSS_ARK_TS_WITH_REGISTER_MODULE) {
+        // registerModule
+        DealRegisterModule(*callExpr);
+        return;
+    }
+    size_t argNum = 2;
+    if (callExpr->args.size() != argNum) {
+        return;
+    }
+    const auto &registerIdentify = callExpr->args.at(0);
+    const auto &registerTarget = callExpr->args.at(1);
+    bool isInvalidRegister = !registerIdentify || !registerTarget || !registerTarget->ty || !registerTarget->expr;
+    if (isInvalidRegister) {
+        return;
+    }
+    if (identifier == CROSS_ARK_TS_WITH_REGISTER_CLASS) {
+        // registerClass
+        DealRegisterClass(*registerIdentify, *registerTarget);
+        return;
+    }
+    // registerFunc
+    DealRegisterFunc(*registerIdentify, *registerTarget);
+}
+
+void SymbolCollector::DealRegisterModule(const CallExpr &callExpr)
+{
+    const auto arg = callExpr.args.at(0).get();
+    if (!arg) {
+        return;
+    }
+    if (arg->expr->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(arg->expr.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        const auto targetSymbolId = GetDeclSymbolID(*argTarget);
+        if (crossRegisterDecls.find(targetSymbolId) == crossRegisterDecls.end()) {
+            return;
+        }
+        for (const auto &item : crossRegisterDecls[targetSymbolId]) {
+            std::string name = remove_quotes(item.first);
+            if (name.empty()) {
+                continue;
+            }
+            CrossSymbol sym;
+            sym.name = name;
+            sym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            sym.location = item.second;
+            (void) crsSymsMap.emplace_back(sym);
+        }
+    }
+    if (arg->expr->astKind == ASTKind::LAMBDA_EXPR) {
+        auto lambdaExpr = DynamicCast<const LambdaExpr *>(arg->expr.get());
+        bool isInvalidLambda = !lambdaExpr || !lambdaExpr->funcBody || !lambdaExpr->funcBody->body
+            || lambdaExpr->funcBody->body->body.empty();
+        if (isInvalidLambda) {
+            return;
+        }
+        UpdateCrossScope(*lambdaExpr->funcBody->body, CrossRegisterType::MODULE_REGISTER, "");
+    }
+}
+
+void SymbolCollector::DealRegisterClass(const FuncArg &registerIdentify, const FuncArg &registerTarget)
+{
+    if (registerTarget.expr->astKind == ASTKind::REF_EXPR) {
+            const auto argRef = DynamicCast<const RefExpr *>(registerTarget.expr.get());
+            if (!argRef) {
+                return;
+            }
+            const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+            if (!argTarget || !argTarget->curFile) {
+                return;
+            }
+            const auto &identifier = argTarget->identifier;
+            const std::string clazName = remove_quotes(registerIdentify.ToString());
+            CrossSymbol crossSym;
+            crossSym.id = GetDeclSymbolID(*argTarget);
+            crossSym.name = clazName;
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {argTarget->GetIdentifierPos(),
+                argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+            const auto targetSymbolId = GetDeclSymbolID(*argTarget);
+            if (crossRegisterDecls.find(targetSymbolId) == crossRegisterDecls.end()) {
+                return;
+            }
+            for (const auto &item : crossRegisterDecls[targetSymbolId]) {
+                std::string name = remove_quotes(item.first);
+                if (name.empty()) {
+                    continue;
+                }
+                CrossSymbol sym;
+                sym.name = name;
+                sym.containerName = clazName;
+                sym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+                sym.location = item.second;
+                (void) crsSymsMap.emplace_back(sym);
+            }
+        }
+        if (registerTarget.expr->astKind == ASTKind::LAMBDA_EXPR) {
+            auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.expr.get());
+            bool isInvalidLambda = !lambdaExpr || !lambdaExpr->funcBody || !lambdaExpr->funcBody->body
+            || lambdaExpr->funcBody->body->body.empty();
+            if (isInvalidLambda) {
+                return;
+            }
+            CrossSymbol crossSym;
+            crossSym.id = INVALID_SYMBOL_ID;
+            crossSym.name = remove_quotes(registerIdentify.ToString());
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {registerTarget.begin, registerTarget.begin + 1, registerTarget.curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+            UpdateCrossScope(*lambdaExpr->funcBody->body, CrossRegisterType::CLASS_REGISTER,
+                registerIdentify.ToString());
+        }
+}
+
+void SymbolCollector::DealRegisterFunc(const FuncArg &registerIdentify, const FuncArg &registerTarget)
+{
+    // public static func registerFunc(name: String, lambda: JSLambda): Unit
+    if (registerTarget.ty->String() == JS_LAMBDA_TY) {
+        if (registerTarget.expr->astKind == ASTKind::LAMBDA_EXPR) {
+            CrossSymbol crossSym;
+            crossSym.id = INVALID_SYMBOL_ID;
+            crossSym.name = remove_quotes(registerIdentify.ToString());
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {registerTarget.begin, registerTarget.begin + 1, registerTarget.curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+            return;
+        }
+        if (registerTarget.expr->astKind == ASTKind::REF_EXPR) {
+            const auto argRef = DynamicCast<const RefExpr *>(registerTarget.expr.get());
+            if (!argRef) {
+                return;
+            }
+            const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+            if (!argTarget || !argTarget->curFile) {
+                return;
+            }
+            const auto &identifier = argTarget->identifier;
+            CrossSymbol crossSym;
+            crossSym.id = GetDeclSymbolID(*argTarget);
+            crossSym.name = remove_quotes(registerIdentify.ToString());
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {argTarget->GetIdentifierPos(),
+                argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+            return;
+        }
+    }
+    if (registerTarget.ty->String() != FUNC_REGISTER_TY) {
+        return;
+    }
+    // public static func registerFunc(name: String, register: FuncRegister): Unit
+    if (registerTarget.expr->astKind == ASTKind::LAMBDA_EXPR) {
+        auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.expr.get());
+        bool isInvalidLambda = !lambdaExpr || !lambdaExpr->funcBody || !lambdaExpr->funcBody->body;
+        if (isInvalidLambda) {
+            return;
+        }
+        ResloveBlock(*lambdaExpr->funcBody->body, registerIdentify.ToString());
+    }
+    if (registerTarget.expr->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(registerTarget.expr.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        const auto funcDecl = DynamicCast<const FuncDecl *>(argTarget);
+        bool isInvalidLambda = !funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->body;
+        if (isInvalidLambda) {
+            return;
+        }
+        ResloveBlock(*funcDecl->funcBody->body, registerIdentify.ToString());
+    }
+}
+
+void SymbolCollector::ResloveBlock(const Block &block, const std::string &registerIdentify)
+{
+    if (block.body.empty()) {
+        return;
+    }
+    auto expr = block.body.at(block.body.size() - 1).get();
+    if (!expr || (expr->astKind != ASTKind::CALL_EXPR && expr->astKind != ASTKind::RETURN_EXPR)) {
+        return;
+    }
+    if (expr->astKind == ASTKind::RETURN_EXPR) {
+        const auto returnExpr = DynamicCast<const ReturnExpr *>(expr);
+        if (!returnExpr) {
+            return;
+        }
+        expr = returnExpr->expr;
+    }
+    const auto functionExpr = DynamicCast<const CallExpr *>(expr);
+    if (!functionExpr || functionExpr->args.empty() || !functionExpr->args.at(0)) {
+        return;
+    }
+    const auto &registerTarget = functionExpr->args.at(0);
+    if (!registerTarget->curFile || !registerTarget->expr) {
+        return;
+    }
+    if (registerTarget->expr->astKind == ASTKind::LAMBDA_EXPR) {
+        CrossSymbol crossSym;
+        crossSym.id = INVALID_SYMBOL_ID;
+        crossSym.name = remove_quotes(registerIdentify);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {registerTarget->begin, registerTarget->begin + 1, registerTarget->curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+        return;
+    }
+    if (registerTarget->expr->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(registerTarget->expr.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        CrossSymbol crossSym;
+        crossSym.id = GetDeclSymbolID(*argTarget);
+        crossSym.name = remove_quotes(registerIdentify);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {argTarget->GetIdentifierPos(),
+            argTarget->GetIdentifierPos() + CountUnicodeCharacters(argTarget->identifier),
+            argTarget->curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+    }
+}
+
+void SymbolCollector::DealCrossSymbol(const NameReferenceExpr &ref, const Decl &target, const SrcIdentifier &identifier)
+{
+    if (CROSS_ARK_TS_WITH_REGISTER_NAMES.find(identifier) != CROSS_ARK_TS_WITH_REGISTER_NAMES.end()) {
+        CreateCrossSymbolByRegister(ref, identifier);
+        return;
+    }
+    if (identifier == FUNCTION_REGISTER_SYMBOL) {
+        DealCrossFunctionSymbol(ref, identifier);
+        return;
+    }
+    if (identifier == CLAZZ_REGISTER_SYMBOL) {
+        DealCrossClassSymbol(ref, identifier);
+        return;
+    }
+    if (identifier == ADD_METHOD) {
+        DealAddCrossMethodSymbol(ref);
+        return;
+    }
+    if (identifier == "[]" && target.outerDecl && target.outerDecl->identifier == JS_OBJECT_BASE_TY) {
+        DealExportsRegisterSymbol(ref);
+    }
+}
+
+void SymbolCollector::DealAddCrossMethodSymbol(const NameReferenceExpr &ref)
+{
+    const auto addMethodCallExpr = DynamicCast<const CallExpr *>(ref.callOrPattern);
+    if (!addMethodCallExpr || addMethodCallExpr->args.empty() || !addMethodCallExpr->args.at(0)->expr) {
+        return;
+    }
+    const auto &registerIdentify = DynamicCast<const CallExpr *>(addMethodCallExpr->args.at(0)->expr.get());
+    if (!registerIdentify || registerIdentify->args.size() != 1) {
+        return;
+    }
+    CrossRegisterType registerType = CrossRegisterType::GLOBAL_FUNC_REGISTER;
+    if (!crossRegisterScopes.empty()) {
+        const auto scope = crossRegisterScopes.back();
+        registerType = scope.second.first;
+    }
+    if (registerType == CrossRegisterType::CLASS_REGISTER) {
+        UpdateCrossScope(*addMethodCallExpr, CrossRegisterType::MEMBER_FUNC_REGISTER,
+            registerIdentify->args.at(0)->ToString());
+        return;
+    }
+    Ptr<const FuncDecl> decl;
+    if (registerType != CrossRegisterType::CLASS_REGISTER && !scopes.empty()) {
+        const auto scope = scopes.back();
+        decl = DynamicCast<const FuncDecl *>(scope.first);
+    }
+    if (registerType != CrossRegisterType::CLASS_REGISTER && !decl) {
+        return;
+    }
+    UpdateCrossScope(*addMethodCallExpr, CrossRegisterType::MEMBER_FUNC_REGISTER,
+        registerIdentify->args.at(0)->ToString());
+}
+
+void SymbolCollector::DealCrossFunctionSymbol(const NameReferenceExpr &functionRef, const SrcIdentifier &identifier)
+{
+    CrossRegisterType registerOuterType = CrossRegisterType::GLOBAL_FUNC_REGISTER;
+    CrossRegisterType registerFuncType = CrossRegisterType::GLOBAL_FUNC_REGISTER;
+    size_t penultimateIndex = 2;
+    if (crossRegisterScopes.size() > 1) {
+        const auto scope = crossRegisterScopes.at(crossRegisterScopes.size() - penultimateIndex);
+        registerOuterType = crossRegisterScopes.at(crossRegisterScopes.size() - penultimateIndex).second.first;
+        registerFuncType = crossRegisterScopes.back().second.first;
+    }
+
+    // function in registerClass, and in registerClass lambda
+    if (registerOuterType == CrossRegisterType::CLASS_REGISTER
+        && registerFuncType == CrossRegisterType::MEMBER_FUNC_REGISTER) {
+        // in class
+        DealFunctionSymbolInRegisterClass(functionRef, identifier);
+        return;
+    }
+
+    // function in registerModule, and in registerModule lambda
+    if (registerOuterType == CrossRegisterType::MODULE_REGISTER &&
+        registerFuncType == CrossRegisterType::MODULE_REGISTER) {
+        DealFunctionSymbolInRegisterModule(functionRef, identifier);
+        return;
+    }
+
+    // register function in func, this func used to ref_expr
+    DealFunctionSymbolInFunc(functionRef, identifier);
+}
+
+void SymbolCollector::DealFunctionSymbolInRegisterClass(const NameReferenceExpr &functionRef,
+    const SrcIdentifier &identifier)
+{
+    size_t penultimateIndex = 2;
+    const auto clazScop = crossRegisterScopes.at(crossRegisterScopes.size() - penultimateIndex);
+        const auto registerClazName = clazScop.second.second;
+        const auto registerFuncName = crossRegisterScopes.back().second.second;
+        const auto funcCallExpr = DynamicCast<const CallExpr *>(functionRef.callOrPattern);
+        if (!funcCallExpr || funcCallExpr->args.empty() || !funcCallExpr->args.at(0)->expr) {
+            return;
+        }
+        const auto &registerTarget = funcCallExpr->args.at(0)->expr.get();
+        if (!registerTarget) {
+            return;
+        }
+        if (registerTarget->astKind == ASTKind::REF_EXPR) {
+            const auto argRef = DynamicCast<const RefExpr *>(registerTarget.get());
+            if (!argRef) {
+                return;
+            }
+            const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+            if (!argTarget || !argTarget->curFile) {
+                return;
+            }
+            CrossSymbol crossSym;
+            crossSym.id = GetDeclSymbolID(*argTarget);
+            crossSym.name = remove_quotes(registerFuncName);
+            crossSym.containerName = remove_quotes(registerClazName);
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {argTarget->GetIdentifierPos(),
+                argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+        }
+        if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
+            auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.get());
+            if (!lambdaExpr) {
+                return;
+            }
+            CrossSymbol crossSym;
+            crossSym.id = INVALID_SYMBOL_ID;
+            crossSym.name = remove_quotes(registerFuncName);
+            crossSym.containerName = remove_quotes(registerClazName);
+            crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.location = {registerTarget->begin, registerTarget->begin + 1, functionRef.curFile->filePath};
+            (void) crsSymsMap.emplace_back(crossSym);
+        }
+}
+
+void SymbolCollector::DealFunctionSymbolInRegisterModule(const NameReferenceExpr &functionRef,
+    const SrcIdentifier &identifier)
+{
+    const auto registerFuncName = crossRegisterScopes.back().second.second;
+    const auto funcCallExpr = DynamicCast<const CallExpr *>(functionRef.callOrPattern);
+    if (!funcCallExpr || funcCallExpr->args.empty() || !funcCallExpr->args.at(0)->expr) {
+        return;
+    }
+    const auto &registerTarget = funcCallExpr->args.at(0)->expr.get();
+    if (!registerTarget) {
+        return;
+    }
+    if (registerTarget->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(registerTarget.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        CrossSymbol crossSym;
+        crossSym.id = GetDeclSymbolID(*argTarget);
+        crossSym.name = remove_quotes(registerFuncName);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {argTarget->GetIdentifierPos(),
+            argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+    }
+    if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
+        auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.get());
+        if (!lambdaExpr) {
+            return;
+        }
+        CrossSymbol crossSym;
+        crossSym.id = INVALID_SYMBOL_ID;
+        crossSym.name = remove_quotes(registerFuncName);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {registerTarget->begin, registerTarget->begin + 1, functionRef.curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+    }
+}
+
+void SymbolCollector::DealFunctionSymbolInFunc(const NameReferenceExpr &functionRef,
+    const SrcIdentifier &identifier)
+{
+    Ptr<const FuncDecl> decl;
+    if (!scopes.empty()) {
+        const auto scope = scopes.back();
+        decl = DynamicCast<const FuncDecl *>(scope.first);
+    }
+    if (!decl || !decl->curFile || crossRegisterScopes.empty()) {
+        return;
+    }
+    // member func register (function in registerClass, and in registerClass ref)
+    // global func register (function in registerModule, and in registerModule ref)
+    const auto registerFuncName = crossRegisterScopes.back().second.second;
+    const auto funcCallExpr = DynamicCast<const CallExpr *>(functionRef.callOrPattern);
+    if (!funcCallExpr || funcCallExpr->args.empty() || !funcCallExpr->args.at(0)->expr) {
+        return;
+    }
+    const auto &registerTarget = funcCallExpr->args.at(0)->expr.get();
+    if (!registerTarget) {
+        return;
+    }
+    SymbolID declId = GetDeclSymbolID(*decl);
+    if (registerTarget->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(registerTarget.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        SymbolLocation location = {argTarget->GetIdentifierPos(),
+            argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        if (crossRegisterDecls.find(declId) != crossRegisterDecls.end()) {
+            crossRegisterDecls[declId].emplace_back(std::make_pair(remove_quotes(registerFuncName), location));
+        } else {
+            crossRegisterDecls[declId] = {std::make_pair(remove_quotes(registerFuncName), location)};
+        }
+    }
+    if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
+        auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.get());
+        if (!lambdaExpr) {
+            return;
+        }
+        SymbolLocation location = {registerTarget->begin, registerTarget->begin + 1, functionRef.curFile->filePath};
+        if (crossRegisterDecls.find(declId) != crossRegisterDecls.end()) {
+            crossRegisterDecls[declId].emplace_back(std::make_pair(remove_quotes(registerFuncName), location));
+        } else {
+            crossRegisterDecls[declId] = {std::make_pair(remove_quotes(registerFuncName), location)};
+        }
+    }
+}
+
+void SymbolCollector::DealCrossClassSymbol(const NameReferenceExpr &clazzRef, const SrcIdentifier &identifier)
+{
+    std::string name;
+    size_t penultimateIndex = 2;
+    bool isInRegisterModule =
+        !crossRegisterScopes.empty() && crossRegisterScopes.back().second.first == CrossRegisterType::MODULE_REGISTER;
+    // clazz in registerModule, export["xxx"] = context.clazz(xxx).toJSValue()
+    if (isInRegisterModule) {
+        name = crossRegisterScopes.back().second.second;
+        if (crossRegisterScopes.size() > 1 &&
+            crossRegisterScopes.at(
+                crossRegisterScopes.size() - penultimateIndex).second.first == CrossRegisterType::MODULE_REGISTER) {
+            DealClassSymbolInRegisterModule(clazzRef, identifier);
+            return;
+        }
+    }
+
+    // registerClass clazz in func, this func used to ref_expr
+    Ptr<const Decl> decl;
+    if (!scopes.empty()) {
+        for (size_t i = scopes.size() - 1; i >= 0; i--) {
+            decl = DynamicCast<const Decl*>(scopes[i].first);
+            if (decl && decl->astKind == ASTKind::VAR_DECL) {
+                continue;
+            }
+            decl = DynamicCast<const FuncDecl *>(scopes[i].first);
+            break;
+        }
+    }
+    if (!decl || !decl->curFile || !decl->ty) {
+        return;
+    }
+    DealClassSymbolInFunc(*decl, clazzRef, identifier);
+}
+
+void SymbolCollector::DealClassSymbolInRegisterModule(const NameReferenceExpr &clazzRef,
+    const SrcIdentifier &identifier)
+{
+    const std::string name = crossRegisterScopes.back().second.second;
+    // in registerModule lambda
+    const auto funcCallExpr = DynamicCast<const CallExpr *>(clazzRef.callOrPattern);
+    if (!funcCallExpr || funcCallExpr->args.empty() || !funcCallExpr->args.at(0)->expr) {
+        return;
+    }
+    const auto &registerTarget = funcCallExpr->args.at(0)->expr.get();
+    if (registerTarget->astKind == ASTKind::REF_EXPR) {
+        const auto argRef = DynamicCast<const RefExpr *>(registerTarget.get());
+        if (!argRef) {
+            return;
+        }
+        const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+        if (!argTarget || !argTarget->curFile) {
+            return;
+        }
+        CrossSymbol crossSym;
+        crossSym.id = GetDeclSymbolID(*argTarget);
+        crossSym.name = remove_quotes(name);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {argTarget->GetIdentifierPos(),
+            argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+    }
+    if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
+        auto lambdaExpr = DynamicCast<const LambdaExpr *>(registerTarget.get());
+        if (!lambdaExpr) {
+            return;
+        }
+        CrossSymbol crossSym;
+        crossSym.id = INVALID_SYMBOL_ID;
+        crossSym.name = remove_quotes(name);
+        crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+        crossSym.location = {registerTarget->begin, registerTarget->begin + 1, clazzRef.curFile->filePath};
+        (void) crsSymsMap.emplace_back(crossSym);
+    }
+}
+
+void SymbolCollector::DealClassSymbolInFunc(const Decl &decl, const NameReferenceExpr &clazzRef,
+    const SrcIdentifier &identifier)
+{
+    std::string name = "";
+    const SymbolID containerId = GetContextID();
+    const auto identifierPos = decl.GetIdentifierPos();
+    const auto uri = decl.curFile->filePath;
+    SymbolLocation location = {identifierPos, identifierPos + CountUnicodeCharacters(identifier), uri};
+    if (!crossRegisterScopes.empty() && crossRegisterScopes.back().second.first == CrossRegisterType::MODULE_REGISTER) {
+        // clazz register with, export["xxx"] = context.clazz(xxx).toJSValue()
+        name = crossRegisterScopes.back().second.second;
+        const auto funcCallExpr = DynamicCast<const CallExpr *>(clazzRef.callOrPattern);
+        if (!funcCallExpr || funcCallExpr->args.empty() || !funcCallExpr->args.at(0)->expr) {
+            return;
+        }
+        const auto &registerTarget = funcCallExpr->args.at(0)->expr.get();
+        if (registerTarget->astKind == ASTKind::REF_EXPR) {
+            const auto argRef = DynamicCast<const RefExpr *>(registerTarget.get());
+            if (!argRef) {
+                return;
+            }
+            const auto argTarget = argRef->aliasTarget ? argRef->aliasTarget : GetRealDecl(argRef->GetTarget());
+            if (!argTarget || !argTarget->curFile) {
+                return;
+            }
+            location = {argTarget->GetIdentifierPos(),
+                argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        }
+        if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
+            location = {registerTarget->begin, registerTarget->begin + 1, clazzRef.curFile->filePath};
+        }
+    }
+    if (crossRegisterDecls.find(containerId) != crossRegisterDecls.end()) {
+        crossRegisterDecls[containerId].emplace_back(std::make_pair(name, location));
+    } else {
+        crossRegisterDecls[containerId] = {std::make_pair(name, location)};
+    }
+}
+
+void SymbolCollector::DealExportsRegisterSymbol(const NameReferenceExpr &ref)
+{
+    if (crossRegisterScopes.empty() || crossRegisterScopes.back().second.first != CrossRegisterType::MODULE_REGISTER) {
+        return;
+    }
+    if (ref.astKind != ASTKind::MEMBER_ACCESS) {
+        return;
+    }
+
+    auto callExpr = DynamicCast<const CallExpr *>(ref.callOrPattern);
+    if (!callExpr || callExpr->args.empty()) {
+        return;
+    }
+    const auto &registerIdentify = callExpr->args.at(0);
+    if (!registerIdentify) {
+        return;
+    }
+    auto crossScopeNode = crossRegisterScopes.back().first;
+    crossRegisterScopes.pop_back();
+    UpdateCrossScope(*crossScopeNode, CrossRegisterType::MODULE_REGISTER, registerIdentify->ToString());
+}
+
 struct ExtendInfo {
     SymbolID id;
     std::string name;
@@ -272,7 +1146,7 @@ struct ExtendInfo {
 void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath)
 {
     auto extendDecl = DynamicCast<ExtendDecl *>(&decl);
-    bool isInvalidExtend = !extendDecl || !extendDecl->IsExportedDecl() || !extendDecl->extendedType ||
+    bool isInvalidExtend = !extendDecl || !IsExportedExtendDecl(extendDecl) || !extendDecl->extendedType ||
         extendDecl->inheritedTypes.empty();
     if (isInvalidExtend) {
         return;
@@ -367,7 +1241,7 @@ void SymbolCollector::CreateRef(const NameReferenceExpr &ref, const std::string 
         }
     }
     auto target = ref.aliasTarget ? ref.aliasTarget : GetRealDecl(ref.GetTarget());
-    if (target == nullptr || (!IsGlobalOrMemberOrItsParam(*target) && !IsLocalFuncOrLambda(*target))) {
+    if (target == nullptr) {
         return;
     }
     if (!ref.curFile) {
@@ -379,6 +1253,9 @@ void SymbolCollector::CreateRef(const NameReferenceExpr &ref, const std::string 
     }
     auto identifier = target->TestAttr(Attribute::CONSTRUCTOR) ? target->outerDecl->identifier
                                                                : target->identifier;
+    if ((!IsGlobalOrMemberOrItsParam(*target) && !IsLocalFuncOrLambda(*target))) {
+        return;
+    }
     if (aliasMap.find(identifier) != aliasMap.end()) {
         identifier = aliasMap[identifier];
     }
@@ -396,9 +1273,19 @@ void SymbolCollector::CreateRef(const NameReferenceExpr &ref, const std::string 
         return;
     }
     SymbolLocation loc{begin, end, uri};
-    Ref refInfo{.location = loc, .kind = RefKind::REFERENCE, .container = GetContextID()};
+    Ref refInfo{.location = loc,
+        .kind = RefKind::REFERENCE,
+        .container = GetContextID()};
+    refInfo.isSuper = (refExpr && refExpr->isSuper);
     UpdatePos(refInfo.location, ref, filePath);
     (void)symbolRefMap[GetDeclSymbolID(*target)].emplace_back(refInfo);
+    // collect cross symbol
+    bool isInvalidSymbol = target->fullPackageName != CROSS_ARK_TS_WITH_REGISTER_PACKAGE|| ref.IsMacroCallNode()
+    || EndsWith(uri, ".macrocall");
+    if (isInvalidSymbol) {
+        return;
+    }
+    DealCrossSymbol(ref, *target, identifier);
 }
 
 void SymbolCollector::CreateTypeRef(const Type &type, const std::string &filePath)
@@ -447,6 +1334,19 @@ void SymbolCollector::CreateMacroRef(const Node &node, const MacroInvocation &in
     SymbolLocation loc{begin, end, node.curFile->filePath};
     Ref refInfo{.location = loc, .kind = RefKind::REFERENCE, .container = GetContextID()};
     (void)symbolRefMap[GetDeclSymbolID(*invocation.target)].emplace_back(refInfo);
+
+    // for cross language symbol
+    if (node.symbol && node.symbol->name != CROSS_ARK_TS_WITH_INTEROP_NAME) {
+        return;
+    }
+    for (const auto& attr : invocation.attrs) {
+        if (attr.Value() == CROSS_ARK_TS_WITH_INTEROP_INVISIBLE_NAME) {
+            return;
+        }
+    }
+    if (invocation.decl) {
+        CreateCrossSymbolByInterop(*invocation.decl);
+    }
 }
 
 void SymbolCollector::CreateNamedArgRef(const CallExpr &ce)
@@ -501,7 +1401,7 @@ void SymbolCollector::CollectRelations(
                 }
                 object = GetDeclSymbolID(*beingExtendDecl);
             }
-            Relation relation{subject, predicate, object};
+            Relation relation{.subject = subject, .predicate = predicate, .object = object};
             (void)relations.emplace_back(relation);
         }
 
@@ -676,7 +1576,8 @@ void SymbolCollector::CollectNamedParam(Ptr<const Decl> parent, Ptr<const Decl> 
 
     for (const auto &iter : record) {
         if (iter.second.first != INVALID_SYMBOL_ID && iter.second.second != INVALID_SYMBOL_ID) {
-            Relation re{iter.second.first, RelationKind::RIDDEND_BY, iter.second.second};
+            Relation re{.subject = iter.second.first, .predicate = RelationKind::RIDDEND_BY,
+                        .object = iter.second.second};
             (void)relations.emplace_back(re);
         }
     }
@@ -693,5 +1594,31 @@ void SymbolCollector::UpdatePos(SymbolLocation &location, const Node &node,
     ark::UpdateRange(arkAst->tokens, range, node);
     location.begin = range.start;
     location.end = range.end;
+}
+
+void SymbolCollector::CollectCompletionItem(const Decl &decl, Symbol &declSym)
+{
+    std::string insertText = ItemResolverUtil::ResolveInsertByNode(decl);
+    auto funcDecl = dynamic_cast<const FuncDecl*>(&decl);
+    if (decl.TestAttr(Cangjie::AST::Attribute::MACRO_FUNC) && funcDecl && funcDecl->funcBody) {
+        declSym.signature = decl.identifier;
+        ItemResolverUtil::ResolveMacroParams(declSym.signature, funcDecl->funcBody->paramLists);
+    }
+    declSym.completionItems.push_back({declSym.signature, insertText});
+    // add follow lambda completion
+    std::string flSignature = ItemResolverUtil::ResolveFollowLambdaSignature(decl);
+    if (!flSignature.empty()) {
+        std::string flInsert = ItemResolverUtil::ResolveFollowLambdaInsert(decl);
+        if (!flInsert.empty()) {
+            declSym.completionItems.push_back({flSignature, flInsert});
+        }
+    }
+    // add paramList completion for func_type's var_decl
+    std::string varSignature;
+    std::string varInsert;
+    ItemResolverUtil::ResolveParamListFuncTypeVarDecl(decl, varSignature, varInsert);
+    if (!varSignature.empty() && !varInsert.empty()) {
+        declSym.completionItems.push_back({varSignature, varInsert});
+    }
 }
 } // namespace ark::lsp

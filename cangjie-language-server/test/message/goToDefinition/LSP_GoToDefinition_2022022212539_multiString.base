@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":11,"line":0},"start":{"character":4,"line":0}},"uri":"file:///d%3A/sourceCode/TestVscode/test_chinese/src/test_multiLine.cj"}}
+{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":11,"line":6},"start":{"character":4,"line":6}},"uri":"file:///d%3A/sourceCode/TestVscode/test_chinese/src/test_multiLine.cj"}}

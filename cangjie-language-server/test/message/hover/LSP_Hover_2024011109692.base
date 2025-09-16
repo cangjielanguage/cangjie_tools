@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: a.cj\nPackage info: default\n\n(class) internal class aaaaas\n"},"range":{"end":{"character":12,"line":15},"start":{"character":6,"line":15}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: a.cj\nPackage info: default\n\n(class) internal class aaaaas\n\nIs Base64 Encoded\nparamType: xs_string\n\n"},"range":{"end":{"character":12,"line":21},"start":{"character":6,"line":21}}}}

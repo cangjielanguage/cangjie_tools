@@ -37,7 +37,7 @@ struct LocatedSymbol {
 class LocateSymbolAtImpl {
 public:
     static std::string curFilePath;
-    
+
     static bool LocateSymbolAt(const ArkAST &ast, LocatedSymbol &result, Cangjie::Position pos);
 
     static void CrossDefinition(std::vector<message> &CrossMessage, Ptr<Cangjie::AST::FuncDecl> funcDecl);

@@ -58,10 +58,8 @@ void PrintStackTraceOnSignal(std::ostream &os)
 {
     ark::Logger &logger = ark::Logger::Instance();
     void *array[STACK_SIZE];
-    int size = 0;
-    char **backtraces;
-    size = backtrace(array, STACK_SIZE);
-    backtraces = backtrace_symbols(array, size);
+    int size = backtrace(array, STACK_SIZE);
+    auto backtraces = backtrace_symbols(array, size);
     std::stringstream log;
     for (size_t i = 0; i < static_cast<size_t>(size); i++) {
         std::stringstream ss;

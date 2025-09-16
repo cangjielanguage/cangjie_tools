@@ -89,8 +89,7 @@ public func postCommandScript(): Bool {
         }
         return true
     } catch (e: Exception) {
-        eprintln(e.message)
-        eprintln("Error: failed to restore build.cj, please check permission")
+        eprintln("${e.message}\nError: failed to restore build.cj, please check permission")
         return false
     }
 }

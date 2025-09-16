@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package pkg2
 
 import pkg1.*
@@ -63,8 +69,3 @@ func main() {
     cc.test(1,pkg2_testInterface_param1_noDefaultValue:1)
     aa(1,pkg2_asFunc_param1_noDefaultValue:1,pkg2_asFunc_param1_hasDefaultValue:1)
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

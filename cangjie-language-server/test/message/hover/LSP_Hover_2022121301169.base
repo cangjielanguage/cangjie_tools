@@ -1,1 +1,1 @@
-{"id":5,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: a.cj\nPackage info: A\n\n(struct) struct Sa4\n"},"range":{"end":{"character":15,"line":3},"start":{"character":12,"line":3}}}}
+{"id":5,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: a.cj\nPackage info: A\n\n(struct) struct Sa4\n"},"range":{"end":{"character":15,"line":9},"start":{"character":12,"line":9}}}}

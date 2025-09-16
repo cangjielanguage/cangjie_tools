@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package ohos_app_cangjie_entry.CrossPkgTest
 
 import ohos_app_cangjie_entry.Pkg1.*
@@ -35,8 +41,3 @@ private interface TEST_INTERFACE_EXTENDED_TWICE_WITH_OVERRIDE <: TEST_INTERFACE_
 
 private interface TEST_INTERFACE_MULTI_EXTEND <: P1_VISIABLE_I0 & P1_BODY_I1 {}
 
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

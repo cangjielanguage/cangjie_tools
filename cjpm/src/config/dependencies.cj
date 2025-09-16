@@ -106,22 +106,16 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
             // Current dependency is a local dependency
             if (other.isPathDep()) {
                 return (false, this.isSameDep(other))
-            } else if (other.isGitDep()) {
-                return (false, TYPE_ERR_INFO)
             } else {
-                return (false, "")
+                return (false, TYPE_ERR_INFO)
             }
-        } else if (this.isGitDep()) {
+        } else {
             // Current dependency is a git dependency
             if (other.isPathDep()) {
                 return (false, TYPE_ERR_INFO)
-            } else if (other.isGitDep()) {
-                return (false, this.isSameDep(other))
             } else {
-                return (false, "")
+                return (false, this.isSameDep(other))
             }
-        } else {
-            return (false, "")
         }
     }
 
@@ -175,7 +169,7 @@ public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: S
         }
 
         if (let Some(val) <- v.path) {
-            if (!depPathCheck(val, errLoc, modulePath)) {
+            if (!depPathCheck(val, errLoc, modulePath, name)) {
                 checkFlag = false
             }
         }

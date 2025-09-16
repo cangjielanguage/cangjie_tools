@@ -190,7 +190,6 @@ private func wrapJSFunc(ret: TsType, gconfig: GlobalConfig, ctxParam: Tokens, pa
 
     let paramList = Token(TokenKind.IDENTIFIER,
         params.map {_: TsParameter, i: Int64 => "p${i}"} |> collectString<String>(delimiter: ", "))
-    // 2. make the call (in cj world)
     let call = quote($(f)($(paramList)))
     // avoid unused parameter
     let paramInfos = if (params.isEmpty()) {

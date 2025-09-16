@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package default.2022031808222
 
 func 2g<T>(x:T):T {x}
@@ -80,8 +86,3 @@ extend 2ty3 {}
 var ss = Point2D(aa3,fun12)
 var ss1 = ss(1.0)
 /*中文*/ type 2Point2D = (C111, () -> Unit) ->( (Float32) -> Int32 )
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

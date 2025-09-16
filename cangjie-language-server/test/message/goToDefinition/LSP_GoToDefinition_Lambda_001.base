@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":23,"line":36},"start":{"character":22,"line":36}},"uri":"file:///d%3A/cj/newlsp2/cangjie_language_server/test/testChr/normalTest/Lambda/src/Lambda.cj"}}
+{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":23,"line":42},"start":{"character":22,"line":42}},"uri":"file:///d%3A/cj/newlsp2/cangjie_language_server/test/testChr/normalTest/Lambda/src/Lambda.cj"}}

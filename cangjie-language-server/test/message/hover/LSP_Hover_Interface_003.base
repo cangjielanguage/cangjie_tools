@@ -1,1 +1,1 @@
-{"id":110,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Interface.cj\nPackage info: default\n\n(interface) internal interface I1\n"},"range":{"end":{"character":18,"line":7},"start":{"character":16,"line":7}}}}
+{"id":110,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Interface.cj\nPackage info: default\n\n(interface) internal interface I1\n"},"range":{"end":{"character":18,"line":13},"start":{"character":16,"line":13}}}}

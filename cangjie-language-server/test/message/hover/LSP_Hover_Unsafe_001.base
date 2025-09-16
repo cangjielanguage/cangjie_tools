@@ -1,1 +1,0 @@
-{"id":6,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: string.cj\nPackage info: std.core\n\n// In struct String\n(function) public unsafe func rawData(): Array<T>\n"},"range":{"end":{"character":33,"line":4},"start":{"character":26,"line":4}}}}

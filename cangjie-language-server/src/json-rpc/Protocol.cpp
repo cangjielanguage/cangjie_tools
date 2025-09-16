@@ -54,6 +54,37 @@ bool FromJSON(const nlohmann::json &params, TextDocumentPositionParams &reply)
     return true;
 }
 
+bool FromJSON(const nlohmann::json &params, CrossLanguageJumpParams &reply)
+{
+    reply.packageName = params["packageName"];
+    reply.name = params["name"];
+    reply.outerName = params.value("outerName", "");
+    reply.isCombined = params.value("isCombined", false);
+    return true;
+}
+
+bool FromJSON(const nlohmann::json &params, OverrideMethodsParams &reply)
+{
+    if (!params["textDocument"].is_object() || !params["position"].is_object()) {
+        return false;
+    }
+
+    nlohmann::json textDocument = params["textDocument"];
+    if (textDocument["uri"].is_null()) {
+        return false;
+    }
+    reply.textDocument.uri.file = textDocument.value("uri", "");
+
+    nlohmann::json position = params["position"];
+    if (!position.is_object() || position["line"].is_null() || position["character"].is_null()) {
+        return false;
+    }
+    reply.position.line = position.value("line", -1);
+    reply.position.column = position.value("character", -1);
+    reply.isExtend = params.value("isExtend", false);
+    return true;
+}
+
 bool FromJSON(const nlohmann::json &params, SignatureHelpContext &reply)
 {
     if (!params.contains("triggerKind") || params["triggerKind"].is_null()) {
@@ -359,6 +390,30 @@ bool ToJSON(const CodeLens &params, nlohmann::json &reply)
     return true;
 }
 
+bool ToJSON(const Command &params, nlohmann::json &reply)
+{
+    reply["title"] = params.title;
+    reply["command"] = params.command;
+    nlohmann::json jsonValue;
+    for (auto &iter : params.arguments) {
+        nlohmann::json temp;
+        temp["tweakID"] = iter.tweakId;
+        temp["file"] = iter.uri;
+        temp["selection"]["start"]["line"] = iter.range.start.line;
+        temp["selection"]["start"]["character"] = iter.range.start.column;
+        temp["selection"]["end"]["line"] = iter.range.end.line;
+        temp["selection"]["end"]["character"] = iter.range.end.column;
+        if (!iter.extraOptions.empty()) {
+            for (const auto &[key, value] : iter.extraOptions) {
+                temp[key] = value;
+            }
+        }
+        jsonValue.push_back(temp);
+    }
+    reply["arguments"] = jsonValue;
+    return true;
+}
+
 bool FromJSON(const nlohmann::json &params, TypeHierarchyItem &replyTH)
 {
     if (!params["item"].is_object()) {
@@ -507,6 +562,13 @@ bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply)
     if (iter.category.has_value()) {
         reply["category"] = iter.category.value();
     }
+    if (!iter.tags.empty()) {
+        nlohmann::json tags;
+        for (auto &tag : iter.tags) {
+            tags.push_back(tag);
+        }
+        reply["tags"] = tags;
+    }
     if (iter.relatedInformation.has_value()) {
         for (auto &info : iter.relatedInformation.value()) {
             nlohmann::json jsonInfo;
@@ -545,6 +607,29 @@ bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply)
     return true;
 }
 
+bool FromJSON(const nlohmann::json &params, DiagnosticToken &result)
+{
+    result.range.start.line = params["range"]["start"].value("line", -1);
+    result.range.start.column = params["range"]["start"].value("character", -1);
+    result.range.end.line = params["range"]["end"].value("line", -1);
+    result.range.end.column = params["range"]["end"].value("character", -1);
+    result.severity = params.value("severity", -1);
+    result.source = params.value("source", "");
+    result.message = params.value("message", "");
+    if (params.contains("relatedInformation") && !params["relatedInformation"].is_null()
+        && params["relatedInformation"].is_array()) {
+        std::vector<DiagnosticRelatedInformation> temp;
+        const auto& relatedInfos = params["relatedInformation"];
+        for (const auto &item : relatedInfos) {
+            DiagnosticRelatedInformation info;
+            FromJSON(item, info);
+            temp.push_back(std::move(info));
+        }
+        result.relatedInformation = std::optional<std::vector<DiagnosticRelatedInformation>>(std::move(relatedInfos));
+    }
+    return true;
+}
+
 bool ToJSON(const DiagnosticRelatedInformation &info, nlohmann::json &reply)
 {
     reply["message"] = info.message;
@@ -553,6 +638,17 @@ bool ToJSON(const DiagnosticRelatedInformation &info, nlohmann::json &reply)
     reply["location"]["range"]["start"]["character"] = info.location.range.start.column;
     reply["location"]["range"]["end"]["line"] = info.location.range.end.line;
     reply["location"]["range"]["end"]["character"] = info.location.range.end.column;
+    return true;
+}
+
+bool FromJSON(const nlohmann::json &param, DiagnosticRelatedInformation &info)
+{
+    info.message = param.value("message", "");
+    info.location.range.start.line = param["location"]["range"]["start"].value("line", -1);
+    info.location.range.start.column = param["location"]["range"]["start"].value("character", -1);
+    info.location.range.end.line = param["location"]["range"]["end"].value("line", -1);
+    info.location.range.end.column = param["location"]["range"]["end"].value("character", -1);
+    info.location.uri.file = param["location"].value("uri", "");
     return true;
 }
 
@@ -680,6 +776,112 @@ bool ToJSON(const CallHierarchyIncomingCall &iter, nlohmann::json &reply)
         range["end"]["line"] = item.end.line;
         range["end"]["character"] = item.end.column;
         reply["fromRanges"].push_back(range);
+    }
+    return true;
+}
+
+bool ToJSON(const CodeAction &params, nlohmann::json &reply)
+{
+    reply["title"] = params.title;
+    reply["kind"] = params.kind;
+    if (params.diagnostics.has_value()) {
+        nlohmann::json diagVec;
+        for (const auto &diag : params.diagnostics.value()) {
+            nlohmann::json diagJson;
+            if (ToJSON(diag, diagJson)) {
+                diagVec.push_back(diagJson);
+            }
+        }
+        reply["diagnostics"] = diagVec;
+    }
+    if (params.edit.has_value()) {
+        nlohmann::json editJson;
+        if (ToJSON(params.edit.value(), editJson)) {
+            reply["edit"] = editJson;
+        }
+    }
+    if (params.command.has_value()) {
+        nlohmann::json commandJson;
+        if (ToJSON(params.command.value(), commandJson)) {
+            reply["command"] = commandJson;
+        }
+    }
+    return true;
+}
+
+const std::string CodeAction::QUICKFIX_KIND = "quickfix";
+const std::string CodeAction::REFACTOR_KIND = "refactor";
+const std::string CodeAction::INFO_KIND = "info";
+const std::string Command::APPLY_EDIT_COMMAND = "cjLsp.applyTweak";
+
+bool FromJSON(const nlohmann::json &params, CodeActionContext &reply)
+{
+    nlohmann::json diagnostics = params["diagnostics"];
+    if (diagnostics.is_null() || !diagnostics.is_array()) {
+        return false;
+    }
+    for (nlohmann::json item : diagnostics) {
+        DiagnosticToken diag;
+        FromJSON(item, diag);
+        reply.diagnostics.push_back(std::move(diag));
+    }
+    nlohmann::json only = params["only"];
+    if (!only.is_null() && only.is_array()) {
+        for (const auto &item : only) {
+            reply.only->push_back(item);
+        }
+    }
+    return true;
+}
+
+bool FromJSON(const nlohmann::json &params, CodeActionParams &reply)
+{
+    if (params["textDocument"].is_null()) {
+        return false;
+    }
+    reply.textDocument.uri.file = params["textDocument"].value("uri", "");
+    reply.range.start.line = params["range"]["start"].value("line", -1);
+    reply.range.start.column = params["range"]["start"].value("character", -1);
+    reply.range.end.line = params["range"]["end"].value("line", -1);
+    reply.range.end.column = params["range"]["end"].value("character", -1);
+    if (!params["context"].is_null()) {
+        FromJSON(params["context"], reply.context);
+    }
+    return true;
+}
+
+bool FromJSON(const nlohmann::json &params, TweakArgs &reply)
+{
+    reply.file.file = params.value("file", "");
+    reply.selection.start.line = params["selection"]["start"].value("line", -1);
+    reply.selection.start.column = params["selection"]["start"].value("character", -1);
+    reply.selection.end.line = params["selection"]["end"].value("line", -1);
+    reply.selection.end.column = params["selection"]["end"].value("character", -1);
+    reply.tweakID = params.value("tweakID", "");
+    if (params.contains("extraOptions") && params["extraOptions"].is_object()) {
+        const auto &extraOptions = params["extraOptions"];
+        for (auto it = extraOptions.begin(); it != extraOptions.end(); ++it) {
+            if (it.value().is_string()) {
+                reply.extraOptions[it.key()] = it.value().get<std::string>();
+            }
+        }
+    }
+    return true;
+}
+
+bool FromJSON(const nlohmann::json &params, ExecuteCommandParams &reply)
+{
+    reply.command = params.value("command", "");
+    reply.arguments = params["arguments"];
+    return true;
+}
+
+bool ToJSON(const ApplyWorkspaceEditParams &params, nlohmann::json &reply)
+{
+    if (!params.edit.changes.empty()) {
+        nlohmann::json edit;
+        ToJSON(params.edit, edit);
+        reply["edit"] = edit;
     }
     return true;
 }

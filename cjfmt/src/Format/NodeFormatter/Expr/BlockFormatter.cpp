@@ -35,20 +35,6 @@ void BlockFormatter::AddBlock(Doc& doc, const Cangjie::AST::Block& block, int le
         astToFormatSource.AddEmptyBody(doc, block, level, block.leftCurlPos.line == block.rightCurlPos.line);
         return;
     }
-    if (funcOptions.patternOrEnum && block.body.size() == 1 &&
-        block.body.front()->begin.line == block.body.front()->end.line) {
-        Doc group(DocType::GROUP, level + 1, "");
-        group.members.emplace_back(DocType::STRING, level, " {");
-        group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
-        group.members.emplace_back(astToFormatSource.ASTToDoc(block.body.begin()->get(), level + 1));
-        group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level, "");
-        group.members.emplace_back(DocType::STRING, level, "}");
-        if (block.hasSemi) {
-            doc.members.emplace_back(DocType::STRING, level, ";");
-        }
-        doc.members.emplace_back(group);
-        return;
-    }
 
     if (block.TestAttr(Attribute::UNSAFE)) {
         doc.members.emplace_back(DocType::STRING, level, "unsafe");
@@ -66,11 +52,11 @@ void BlockFormatter::AddBlockIsLambda(Doc& doc, const Cangjie::AST::Block& block
     for (auto& n : block.body) {
         if (lastEndLine != -1) {
             if (n->begin.line > lastEndLine + 1) {
-                doc.members.emplace_back(DocType::SEPARATE, level + 1, "");
+                doc.members.emplace_back(DocType::SEPARATE, level, "");
             }
-            doc.members.emplace_back(DocType::LINE, level + 1, "");
+            doc.members.emplace_back(DocType::LINE, level, "");
         }
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
+        doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level));
 
         lastEndLine = n->end.line;
     }
@@ -81,9 +67,6 @@ void BlockFormatter::AddSameLineCurl(Doc& doc, const Cangjie::AST::Block& block,
     doc.members.emplace_back(DocType::STRING, level, " { ");
     for (auto& n : block.body) {
         doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level));
-        if (n != block.body.back()) {
-            doc.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level, "");
-        }
     }
     doc.members.emplace_back(DocType::STRING, level, " }");
     if (block.hasSemi) {

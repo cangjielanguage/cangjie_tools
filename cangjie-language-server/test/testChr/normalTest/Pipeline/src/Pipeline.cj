@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 func f(x: Int32): Int32 { x + 1 }
 
 let a: Int32 = 1
@@ -32,8 +38,3 @@ class A1 {
 let obj = A1()
 let a1: Int32 = 1
 let res5 = a1 |> obj // Equivalence：obj.asFunc(a)
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

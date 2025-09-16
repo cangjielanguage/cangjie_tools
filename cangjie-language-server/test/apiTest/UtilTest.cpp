@@ -56,34 +56,27 @@ namespace apitest {
 
     TEST_F(StringMatcherTest, CaseSensitiveMatching)
     {
-        // 测试完全匹配
         EXPECT_TRUE(ark::IsMatchingCompletion("Hld", "HelloWorld", true));
 
-        // 测试大小写不匹配的情况
         EXPECT_FALSE(ark::IsMatchingCompletion("hw", "HelloWorld", true));
 
-        // 测试字符顺序
         EXPECT_TRUE(ark::IsMatchingCompletion("HW", "HelloWorld", true));
         EXPECT_FALSE(ark::IsMatchingCompletion("WH", "HelloWorld", true));
 
-        // 测试不存在的字符
         EXPECT_FALSE(ark::IsMatchingCompletion("xyz", "HelloWorld", true));
     }
 
     TEST_F(StringMatcherTest, CaseInsensitiveMatching)
     {
-        // 测试不同大小写的匹配
         EXPECT_TRUE(ark::IsMatchingCompletion("hw", "HelloWorld", false));
         EXPECT_TRUE(ark::IsMatchingCompletion("HELLO", "HelloWorld", false));
         EXPECT_TRUE(ark::IsMatchingCompletion("hElLo", "HelloWorld", false));
 
-        // 测试字符顺序
         EXPECT_TRUE(ark::IsMatchingCompletion("hw", "HelloWorld", false));
         EXPECT_FALSE(ark::IsMatchingCompletion("wh", "HelloWorld", false));
 
-        // 测试不存在的字符
         EXPECT_FALSE(ark::IsMatchingCompletion("xyz", "HelloWorld", false));
-        // 测试混合大小写
+
         EXPECT_TRUE(ark::IsMatchingCompletion("hW", "HelloWorld", false));
         EXPECT_TRUE(ark::IsMatchingCompletion("Hw", "HelloWorld", false));
     }

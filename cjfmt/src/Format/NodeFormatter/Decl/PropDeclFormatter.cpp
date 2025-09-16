@@ -32,10 +32,7 @@ void PropDeclFormatter::AddPropDecl(Doc& doc, const Cangjie::AST::PropDecl& prop
         doc.members.emplace_back(DocType::STRING, level, ": ");
         doc.members.emplace_back(astToFormatSource.ASTToDoc(propDecl.type.get(), level));
     }
-    if (propDecl.initializer) {
-        doc.members.emplace_back(DocType::STRING, level, " = ");
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(propDecl.initializer.get(), level));
-    }
+
     if (propDecl.leftCurlPos != INVALID_POSITION && propDecl.rightCurlPos != INVALID_POSITION) {
         doc.members.emplace_back(DocType::STRING, level, " {");
         doc.members.emplace_back(DocType::LINE, level + 1, "");

@@ -9,6 +9,7 @@ package cjpm.implement
 import std.collection.*
 import std.fs.*
 import cjpm.config.*
+import std.env.getVariables
 
 public func doRun(runConfig: RunConfig): Bool {
     if (!getOriginDirForRun(runConfig)) {
@@ -82,8 +83,8 @@ func setTargetPathForRun(runConfig: RunConfig, tomlInfo: TomlInfo, configPath: S
 }
 
 func startRun(runConfig: RunConfig): Bool {
-    let envMap: HashMap<String, String> = envConfigToMap(runConfig.envConfig)
-    addLibEnvConfig(envMap, runConfig.targetPath, runConfig.globalConfig.nativeDir, runConfig.originTargetPath)
+    let envBuilder = EnvironmentBuilder.fromEnvConfig(runConfig.envConfig)
+    addLibEnvConfig(envBuilder, runConfig.targetPath, runConfig.globalConfig.nativeDir, runConfig.originTargetPath)
 
     let exeTool = runConfig.filePath
     let args = ArrayList<String>()
@@ -91,12 +92,12 @@ func startRun(runConfig: RunConfig): Bool {
         args.add(all: extractOptionByString(runConfig.runArgs))
     }
 
+    let env = getVariables()
     if (runConfig.isVerbose) {
-        println("Run current project: ${getCmdStr(envMap, exeTool, args)}")
+        println("Run current project: ${getCmdStr(envBuilder.asCliStrings(env), exeTool, args)}")
     }
 
-    execWithEnvReplace(exeTool, args.toArray(), envMap: envMap)
-
+    execAndToTerminal(exeTool, args.toArray(), envBuilder: envBuilder, originalEnv: env)
     return true
 }
 
@@ -117,12 +118,12 @@ func getCmdStr(envMap: HashMap<String, String>, exeTool: String, args: ArrayList
     return res
 }
 
-func addLibEnvConfig(envConfig: HashMap<String, String>, targetDir: String, nativeDir: String, originPath: String): Unit {
+func addLibEnvConfig(envBuilder: EnvironmentBuilder, targetDir: String, nativeDir: String, originPath: String): Unit {
     let historyFile = Path(originPath).join(HISTORY_FILE_NAME).toString()
     if (!fileExists(historyFile)) {
         return
     }
     let resInfo: ModuleResolve = loadHistoryFile(historyFile) ?? ModuleResolve()
-    var ldPath = getLdPathConfig(targetDir, nativeDir, resInfo)
-    appendLdLibraryConfig(envConfig, ldPath)
+    let ldPath = getLdPathConfig(targetDir, nativeDir, resInfo)
+    envBuilder.prepend(LD_PATH, ldPath)
 }

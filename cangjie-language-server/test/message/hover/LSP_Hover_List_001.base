@@ -1,1 +1,1 @@
-{"id":"7","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: testList01.cj\nPackage info: default.testList\n\n(variable) public var externalList: Array<Int64>\n"},"range":{"end":{"character":27,"line":3},"start":{"character":15,"line":3}}}}
+{"id":"7","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: testList01.cj\nPackage info: default.testList\n\n(variable) public var externalList: Array<Int64>\n"},"range":{"end":{"character":27,"line":9},"start":{"character":15,"line":9}}}}

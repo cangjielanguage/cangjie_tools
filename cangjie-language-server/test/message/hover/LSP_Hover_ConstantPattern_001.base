@@ -1,1 +1,1 @@
-{"id":"7","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: constantPattern.cj\nPackage info: default.constantPattern\n\n(variable) let Dwzz: Int64\n"},"range":{"end":{"character":13,"line":8},"start":{"character":9,"line":8}}}}
+{"id":"7","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: constantPattern.cj\nPackage info: constantPattern\n\n(variable) let Dwzz: Int64\n"},"range":{"end":{"character":13,"line":14},"start":{"character":9,"line":14}}}}

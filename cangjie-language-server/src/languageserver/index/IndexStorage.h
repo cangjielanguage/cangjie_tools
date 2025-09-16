@@ -63,6 +63,7 @@ struct IndexFileIn {
     RefSlab refs;
     RelationSlab relations;
     ExtendSlab extends;
+    CrossSymbolSlab crossSymbos;
 };
 
 struct IndexFileOut {
@@ -70,6 +71,7 @@ struct IndexFileOut {
     const RefSlab *refs = nullptr;
     const RelationSlab *relations = nullptr;
     const ExtendSlab *extends = nullptr;
+    const CrossSymbolSlab *crossSymbos = nullptr;
 
     IndexFileOut() = default;
 };
@@ -112,6 +114,9 @@ public:
         const IdxFormat::HashedPackage &package, std::unique_ptr<ark::lsp::IndexFileIn> &ifi) const;
 
     void readExtends(
+        const IdxFormat::HashedPackage &package, std::unique_ptr<ark::lsp::IndexFileIn> &ifi) const;
+
+    void readCrossSymbols(
         const IdxFormat::HashedPackage &package, std::unique_ptr<ark::lsp::IndexFileIn> &ifi) const;
 private:
     std::string basePath;

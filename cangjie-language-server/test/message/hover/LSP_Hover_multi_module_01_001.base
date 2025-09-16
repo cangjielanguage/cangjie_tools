@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: zoo.cj\nPackage info: pro2.zoo\n\n(variable) public let z: Int32\n"},"range":{"end":{"character":32,"line":3},"start":{"character":31,"line":3}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: zoo.cj\nPackage info: pro2.zoo\n\n(variable) public let z: Int32\n"},"range":{"end":{"character":32,"line":9},"start":{"character":31,"line":9}}}}

@@ -1,1 +1,1 @@
-{"id":110,"jsonrpc":"2.0","result":{"range":{"end":{"character":12,"line":4},"start":{"character":10,"line":4}},"uri":"file:///home/xiongzhangfa/server/Cangjie-language-server/test/testChr/normalTest/Interface/src/Interface.cj"}}
+{"id":110,"jsonrpc":"2.0","result":{"range":{"end":{"character":12,"line":10},"start":{"character":10,"line":10}},"uri":"file:///home/***/server/Cangjie-language-server/test/testChr/normalTest/Interface/src/Interface.cj"}}

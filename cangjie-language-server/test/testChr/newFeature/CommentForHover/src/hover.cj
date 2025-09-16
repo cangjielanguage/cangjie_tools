@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 
 var empty = 1
 
@@ -59,8 +65,3 @@ func LSP_Hover_Comment_Doc_001(param1: Int64, param2: Int64): Int64 { 0 }
  *
  *LSP_Hover_Comment_Line_Block_Doc_001.test_above2 */
 func LSP_Hover_Comment_Line_Block_Doc_001(param1: Int64, param2222222222222222: Int64): Int64 { 0 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

@@ -4,13 +4,14 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+#include "gtest/gtest.h"
+
 #include<string>
+#include<thread>
 #include<vector>
 
-#include "gtest/gtest.h"
-#include<thread>
-#include<common.h>
-#include<SingleInstance.h>
+#include "common.h"
+#include "SingleInstance.h"
 
 using namespace test::common;
 
@@ -33,7 +34,7 @@ namespace TestLspTypeHierarchy {
             BuildDynamicBinary(p->pathBuildScript);
         }
         /* Wait until the task is complete. The join blocking mode is not used. */
-        StartLspServer();
+        StartLspServer(SingleInstance::GetInstance()->useDB);
 
         /* Check the test case result. */
         TypeHierarchyResult expectPrepare;
@@ -44,7 +45,7 @@ namespace TestLspTypeHierarchy {
         if (!CreateMsg(p->pathIn, testFile, rootUri, isMultiModule, std::to_string(actualPrepare.symbolId))) {
             return false;
         }
-        StartLspServer();
+        StartLspServer(SingleInstance::GetInstance()->useDB);
 
         TypeHierarchyResult expect;
         ReadExpectedTypeHierarchyResult(param.baseFile, expect);

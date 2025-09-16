@@ -15,6 +15,8 @@
 #include "cangjie/Basic/SourceManager.h"
 
 namespace ark {
+std::unordered_map<std::string, int> InitKeyMap();
+
 class ItemResolverUtil {
 public:
     static std::string ResolveNameByNode(Cangjie::AST::Node &node);
@@ -42,21 +44,55 @@ public:
     static void ResolveFuncParams(std::string &detail,
                                   const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists,
                                   bool isEnumConstruct = false, Cangjie::SourceManager *sourceManager = nullptr,
-                                  const std::string &filePath = "");
+                                  const std::string &filePath = "",
+                                  bool needLastParam = true);
 
     static void ResolveMacroParams(std::string &detail,
         const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists);
 
-private:
+    static void GetDetailByTy(const Cangjie::AST::Ty *ty, std::string &detail, bool isLambda = false);
+
+    static std::string GetGenericParamByDecl(Ptr<Cangjie::AST::Generic> genericDecl);
+
+    static bool IsCustomAnnotation(const Cangjie::AST::Decl &decl);
+
+    static void AddTypeByNodeAndType(std::string &detail, const std::string filePath, Ptr<Cangjie::AST::Node> type,
+        Cangjie::SourceManager *sourceManager);
+
     static std::string FetchTypeString(const Cangjie::AST::Type &type);
+
+    static void DealTypeDetail(std::string &detail, Ptr<Cangjie::AST::Type> type, const std::string &filePath,
+        Cangjie::SourceManager *sourceManager = nullptr);
+
+    static void ResolveFuncTypeParamSignature(std::string &detail,
+        const std::vector<OwnedPtr<Cangjie::AST::Type>> &paramTypes,
+        Cangjie::SourceManager *sourceManager, const std::string &filePath, bool needLastParam = true);
+
+    static void ResolveFuncTypeParamInsert(std::string &detail,
+        const std::vector<OwnedPtr<Cangjie::AST::Type>> &paramTypes, Cangjie::SourceManager *sourceManager,
+        const std::string &filePath, int &numParm, bool needLastParam = true, bool needDefaultParamName = false);
+
+    static std::string ResolveFollowLambdaSignature(const Cangjie::AST::Node &node,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
+
+    static std::string ResolveFollowLambdaInsert(const Cangjie::AST::Node &node,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
+
+    static void ResolveParamListFuncTypeVarDecl(const Cangjie::AST::Node &node, std::string &label,
+        std::string &insertText, Cangjie::SourceManager *sourceManager = nullptr);
+
+    static int AddGenericInsertByDecl(std::string &detail, Ptr<Cangjie::AST::Generic> genericDecl);
+
+    static int ResolveFuncParamInsert(std::string &detail, const std::string myFilePath,
+        Ptr<Cangjie::AST::FuncParam> param, int numParm, Cangjie::SourceManager *sourceManager, bool isEnumConstruct);
+
+private:
 
     template <typename T>
     static std::string GetGenericString(const T &t);
 
     static void GetInitializerInfo(std::string &detail, const Cangjie::AST::VarDecl &decl,
                                    Cangjie::SourceManager *sourceManager, bool hasType);
-
-    static void GetDetailByTy(const Cangjie::AST::Ty *ty, std::string &detail, bool isLambda = false);
 
     static void ResolveVarDeclDetail(std::string &detail, const Cangjie::AST::VarDecl &decl,
                                      Cangjie::SourceManager *sourceManager = nullptr);
@@ -95,10 +131,6 @@ private:
     static void ResolveEnumDeclDetail(std::string &detail, const Cangjie::AST::EnumDecl &decl,
                                       Cangjie::SourceManager *sourceManager = nullptr);
 
-    static std::string GetGenericParamByDecl(Ptr<Cangjie::AST::Generic> genericDecl);
-
-    static int AddGenericInsertByDecl(std::string &detail, Ptr<Cangjie::AST::Generic> genericDecl);
-
     static void ResolveFuncDeclSignature(std::string &detail, const Cangjie::AST::FuncDecl &decl,
                                          Cangjie::SourceManager *sourceManager = nullptr,
                                          bool isCompletionInsert = false,
@@ -118,16 +150,33 @@ private:
                                        Cangjie::SourceManager *sourceManager = nullptr);
 
     static void ResolveBuiltInDeclDetail(std::string &detail, const Cangjie::AST::BuiltInDecl &decl);
-
-    static void DealTypeDetail(std::string &detail, Ptr<Cangjie::AST::Type> type, const std::string &filePath,
-                               Cangjie::SourceManager *sourceManager = nullptr);
  
     static void ResolveMacroParamsInsert(std::string &detail,
                                          const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists);
 
-    static bool IsCustomAnnotation(const Cangjie::AST::Decl &decl);
+    template<typename T> static void ResolveFollowLambdaFuncSignature(std::string &detail, const T &decl,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
+
+    static void ResolveFollowLambdaVarSignature(std::string &detail, const Cangjie::AST::VarDecl &decl,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
+
+    template<typename T> static void ResolveFollowLambdaFuncInsert(std::string &detail, const T &decl,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
+
+    static void ResolveFollowLambdaVarInsert(std::string &detail, const Cangjie::AST::VarDecl &decl,
+        Cangjie::SourceManager *sourceManager = nullptr, const std::string &initFuncReplace = "");
 
     static const int detailMaxLen = 256;
+
+    template<typename T> static int BuildLambdaFuncPreParamInsert(const T &decl, Cangjie::SourceManager *sourceManager,
+        OwnedPtr<Cangjie::AST::FuncParamList> &paramList, const std::string &myFilePath, std::string &insertText);
+
+    static void GetFuncNamedParam(std::string &detail, Cangjie::SourceManager *sourceManager,
+        const std::string &filePath, const OwnedPtr<Cangjie::AST::FuncParam> &param);
+
+    template<typename T> static void DealEmptyParamFollowLambda(const T &decl,
+        Cangjie::SourceManager *sourceManager, OwnedPtr<Cangjie::AST::FuncParamList> &paramList, std::string &signature,
+        const std::string &myFilePath);
 };
 } // namespace ark
 

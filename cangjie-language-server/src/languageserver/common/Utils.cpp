@@ -620,24 +620,60 @@ void GetConditionCompile(const nlohmann::json &initializationOptions,
     }
 }
 
-void GetSingleConditionCompile(
+void GetModuleConditionCompile(
     const nlohmann::json &initializationOptions,
     const std::unordered_map<std::string, std::string> &globalConditions,
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &conditions)
 {
-    if (initializationOptions.contains(CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION)) {
-        auto conditionCompiles = initializationOptions[CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION];
-        auto packageNameItems = conditionCompiles.items();
-        for (auto &item : packageNameItems) {
-            auto &name = item.key();
-            std::unordered_map<std::string, std::string> packageConditions = globalConditions;
-            auto conditionItems = conditionCompiles[name].items();
-            for (auto &conditionItem : conditionItems) {
-                auto &key = conditionItem.key();
-                packageConditions[key] = conditionCompiles[name].value(key, "");
-            }
-            conditions[name] = packageConditions;
+    if (!initializationOptions.contains(CONSTANTS::MODULE_CONDITION_COMPILE_OPTION)) {
+        return;
+    }
+    auto customModuleConditions = initializationOptions[CONSTANTS::MODULE_CONDITION_COMPILE_OPTION];
+    const auto moduleConditionItems = customModuleConditions.items();
+    for (auto &item : moduleConditionItems) {
+        auto &moduleName = item.key();
+        std::unordered_map<std::string, std::string> moduleConditions = globalConditions;
+        auto customConditionItems = customModuleConditions[moduleName].items();
+        for (auto &conditionItem : customConditionItems) {
+            auto &key = conditionItem.key();
+            moduleConditions[key] = customModuleConditions[moduleName].value(key, "");
         }
+        conditions[moduleName] = moduleConditions;
+    }
+}
+
+void GetSingleConditionCompile(
+    const nlohmann::json &initializationOptions,
+    const std::unordered_map<std::string, std::string> &globalConditions,
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>>& modulesConditions,
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &conditions)
+{
+    if (!initializationOptions.contains(CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION)) {
+        return;
+    }
+    auto customSingleConditionCompiles = initializationOptions[CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION];
+    auto packageNameItems = customSingleConditionCompiles.items();
+    for (auto &item : packageNameItems) {
+        auto &packageName = item.key();
+        auto moduleName = packageName;
+        const size_t firstDotPos = packageName.find_last_of('.');
+        if (firstDotPos > 0) {
+            moduleName = packageName.substr(0, firstDotPos);
+        }
+        std::unordered_map<std::string, std::string> packageConditions = globalConditions;
+        if (modulesConditions.find(moduleName) != modulesConditions.end()) {
+            std::unordered_map<std::string, std::string> curModulesConditions = modulesConditions[moduleName];
+            for (const auto& moduleConditionsItem : curModulesConditions) {
+                auto &key = moduleConditionsItem.first;
+                packageConditions[key] = moduleConditionsItem.second;
+            }
+        }
+        auto conditionItems = customSingleConditionCompiles[packageName].items();
+        for (auto &conditionItem : conditionItems) {
+            auto &key = conditionItem.key();
+            packageConditions[key] = customSingleConditionCompiles[packageName].value(key, "");
+        }
+        conditions[packageName] = packageConditions;
     }
 }
 
@@ -814,6 +850,17 @@ std::string Digest(const std::string &pkgPath)
     return std::to_string(std::hash<std::string>{}(contents));
 }
 
+std::string DigestForCjo(const std::string &cjoPath)
+{
+    if (!FileUtil::FileExist(cjoPath)) {
+        return "";
+    }
+    std::string reason;
+    std::string contents = FileUtil::ReadFileContent(cjoPath, reason).value_or("");
+    contents += Cangjie::CANGJIE_VERSION + cjoPath;
+    return std::to_string(std::hash<std::string>{}(contents));
+}
+
 lsp::SymbolID GetSymbolId(const Decl &decl)
 {
     auto identifier = decl.exportId;
@@ -830,6 +877,13 @@ lsp::SymbolID GetSymbolId(const Decl &decl)
     }
     size_t ret = 0;
     ret = hash_combine<std::string>(ret, identifier);
+    return ret;
+}
+
+uint32_t GetFileIdForDB(const std::string &fileName)
+{
+    size_t ret = 0;
+    ret = hash_combine<std::string>(ret, fileName) & 0x7FFFFFFF;
     return ret;
 }
 
@@ -1298,5 +1352,78 @@ int GetCurTokenInTargetTokens(const Position &pos, const std::vector<Token> &tok
         return midIndex;
     }
     return GetCurTokenInTargetTokens(pos, tokens, midIndex + 1, end);
+}
+
+std::string remove_quotes(std::string str)
+{
+    auto newEnd = std::remove_if(str.begin(), str.end(), [](char ch) {
+        return ch == '\"' || ch == '\'';
+    });
+    str.erase(newEnd, str.end());
+    return str;
+}
+
+IDArray GetArrayFromID(uint64_t hash)
+{
+    uint64_t bit = 8;
+    IDArray result(bit, 0);
+    for (unsigned I = 0; I < result.size(); ++I) {
+        result[I] = uint8_t(hash);
+        hash >>= bit;
+    }
+    return result;
+}
+
+std::optional<std::string> GetSysCap(const Expr& e)
+{
+    Ptr<const LitConstExpr> lce = nullptr;
+    if (e.astKind == ASTKind::CALL_EXPR) {
+        auto ce = StaticCast<CallExpr>(&e);
+        if (ce->args.size() == 1 && ce->args[0]->expr) {
+            lce = DynamicCast<LitConstExpr>(ce->args[0]->expr.get());
+        }
+    } else if (e.astKind == ASTKind::LIT_CONST_EXPR) {
+        lce = StaticCast<LitConstExpr>(&e);
+    }
+    if (!lce || lce->kind != LitConstKind::STRING) {
+        return {};
+    }
+    return lce->stringValue;
+}
+
+std::string GetSysCapFromDecl(const Decl &decl)
+{
+    std::string syscapName{};
+    for (auto& annotation : decl.annotations) {
+        if (annotation->identifier != "APILevel") {
+            continue;
+        }
+        for (auto& arg : annotation->args) {
+            if (arg->name != "syscap") {
+                continue;
+            }
+            if (!arg->expr) {
+                return syscapName;
+            }
+            auto syscapName = ark::GetSysCap(*arg->expr.get());
+            return syscapName.value_or("");
+        }
+        break;
+    }
+    return syscapName;
+}
+
+TokenKind FindPreFirstValidTokenKind(const ark::ArkAST &input, int index)
+{
+    if (index >= input.tokens.size()) {
+        return TokenKind::INIT;
+    }
+    while (--index > 0) {
+        auto kind = input.tokens[index].kind;
+        if (kind != TokenKind::NL && kind != TokenKind::COMMENT) {
+            return kind;
+        }
+    }
+    return TokenKind::INIT;
 }
 } // namespace ark

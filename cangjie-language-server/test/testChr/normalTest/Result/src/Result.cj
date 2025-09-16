@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 //enum Result<T> { Success(T) | Failure(Throwable) }
 func test() {
     let rInt32_1 = Result<Int32>.Success(100) // The type of'rInt32_1' is 'Result<Int32>'
@@ -51,8 +57,3 @@ func f2(): Result<String> {
 }
 
 
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

@@ -300,7 +300,7 @@ Use "cjpm [subcommand] --help" for more information about a command.
         "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
         "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
         "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-    [target.x86_64-unknown-linux-gnu.bin-dependencies.ffi.c]
+    [target.x86_64-unknown-linux-gnu.ffi.c]
         "ctest" = "./test/c"
 
     [target.x86_64-unknown-linux-gnu.debug]

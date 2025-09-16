@@ -9,12 +9,7 @@
 
 #include <cassert>
 #include <condition_variable>
-#include <future>
-#include <memory>
 #include <mutex>
-#include <thread>
-#include <vector>
-#include "common/Utils.h"
 
 namespace ark {
 // Limits the number of threads that can acquire the lock at the same time.

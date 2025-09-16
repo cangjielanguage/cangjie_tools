@@ -4,14 +4,43 @@
 #
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+find_package(Threads REQUIRED)
 add_compile_definitions(NOT_RELEASE_VERSION_CODE)
-include_directories(../third_party/flatbuffers/include)
-set(FLATBUFFERS_BINARY_DIR ../third_party/flatbuffers/build)
 link_directories(${LIBRARY_OUTPUT_PATH})
-link_directories(${FLATBUFFERS_BINARY_DIR})
+# declare the path of flatbuffers file
+include_directories(../third_party/flatbuffers/include)
+link_directories(../third_party/flatbuffers/build)
+# declare the path of sqlite3 file
+include_directories(../third_party/sqlite3/amalgamation)
+add_library(sqlite3 STATIC
+        ../third_party/sqlite3/amalgamation/shell.c
+        ../third_party/sqlite3/amalgamation/sqlite3.c
+        ../third_party/sqlite3/amalgamation/sqlite3.h
+        ../third_party/sqlite3/amalgamation/sqlite3ext.h
+)
+target_link_libraries(sqlite3 PRIVATE Threads::Threads)
+add_compile_definitions(
+        SQLITE_DEFAULT_MEMSTATUS=1
+        SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
+        SQLITE_DEFAULT_WORKER_THREADS=8
+        SQLITE_DIRECT_OVERFLOW_READ
+        SQLITE_DISABLE_PAGECACHE_OVERFLOW_STATS
+        SQLITE_DQS=0
+        SQLITE_ENABLE_FTS5
+        SQLITE_ENABLE_MEMORY_MANAGEMENT
+        SQLITE_ENABLE_NULL_TRIM
+        SQLITE_LIKE_DOESNT_MATCH_BLOBS
+        SQLITE_MAX_EXPR_DEPTH=0
+        SQLITE_MAX_MMAP_SIZE=17179869184LL
+        SQLITE_OMIT_DECLTYPE
+        SQLITE_OMIT_DEPRECATED
+        SQLITE_OMIT_SHARED_CACHE
+        SQLITE_THREADSAFE=1
+        SQLITE_USE_ALLOCA
+)
+target_compile_options(sqlite3 PRIVATE -fPIC)
 # declare the path of JSON header file
-set(JSON_INCLUDE_DIR ../third_party/json-v3.11.3/include)
-include_directories(${JSON_INCLUDE_DIR})
+include_directories(../third_party/json-v3.11.3/include)
 # declare the path of Cangjie header file
 set(CANGJIE_INCLUDE_DIR lib/cangjie/include)
 set(CANGJIE_LIB_DIR lib/cangjie/lib/cjnative)
@@ -44,9 +73,13 @@ if (COMPILER_TYPE MATCHES "MINGW")    #Compiling Using the MinGW
             LSP
             ${CMAKE_DL_LIBS}
             libflatbuffers.a
+            sqlite3
             -ldbghelp
             -limagehlp
             )
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+        target_link_libraries(LSPServer stdc++fs)
+    endif ()
     target_link_libraries(LSPServer -lcangjie-lsp)
     add_library(cangjie-lsp SHARED IMPORTED)
     set_target_properties(cangjie-lsp PROPERTIES
@@ -56,12 +89,15 @@ if (COMPILER_TYPE MATCHES "MINGW")    #Compiling Using the MinGW
             IMPORTED_IMPLIB ${CANGJIE_LIB_DIR}/libcangjie-lsp.dll.a
             )
     add_library(LSPServerlib launcher/main.cpp)
-   target_link_libraries(LSPServerlib
+    target_link_libraries(LSPServerlib
             pthread
             JsonRPC
             LSP
             ${CMAKE_DL_LIBS}
             )
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+        target_link_libraries(LSPServerlib stdc++fs)
+    endif ()
 elseif (COMPILER_TYPE MATCHES "Ninja")    #Compiling Using the ninja
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector")
@@ -100,7 +136,11 @@ elseif (COMPILER_TYPE MATCHES "Ninja")    #Compiling Using the ninja
             JsonRPC
             LSP
             libflatbuffers.a
+            sqlite3
             )
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+        target_link_libraries(LSPServer stdc++fs)
+    endif ()
     if (NOT CROSS_WINDOWS)
         target_link_libraries(LSPServer ${CMAKE_DL_LIBS}
                 )
@@ -150,6 +190,9 @@ elseif (COMPILER_TYPE MATCHES "Ninja")    #Compiling Using the ninja
             JsonRPC
             LSP
             )
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+        target_link_libraries(LSPServerlib stdc++fs)
+    endif ()
     if (NOT CROSS_WINDOWS)
         target_link_libraries(LSPServerlib ${CMAKE_DL_LIBS}
                 )

@@ -22,6 +22,7 @@ namespace CONSTANTS {
     const std::string MULTI_MODULE_OPTION = "multiModuleOption";
     const std::string CACHE_PATH = "cachePath";
     const std::string CONDITION_COMPILE_OPTION = "conditionCompileOption";
+    const std::string MODULE_CONDITION_COMPILE_OPTION = "moduleConditionCompileOption";
     const std::string SINGLE_CONDITION_COMPILE_OPTION = "singleConditionCompileOption";
     const std::string CONDITION_COMPILE_PATHS = "conditionCompilePaths";
     const std::string MODULES_HOME_OPTION = "modulesHomeOption";

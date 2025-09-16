@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":20,"line":2},"start":{"character":18,"line":2}},"uri":"file:///d%3A/develop/B010/Cangjie-language-server/test/testChr/normalTest/Modifier/src/classP2/d.cj"}}
+{"id":9,"jsonrpc":"2.0","result":{"range":{"end":{"character":20,"line":8},"start":{"character":18,"line":8}},"uri":"file:///d%3A/develop/B010/Cangjie-language-server/test/testChr/normalTest/Modifier/src/classP2/d.cj"}}

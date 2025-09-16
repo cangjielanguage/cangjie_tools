@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package ohos_app_cangjie_entry.Pkg1
 
 public abstract class P1_ABSTRACT_C0 {
@@ -57,8 +63,3 @@ public open class P1_REOPEN_C6 <: P1_VISIABLE_C1 {
 public open class P1_CLOSE_C7 <: P1_VISIABLE_C1 {
     public func C1_PUBLIC_F1(): Unit {}
 }
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

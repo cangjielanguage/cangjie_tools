@@ -4,12 +4,11 @@
 #
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-file(GLOB_RECURSE JSON_RPC_SRC  
+file(GLOB_RECURSE JSON_RPC_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
-# 打印找到的所有源文件  
 message(STATUS "Found source files:")
 foreach(file ${JSON_RPC_SRC})
     message(STATUS "${file}")

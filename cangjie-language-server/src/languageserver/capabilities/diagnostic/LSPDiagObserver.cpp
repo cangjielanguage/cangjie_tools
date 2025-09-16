@@ -38,6 +38,18 @@ DiagLSPSeverity GetSeverity(DiagSeverity l)
     }
 }
 
+void SetDiagMessage(Cangjie::Diagnostic &diagnostic, DiagnosticToken &diagToken)
+{
+    if (diagnostic.rKind == DiagKindRefactor::module_read_file_to_buffer_failed) {
+        diagToken.message = "Empty file can not be compiled";
+    } else if (diagnostic.rKind == DiagKindRefactor::sema_mismatched_types ||
+               diagnostic.rKind == DiagKindRefactor::sema_mismatched_types_because) {
+        diagToken.message = diagnostic.GetErrorMessage() + " " + diagnostic.mainHint.str;
+    } else {
+        diagToken.message = diagnostic.GetErrorMessage();
+    }
+}
+
 void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
 {
     // LSP client can't process negative
@@ -76,26 +88,20 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
     diagToken.range = {{start.fileID, start.line - 1, start.column - 1}, {end.fileID, end.line - 1, end.column - 1}};
     diagToken.source = "Cangjie";
     diagToken.code = static_cast<int>(diagnostic.GetDiagKind());
-    // Temporary solution:
-    // kernel does not support empty file compilation. This diagnosis is added to avoid doing codegen in preview server.
-    // because The codegen will not be triggered if diagnosis is not null.
-    // this diagnostic is added in lsp code, when file context is empty
-    if (diagnostic.rKind == DiagKindRefactor::module_read_file_to_buffer_failed) {
-        diagToken.message = "Empty file can not be compiled";
-    } else if (diagnostic.rKind == DiagKindRefactor::sema_mismatched_types ||
-               diagnostic.rKind == DiagKindRefactor::sema_mismatched_types_because) {
-        diagToken.message = diagnostic.GetErrorMessage() + " " + diagnostic.mainHint.str;
-    } else {
-        diagToken.message = diagnostic.GetErrorMessage();
-    }
+    SetDiagMessage(diagnostic, diagToken);
     diagToken.category = diagnostic.GetDiagKind();
+    if (diagnostic.rKind == DiagKindRefactor::sema_unused_import) {
+        diagToken.tags = {1};
+        diagToken.severity = static_cast<int>(DiagLSPSeverity::HINT);
+    }
 
     // diagToken.category is enhanced features of clangd, GetCategory(diagnostic.diagCategory) can get it
     std::string filePath = diag.GetSourceManager().GetSource(diagnostic.GetBegin().fileID).path;
 
     // provider auto import quick fix
-    if ((!diagnostic.isRefactor && IMPORT_FIX_KIND.count(diagnostic.kind))
-        || (diagnostic.isRefactor && IMPORT_FIX_RKIND.count(diagnostic.rKind))) {
+    bool isRefactor = (!diagnostic.isRefactor && IMPORT_FIX_KIND.count(diagnostic.kind))
+        || (diagnostic.isRefactor && IMPORT_FIX_RKIND.count(diagnostic.rKind));
+    if (isRefactor) {
         diagToken.diaFix->isAutoImport = true;
     }
     
@@ -126,7 +132,7 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
 
     diagToken.relatedInformation.emplace(relatedInformation);
     callback->UpdateDiagnostic(filePath, diagToken);
-    addMacroDiags(diagnostic, diagToken);
+    DealMacroDiags(diagnostic, diagToken);
 }
 
 void LSPDiagObserver::AddNoteInfo(Cangjie::Diagnostic &diagnostic,
@@ -175,22 +181,22 @@ void LSPDiagObserver::FormatDiags(DiagnosticToken &diagToken, SubDiagnostic &sub
                                        : (diagToken.message + ", " + subDiag.subDiagMessage);
 }
 
-void LSPDiagObserver::addMacroDiags(Cangjie::Diagnostic &diagnostic, const DiagnosticToken &token)
+void LSPDiagObserver::DealMacroDiags(Cangjie::Diagnostic &diagnostic, const DiagnosticToken &token)
 {
+    std::string filePath = diag.GetSourceManager().GetSource(diagnostic.GetBegin().fileID).path;
+    if (FileUtil::GetFileExtension(filePath) != "macrocall" || diagnostic.subDiags.empty()) {
+        return;
+    }
     DiagnosticToken diagToken = token;
     for (auto &subDiag : diagnostic.subDiags) {
-        if (subDiag.subDiagMessage != "the error occurs after the macro is expanded") {
-            continue;
-        }
-        diagToken.range = {subDiag.mainHint.range.begin, subDiag.mainHint.range.end};
-        diagToken.range = TransformFromChar2IDE(diagToken.range);
-        diagToken.message = subDiag.subDiagMessage;
         std::string subDiagPath =
-            diag.GetSourceManager().GetSource(diagToken.range.start.fileID).path;
-        if (subDiagPath.empty()) {
-            continue;
+            diag.GetSourceManager().GetSource(subDiag.mainHint.range.begin.fileID).path;
+        if (FileUtil::GetFileExtension(subDiagPath) == "cj") {
+            diagToken.range = {subDiag.mainHint.range.begin, subDiag.mainHint.range.end};
+            diagToken.range = TransformFromChar2IDE(diagToken.range);
+            callback->UpdateDiagnostic(subDiagPath, diagToken);
+            return;
         }
-        callback->UpdateDiagnostic(subDiagPath, diagToken);
     }
 }
 } // namespace ark

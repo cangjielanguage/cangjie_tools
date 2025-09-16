@@ -51,6 +51,11 @@ public:
         return &symbolExtendMap;
     }
 
+    const std::vector<CrossSymbol>* GetCrossSymbolMap() const
+    {
+        return &crsSymsMap;
+    }
+
     const std::vector<Relation>* GetRelations() const
     {
         return &relations;
@@ -62,6 +67,13 @@ public:
     }
 
 private:
+    enum class CrossRegisterType: uint8_t {
+        GLOBAL_FUNC_REGISTER,
+        MEMBER_FUNC_REGISTER,
+        CLASS_REGISTER,
+        MODULE_REGISTER
+    };
+
     void UpdateScope(const Decl& decl)
     {
         std::string name;
@@ -73,6 +85,11 @@ private:
         (void)scopes.emplace_back(std::make_pair(&decl, name + "."));
     }
 
+    void UpdateCrossScope(const Node &node, const CrossRegisterType type, const std::string &registerName)
+    {
+        (void)crossRegisterScopes.emplace_back(&node, std::make_pair(type, registerName));
+    }
+
     void RestoreScope(const Node& node)
     {
         if (scopes.empty()) {
@@ -82,6 +99,18 @@ private:
             scopes.pop_back();
         }
     }
+
+    void RestoreCrossScope(const Node &node)
+    {
+        if (crossRegisterScopes.empty()) {
+            return;
+        }
+        if (auto [scopeNode, _] = crossRegisterScopes.back(); scopeNode == &node) {
+            crossRegisterScopes.pop_back();
+        }
+    }
+
+    void CollectCrossScopes(Ptr<Node> node);
 
     bool ShouldPassInCjdIndexing(Ptr<Node> node);
 
@@ -103,6 +132,38 @@ private:
     void CreateNamedArgRef(const CallExpr& ce);
 
     void CreateExtend(const Decl& decl, const std::string& filePath);
+
+    void CreateCrossSymbolByInterop(const Decl &decl);
+
+    void CreateCrossSymbolByRegister(const NameReferenceExpr &ref, const SrcIdentifier &identifier);
+
+    void DealRegisterModule(const CallExpr &callExpr);
+
+    void DealRegisterClass(const FuncArg &registerIdentify, const FuncArg &registerTarget);
+
+    void DealRegisterFunc(const FuncArg &registerIdentify, const FuncArg &registerTarget);
+
+    void  ResloveBlock(const Block &block, const std::string &registerIdentify);
+
+    void DealCrossSymbol(const NameReferenceExpr &ref, const Decl &target, const SrcIdentifier &identifier);
+
+    void DealAddCrossMethodSymbol(const NameReferenceExpr &ref);
+
+    void DealCrossFunctionSymbol(const NameReferenceExpr &functionRef, const SrcIdentifier &identifier);
+
+    void DealFunctionSymbolInRegisterClass(const NameReferenceExpr &functionRef, const SrcIdentifier &identifier);
+
+    void DealFunctionSymbolInRegisterModule(const NameReferenceExpr &functionRef, const SrcIdentifier &identifier);
+
+    void DealFunctionSymbolInFunc(const NameReferenceExpr &functionRef, const SrcIdentifier &identifier);
+
+    void DealCrossClassSymbol(const NameReferenceExpr &clazzRef, const SrcIdentifier &identifier);
+
+    void DealClassSymbolInRegisterModule(const NameReferenceExpr &clazzRef, const SrcIdentifier &identifier);
+
+    void DealClassSymbolInFunc(const Decl &decl, const NameReferenceExpr &clazzRef, const SrcIdentifier &identifier);
+
+    void DealExportsRegisterSymbol(const NameReferenceExpr &clazzRef);
 
     std::string GetTypeString(const Decl& decl)
     {
@@ -169,10 +230,16 @@ private:
 
     void UpdatePos(SymbolLocation &location, const Node& node, const std::string& filePath);
 
+    static void CollectCompletionItem(const Decl &decl, Symbol &declSym);
+
     // Only toplevel and member decls (except extend decl).
     std::unordered_map<Ptr<const Decl>, SymbolID> declToSymIdMap;
 
     std::vector<std::pair<Ptr<const Node>, std::string>> scopes;
+
+    std::vector<std::pair<Ptr<const Node>, std::pair<CrossRegisterType, std::string>>> crossRegisterScopes;
+
+    std::unordered_map<SymbolID, std::vector<std::pair<std::string, SymbolLocation>>> crossRegisterDecls;
 
     /**
      * import pkg.item as alias
@@ -194,7 +261,41 @@ private:
 
     std::map<SymbolID, std::vector<ExtendItem>> symbolExtendMap;
 
+    std::vector<CrossSymbol> crsSymsMap;
+
     bool isCjoPkg;
+
+    const std::string CROSS_ARK_TS_WITH_INTEROP_NAME = "Interop";
+
+    const std::string CROSS_ARK_TS_WITH_INTEROP_INVISIBLE_NAME = "Invisible";
+
+    const std::string CROSS_ARK_TS_WITH_REGISTER_PACKAGE = "ohos.ark_interop";
+
+    const std::string CROSS_ARK_TS_WITH_REGISTER_MODULE = "registerModule";
+
+    const std::string CROSS_ARK_TS_WITH_REGISTER_CLASS = "registerClass";
+
+    const std::string CROSS_ARK_TS_WITH_REGISTER_FUNC = "registerFunc";
+
+    const std::set<std::string> CROSS_ARK_TS_WITH_REGISTER_NAMES = {
+        CROSS_ARK_TS_WITH_REGISTER_MODULE, CROSS_ARK_TS_WITH_REGISTER_CLASS, CROSS_ARK_TS_WITH_REGISTER_FUNC
+    };
+
+    const std::string FUNCTION_REGISTER_SYMBOL = "function";
+
+    const std::string CLAZZ_REGISTER_SYMBOL = "clazz";
+
+    const std::string ADD_METHOD = "addMethod";
+
+    const std::string JS_OBJECT_BASE_TY = "JSObjectBase";
+
+    const std::string JS_LAMBDA_TY = "(Class-JSContext, Struct-JSCallInfo) -> Struct-JSValue";
+
+    const std::string FUNC_REGISTER_TY = "(Class-JSContext) -> Class-JSFunction";
+
+    const std::string CLASS_REGISTER_TY = "(Class-JSContext) -> Class-JSClass";
+
+    const std::string MODULE_REGISTER_TY = "(Class-JSContext, Class-JSObject) -> Unit";
 };
 } // namespace lsp
 } // namespace ark

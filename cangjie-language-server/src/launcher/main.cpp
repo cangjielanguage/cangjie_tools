@@ -4,10 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+#include <cangjie/Basic/Version.h>
+
 #include "../json-rpc/StdioTransport.h"
 #include "../languageserver/ArkLanguageServer.h"
 #include "../languageserver/logger/CrashReporter.h"
 #include "../languageserver/capabilities/shutdown/Shutdown.h"
+#include "../languageserver/logger/CrashReporter.h"
 #ifdef WIN32
 #include <io.h>
 #include <fcntl.h>
@@ -63,6 +66,20 @@ ark::Environment StringifyEnvironmentPointer(const char *envp[])
     }
     return environment;
 }
+
+void WriteVersionInfo(const std::string &validFile)
+{
+    std::ofstream versionInfo;
+    versionInfo.open(validFile);
+    if (!versionInfo.is_open()) {
+        Trace::Log("Create index version file failed");
+    }
+    versionInfo << Cangjie::CANGJIE_VERSION;
+    if (versionInfo.fail()) {
+        Trace::Log("Write index version file failed");
+    }
+    versionInfo.close();
+}
 } // namespace
 
 int main(int argc, const char *argv[], const char *envp[])
@@ -73,13 +90,16 @@ int main(int argc, const char *argv[], const char *envp[])
     if (opts.IsOptionSet("log-path")) {
         ark::Logger::SetPath(opts.GetLongOption("log-path").value());
     }
-    if (opts.IsOptionSet("enable-log") && opts.GetLongOption("enable-log").value() == "false") {
-        ark::Logger::SetLogEnable(false);
+    if (opts.IsOptionSet("enable-log") && opts.GetLongOption("enable-log").value() == "true") {
+        ark::Logger::SetLogEnable(true);
     }
     if (opts.IsOptionSet('V')) {
         ark::CrashReporter::RegisterHandlers();
     }
-
+    std::string cachePath;
+    if (opts.IsOptionSet("cache-path")) {
+        cachePath = opts.GetLongOption("cache-path").value();
+    }
     Trace::Log("LSP Starting over stdin/stdout");
     // add if/else can add another transport layer
     ark::TransportRegistrar<ark::Transport, ark::StdioTransport> stdioTransportRegistrar("stdio");
@@ -117,7 +137,41 @@ int main(int argc, const char *argv[], const char *envp[])
     std::string runtimeLibPath = JoinPath(path, cjRuntimeLibPath);
     environment.runtimePath = runtimeLibPath;
 #endif
-    ark::ArkLanguageServer lspServer(*pStdioTransport, environment);
+    std::unique_ptr<ark::lsp::IndexDatabase> indexDB;
+    indexDB = std::make_unique<ark::lsp::IndexDatabase>();
+    if (cachePath.empty()) {
+        ark::CompilerCangjieProject::SetUseDB(false);
+    } else {
+        ark::CompilerCangjieProject::SetUseDB(true);
+        std::string cacheRoot = JoinPath(cachePath, ".cache");
+        cachePath = JoinPath(cacheRoot, "index/");
+        if (!FileExist(cachePath)) {
+            auto ret = CreateDirs(cachePath);
+            if (ret == -1) {
+                (void)fprintf(stderr, "error: fail to create dir for index.");
+                return 0;
+            }
+        }
+        const std::string &validFile = JoinPath(cachePath, "valid.txt");
+        std::string dBfilePath = JoinPath(cachePath, "index.db");
+        std::string reason;
+        bool isinvalidDb = !FileExist(validFile) ||
+            ReadFileContent(validFile, reason).value_or("") != Cangjie::CANGJIE_VERSION;
+        if (isinvalidDb) {
+            bool isDeleteFailed = FileExist(dBfilePath) && !Remove(dBfilePath);
+            if (isDeleteFailed) {
+                Trace::Log("Remove old db index file failed");
+            }
+            if (Remove(validFile)) {
+                WriteVersionInfo(validFile);
+            }
+            if (!FileExist(validFile)) {
+                WriteVersionInfo(validFile);
+            }
+        }
+        ark::lsp::OpenIndexDatabase(*indexDB, dBfilePath);
+    }
+    ark::ArkLanguageServer lspServer(*pStdioTransport, environment, indexDB.get());
     Cangjie::ICE::TriggerPointSetter iceSetter(Cangjie::ICE::LSP_TP);
     ark::LSPRet exitCode = lspServer.Run();
     std::string message = "exit mode is abnormal, it's necessary to send shutdown request before exit notify.";

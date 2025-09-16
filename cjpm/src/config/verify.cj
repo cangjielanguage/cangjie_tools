@@ -177,14 +177,14 @@ public func customizedOptionCheck(option: String, path: String): Bool {
 }
 
 // Check dependencies 'path' field in cjpm.toml.
-func depPathCheck(text: String, errLoc: String, modulePath: String): Bool {
+func depPathCheck(text: String, errLoc: String, modulePath: String, moduleName: String): Bool {
     if (text.isEmpty()) {
         eprintln("Error: the path can't be empty which is listed in ${errLoc}")
         return false
     }
     let depPath: String = getPath(modulePath, text)
     if (!directoryExists(depPath)) {
-        eprintln("Error: the path '${text}' does not exist which is listed in ${errLoc}")
+        eprintln("Error: the path '${text}' of module '${moduleName}' does not exist which is listed in ${errLoc}")
         return false
     }
     return true

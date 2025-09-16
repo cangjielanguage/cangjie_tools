@@ -1,1 +1,1 @@
-{"id":6,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: keywords.cj\nPackage info: default\n\n// In class public\n(variable) internal let private: Int64\n"},"range":{"end":{"character":15,"line":1},"start":{"character":8,"line":1}}}}
+{"id":6,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: keywords.cj\nPackage info: default\n\n// In class public\n(variable) internal let private: Int64\n"},"range":{"end":{"character":15,"line":7},"start":{"character":8,"line":7}}}}

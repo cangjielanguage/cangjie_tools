@@ -2,7 +2,7 @@
 
 ## Open Source Project Introduction
 
-`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-ArkTS interoperability.  
+`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-ArkTS interoperability.
 The tool takes ArkTS interface declaration files (e.g., files with `.d.ts` or `.d.ets` extensions) as input and outputs a directory containing `BUILD.gn` files and an `src` folder. The `src` folder contains generated interoperability code in `.cj` files. The tool also outputs a JSON file containing all ArkTS file information. The overall technical architecture is shown below:
 
 ![HLE Architecture Diagram]()
@@ -45,7 +45,7 @@ Below is a build guide for Ubuntu 22 environment.
     [How to Install Node.js](https://dev.nodejs.cn/learn/how-to-install-nodejs/)
 
     For example, use the following commands:
-    
+
     ```sh
     # Download and install nvm:
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash

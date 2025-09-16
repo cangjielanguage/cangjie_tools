@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Pipeline.cj\nPackage info: default\n\n(variable) internal let a: Int32 = 1\n"},"range":{"end":{"character":11,"line":3},"start":{"character":10,"line":3}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Pipeline.cj\nPackage info: default\n\n(variable) internal let a: Int32 = 1\n"},"range":{"end":{"character":11,"line":9},"start":{"character":10,"line":9}}}}

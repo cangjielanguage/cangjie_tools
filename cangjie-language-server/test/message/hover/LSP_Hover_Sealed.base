@@ -1,1 +1,1 @@
-{"id":4,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\nPackage info: default\n\n(class) public sealed open class sealed\n"},"range":{"end":{"character":19,"line":7},"start":{"character":13,"line":7}}}}
+{"id":4,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: main.cj\nPackage info: default\n\n(class) public sealed open class sealed\n"},"range":{"end":{"character":19,"line":13},"start":{"character":13,"line":13}}}}

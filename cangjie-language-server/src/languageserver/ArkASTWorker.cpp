@@ -178,15 +178,15 @@ void ArkASTWorker::RunWithAST(const std::string &name,
             // Do incremental build for defined file first
             if (this->callback->isRenameDefined && this->callback->NeedReParser(this->callback->path) &&
                 this->callback->path != file) {
-                this->callback->UpdateDoc(this->callback->path, inputs.version, false, contentChanges);
                 CompilerCangjieProject::GetInstance()->CompilerOneFile(
                     this->callback->path, this->callback->GetContentsByFile(this->callback->path));
+                this->callback->UpdateDocNeedReparse(this->callback->path,
+                    this->callback->GetVersionByFile(this->callback->path), false);
                 this->callback->isRenameDefined = false;
                 this->callback->path = "";
             }
-            this->callback->UpdateDoc(file, inputs.version, false, contentChanges);
             CompilerCangjieProject::GetInstance()->CompilerOneFile(file, this->callback->GetContentsByFile(file));
-            // Diagnostic
+            this->callback->UpdateDocNeedReparse(file, inputs.version, false);
             std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
             callback->ReadyForDiagnostics(file, inputs.version, diagnostics);
             useASTCache = false;
@@ -207,6 +207,14 @@ void ArkASTWorker::RunWithAST(const std::string &name,
             curOnEditName = this->onEditName;
         }
         Logger::Instance().CleanKernelLog(std::this_thread::get_id());
+        if (name == "SemanticTokens") {
+            if (FileUtil::FileExist(file)) {
+                std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
+                callback->ReadyForDiagnostics(file, inputs.version, diagnostics);
+            } else {
+                callback->ReadyForDiagnostics(file, inputs.version, {});
+            }
+        }
         action(InputsAndAST{inputs, ast, curOnEditName, useASTCache});
     };
 
@@ -241,7 +249,7 @@ void ArkASTWorker::RunWithASTCache(
         }
         std::vector<TextDocumentContentChangeEvent> contentChanges;
         bool needReParser = this->callback->NeedReParser(file);
-        this->callback->UpdateDoc(file, inputs.version, needReParser, contentChanges);
+        this->callback->UpdateDocNeedReparse(file, inputs.version, needReParser);
         CompilerCangjieProject::GetInstance()->CompilerOneFile(
             file, this->callback->GetContentsByFile(file), pos, true, name);
         Logger::Instance().CleanKernelLog(std::this_thread::get_id());
@@ -269,6 +277,14 @@ void ArkASTWorker::RunWithASTCache(
             } else {
                 isCompleteRunning = false;
             }
+        }
+        if (CompilerCangjieProject::GetUseDB()) {
+            lsp::BackgroundIndexDB *indexDB = CompilerCangjieProject::GetInstance()->GetBgIndexDB();
+            if (!indexDB) {
+                return;
+            }
+            auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
+            dbCache.EraseThreadCache();
         }
     };
 
@@ -332,8 +348,9 @@ void AsyncTaskRunner::RunAsync(const std::string &name, std::function<void()> ac
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, CONSTANTS::MAC_THREAD_STACK_SIZE);
     pthread_create(&thread, &attr, thread_routine, data);
+    int waitTime = 1000;
     while (!worker->GetStatus()) {
-        sleep(1);
+        usleep(waitTime);
     }
     pthread_detach(thread);
 #endif

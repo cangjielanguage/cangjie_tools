@@ -1,1 +1,1 @@
-{"id":11,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: annotation.cj\nPackage info: std.core\n\n(BuiltInType) public Type CString\n"},"range":{"end":{"character":16,"line":3},"start":{"character":9,"line":3}}}}
+{"id":11,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: annotation.cj\nPackage info: std.core\n\n(BuiltInType) public Type CString\n"},"range":{"end":{"character":16,"line":9},"start":{"character":9,"line":9}}}}

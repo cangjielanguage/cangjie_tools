@@ -1,0 +1,1 @@
+{"id":5,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: a.cj\nPackage info: pkgB.pkg5\n\n(variable) public let y(AA):Unit\n"},"range":{"end":{"character":12,"line":10},"start":{"character":11,"line":10}}}}

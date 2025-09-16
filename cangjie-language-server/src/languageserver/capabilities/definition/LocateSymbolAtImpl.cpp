@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "LocateSymbolAtImpl.h"
+#include "LocateDefinition4Import.h"
 
 using namespace Cangjie;
 using namespace Cangjie::AST;
@@ -45,8 +46,10 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
     const unsigned int fileID = range.start.fileID;
     std::string path = CompilerCangjieProject::GetInstance()->GetFilePathByID(LocateSymbolAtImpl::curFilePath, fileID);
     // Modify range and path if decl is in the MacroCall file.
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
-    if (!index) { return false; }
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return false;
+    }
     auto symFromIndex = index->GetAimSymbol(decl);
     if (!symFromIndex.IsInvalidSym() && !symFromIndex.location.fileUri.empty() && !symFromIndex.isCjoSym &&
         EndsWith(symFromIndex.location.fileUri, ".macrocall") &&
@@ -103,7 +106,13 @@ bool LocateSymbolAtImpl::LocateSymbolAt(const ArkAST &ast, LocatedSymbol &result
     std::vector<Symbol *> syms;
     std::vector<Ptr<Cangjie::AST::Decl> > decls;
     Ptr<Decl> decl = ast.GetDeclByPosition(pos, syms, decls, {true, false});
-    if (!decl) { return false; }
+    if (!decl) {
+        LocateDefinition4Import::getImportDecl(syms, ast, pos, decl);
+        if (decl) {
+            return GetDefinitionItems(*decl, result);
+        }
+        return false;
+    }
     if (!syms[0] || IsMarkPos(syms[0]->node, pos) || IsResourcePos(ast, syms[0]->node, pos)) {
         return false;
     }

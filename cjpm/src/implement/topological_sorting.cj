@@ -63,7 +63,35 @@ func topoSort(topoData: DepModel): Bool {
         return false
     }
 
+    // check if super package is imported by its sub packages
+    // here, we can ensure that no cyclic dep exists
+    for (superPkgName in topoData.superPkgMap.keys()) {
+        let usedPkg = HashSet<String>()
+        for (subPkg in topoData.edges.get(superPkgName) ?? ArrayList<String>()) {
+            if (!checkSubPkgDep(superPkgName, topoData.edges, subPkg, usedPkg)) {
+                return false
+            }
+        }
+    }
+
     retainSourceCodePkg(topoData)
+    return true
+}
+
+// Check sub-package-dep for super package
+func checkSubPkgDep(superPkg: String, edges: HashMap<String, ArrayList<String>>, curPkg: String,
+    usedPkg: HashSet<String>): Bool {
+    usedPkg.add(curPkg)
+    if (superPkg == curPkg.split(".")[0]) {
+        eprintln("Error: combined package '${superPkg}' is depended (directly or indirectly) " +
+            "by its sub package '${curPkg}', cannot combine it")
+        return false
+    }
+    for (subPkg in edges.get(curPkg) ?? ArrayList<String>()) {
+        if (!usedPkg.contains(subPkg) && !checkSubPkgDep(superPkg, edges, subPkg, usedPkg)) {
+            return false
+        }
+    }
     return true
 }
 
@@ -227,7 +255,7 @@ func cyclicSearch(fullName: String, cyclicList: ArrayList<String>, start: String
 
     if (cyclicList.contains(fullName)) {
         if (fullName == start) {
-            cyclicPrint(cyclicList)
+            cyclicPrint(cyclicList, topoData)
         }
         return
     }
@@ -245,7 +273,7 @@ func cyclicSearch(fullName: String, cyclicList: ArrayList<String>, start: String
     return
 }
 
-func cyclicPrint(cyclicList: ArrayList<String>): Unit {
+func cyclicPrint(cyclicList: ArrayList<String>, topoData: DepModel): Unit {
     if (cyclicList.size == 0) {
         return
     }
@@ -259,7 +287,14 @@ func cyclicPrint(cyclicList: ArrayList<String>): Unit {
         } else {
             nextPackage = cyclicList[i + 1]
         }
-        eprintln("${nextPackage} -> ${prePackage}")
+        var combinedStr = ""
+        if (topoData.superPkgMap.contains(nextPackage) && topoData.superPkgMap.contains(prePackage)) {
+            combinedStr = "(between combined modules)"
+        } else if (topoData.superPkgMap.contains(nextPackage) &&
+            topoData.packageDepMap[nextPackage].forcedRequires.contains(prePackage)) {
+            combinedStr = "(because of combined module '${nextPackage}')"
+        }
+        eprintln("${nextPackage} -> ${prePackage}${combinedStr}")
     }
     eprint("\n")
 }

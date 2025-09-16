@@ -185,8 +185,13 @@ void ConvertCarriageToSpace(std::string &str);
 void GetConditionCompile(const nlohmann::json &initializationOptions,
                          std::unordered_map<std::string, std::string>& conditions);
 
+void GetModuleConditionCompile(const nlohmann::json &initializationOptions,
+    const std::unordered_map<std::string, std::string>& globalConditions,
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>>& conditions);
+
 void GetSingleConditionCompile(const nlohmann::json &initializationOptions,
     const std::unordered_map<std::string, std::string>& globalConditions,
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>>& moduleConditions,
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>>& conditions);
 
 void GetConditionCompilePaths(const nlohmann::json &initializationOptions, std::vector<std::string> &conditionPaths);
@@ -210,6 +215,7 @@ bool IsMarkPos(Ptr<const Cangjie::AST::Node> node, Cangjie::Position pos);
 bool IsResourcePos(const ArkAST &ast, Ptr<const Cangjie::AST::Node> node, Cangjie::Position pos);
 
 std::string Digest(const std::string &pkgPath);
+std::string DigestForCjo(const std::string &cjoPath);
 
 inline bool IsGlobalOrMember(const AST::Decl& decl)
 {
@@ -264,6 +270,9 @@ inline bool IsLocalFuncOrLambda(const AST::Decl& decl)
 
 lsp::SymbolID GetSymbolId(const Decl &decl);
 
+uint32_t GetFileIdForDB(const std::string &fileName);
+
+// func xxx(a:Int64,b:Varray<T>,c:(Int64)->Unit) return ["Int64","Varray<T>","(Int64)->Unit)"]
 std::vector<std::string> GetFuncParamsTypeName(Ptr<const Cangjie::AST::FuncDecl> decl);
 
 Range GetConstructorRange(const Decl &decl, const std::string identifier);
@@ -328,5 +337,16 @@ char GetSeparator();
 bool IsFirstSubDir(const std::string& dir, const std::string& subDir);
 
 int GetCurTokenInTargetTokens(const Position &pos, const std::vector<Token> &tokens, int start, int end);
+
+std::string remove_quotes(std::string str);
+
+using IDArray = std::vector<uint8_t>;
+IDArray GetArrayFromID(uint64_t hash);
+
+std::optional<std::string> GetSysCap(const Expr& e);
+
+std::string GetSysCapFromDecl(const Decl &decl);
+
+TokenKind FindPreFirstValidTokenKind(const ark::ArkAST &input, int index);
 }
 #endif // LSPSERVER_UTILS_H

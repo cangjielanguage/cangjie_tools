@@ -10,23 +10,17 @@ link_directories(${FLATBUFFERS_BINARY_DIR})
 # Setup testing
 find_package(GTest REQUIRED)
 find_package(Threads)
+link_directories(${FLATBUFFERS_BINARY_DIR})
 set(JSON_INCLUDE_DIR ../third_party/json-v3.11.3/include)
 include_directories(${JSON_INCLUDE_DIR})
-
+include_directories(../third_party/sqlite3/amalgamation)
 # include head file of GTEST
 include_directories(${GTEST_INCLUDE_DIR})
 # include head file of common
 include_directories(./include)
-if (CJVM)
-    set(CANGJIE_LIB_DIR ../src/lib/cangjie/lib/cjvm)
-    if (COMPILER_TYPE MATCHES "MINGW")
-        set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -lssp -Wl,--no-whole-archive")
-    endif ()
-else()
-    set(CANGJIE_LIB_DIR ../src/lib/cangjie/lib/cjnative)
-    if (COMPILER_TYPE MATCHES "MINGW")
-        set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -lssp -Wl,--no-whole-archive")
-    endif ()
+set(CANGJIE_LIB_DIR ../src/lib/cangjie/lib/cjnative)
+if (COMPILER_TYPE MATCHES "MINGW")
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -lssp -Wl,--no-whole-archive")
 endif ()
 
 link_directories(${CANGJIE_LIB_DIR})
@@ -55,6 +49,8 @@ add_subdirectory(featureTest/typeHierarchy)
 add_subdirectory(featureTest/breakpoints)
 add_subdirectory(featureTest/callHierarchy)
 add_subdirectory(featureTest/codeLens)
+add_subdirectory(featureTest/crossLanguageDefinition)
+add_subdirectory(featureTest/overrideMethods)
 
 # Add test main file
 add_executable(gtest_LSPServer_test main.cpp)
@@ -63,63 +59,37 @@ add_executable(gtest_LSPServer_test main.cpp)
 # Ensure that LSPServerlib is compiled before gtest_LSPServer_test.
 add_dependencies(gtest_LSPServer_test LSPServerlib)
 
-# ${GTEST_LIBRARY}, gtest library
-# ${CMAKE_THREAD_LIBS_INIT}, -lpthread
-option(isPreSmoke OFF)
-if(isPreSmoke)
-    target_link_libraries(gtest_LSPServer_test
-        libLSPServerlib.a
-        GTest::gtest
-        GTest::gtest_main
-        ${CMAKE_THREAD_LIBS_INIT}
-        DocHighlightTest
-        DocumentSymbolTest
-        CompletionTest
-        GoToDefinitionTest
-        ReferenceTest
-        RenameTest
-        SemanticHighlightTest
-        HoverTest
-        DiagnosticTest
-        CodeCovTest
-        WorkspaceSymbolTest
-        SignatureHelpTest
-        TypeHierarchyTest
-        BreakpointsTest
-        CallHierarchyTest
-        CodeLensTest
-        Common
-        libflatbuffers.a
-        ffi
-        -lcangjie-lsp
-        ${CMAKE_DL_LIBS}
-        )
-else()
-    target_link_libraries(gtest_LSPServer_test
-        libLSPServerlib.a
-        ${GTEST_LIBRARY}
-        ${CMAKE_THREAD_LIBS_INIT}
-        DocHighlightTest
-        DocumentSymbolTest
-        CompletionTest
-        GoToDefinitionTest
-        ReferenceTest
-        RenameTest
-        SemanticHighlightTest
-        HoverTest
-        DiagnosticTest
-        CodeCovTest
-        WorkspaceSymbolTest
-        CallHierarchyTest
-        SignatureHelpTest
-        TypeHierarchyTest
-        BreakpointsTest
-        CodeLensTest
-        Common
-        libflatbuffers.a
-        ffi
-        -lcangjie-lsp
-        ${CMAKE_DL_LIBS}
-            )
+target_link_libraries(gtest_LSPServer_test
+    libLSPServerlib.a
+    GTest::gtest
+    GTest::gtest_main
+    ${CMAKE_THREAD_LIBS_INIT}
+    DocHighlightTest
+    DocumentSymbolTest
+    CompletionTest
+    GoToDefinitionTest
+    ReferenceTest
+    RenameTest
+    SemanticHighlightTest
+    HoverTest
+    DiagnosticTest
+    CodeCovTest
+    WorkspaceSymbolTest
+    SignatureHelpTest
+    TypeHierarchyTest
+    BreakpointsTest
+    CallHierarchyTest
+    CodeLensTest
+    CrossLanguageDefinitionTest
+    OverrideMethodsTest
+    Common
+    libflatbuffers.a
+    sqlite3
+    ffi
+    -lcangjie-lsp
+    ${CMAKE_DL_LIBS}
+    )
+if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(gtest_LSPServer_test stdc++fs)
 endif()
 add_test(NAME gtest_simple_test COMMAND gtest_LSPServer_test)

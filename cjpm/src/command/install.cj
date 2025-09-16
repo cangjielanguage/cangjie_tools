@@ -84,9 +84,7 @@ class InstallCommand <: Handle {
 
         for (arg in unparseArgs) {
             if (!arg.startsWith("--")) {
-                if (handleNameVersion(this.installConfig, arg)) {
-                    continue
-                }
+                eprintln("Error: unknown command '${arg}' for cjpm install")
                 return false
             }
             let option: String = arg[2..] // remove -- prefix
@@ -235,9 +233,4 @@ class InstallCommand <: Handle {
 
         return doInstall(this.installConfig)
     }
-}
-
-func handleNameVersion(_: InstallConfig, arg: String): Bool {
-    eprintln("Error: unknown command '${arg}' for cjpm install")
-    return false
 }

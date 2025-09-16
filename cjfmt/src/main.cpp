@@ -34,14 +34,6 @@ const std::string DELIMITER = "\\";
 const std::string DELIMITER = "/";
 #endif
 
-void ShowUsage()
-{
-    const std::string usage = "Usage:";
-    Println(usage);
-    PrintIndentOnly(static_cast<unsigned int>(usage.size()), 1);
-    Println("cjfmt -f file [option]...");
-}
-
 int FmtFile(const std::string& fmtFilePath, const std::string& fileOutputPath, const Region region)
 {
     std::string source, rawCode;
@@ -392,8 +384,7 @@ int DoFormat(const Region& region)
     } else {
         if (fmtFilePath.size() < MINIMUM_CJ_FILE_NAME || !HasEnding(fmtFilePath, ".cj")) {
             Errorln("CangjieFormat only support Cangjie source code file!");
-            ShowUsage();
-            Println("Formatting complete.");
+            PrintHelp();
             return ERR;
         }
         if (EditFileNameAndPath(fmtFilePath, fileOutputPath) == ERR) {
@@ -416,10 +407,13 @@ int GetRegionFromArgs(Region& region, std::string optarg)
         return ERR;
     }
     auto colonPos = lineNumbers.find(':');
+#ifndef CANGJIE_ENABLE_GCOV
     try {
+#endif
         region.startLine = std::stoi(lineNumbers.substr(0, colonPos));
         region.endLine = std::stoi(lineNumbers.substr(colonPos + 1, (lineNumbers.size() - colonPos) - 1));
         region.isWholeFile = false;
+#ifndef CANGJIE_ENABLE_GCOV
     } catch (const std::out_of_range& e) {
         Errorln("Invalid region format, number out of range.");
         return ERR;
@@ -427,6 +421,7 @@ int GetRegionFromArgs(Region& region, std::string optarg)
         Errorln("Invalid region format, invalid number.");
         return ERR;
     }
+#endif
 
     if (region.startLine > region.endLine) {
         Errorln("Invalid region format, start line number should be less than or equal end line number.");

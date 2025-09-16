@@ -276,18 +276,6 @@ void ASTToFormatSource::AddMatchSelector(Doc& doc, const Cangjie::AST::MatchExpr
     }
 }
 
-void ASTToFormatSource::AddCustomization(Doc& doc, const std::set<std::string>& customization, int level)
-{
-    auto it = customization.rbegin();
-    auto back = *it;
-    for (auto& ident : customization) {
-        doc.members.emplace_back(DocType::STRING, level, ident);
-        if (ident != back) {
-            doc.members.emplace_back(DocType::STRING, level, ", ");
-        }
-    }
-}
-
 void ASTToFormatSource::AddAnnotations(
     Doc& doc, const std::vector<OwnedPtr<Cangjie::AST::Annotation>>& annotations, int level, bool changeLine)
 {
@@ -334,11 +322,13 @@ std::string ASTToFormatSource::DocToString(Doc& doc, int& pos, std::string& form
 void ASTToFormatSource::AddModifier(Doc& doc, const std::set<Cangjie::AST::Modifier>& modifiers, int level)
 {
     static std::vector<std::set<TokenKind>> MODIFIER_PRIORITY = {
-        {TokenKind::PUBLIC, TokenKind::PRIVATE, TokenKind::INTERNAL, TokenKind::PROTECTED, TokenKind::FOREIGN},
-        {TokenKind::UNSAFE, TokenKind::MUT},
-        {TokenKind::SEALED, TokenKind::OPEN, TokenKind::ABSTRACT, TokenKind::STATIC, TokenKind::OPERATOR},
-        {TokenKind::CONST},
-        {TokenKind::OVERRIDE, TokenKind::REDEF}
+        {TokenKind::PUBLIC, TokenKind::PRIVATE, TokenKind::INTERNAL, TokenKind::PROTECTED},
+        {TokenKind::OPEN, TokenKind::SEALED, TokenKind::STATIC},
+        {TokenKind::ABSTRACT},
+        {TokenKind::OVERRIDE, TokenKind::REDEF},
+        {TokenKind::UNSAFE, TokenKind::FOREIGN},
+        {TokenKind::CONST, TokenKind::MUT},
+        {TokenKind::OPERATOR}
     };
 
     for (auto priority : MODIFIER_PRIORITY) {

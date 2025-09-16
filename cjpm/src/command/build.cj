@@ -12,7 +12,7 @@ import std.regex.*
 import cjpm.implement.*
 import cjpm.config.*
 
-let BUILD_LONG_OPTION: Array<String> = ["verbose", "output=", "target=", "incremental", "target-dir=",
+let BUILD_LONG_OPTION: Array<String> = ["verbose", "coverage", "output=", "target=", "incremental", "target-dir=",
     "jobs=", "mock", "member=", "skip-script"]
 let BUILD_USAGE: String = """
 Compile a local module and all of its dependencies.
@@ -26,6 +26,7 @@ Available options:
   -j, --jobs <N>                the number of jobs to spawn in parallel during the build process
   -V, --verbose                 enable verbose
   -g                            enable compile debug version target
+  --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
@@ -126,6 +127,7 @@ class BuildCommand <: Handle {
         let buildConfig = BuildConfig()
         buildConfig.isVerbose = getBoolOption(argMap, "-V", "--verbose")
         buildConfig.isIncremental = getBoolOption(argMap, "-i", "--incremental")
+        buildConfig.isCov = getBoolOption(argMap, "--coverage")
         buildConfig.isDebug = getBoolOption(argMap, "-g")
         buildConfig.mockSupported = getBoolOption(argMap, "--mock")
         buildConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")

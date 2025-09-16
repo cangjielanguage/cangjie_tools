@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package default.pkgA
 public import default.pkgB.aaaa.*
 public import default.pkgB.public_pkgB_func as myfunc
@@ -53,8 +59,3 @@ public func public_pkgA_func(public_pkgA_funca: Int64) {}
 public func public_pkgA_func(public_pkgA_funcb1!:Float32,public_pkgA_funcs1!:String="3") {}
 public func public_pkgA_func(public_pkgA_funca2: Int64,public_pkgA_funcb2!:Float32,public_pkgA_funcs2!:String="3") {}
 
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

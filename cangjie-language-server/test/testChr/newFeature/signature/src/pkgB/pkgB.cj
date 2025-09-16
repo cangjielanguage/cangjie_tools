@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 package default.pkgB
 
 public class public_pkgB_class{
@@ -42,8 +48,3 @@ public func public_pkgB_func() {}
 public func public_pkgB_func(public_pkgB_funca: Int64) {}
 public func public_pkgB_func(public_pkgB_funcb1!:Float32,public_pkgB_funcs1!:String="3") {}
 public func public_pkgB_func(public_pkgB_funca2: Int64,public_pkgB_funcb2!:Float32,public_pkgB_funcs2!:String="3") {}
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0
-// with Runtime Library Exception.
-//
-// See https://cangjie-lang.cn/pages/LICENSE for license information.

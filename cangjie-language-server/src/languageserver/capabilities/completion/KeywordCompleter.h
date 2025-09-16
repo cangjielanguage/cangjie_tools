@@ -21,7 +21,8 @@ struct CodeSnippet {
 class KeywordCompleter {
 public:
     static void Complete(CompletionResult &result);
-    static void AddKeyWord(const char* tokens[], int size, ark::CompletionResult& result);
+    static void AddKeyWord(
+        const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition);
     static void AddKeyWordByLSP(ark::CompletionResult& result);
     static std::unordered_set<TokenKind> keyWordKinds;
     static std::unordered_set<TokenKind> declKeyWordKinds;
@@ -29,6 +30,6 @@ private:
     static std::vector<CodeSnippet> codeSnippetList;
     static std::vector<std::string> keyWordFromLSP;
 };
-}
+} // namespace ark
 
 #endif // LSPSERVER_KEYWORDCOMPLETER_H

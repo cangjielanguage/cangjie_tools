@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":[{"range":{"end":{"character":16,"line":3},"start":{"character":15,"line":3}},"uri":"file://***//lsp/test/testChr/normalTest/Pipeline/src/Pipeline.cj"}]}
+{"id":"9","jsonrpc":"2.0","result":[{"range":{"end":{"character":16,"line":9},"start":{"character":15,"line":9}},"uri":"file://***//lsp/test/testChr/normalTest/Pipeline/src/Pipeline.cj"}]}

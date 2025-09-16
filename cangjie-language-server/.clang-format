@@ -13,7 +13,7 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 9999
 
-# Control alignment within template argument lists.  
+# Control alignment within template argument lists.
 AlignAfterOpenBracket: false  
 AlwaysBreakTemplateDeclarations: Yes 
 
@@ -33,7 +33,6 @@ BraceWrapping:
 
 BreakBeforeBraces: Custom
 
-# 头文件排序规则，<> , "" 按字母排序
 IncludeCategories:
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
     Priority:        2
