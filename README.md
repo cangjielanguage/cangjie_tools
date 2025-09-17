@@ -57,6 +57,14 @@ The construction of tools relies on Cangjie `SDK`. Please refer to [Cangjie SDK 
 
 This project is licensed under [Apache-2.0 with Runtime Library Exception](./LICENSE). Please enjoy and participate in open source freely.
 
+## Open Source Software Statement
+
+| Software Name        | License             | Usage Description                                               | Main Component | Usage Method                               |
+|----------------------|---------------------|-----------------------------------------------------------------|----------------|--------------------------------------------|
+| flatbuffers          | Apache License V2.0 | Cangjie Language Server serializes and deserializes index data. | LSPServer      | Integrated into the Cangjie binary release |
+| JSON  for Modern C++ | MIT License         | Cangjie Language Server for message parsing and encapsulation.  | LSPServer      | Integrated into the Cangjie binary release |
+| SQLite               | Public Domain       | Cangjie Language Server uses the database to store index data.  | LSPServer      | Integrated into the Cangjie binary release |
+
 ## Contribution
 
 We welcome contributions from developers in any form, including but not limited to code, documentation, issues, and more.

@@ -41,6 +41,14 @@ OpenHarmony 通过 `cangjie_tools` 各目录下的 `build` 目录内的提供的
 
 基于 [Apache-2.0 with Runtime Library Exception](./LICENSE) 协议。
 
+## 使用的开源软件声明
+
+| 开源软件名称               | 开源许可协议              | 使用说明                  | 使用主体 | 使用方式         |
+|----------------------|---------------------|-----------------------|------|--------------|
+| flatbuffers          | Apache License V2.0 | 仓颉语言服务对索引数据进行序列化和反序列化 | 语言服务 | 集成到仓颉二进制发布包中 |
+| JSON  for Modern C++ | MIT License         | 仓颉语言服务用于报文解析和封装       | 语言服务 | 集成到仓颉二进制发布包中 |
+| SQLite               | Public Domain       | 仓颉语言服务使用数据库存储索引数据     | 语言服务 | 集成到仓颉二进制发布包中 |
+
 ## 风险提示
 
 **cangjie_tools 是 Apache-2.0 with Runtime Library Exception 协议类型的三方开源软件，使用时需履行相应的开源义务。**
