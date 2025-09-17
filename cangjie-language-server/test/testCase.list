@@ -558,7 +558,6 @@
 {"hover":{"testFile":"LSP_Hover_Function_002.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Function_003.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Enum_001.test","id":"7"}}
-{"hover":{"testFile":"LSP_Hover_ConstantPattern_001.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Result_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Range_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Atomic_001.test","id":"104"}}
