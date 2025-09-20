@@ -1,12 +1,12 @@
 # cangjie_tools
 
-仓颉语言为开发者提供了丰富的命令行工具以及语言服务器工具，在成功安装仓颉工具链后，即可根据手册说明使用这些工具。
+仓颉语言为开发者提供了丰富的命令行工具以及语言服务工具，在成功安装仓颉工具链后，即可根据手册说明使用这些工具。
 
 ## 目录结构
 
 ```
 /cangjie_tools
-├─ cangjie-language-server/  # 仓颉语言服务器
+├─ cangjie-language-server/  # 仓颉语言服务工具
 ├─ cjfmt/                    # 仓颉格式化工具
 ├─ cjpm/                     # 仓颉包管理工具
 └─ hyperlangExtension/       # ArkTS 互操作代码模板自动生成工具
