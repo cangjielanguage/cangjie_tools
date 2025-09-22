@@ -82,7 +82,7 @@ void StdioTransport::SendMsg(const nlohmann::json &message)
     std::ostringstream os;
     // "-1", no indentation format
     os << message.dump(-1, ' ', false, nlohmann::json::error_handler_t::ignore);
-    (void)fprintf(pFileOut, "Content-Length:%d%s%s",
+    (void)fprintf(pFileOut, "Content-Length: %d%s%s",
                    static_cast<int>(os.str().size()), MessageHeaderEndOfLine::GetEol().c_str(), os.str().c_str());
     (void)fflush(pFileOut);
     CleanAndLog(log, "send message body:" + os.str());

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Cangjie language provides a rich set of command line tools and language server tool for developers. After successfully installing the Cangjie toolchain, you can use these tools according to the manual instructions.
+The Cangjie language provides a rich set of command line tools for developers. After successfully installing the Cangjie toolchain, you can use these tools according to the manual instructions.
 
 ## Open Source Project Introduction
 
@@ -62,7 +62,7 @@ This project is licensed under [Apache-2.0 with Runtime Library Exception](./LIC
 | Software Name        | License             | Usage Description                                               | Main Component | Usage Method                               |
 |----------------------|---------------------|-----------------------------------------------------------------|----------------|--------------------------------------------|
 | flatbuffers          | Apache License V2.0 | Cangjie Language Server serializes and deserializes index data. | LSPServer      | Integrated into the Cangjie binary release |
-| JSON  for Modern C++ | MIT License         | Cangjie Language Server for message parsing and encapsulation.  | LSPServer      | Integrated into the Cangjie binary release |
+| JSON for Modern C++  | MIT License         | Cangjie Language Server for message parsing and encapsulation.  | LSPServer      | Integrated into the Cangjie binary release |
 | SQLite               | Public Domain       | Cangjie Language Server uses the database to store index data.  | LSPServer      | Integrated into the Cangjie binary release |
 
 ## Contribution

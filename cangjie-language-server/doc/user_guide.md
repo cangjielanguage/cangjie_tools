@@ -13,7 +13,7 @@
 ```bash
 --test                用于在测试中启动LSPServer
 --disableAutoImport   禁用补全自动包导入功能
---enable-log=<value>  默认开启日志生成，如果传入false，则关闭日志生成
+--enable-log=<value>  默认关闭日志生成，如果传入true，则开启日志生成
 --log-path=<value>    设置生成日志路径
 -V                    开启生成崩溃日志功能
 ```

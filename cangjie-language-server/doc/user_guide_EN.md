@@ -13,7 +13,7 @@ The startup parameters for `Cangjie Language Server` are as follows:
 ```bash
 --test                Used to launch LSPServer in test mode
 --disableAutoImport   Disables the automatic package import feature for code completion
---enable-log=<value>  Enables log generation by default; pass false to disable log generation
+--enable-log=<value>  Disables log generation by default; pass true to open log generation
 --log-path=<value>    Sets the path for generated logs
 -V                    Enables crash log generation functionality
 ```

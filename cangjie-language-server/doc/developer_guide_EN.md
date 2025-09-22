@@ -2,13 +2,13 @@
 
 ## Open Source Project Introduction
 
-This project is a language server that supports IDE features for Cangjie.
+This project is a language server that supports IDE features for Cangjie, It is a backend server and must be used in conjunction with an IDE client. Developers can utilize the VSCode extension officially released by Cangjie or develop their own IDE clients compatible with the Language Server Protocol (LSP).
 
 The project can be compiled into an executable named LSPServer.
 
 The system architecture diagram is as follows:
 
-![SystemArchitecture](./figures/SystemArchitecture.png)
+![SystemArchitecture](./figures/SystemArchitecture_EN.png)
 
 ## Directory Structure
 
