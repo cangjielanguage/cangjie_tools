@@ -1,50 +1,66 @@
-# HLE工具开发指南
+# HLE Tool Development Guide
 
-## 开源项目介绍
+## System Architecture
 
-`HLE (HyperlangExtension)` 是一个仓颉调用ArkTS互操作代码模板自动生成工具。
-该工具的输入是ArkTS接口声明文件，例如后缀.d.ts或者.d.ets结尾的文件，输出为包含BUILD.gn文件和src文件夹。src文件夹中包含的cj文件中存放生成的互操作代码。工具也会输出包含ArkTS文件的所有信息的json文件。其整体技术架构如下图所示：
+`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-ArkTS interoperability.  
+The input of this tool is ArkTS interface declaration files, such as files ending with .d.ts or .d.ets. The output includes a BUILD.gn file and a src folder. The src folder contains cj files where the generated interoperability code is stored. The tool also outputs a json file containing all information of the ArkTS files. To improve the ease of interoperability, DevEco Studio provides two tools: one is the ArkTS-to-Cangjie Bindings generator, which automatically generates code for ArkTS calling Cangjie and interface files on the ArkTS side through the @Interop macro expansion, and the other is the Cangjie-to-ArkTS Bindings generator (also known as the HLE tool). The overall technical architecture is shown in the figure below.
 
-![HLE架构设计图](../figures/HLE架构.png)
+![HLE Architecture Diagram](../figures/HLE_eng.png)
 
-## 目录
 
-`HLE` 源码目录如下图所示，其主要功能如注释中所描述。
+- ArkTS Language Interface Parsing: Parses the input ArkTS interface declaration file, extracting various information about the interface, such as definition, parameters, return values, etc. This provides the basic interface metadata for subsequent generation of interoperability code, serving as the starting parsing step of the entire code generation process.
+
+- Tool parameter analysis: parse each parameter of the input command.
+- Interface Abstract Description Generation: Based on the parsed ArkTS interface, the interface information is abstracted to create a unified and concise abstract description of the interface, facilitating subsequent operations like interface dependency analysis, and providing a clear abstract model for handling interface relations during the code generation process.
+- Interface Dependency Analysis: Analyzes the dependency relationships between various ArkTS interfaces, clarifying the order of calls, dependency conditions, etc., ensuring that the generated interoperability code is logically correct, can properly handle dependencies between interfaces, and guarantees the executability of the code.
+- Code generation: Automatically produces Cangjie wrapper layer code based on the interoperability library.
+
+Explanation of component dependencies in the architecture diagram:
+
+- cangjie_compiler: Provides the capability to compile and build HLE tools.
+- cangjie_stdx: Provides the capability to parse JSON libraries; HLE tools use JSON as an intermediate parsing language.
+
+## Directory Structure
+
+The source code directory of `HLE` is structured as follows, with main functionalities described in the comments:
+
 ```
-|-- build   # 构建脚本
-|-- doc     # 介绍文档
-|-- src     # 源码文件
-    |-- dtsparser # 解析ArkTS接口文件
-    |-- entry # ArkTS接口转换为仓颉接口
-    |-- tool # 转换过程中依赖的工具类
+hyperlangExtension/
+|-- build                       # Build scripts
+|-- doc                         # Documentation
+|-- src                         # Source code
+    |-- dtsparser               # Parsing ArkTS interface files and generating intermediate JSON descriptions
+    |-- entry                   # Tool parameter analysis and saving
+    |-- tool                    # ArkTS interface to Cangjie code generator
+|-- tests                       # Test cases
 ```
 
-## 安装和使用指导：
+## Installation and Usage Guide:
 
-### 构建准备
+### Build Preparation
 
-以下是一个ubuntu22环境下的构建指导。
+Below is a build guide for Ubuntu 22 environment.
 
-1. 下载并解压最新仓颉包，配置仓颉环境：
+1. Download and extract the latest Cangjie package, then configure the Cangjie environment:
 
-`HLE` 需要以下工具来构建：
+`HLE` requires the following tools for building:
 
-- `cangjie SDK`
-    - 开发者需要下载对应平台的 `cangjie SDK`：若想要编译本地平台产物，则需要的 `SDK` 为当前平台对应的版本；若想要从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `SDK` 为 `Linux` 版本。
-    - 然后，开发者需要执行对应 `SDK` 的 `envsetup` 脚本，确保 `SDK` 被正确配置。
-- 与 `cangjie SDK` 配套的 `stdx` 二进制库
-    - 开发者需要下载目标平台的 `stdx` 二进制库，若想要从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `stdx` 库为 `Windows` 版本。
-    - 然后，开发者需要将 `stdx` 二进制库路径配置到环境变量 `CANGJIE_STDX_PATH` 中，路径为解压得到的库目录下的 `static/stdx` 目录。
-    - 此外，如果开发者想使用 `stdx` 动态库作为二进制库依赖，可以将上述路径配置中的 `static` 改为 `dynamic`。以此方式编译的 `HLE` 无法独立运行，若想让其能够独立运行，需要将相同的 `stdx` 库路径配置到系统动态库环境变量中。
-- 使用 `python` 构建脚本方式编译，请安装 `python3`。
+- `Openharmony SDK`
+    - Developers need to download the `Openharmony SDK` for the target platform: For compiling native platform artifacts, use the SDK version matching the current platform; for cross-compiling Windows artifacts from Linux, use the Linux version of the SDK.
+    - Then, execute the `envsetup` script of the corresponding SDK to ensure proper configuration.
+- `stdx` binary library compatible with `Openharmony SDK`
+    - Developers need to download the `stdx` binary library for the target platform or compile it from `stdx` source code: To compile native platform artifacts, the `stdx` library must match the current platform; to cross-compile `Windows` platform artifacts from a `Linux` platform, the `stdx` library must be the `Windows` version.
+    - Then, developers must configure the `stdx` binary library path in the environment variable `CANGJIE_STDX_PATH`. If downloading pre-built `stdx` binaries, the path is the `static/stdx` directory under the extracted library directory; if compiling from `stdx` source, the path is the `static/stdx` directory under the corresponding platform directory in the `target` output directory (e.g., `target/linux_x86_64_cjnative/static/stdx` for `Linux-x86`). Refer to [stdx Repository](https://gitcode.com/Cangjie/cangjie_stdx) for compiling `stdx` from source.
+    - Additionally, if developers want to use `stdx` dynamic libraries as binary dependencies, they can replace `static` with `dynamic` in the above path configuration. `HLE` compiled this way cannot run independently; to enable standalone execution, the same `stdx` library path must be added to the system dynamic library environment variables.
+- For building with `python` scripts, install `python3`.
 
-2. 本工具执行依赖nodejs：
+2. This tool requires Node.js for execution:
 
-    版本建议在v18.14.1及以上, 低版本可能存在ArkTS语法无法解析情况，建议使用新版本node。
+    Recommended version: v18.14.1 or higher. Lower versions may fail to parse certain ArkTS syntax, so using the latest version is advised.
 
-    [如何安装 Node.js](https://dev.nodejs.cn/learn/how-to-install-nodejs/)
+    [How to Install Node.js](https://dev.nodejs.cn/learn/how-to-install-nodejs/)
 
-    比如可以使用以下的命令安装：
+    For example, use the following commands:
     
     ```sh
     # Download and install nvm:
@@ -60,83 +76,83 @@
     npm -v # Should print "10.9.2".
     ```
 
-### 构建步骤
+### Build Steps
 
-1. 克隆本项目：
+1. Clone this project:
 
     ```sh
     git clone https://gitcode.com/Cangjie/cangjie_tools.git
     ```
 
-2. 安装依赖：
+2. Install dependencies:
 
-    需要安装typescript依赖，里面包含typescript编译器，可以执行下列代码安装依赖
+    Install TypeScript dependencies, which include the TypeScript compiler, by running:
 
     ```sh
     cd {WORKDIR}/cangjie-tools/hyperlangExtension/src/dtsparser
     npm install
     ```
 
-3. 通过 `hyperlangExtension/build` 目录下的构建脚本编译 `hle`：
+3. Compile `hle` using the build script in `hyperlangExtension/build`:
 
     ```shell
     cd cangjie-tools/hyperlangExtension/build
     python3 build.py build -t release
     ```
 
-    当前支持 `debug`、`release` 两种编译类型，开发者需要通过 `-t` 或者 `--build-type` 指定。
+    Currently supported build types are `debug` and `release`, specified via `-t` or `--build-type`.
 
-4. 安装到指定目录：
+4. Install to a specified directory:
 
     ```shell
     python3 build.py install
     ```
 
-    默认安装到 `hyperlangExtension/target` 目录下，支持开发者通过 `install` 命令的参数 `--prefix` 指定安装目录：
+    By default, this installs to `hyperlangExtension/target`. Use the `--prefix` parameter to specify an alternative directory:
 
     ```shell
     python3 build.py install --prefix ./output
     ```
 
-    编译产物目录结构为:
+    The output directory structure is:
 
     ```
     output/
-    |-- hle                         # 可执行文件，Windows 中为 hle.exe
+    |-- hle                         # Executable (hle.exe on Windows)
     ```
 
-5. 验证 `hle` 是否安装成功：
+5. Verify `hle` installation:
 
     ```shell
     ./hle -h
     ```
 
-    开发者进入安装路径的目录下执行上述操作，如果输出 `hle` 的帮助信息，则表示安装成功。
+    Execute this in the installation directory. If the help information for `hle` is displayed, the installation is successful.
 
-    在获取二进制文件后，直接使用命令行执行：
+    To use the binary file directly:
 
     ```sh
-    ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle -i 输入文件路径 -o 输出文件夹 --lib
+    ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle -i input_file_path -o output_folder --lib
     ```
 
-    例如：
+    Example:
 
     ```sh
     ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle  -i  ${WORKDIR}/cangjie-tools/hyperlangExtension/tests/cases/class.d.ts -o out --module-name=ohos.hilog --lib
     ```
 
-    在Windows环境，文件目录当前不支持符号“\\”，仅支持使用“/”。
+    On Windows, file paths must use forward slashes (`/`) instead of backslashes (`\`):
     ```sh
     ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle.exe -i  ${WORKDIR}/cangjie-tools/hyperlangExtension/tests/cases/class.d.ts -o out --module-name=ohos.hilog --lib
     ```
 
-6. 清理编译中间产物：
+6. Clean build artifacts:
 
    ```shell
    python3 build.py clean
    ```
 
-当前同样支持 `Linux` 平台交叉编译 `Windows` 下运行的 `hle` 产物，构建指令如下：
+Cross-compiling `hle` for Windows from Linux is also supported:
 
 ```shell
 export CANGJIE_HOME=${WORKDIR}/cangjie
@@ -144,26 +160,26 @@ python3 build.py build --target windows-x86_64
 python3 build.py install --prefix output
 ```
 
-执行该命令后，构建产物默认位于 `hyperlangExtension/output` 目录下。
+The build artifacts will be located in `hyperlangExtension/output`.
 
-### 更多构建选项
+### Additional Build Options
 
-`build.py` 的 `build` 功能提供如下额外选项：
-- `--target TARGET`: 指定编译目标产物的运行平台，默认值为 `native`，即本地平台，当前仅支持 `linux` 平台上通过 `--target windows-x86_64` 交叉编译 `windows-x86_64` 平台的产物；
-- `-t, --build-type BUILD_TYPE`: 指定构建产物版本，可选值为 `debug/release`；
-- `-h, --help`: 打印 `build` 功能的帮助信息。
+`build.py` provides the following additional options for the `build` command:
+- `--target TARGET`: Specify the target platform (default: `native`). Currently, only cross-compiling `windows-x86_64` artifacts from `linux` is supported via `--target windows-x86_64`;
+- `-t, --build-type BUILD_TYPE`: Specify build type (`debug` or `release`);
+- `-h, --help`: Display help information for the `build` command.
 
-此外，`build.py` 还提供如下额外功能：
+Other `build.py` functionalities include:
 
-- `install [--prefix PREFIX]`: 将构建产物安装到指定路径，不指定路径时默认为 `hyperlangExtension/target/` 目录；`install` 前需要先正确执行 `build`；
-- `clean`: 清除默认路径的构建产物；
-- `-h, --help`: 打印 `build.py` 的帮助信息。
+- `install [--prefix PREFIX]`: Install build artifacts to a specified path (default: `hyperlangExtension/target/`). Requires successful `build` execution first;
+- `clean`: Remove build artifacts from the default path;
+- `-h, --help`: Display general help information for `build.py`.
 
-### 命令介绍
+### Command Reference
 
-使用命令行操作 `hle [option] file [option] file`
+Usage: `hle [option] file [option] file`
 
-`hle -h` 帮助信息，选项介绍
+`hle -h` displays help information and options:
 
 ```text
 Usage: main [options]
@@ -182,16 +198,10 @@ Options:
   --help                Display this help information
 ```
 
-### 测试用例验证
+### Test Case Validation
 
-通过以下命令执行测试用例，执行该命令后，测试用例结果会输出在 `./tests/expected/my_module/` ，用户需要判断输出是否符合预期。
+Execute test cases with the following command. Output will be saved in `./tests/expected/my_module/`, and users should verify if it meets expectations.
 
 ```bash
 ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle--lib --module-name="my_module" -d ./tests/cases -o ./tests/expected/my_module/
 ```
-
-## 相关仓
-
-- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
-- [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx)
-- [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)

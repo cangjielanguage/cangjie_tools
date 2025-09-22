@@ -1,33 +1,33 @@
-# HLE工具用户指南
+# HLE Tool User Guide
 
-## 功能简介
+## Overview
 
-`HLE (HyperlangExtension)` 是一个仓颉调用ArkTS互操作代码模板自动生成工具。
-该工具的输入是ArkTS接口声明文件，例如后缀.d.ts或者.d.ets结尾的文件，输出为包含BUILD.gn文件和src文件夹。src文件夹中包含的cj文件中存放生成的互操作代码。工具也会输出包含ArkTS文件的所有信息的json文件。
+`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-to-ArkTS interoperability calls.  
+The tool takes ArkTS interface declaration files (e.g., files with `.d.ts` or `.d.ets` extensions) as input and outputs a directory containing a `BUILD.gn` file and an `src` folder. The `src` folder contains generated interoperability code in `.cj` files. The tool also outputs a JSON file containing all information from the ArkTS files.
 
-## 使用说明
+## Usage Instructions
 
-### 参数含义
+### Parameter Definitions
 
-| 参数            | 含义                                        | 参数类型 | 说明                 |
-| --------------- | ------------------------------------------- | -------- | -------------------- |
-| `-i`            | d.ts或者d.ets文件输入的绝对路径             | 可选参数 | 和`-d`参数二选一或者两者同时存在                     |
-| `-r`            | typescript编译器的绝对路径                  | 必选参数 |                      |
-| `-d`            | d.ts或者d.ets文件输入所在文件夹的绝对路径    | 可选参数 | 和`-i`参数二选一或者两者同时存在                     |
-| `-o`            | 输出保存互操作代码的目录                    | 可选参数 | 缺省时输出至当前目录 |
-| `-j`            | 分析d.t或者d.ets文件的路径                 | 可选参数 |                      |
-| `--module-name` | 自定义生成的仓颉包名                        | 可选参数 |                      |
-| `--lib`         | 生成三方库代码                              | 可选参数 |                      |
-| `--help`        | 帮助选项                                   | 可选参数 |                      |
+| Parameter       | Description                                      | Type       | Notes                |
+| --------------- | ------------------------------------------------ | ---------- | -------------------- |
+| `-i`            | Absolute path to input `.d.ts` or `.d.ets` file  | Optional   | Mutually exclusive or combinable with `-d`         |
+| `-r`            | Absolute path to TypeScript compiler             | Required   |                      |
+| `-d`            | Absolute path to directory containing input `.d.ts` or `.d.ets` files | Optional   | Mutually exclusive or combinable with `-i`         |
+| `-o`            | Output directory for interoperability code       | Optional   | Defaults to current directory |
+| `-j`            | Path to analyze `.d.ts` or `.d.ets` files       | Optional   |                      |
+| `--module-name` | Custom Cangjie package name                      | Optional   |                      |
+| `--lib`         | Generate third-party library code               | Optional   |                      |
+| `--help`        | Help option                                      | Optional   |                      |
 
-### 命令行
+### Command Line
 
-可使用如下的命令生成接口胶水层代码：
+Use the following command to generate interface glue layer code:
 ```sh
-main  -i  /path/to/test.d.ts  -o  out  –j  /path/to/analysis.js --module-name=ohos.hilog
+main -i /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
 ```
 
-在Windows环境，文件目录当前不支持符号“\\”，仅支持使用“/”。
+On Windows environments, file paths do not support the "\\" symbol—only "/" is supported:
 ```sh
-main -i  /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
+main -i /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
 ```
