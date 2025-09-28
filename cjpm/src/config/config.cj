@@ -264,10 +264,10 @@ public func initCjcPath(): Unit {
     }
 }
 
-public let commandCache: ArrayList<CommandInfo> = ArrayList<CommandInfo>()
-public let showCache: ArrayList<PkgInfo> = ArrayList<PkgInfo>()
-public let cjpmCompileInfo: HashMap<String, Float64> = HashMap<String, Float64>()
-public let cacheMutex: Mutex = Mutex()
+public let COMMAND_CACHE: ArrayList<CommandInfo> = ArrayList<CommandInfo>()
+public let SHOW_CACHE: ArrayList<PkgInfo> = ArrayList<PkgInfo>()
+public let CJPM_COMPILE_INFO: HashMap<String, Float64> = HashMap<String, Float64>()
+public let CACHE_MUTEX: Mutex = Mutex()
 public var memProcess: Future<Thread> = spawn { => return Thread.currentThread}
 
 public class PkgInfo <: Serializable<PkgInfo> {

@@ -43,41 +43,41 @@ def build(build_type, target, rpath=None):
         return 1
 
     # Check if cross compile is supported
-    IS_WINDOWS = platform.system() == "Windows"
-    IS_LINUX = platform.system() == "Linux"
-    IS_MACOS = platform.system() == "Darwin"
-    IS_CROSS_WINDOWS = False
+    is_windows = platform.system() == "Windows"
+    is_linux = platform.system() == "Linux"
+    is_macos = platform.system() == "Darwin"
+    is_cross_windows = False
 
-    if target != "native" and not IS_LINUX:
+    if target != "native" and not is_linux:
         print("error: cross compile is only supported from Linux to windows-x86_64.", file=sys.stderr)
         return 1
-    if target == "windows-x86_64" and IS_LINUX:
-        IS_CROSS_WINDOWS = True
-        IS_LINUX = False
+    if target == "windows-x86_64" and is_linux:
+        is_cross_windows = True
+        is_linux = False
 
     # Set rpath
-    RPATH_SET_OPTION = ""
+    rpath_set_option = ""
     if rpath:
-        if IS_MACOS:
-            RPATH_SET_OPTION = f"--link-options=\"-rpath {rpath}\""
-        elif IS_LINUX:
-            RPATH_SET_OPTION = f"--link-options=\"--disable-new-dtags -rpath={rpath}\""
+        if is_macos:
+            rpath_set_option = f"--link-options=\"-rpath {rpath}\""
+        elif is_linux:
+            rpath_set_option = f"--link-options=\"--disable-new-dtags -rpath={rpath}\""
 
     # Set common compile option
-    DEBUG_MODE = ""
+    debug_mode = ""
     if build_type == "debug":
-        DEBUG_MODE = "-g"
+        debug_mode = "-g"
     elif build_type != "release":
         print("error: cjpm only support 'release' and 'debug' mode of compiling.")
         return 1
 
-    if IS_WINDOWS:
-        COMMON_OPTION = f"--trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR,'bin')}"
+    if is_windows:
+        COMMON_OPTION = f"--trimpath={CURRENT_DIR} {debug_mode} --import-path {os.path.join(CURRENT_DIR,'bin')}"
     else:
-        COMMON_OPTION = f"-j1 --trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR,'bin')}"
+        COMMON_OPTION = f"-j1 --trimpath={CURRENT_DIR} {debug_mode} --import-path {os.path.join(CURRENT_DIR,'bin')}"
 
     # Get cjc executable file
-    if IS_WINDOWS:
+    if is_windows:
         CJC = "cjc.exe"
     else:
         CJC = "cjc"
@@ -89,29 +89,29 @@ def build(build_type, target, rpath=None):
     # Compile static libs of sub-packages
     src_dirs = ['toml', 'config', 'implement', 'command']
     for src in src_dirs:
-        if IS_LINUX or IS_MACOS:
+        if is_linux or is_macos:
             returncode = check_call(f"{CJC} {COMMON_OPTION} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
-        if IS_WINDOWS:
+        if is_windows:
             returncode = check_call(f"{CJC} {COMMON_OPTION} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
-        if IS_CROSS_WINDOWS:
+        if is_cross_windows:
             returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
         if returncode != 0:
             return returncode
 
     # Compile cjpm executable file
-    if IS_LINUX:
-        returncode = check_call(f"{CJC} {COMMON_OPTION} {RPATH_SET_OPTION} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
-    if IS_MACOS:
-        returncode = check_call(f"{CJC} {COMMON_OPTION} {RPATH_SET_OPTION} --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
-    if IS_CROSS_WINDOWS:
+    if is_linux:
+        returncode = check_call(f"{CJC} {COMMON_OPTION} {rpath_set_option} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
+    if is_macos:
+        returncode = check_call(f"{CJC} {COMMON_OPTION} {rpath_set_option} --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
+    if is_cross_windows:
         returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
-    if IS_WINDOWS:
+    if is_windows:
         returncode = check_call(f"{CJC} {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
 
     if returncode != 0:
         return returncode
 
-    if IS_WINDOWS or IS_CROSS_WINDOWS:
+    if is_windows or is_cross_windows:
         shutil.copy(os.path.join(CURRENT_DIR, 'bin', 'cjpm', 'cjpm.exe'), os.path.join(CURRENT_DIR, '..', 'dist'))
     else:
         shutil.copy(os.path.join(CURRENT_DIR, 'bin', 'cjpm', 'cjpm'), os.path.join(CURRENT_DIR, '..', 'dist'))

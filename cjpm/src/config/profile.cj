@@ -23,8 +23,8 @@ const CUSTOMIZED_OPTION = "customized-option"
 const ENV_CONFIG = "env"
 const ENV_VALUE = "value"
 const ENV_SPLICE_TYPE = "splice-type"
-const kByte: Float64 = 1024.0
-let pageSize: Float64 = getOSPageSize() // unit: Byte
+const K_BYTE: Float64 = 1024.0
+let PAGE_SIZE: Float64 = getOSPageSize() // unit: Byte
 public const COMPILE_PERFORMANCE_DIR = "performance_analysis"
 
 public class Profile <: Serializable<Profile> {
@@ -418,7 +418,7 @@ func GetMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float6
     } catch (_) {
     }
 
-    return Float64.parse(memoryStr) / kByte // unit: MB
+    return Float64.parse(memoryStr) / K_BYTE // unit: MB
 }
 
 /**
@@ -468,7 +468,7 @@ public func getCjpmMemInfo(): Float64 {
     let statmBuffer = readToEnd(statm)
     let statmStr = String.fromUtf8(statmBuffer)
     let statmArray = statmStr.split(" ")
-    return Float64.parse(statmArray[usedMemoryIdx]) * pageSize / kByte / kByte // unit: MB
+    return Float64.parse(statmArray[usedMemoryIdx]) * PAGE_SIZE / K_BYTE / K_BYTE // unit: MB
 }
 
 @C
@@ -493,14 +493,14 @@ public func getMemInfo(): Float64 {
         var memory: MEMORYSTATUSEX = MEMORYSTATUSEX()
         memory.dwLength = 64
         GlobalMemoryStatusEx(inout memory)
-        var memInfo = Float64(memory.ullTotalPhys - memory.ullAvailPhys) / kByte / kByte
+        var memInfo = Float64(memory.ullTotalPhys - memory.ullAvailPhys) / K_BYTE / K_BYTE
         return memInfo
     }
 }
 
 @When[os == "Windows"]
 public func getCjpmMemInfo(): Float64 {
-    var cjpmMemInfo = Float64(getUsedHeapSize()) / kByte / kByte
+    var cjpmMemInfo = Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
     return cjpmMemInfo
 }
 
@@ -551,7 +551,7 @@ func getOSPageSize(): Float64 {
 
 @When[os != "macOS"]
 func getOSPageSize(): Float64 {
-    return 4.0 * kByte
+    return 4.0 * K_BYTE
 }
 
 @When[os == "macOS"]
@@ -563,18 +563,18 @@ public func getMemInfo(): Float64 {
         // `HOST_VM_INFO64` is global var in <mac/mac.h>, and its value is always 4, that means we want memory info
         const HOST_VM_INFO64: Int32 = 4
         host_statistics64(mach_host_self(), HOST_VM_INFO64, inout memoryData, inout mach_msg_type_number_t)
-        return Float64(memoryData.active_count + memoryData.wire_count) * pageSize / kByte / kByte // unit: MB
+        return Float64(memoryData.active_count + memoryData.wire_count) * PAGE_SIZE / K_BYTE / K_BYTE // unit: MB
     }
 }
 
 @When[os == "macOS"]
 public func getCjpmMemInfo(): Float64 {
-    return Float64(getUsedHeapSize()) / kByte / kByte
+    return Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
 }
 
 public func addMemoryProcess(): Future<Thread> {
     let cjpmMemOffset = getMemInfo() - getCjpmMemInfo()
-    cjpmCompileInfo.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCjpmMemInfo())
+    CJPM_COMPILE_INFO.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCjpmMemInfo())
     let memoryProcess = spawn {
         =>
             while (true) {
@@ -584,7 +584,7 @@ public func addMemoryProcess(): Future<Thread> {
                 sleep(100 * Duration.millisecond)
                 var cjpmRealTimeSystemPhysicalMemory = getMemInfo() - cjpmMemOffset
                 var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
-                cjpmCompileInfo.add(cjpmTime, cjpmRealTimeSystemPhysicalMemory)
+                CJPM_COMPILE_INFO.add(cjpmTime, cjpmRealTimeSystemPhysicalMemory)
             }
             return Thread.currentThread
     }

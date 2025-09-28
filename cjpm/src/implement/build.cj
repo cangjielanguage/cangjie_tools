@@ -15,7 +15,7 @@ import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import cjpm.config.*
 
-public let fixedSubPackage = HashSet<String>()
+public let FIXED_SUBPACKAGE = HashSet<String>()
 
 // Command build implement.
 public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: Bool = false): Bool {
@@ -97,8 +97,8 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
 func recordCjpmBuildStartTime(tomlInfo: TomlInfo) {
     if (tomlInfo.profile.build.analysisCompilePerformance) {
         let cjpmCommand: String = String.join(getCommandLine(), delimiter:" ")
-        commandCache.add(CommandInfo("cjpm", cjpmCommand))
-        showCache.add(PkgInfo("cjpm", "B", DateTime.now().toUnixTimeStamp().toMilliseconds()))
+        COMMAND_CACHE.add(CommandInfo("cjpm", cjpmCommand))
+        SHOW_CACHE.add(PkgInfo("cjpm", "B", DateTime.now().toUnixTimeStamp().toMilliseconds()))
         memProcess = addMemoryProcess()
     }
 }
@@ -108,8 +108,8 @@ func recordCjpmBuildEndTime(tomlInfo: TomlInfo, path: String) {
         memProcess.cancel()
         memProcess.get()
         var cjpmEndTime = DateTime.now().toUnixTimeStamp().toMilliseconds()
-        showCache.add(PkgInfo("cjpm", "E", cjpmEndTime))
-        cjpmCompileInfo.add(cjpmEndTime.toString(),getCjpmMemInfo())
+        SHOW_CACHE.add(PkgInfo("cjpm", "E", cjpmEndTime))
+        CJPM_COMPILE_INFO.add(cjpmEndTime.toString(),getCjpmMemInfo())
         addCompileCost(path)
     }
 }
@@ -546,16 +546,16 @@ func addCompileCost(compilePerformanceTargetDir : String): Unit {
     var showCachePath = Path(compilePerformanceTargetDir).join("time_cost.json").toString()
     var commandCachePath = Path(compilePerformanceTargetDir).join("package_command.json").toString()
     var cjpmCompileInfoPath = Path(compilePerformanceTargetDir).join("memory_cost.json").toString()
-    createAndWriteFile(showCachePath, showCache.serialize().toJson().toJsonString())
-    createAndWriteFile(commandCachePath, commandCache.serialize().toJson().toJsonString())
-    createAndWriteFile(cjpmCompileInfoPath,cjpmCompileInfo.serialize().toJson().toJsonString())
+    createAndWriteFile(showCachePath, SHOW_CACHE.serialize().toJson().toJsonString())
+    createAndWriteFile(commandCachePath, COMMAND_CACHE.serialize().toJson().toJsonString())
+    createAndWriteFile(cjpmCompileInfoPath,CJPM_COMPILE_INFO.serialize().toJson().toJsonString())
 }
 
 func sortCompileCost(compilePerformancePath : String): Unit {
     var startMap = HashMap<String, Int64>()
     var endMap = HashMap<String, Int64>()
     var allPkgs = ArrayList<String>()
-    for (k in showCache) {
+    for (k in SHOW_CACHE) {
         if (k.ph == "B") {
             allPkgs.add(k.name)
             startMap[k.name] = k.ts
@@ -576,7 +576,7 @@ func sortCompileCost(compilePerformancePath : String): Unit {
         }
     }
 
-    for (cache in showCache) {
+    for (cache in SHOW_CACHE) {
         cache.tid = threadQueue[cache.name]
     }
 
@@ -1151,8 +1151,8 @@ public func getDepSet(fullName: String, requiresMap: HashMap<String, HashSet<Str
 }
 
 public func printSuperPkgWarn(subPkgName: String): Unit {
-    if (!fixedSubPackage.contains(subPkgName)) {
-        fixedSubPackage.add(subPkgName)
+    if (!FIXED_SUBPACKAGE.contains(subPkgName)) {
+        FIXED_SUBPACKAGE.add(subPkgName)
         eprintln("Warning: binary package '${subPkgName}' may be combined by " +
             "'lib${subPkgName.split(".")[0]}${DYLIB_POSTFIX}', cjpm will use combined package instead")
     }
