@@ -17,7 +17,7 @@ const PACKAGE = "package"
 const DEPENDENCIES = "dependencies"
 const TEST_DEPENDENCIES = "test-dependencies"
 const SCRIPT_DEPENDENCIES = "script-dependencies"
-const REPLACE = "replace"
+const REPLACE_DEP = "replace"
 const PROFILE = "profile"
 const TARGET_CONFIG = "target"
 
@@ -93,7 +93,7 @@ public class TomlInfo <: Serializable<TomlInfo> {
         result.scriptDependencies = HashMap<String, DepInfo>.deserialize(
             (dms.get(SCRIPT_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
         result.replaceDeps = HashMap<String, DepInfo>.deserialize(
-            (dms.get(REPLACE) as DataModelStruct) ?? DataModelStruct())
+            (dms.get(REPLACE_DEP) as DataModelStruct) ?? DataModelStruct())
         result.ffi = ForeignInterfaces.deserialize((dms.get("ffi") as DataModelStruct) ?? DataModelStruct())
         result.crossFfi = ForeignInterfaces.deserialize((dms.get("ffi") as DataModelStruct) ?? DataModelStruct())
         result.profile = Profile.deserialize((dms.get(PROFILE) as DataModelStruct) ?? DataModelStruct())

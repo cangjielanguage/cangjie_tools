@@ -74,7 +74,7 @@ public class TargetInfo <: Serializable<TargetInfo> {
         result.scriptDependencies = HashMap<String, DepInfo>.deserialize(
             (dms.get(SCRIPT_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
         result.replaceDeps = HashMap<String, DepInfo>.deserialize(
-            (dms.get(REPLACE) as DataModelStruct) ?? DataModelStruct())
+            (dms.get(REPLACE_DEP) as DataModelStruct) ?? DataModelStruct())
         result.binDependencies = BinDependencies.deserialize(
             (dms.get(BIN_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
         result.ffi= ForeignInterfaces.deserialize(
@@ -186,7 +186,7 @@ public class TargetConfig <: Serializable<TargetConfig> {
         result.commonTargetInfo.scriptDependencies = HashMap<String, DepInfo>.deserialize(
             (dms.get(SCRIPT_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
         result.commonTargetInfo.replaceDeps = HashMap<String, DepInfo>.deserialize(
-            (dms.get(REPLACE) as DataModelStruct) ?? DataModelStruct())
+            (dms.get(REPLACE_DEP) as DataModelStruct) ?? DataModelStruct())
         result.commonTargetInfo.binDependencies = BinDependencies.deserialize(
             (dms.get(BIN_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
         result.commonTargetInfo.ffi = ForeignInterfaces.deserialize(

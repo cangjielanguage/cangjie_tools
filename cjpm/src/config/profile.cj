@@ -408,7 +408,7 @@ public func verifyEnvConfig(envConfig: HashMap<String, EnvInfo>, cmd: String, co
     return true
 }
 
-func GetMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float64 {
+func getMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float64 {
     var memoryStr = String.empty
     try {
         let targetBeginPos: Int64 = meminfoStr.indexOf(target).getOrThrow()
@@ -438,11 +438,11 @@ public func getMemInfo(): Float64 {
     let meminfo = File(linuxMemPath, Read)
     let meminfoBuffer = readToEnd(meminfo)
     let meminfoStr = String.fromUtf8(meminfoBuffer)
-    let totalMemory = GetMemoryValueFromMeminfoString(meminfoStr, "MemTotal:")
+    let totalMemory = getMemoryValueFromMeminfoString(meminfoStr, "MemTotal:")
     let memoryAvailableList: Array<String> = ["MemFree:", "Buffers:", "Cached:", "SReclaimable:"]
     var memoryAvailable: Float64 = 0.0
     for (item in memoryAvailableList) {
-        memoryAvailable += GetMemoryValueFromMeminfoString(meminfoStr, item)
+        memoryAvailable += getMemoryValueFromMeminfoString(meminfoStr, item)
     }
     return totalMemory - memoryAvailable
 }
