@@ -68,7 +68,7 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
         return false
     }
 
-    if (!buildConfig.globalConfig.isTest && buildConfig.globalConfig.isVerbose && buildConfig.exePkgList.size > 0) {
+    if (!buildConfig.globalConfig.isTest && buildConfig.globalConfig.isVerbose && buildConfig.packageList.exe.size > 0) {
         println("   Finished `build` profile compilation")
         println("   Executable files at `${Path(buildConfig.globalConfig.targetDir).join(BIN)}`")
     }
@@ -82,12 +82,14 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
     }
 
     if (!isScriptDep) {
-        if (!runScript(buildConfig.scriptConfig, BUILD_SCRIPT_STEP_POST, "build")) {
+        if (!runScript(buildConfig.scriptConfig, Post, "build")) {
             return false
         }
-        if (buildConfig.globalConfig.isInstall && !runScript(buildConfig.scriptConfig,
-            BUILD_SCRIPT_STEP_POST, "install")) {
-            return false
+
+        if (buildConfig.globalConfig.isInstall) {
+            if (!runScript(buildConfig.scriptConfig, Post, "install")) {
+                return false
+            }
         }
     }
 
@@ -178,10 +180,12 @@ func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptD
         let scriptConfig: ScriptConfig = makeScriptConfigByToml(buildConfig.globalConfig.rootPath,
             buildConfig.globalConfig.rootPath, tomlInfo, buildConfig.isDebug, buildConfig.isVerbose,
             buildConfig.isCrossCompile) ?? return Option.None
-        if (buildConfig.globalConfig.isInstall && !runScript(scriptConfig, BUILD_SCRIPT_STEP_PRE, "install")) {
-            return Option<ModuleResolve>.None
+        if (buildConfig.globalConfig.isInstall) {
+            if (!runScript(scriptConfig, Pre, "install")) {
+                return Option<ModuleResolve>.None
+            }
         }
-        if (!runScript(scriptConfig, BUILD_SCRIPT_STEP_PRE, "build")) {
+        if (!runScript(scriptConfig, Pre, "build")) {
             return Option<ModuleResolve>.None
         }
         buildConfig.scriptConfig = scriptConfig
@@ -191,10 +195,10 @@ func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptD
         isDebug: buildConfig.isDebug, isTest: buildConfig.globalConfig.isTest, checkWorkspaceDir: !isScriptDep)) {
         return Option<ModuleResolve>.None
     }
-    if (buildConfig.isInstall && !COMMON_INFO.inWorkspace && tomlInfo.pkg.outputType != EXE_TYPE) {
+    if (buildConfig.isInstall && !COMMON_INFO.inWorkspace && tomlInfo.pkg.outputType != Exe) {
         eprintln("Error: output-type in " +
             "${Path(buildConfig.globalConfig.rootPath).join(CONFIG_FILE_NAME).toString()} " +
-            "must be 'executable' for cjpm install")
+            "must be '${Exe}' for cjpm install")
         return Option<ModuleResolve>.None
     }
 
@@ -225,24 +229,25 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
         buildConfig.isIncremental = true
     }
 
-    var resolveData = ModuleResolve()
+    let resolves = ArrayList<ResolveItem>()
     let superPkgList = ArrayList<SuperPackageConfig>()
-    for (pkgs in dm.readyPkgs) {
-        if (let Some(v) <- dm.packageDepMap[pkgs].superPkgCfg) {
+    for (k in dm.readyPkgs) {
+        if (let Some(v) <- dm.packageDepMap[k].superPkgCfg) {
             superPkgList.add(v)
         }
-        resolveData.resolves.add(dm.packageDepMap[pkgs])
+        resolves.add(dm.packageDepMap[k])
     }
-
-    resolveData.binDeps = dm.binDepMap
-    resolveData.crossBinDeps = dm.crossBinDepMap
     buildConfig.binDepMap = dm.binDepMap
     buildConfig.crossBinDepMap = dm.crossBinDepMap
     buildConfig.targetMacroMods = dm.targetMacroMods
     buildConfig.targetMacroPkgs = dm.targetMacroPkgs
     buildConfig.superPkgMap = dm.superPkgMap
     buildConfig.superPkgSubMap = dm.superPkgSubMap
-    return resolveData
+    return ModuleResolve(
+        resolves: resolves,
+        binDeps: dm.binDepMap,
+        crossBinDeps: dm.crossBinDepMap
+    )
 }
 
 func setFinalTargetDirectory(globalConfig: GlobalConfig, isCrossCompile: Bool, isDebug: Bool, isMock: Bool): (String,
@@ -282,10 +287,7 @@ func analyseIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRes
     let lastBuildFlagMap = HashMap<String, Bool>()
     let lastHasSubpkgsMap = HashMap<String, Bool>()
     for ((rootPkgName, jsonData) in buildConfig.jsonInformation) {
-        let cacheFile = Path(buildConfig.globalConfig.targetDir)
-            .join(rootPkgName)
-            .join("incremental-cache.json")
-            .toString()
+        let cacheFile = Path(buildConfig.globalConfig.targetDir).join(rootPkgName).join(INCREMENTAL_CACHE).toString()
         if (!fileExists(cacheFile)) {
             buildConfig.changedModuleList.add(rootPkgName)
             continue
@@ -300,8 +302,8 @@ func analyseIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRes
             lastFileNameHashMap[pkgName] = v.fileNameHash
             lastTimeStampMap[pkgName] = v.timeStamp
             lastHasSubpkgsMap[pkgName] = v.hasSubPkgs
-            if (!COMMON_INFO.inWorkspace && buildConfig.exePkgList.size == 1 && buildConfig.exePkgList[0] == pkgName &&
-                v.exeName != buildConfig.exeName) {
+            if (!COMMON_INFO.inWorkspace && buildConfig.packageList.exe.size == 1 &&
+                buildConfig.packageList.exe[0] == pkgName && v.exeName != buildConfig.exeName) {
                 buildConfig.rebuildList.add(pkgName)
             }
         }
@@ -322,8 +324,7 @@ func analyseIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRes
             continue
         }
 
-        let hasSubPkgs = buildConfig.hasSubPkgs.contains(r.fullName) ||
-            buildConfig.requiredForTests // in the current compilation
+        let hasSubPkgs = buildConfig.hasSubPkgs.contains(r.fullName) || buildConfig.requiredForTests // in the current compilation
         if (!lastHasSubpkgsMap.contains(r.fullName) || (lastHasSubpkgsMap[r.fullName] != hasSubPkgs)) {
             buildConfig.rebuildList.add(r.fullName)
             continue
@@ -334,7 +335,7 @@ func analyseIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRes
             buildConfig.rebuildList.add(r.fullName)
             continue
         }
-        if (r.outputType == EXE_TYPE && !buildConfig.requiredForTests) {
+        if (r.outputType == Exe && !buildConfig.requiredForTests) {
             if (!hasExeFile(buildConfig, r.fullName)) {
                 buildConfig.rebuildList.add(r.fullName)
                 continue
@@ -347,7 +348,7 @@ func analyseIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRes
 
 func collectRebuildMacros(buildConfig: BuildConfig): Unit {
     for (name in buildConfig.rebuildList) {
-        if (buildConfig.macroPkgList.contains(name)) {
+        if (buildConfig.packageList.macros.contains(name)) {
             buildConfig.rebuildMacros.add(name)
         }
     }
@@ -355,7 +356,7 @@ func collectRebuildMacros(buildConfig: BuildConfig): Unit {
 
 func hasExeFile(buildConfig: BuildConfig, fullName: String): Bool {
     var exeName: String = buildConfig.exeName
-    if (buildConfig.exePkgList.size > 1 || COMMON_INFO.inWorkspace) {
+    if (buildConfig.packageList.exe.size > 1 || COMMON_INFO.inWorkspace) {
         exeName = fullName
     }
 
@@ -388,40 +389,27 @@ func refreshIncreInfo(buildConfig: BuildConfig, curResolveData: ModuleResolve): 
 // Record package information in buildConfig.
 func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit {
     for (r in curResolveData.resolves) {
-        buildConfig.allPackages.add(r.fullName)
         buildConfig.requiresMap[r.fullName] = r.requires
-        if (r.isMacroPackage) {
-            buildConfig.macroPkgList.add(r.fullName)
-        }
-        if (r.isPureTestPkg()) {
-            buildConfig.testPkgs.add(r.fullName)
-        }
-        if (r.outputType == DYNAMIC_TYPE) {
-            buildConfig.dylibPackageList.add(r.fullName)
-        }
-        if (r.outputType == EXE_TYPE) {
-            buildConfig.exePkgList.add(r.fullName)
-        }
     }
+
+    buildConfig.packageList = PackageList(curResolveData.resolves)
 
     for ((_, deps) in curResolveData.binDeps) {
         for ((fullName, info) in deps.packageRequires) {
-            if (buildConfig.requiresMap.contains(fullName)) {
-                continue
+            if (!buildConfig.requiresMap.contains(fullName)) {
+                buildConfig.requiresMap[fullName] = info.requires
             }
-            buildConfig.requiresMap[fullName] = info.requires
         }
     }
     for ((_, deps) in curResolveData.crossBinDeps) {
         for ((fullName, info) in deps.packageRequires) {
-            if (buildConfig.requiresMap.contains(fullName)) {
-                continue
+            if (!buildConfig.requiresMap.contains(fullName)) {
+                buildConfig.requiresMap[fullName] = info.requires
             }
-            buildConfig.requiresMap[fullName] = info.requires
         }
     }
 
-    for (fullName in buildConfig.macroPkgList) {
+    for (fullName in buildConfig.packageList.macros) {
         buildConfig.pkgRequireByMacro.add(all: getDepSet(fullName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
     }
 
@@ -432,12 +420,12 @@ func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit
         }
     }
 
-    for (pkgName in buildConfig.allPackages) {
-        if (buildConfig.exePkgList.contains(pkgName)) {
+    for (pkgName in buildConfig.packageList.all) {
+        if (buildConfig.packageList.exe.contains(pkgName)) {
             continue
         }
         let parentPkg: String = getParentPkgName(pkgName)
-        if (buildConfig.allPackages.contains(parentPkg) || buildConfig.requiredForTests) {
+        if (buildConfig.packageList.all.contains(parentPkg) || buildConfig.requiredForTests) {
             buildConfig.hasSubPkgs.add(parentPkg)
         }
     }
@@ -446,17 +434,17 @@ func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit
 }
 
 func collectCjoTime(buildConfig: BuildConfig): Unit {
-    for (pkgName in buildConfig.allPackages) {
-        if (buildConfig.testPkgs.contains(pkgName)) {
+    for (pkgName in buildConfig.packageList.all) {
+        if (buildConfig.packageList.test.contains(pkgName)) {
             continue
         }
-        if (buildConfig.macroPkgList.contains(pkgName) && !crossCompileTarget.isEmpty()) {
+        if (buildConfig.packageList.macros.contains(pkgName) && !crossCompileTarget.isEmpty()) {
             collectMacroCjoTime(buildConfig, pkgName)
             continue
         }
         var cjoPath = ""
         let rootPkgName: String = getRootPkgName(pkgName)
-        if (!buildConfig.exePkgList.contains(pkgName) || buildConfig.requiredForTests) {
+        if (!buildConfig.packageList.exe.contains(pkgName) || buildConfig.requiredForTests) {
             cjoPath = Path(buildConfig.globalConfig.targetDir).join(rootPkgName).toString()
         } else {
             cjoPath = Path(buildConfig.globalConfig.targetDir).join(BIN).toString()
@@ -499,7 +487,7 @@ func analyseRebuild(buildConfig: BuildConfig): Bool {
                 buildConfig.indirectRebuilds.add(pkgName)
                 return true
             }
-            if (buildConfig.testPkgs.contains(r)) {
+            if (buildConfig.packageList.test.contains(r)) {
                 continue
             }
             if (buildConfig.cjoTimeMap.contains(r) && buildConfig.lastEndTime < buildConfig.cjoTimeMap[r]) {
@@ -538,17 +526,21 @@ func startBuild(buildConfig: BuildConfig, res: ModuleResolve): Bool {
         return false
     }
 
-    return flag
+    if (!flag) {
+        return false
+    }
+
+    return buildCodeCheck(buildConfig)
 }
 
 func addCompileCost(compilePerformanceTargetDir : String): Unit {
     sortCompileCost(compilePerformanceTargetDir)
-    var showCachePath = Path(compilePerformanceTargetDir).join("time_cost.json").toString()
-    var commandCachePath = Path(compilePerformanceTargetDir).join("package_command.json").toString()
-    var cjpmCompileInfoPath = Path(compilePerformanceTargetDir).join("memory_cost.json").toString()
-    createAndWriteFile(showCachePath, SHOW_CACHE.serialize().toJson().toJsonString())
-    createAndWriteFile(commandCachePath, COMMAND_CACHE.serialize().toJson().toJsonString())
-    createAndWriteFile(cjpmCompileInfoPath,CJPM_COMPILE_INFO.serialize().toJson().toJsonString())
+    var SHOW_CACHEPath = Path(compilePerformanceTargetDir).join("time_cost.json").toString()
+    var COMMAND_CACHEPath = Path(compilePerformanceTargetDir).join("package_command.json").toString()
+    var CJPM_COMPILE_INFOPath = Path(compilePerformanceTargetDir).join("memory_cost.json").toString()
+    createAndWriteFile(SHOW_CACHEPath, SHOW_CACHE.serialize().toJson().toJsonString())
+    createAndWriteFile(COMMAND_CACHEPath, COMMAND_CACHE.serialize().toJson().toJsonString())
+    createAndWriteFile(CJPM_COMPILE_INFOPath,CJPM_COMPILE_INFO.serialize().toJson().toJsonString())
 }
 
 func sortCompileCost(compilePerformancePath : String): Unit {
@@ -586,6 +578,8 @@ func sortCompileCost(compilePerformancePath : String): Unit {
     }
     var timeCachePath = Path(compilePerformancePath).join("time-cache.json").toString()
     createAndWriteFile(timeCachePath, timeCache.serialize().toJson().toJsonString())
+
+    return
 }
 
 func generateIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleResolve): Bool {
@@ -616,8 +610,8 @@ func generateIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRe
         cacheMap[pkgData.rootPkgName].packageInformation[pkgName] = cacheItem
     }
 
-    if (buildConfig.exePkgList.size == 1 && !COMMON_INFO.inWorkspace) {
-        let fullName = buildConfig.exePkgList[0]
+    if (buildConfig.packageList.exe.size == 1 && !COMMON_INFO.inWorkspace) {
+        let fullName = buildConfig.packageList.exe[0]
         let rootPkgName = getRootPkgName(fullName)
         if (cacheMap.contains(rootPkgName) && cacheMap[rootPkgName].packageInformation.contains(fullName)) {
             cacheMap[rootPkgName].packageInformation[fullName].exeName = buildConfig.exeName
@@ -631,7 +625,7 @@ func generateIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRe
             cacheFlag = false
             continue
         }
-        let cacheFile = cachePath.join("incremental-cache.json").toString()
+        let cacheFile = cachePath.join(INCREMENTAL_CACHE).toString()
         let cacheStr = v.serialize().toJson().toJsonString()
         if (!createAndWriteFile(cacheFile, cacheStr)) {
             cacheFlag = false
@@ -649,9 +643,55 @@ func generateIncrementalCache(buildConfig: BuildConfig, curResolveData: ModuleRe
     return cacheFlag
 }
 
-func getCommandArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
+func getMultiplatformPipeline(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): (ArrayList<String>,
+    ArrayList<String>) {
+    let commonBuild = ArrayList<String>()
+    let platformBuild = ArrayList<String>()
+
+    let commonOutputPath = Path(resolveConfig.targetPath).join("common")
+
+    // Common build
+    let commonFiles = resolveConfig.packagePath.commonPaths |> flatMap {it: Path => ["-p", it.toString()]} |>
+        collectArray
+    if (state.isExperimental) {
+        commonBuild.add("--experimental")
+    }
+    commonBuild.add(all: commonFiles)
+
+    let (commonCjos, platformCjos) = getCommonPlatformDepCjos(resolveConfig, buildConfig, isNativeForCross)
+    commonBuild.add(all: getCommandArgs(resolveConfig, buildConfig, isNativeForCross, true))
+    commonBuild.add(all: commonCjos)
+
+    commonBuild.add("--output-type=chir")
+    let commonChirPath = commonOutputPath.join("${resolveConfig.fullName}.chir").toString()
+    let commonCjoPath = commonOutputPath.join("${resolveConfig.fullName}.cjo").toString()
+    commonBuild.add("--output")
+
+    commonBuild.add(commonOutputPath.toString())
+
+    // Platform build
+    if (state.isExperimental) {
+        platformBuild.add("--experimental")
+    }
+
+    platformBuild.add(all: getCommandArgs(resolveConfig, buildConfig, isNativeForCross, false))
+    platformBuild.add(
+        all: resolveConfig.packagePath.platformPaths |> flatMap {it: Path => ["-p", it.toString()]} |> collectArray)
+    platformBuild.add(commonChirPath)
+    platformBuild.add(all: platformCjos)
+    platformBuild.add("--common-part-cjo=${commonCjoPath}")
+    platformBuild.add("--output-type=${resolveConfig.outputType.asCompilerArg}")
+    return (commonBuild, platformBuild)
+}
+
+func getCommandArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool,
+    isCommon: Bool): ArrayList<String> {
     var res: ArrayList<String> = ArrayList<String>()
-    res.add(all: appendCommandOptions(resolveConfig, buildConfig, isNativeForCross))
+    if (isCommon) {
+        res.add(all: appendCommandOptionsCommon(buildConfig))
+    } else {
+        res.add(all: appendCommandOptions(resolveConfig, buildConfig, isNativeForCross))
+    }
     res.add(all: getDepLinkCommand(resolveConfig, buildConfig, isNativeForCross))
     if (buildConfig.customizedOption.size != 0) {
         for (k in buildConfig.customizedOption) {
@@ -676,17 +716,43 @@ func getCommandArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNa
         }
     }
     res.add(all: appendLinkOption(resolveConfig, buildConfig.requiredForTests, isNativeForCross))
-    res.add(all: getTypeCommand(resolveConfig, buildConfig, isNativeForCross))
     return res
 }
 
-func appendCommandOptions(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
-    var res: ArrayList<String> = ArrayList<String>()
+func appendCommandOptionsCommon(buildConfig: BuildConfig) {
+    let res: ArrayList<String> = ArrayList<String>()
+
     for (p in buildConfig.globalConfig.cjPathList) {
         if (directoryExists(p)) {
             res.add("--import-path=${p}")
         }
     }
+
+    if (buildConfig.isCrossCompile) {
+        res.add("--target=${crossCompileTarget}")
+    }
+    if (buildConfig.isDebug) {
+        res.add("-g")
+    }
+    if (buildConfig.isCov) {
+        res.add("--coverage")
+    }
+    if (buildConfig.mockSupported) {
+        res.add("--mock=on")
+    }
+
+    return res
+}
+
+func appendCommandOptions(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
+    var res: ArrayList<String> = ArrayList<String>()
+
+    for (p in buildConfig.globalConfig.cjPathList) {
+        if (directoryExists(p)) {
+            res.add("--import-path=${p}")
+        }
+    }
+
     if (buildConfig.isCrossCompile && !isNativeForCross) {
         res.add("--target=${crossCompileTarget}")
     }
@@ -702,16 +768,18 @@ func appendCommandOptions(resolveConfig: ResolveConfig, buildConfig: BuildConfig
     if (buildConfig.mockSupported) {
         res.add("--mock=on")
     }
+
     if (!isNativeForCross) {
-        res.add("--output-dir=${resolveConfig.targetPath}")
+        res.add("--output-dir=${Path(resolveConfig.targetPath)}")
     } else {
-        res.add("--output-dir=${resolveConfig.nativePath}")
+        res.add("--output-dir=${Path(resolveConfig.nativePath)}")
     }
+
     return res
 }
 
 func appendLinkOption(resolveConfig: ResolveConfig, requiredForTests: Bool, isNativeForCross: Bool): ArrayList<String> {
-    if (resolveConfig.outputType == STATIC_TYPE && !requiredForTests) {
+    if (resolveConfig.outputType == Static && !requiredForTests) {
         return ArrayList<String>()
     }
 
@@ -730,7 +798,7 @@ func appendLinkOption(resolveConfig: ResolveConfig, requiredForTests: Bool, isNa
 
 func getDepLinkCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
     let res = ArrayList<String>()
-    if (resolveConfig.outputType == EXE_TYPE || resolveConfig.outputType == DYNAMIC_TYPE) {
+    if (resolveConfig.outputType == Exe || resolveConfig.outputType == Dynamic) {
         res.add(all: getBuildArgs(resolveConfig, buildConfig, isNativeForCross))
     }
     if (let Some(superPkgCfg) <- resolveConfig.superPkgCfg) {
@@ -739,14 +807,53 @@ func getDepLinkCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, i
     return res
 }
 
+func getCommonPlatformDepCjos(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): (ArrayList<String>,
+    ArrayList<String>) {
+    let commonRes = ArrayList<String>()
+    let platformRes = ArrayList<String>()
+    if (resolveConfig.outputType == Exe || resolveConfig.outputType == Dynamic) {
+        var linkSort: HashSet<String> = getDepSet(resolveConfig.fullName, buildConfig.requiresMap,
+            buildConfig.superPkgSubMap) // Record dependent package names
+
+        if (linkSort.size == 0) {
+            return (commonRes, platformRes)
+        }
+
+        for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
+            let depName = buildConfig.packageList.all[index]
+            if (!linkSort.contains(depName)) {
+                continue
+            }
+            let depRootName: String = getRootPkgName(depName)
+            if (buildConfig.packageList.macros.contains(depName) || buildConfig.packageList.test.contains(depName)) {
+                continue
+            }
+            var libPath: Path
+            if (!isNativeForCross) {
+                libPath = Path(buildConfig.globalConfig.targetDir).join(depRootName)
+            } else {
+                libPath = Path(buildConfig.globalConfig.nativeDir).join(depRootName)
+            }
+            if (buildConfig.packageList.multiplatform.contains(depName)) {
+                commonRes.add(libPath.join("common").join("${depName}.cjo").toString())
+            }
+            commonRes.add("--import-path=${libPath}")
+            platformRes.add("--import-path=${libPath}")
+        }
+    }
+    return (commonRes, platformRes)
+}
+
 func getTypeCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
     let res = ArrayList<String>()
+
     if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
         res.add("--profile-compile-time")
         res.add("--profile-compile-memory")
     }
 
-    res.add(all: ["-p", resolveConfig.packagePath])
+    let packageFlags = resolveConfig.packagePath.allPaths |> flatMap {it: Path => ["-p", it.toString()]} |> collectArray
+    res.add(all: packageFlags)
 
     if (buildConfig.requiredForTests && resolveConfig.hasTestFiles) {
         res.add("--export-for-test")
@@ -757,9 +864,9 @@ func getTypeCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNa
     }
 
     match (resolveConfig.outputType) {
-        case "static" => recordStaticLibCommand()
-        case "dynamic" => res.add(all: makeDylibCommand(resolveConfig.fullName, buildConfig, isNativeForCross))
-        case "executable" =>
+        case Static => recordStaticLibCommand()
+        case Dynamic => res.add(all: makeDylibCommand(resolveConfig.fullName, buildConfig, isNativeForCross))
+        case Exe =>
             if (buildConfig.requiredForTests) {
                 // to be included in tests as a dependency, the package should be compiled as a library anyway
                 recordStaticLibCommand()
@@ -842,7 +949,7 @@ func getcLibLinkStr(cLibLinkMap: HashMap<String, ArrayList<String>>, cLibNameLis
 
 func makeDylibCommand(fullName: String, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
     var res = ArrayList<String>()
-    if (buildConfig.macroPkgList.contains(fullName)) {
+    if (buildConfig.packageList.macros.contains(fullName)) {
         res.add("--compile-macro")
     } else {
         res.add("--output-type=dylib")
@@ -869,7 +976,7 @@ func appendCLibLinkStr(buildConfig: BuildConfig, cLibNameList: ArrayList<String>
                 cLibPathSet.add(cLibLinkStr[index + 1])
             }
             index += 2
-        } else if (cLibLinkStr[index].startsWith("-l")){
+        } else if (cLibLinkStr[index].startsWith("-l")) {
             if (!cLibNameSet.contains(cLibLinkStr[index])) {
                 res.add(cLibLinkStr[index])
                 cLibNameSet.add(cLibLinkStr[index])
@@ -895,15 +1002,15 @@ func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNati
 
     let allOptions = ArrayList<String>()
     let libPathSet = HashSet<String>()
-    for (index in (buildConfig.allPackages.size - 1)..=0 : -1) {
-        let depName = buildConfig.allPackages[index]
+    for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
+        let depName = buildConfig.packageList.all[index]
         if (!linkSort.contains(depName)) {
             continue
         }
 
         let depRootName: String = getRootPkgName(depName)
         cLibNameList.add(depRootName, at: 0)
-        if (buildConfig.macroPkgList.contains(depName) || buildConfig.testPkgs.contains(depName)) {
+        if (buildConfig.packageList.macros.contains(depName) || buildConfig.packageList.test.contains(depName)) {
             continue
         }
         var libPath: String
@@ -963,7 +1070,7 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
         }
 
         let depRootName: String = getRootPkgName(depName)
-        if (buildConfig.macroPkgList.contains(depName) || buildConfig.testPkgs.contains(depName)) {
+        if (buildConfig.packageList.macros.contains(depName) || buildConfig.packageList.test.contains(depName)) {
             continue
         }
         var libPath: String
@@ -990,12 +1097,12 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
 
     allOptions.add(all: getForcedBinDep(buildConfig, binDepSet, cLibNameList, isNativeForCross))
 
-    addForcedLibArgs(res, allOptions)
-
     var compileTarget: String = targetConfigName
     if (!crossCompileTarget.isEmpty() && !isNativeForCross) {
         compileTarget = crossCompileTarget
     }
+
+    addForcedLibArgs(res, allOptions, compileTarget)
     if (let Some(stdLinks) <- addStdLibsLink(compileTarget)) {
         res.add(all: stdLinks)
     } else {
@@ -1009,7 +1116,7 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
 
 @When[os == "Linux" || os == "Windows"]
 func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>,
-    isNativeForCross:Bool): ArrayList<String> {
+    isNativeForCross: Bool): ArrayList<String> {
     var binOptions = ArrayList<String>()
     binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, buildConfig.isLto), at: 0)
     binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, buildConfig.isLto), at: 0)
@@ -1034,6 +1141,7 @@ func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibN
         } else {
             cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.cLibLinkMap, cLibNameList)
         }
+
         var libName = ""
         var libPath = ""
         for (part in cLibLinkStr) {
@@ -1074,24 +1182,8 @@ func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet
     return libPathSet
 }
 
-@When[os == "Linux" || os == "Windows"]
-func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>): Unit {
-    if (!allOptions.isEmpty()) {
-        res.add("--link-options=--whole-archive")
-        res.add(all: allOptions)
-        res.add("--link-options=--no-whole-archive")
-    }
-}
-
-@When[os == "macOS"]
-func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>): Unit {
-    if (crossCompileTarget.contains("ohos")) {
-        if (!allOptions.isEmpty()) {
-            res.add("--link-options=--whole-archive")
-            res.add(all: allOptions)
-            res.add("--link-options=--no-whole-archive")
-        }
-    } else {
+func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, compileTarget: String): Unit {
+    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
         var pathSet = HashSet<String>()
         var linkArr = ArrayList<String>()
         var index = 0
@@ -1114,6 +1206,12 @@ func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>): Un
             index += 3
         }
         res.add(all: linkArr)
+    } else {
+        if (!allOptions.isEmpty()) {
+            res.add("--link-options=--whole-archive")
+            res.add(all: allOptions)
+            res.add("--link-options=--no-whole-archive")
+        }
     }
 }
 
@@ -1171,7 +1269,7 @@ func makeExeCommand(fullName: String, buildConfig: BuildConfig): ArrayList<Strin
 func getExeOutputName(fullName: String, buildConfig: BuildConfig): String {
     var name: String = buildConfig.exeName
 
-    if (buildConfig.exePkgList.size > 1 || COMMON_INFO.inWorkspace) {
+    if (buildConfig.packageList.exe.size > 1 || COMMON_INFO.inWorkspace) {
         name = fullName
     }
 

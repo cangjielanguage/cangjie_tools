@@ -7,15 +7,31 @@
 #include "ExtractVariable.h"
 #include "../../../CompilerCangjieProject.h"
 #include "../TweakRule.h"
+#include "../TweakUtils.h"
 
 namespace ark {
+const std::unordered_set<Cangjie::AST::ASTKind> INVALID_PARTIAL_EXPR = {
+    ASTKind::IF_EXPR, ASTKind::DO_WHILE_EXPR, ASTKind::TRY_EXPR, ASTKind::BLOCK
+};
+
+const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_VAR_EXPR = {
+    ASTKind::BLOCK, ASTKind::STR_INTERPOLATION_EXPR, ASTKind::INTERPOLATION_EXPR
+};
 
 class ExtractVariableRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
+        if (!root) {
+            return false;
+        }
+        if (root->selected != SelectionTree::Selection::Complete || !TweakUtils::CheckValidExpr(*root)) {
+            extraOptions.insert(std::make_pair("ErrorCode",
+                std::to_string(static_cast<int>(ExtractVariable::ExtractVariableError::FAIL_GET_ROOT_EXPR))));
+            return false;
+        }
         if (root->selected == SelectionTree::Selection::Complete && root->node
-            && root->node->astKind == ASTKind::INTERPOLATION_EXPR) {
+            && CANNOT_EXTRACT_VAR_EXPR.count(root->node->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(ExtractVariable::ExtractVariableError::INVALID_CODE_SEGMENT))));
             return false;
@@ -23,8 +39,7 @@ class ExtractVariableRule : public TweakRule {
         if (root->node->IsExpr() && root->selected == SelectionTree::Selection::Complete) {
             return true;
         }
-
-        if (!root->node->IsExpr()) {
+        if (INVALID_PARTIAL_EXPR.count(root->node->astKind) && root->selected == SelectionTree::Selection::Partial) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(ExtractVariable::ExtractVariableError::FAIL_GET_ROOT_EXPR))));
             return false;
@@ -160,14 +175,18 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
 
     Range insertRange;
     std::string indent;
-    FindInsertDeclPosition(sel, range, insertRange, indent);
-    if (insertRange.start.IsZero()) {
+    bool isGlobal = false;
+    FindInsertDeclPosition(sel, range, insertRange, indent, isGlobal);
+    if (insertRange.end.IsZero()) {
         return textEdit;
     }
 
     insertRange = TransformFromChar2IDE(insertRange);
     std::ostringstream insertText;
     std::string sourceCode = sel.arkAst->sourceManager->GetContentBetween(range.start, range.end);
+    if (isGlobal) {
+        insertText << "\n";
+    }
 
     std::string modifier = GetVarModifier(sel, range);
     if (modifier.find("const") != std::string::npos) {
@@ -188,11 +207,17 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
 }
 
 void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
-    Range &insertRange, std::string &indent)
+    Range &insertRange, std::string &indent, bool &isGlobal)
 {
     if (!sel.arkAst) {
         return;
     }
+    // 1. use scopeName getting insert position
+    FindInsertPositionByScopeName(sel, range, insertRange, isGlobal);
+    if (!insertRange.end.IsZero()) {
+        return;
+    }
+    // 2. compute insert position if getting insert position fail by scope name (maybe the following code can delete)
     int firstToken4CurLine = GetFirstTokenOnCurLine(sel.arkAst->tokens, range.start.line);
     if (firstToken4CurLine == -1) {
         insertRange.start = {range.start.fileID, range.start.line, 1};
@@ -228,6 +253,62 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
 
     // deal same multi statement
     DealMultStatementOnSameLine(sel, range, firstToken4CurLine, insertRange);
+}
+
+void ExtractVariable::FindInsertPositionByScopeName(const Selection &sel, Range &range,
+    Range &insertRange, bool &isGlobal)
+{
+    if (!sel.arkAst || !sel.arkAst->packageInstance || !sel.arkAst->packageInstance->ctx) {
+        return;
+    }
+    auto root = sel.selectionTree.root();
+    if (!root || !root->node) {
+        return;
+    }
+    Ptr<Block> block = nullptr;
+    if (sel.selectionTree.OuterInterpExpr()) {
+        if (auto expr = DynamicCast<Expr*>(sel.selectionTree.OuterInterpExpr())) {
+            block = TweakUtils::FindOuterScopeNode(
+                *sel.arkAst->packageInstance->ctx, *expr, isGlobal, range);
+            GetInsertRange(sel, range, isGlobal, block, insertRange);
+            return;
+        }
+    }
+
+    SelectionTree::Walk(root, [&sel, &isGlobal, &block, &range]
+        (const SelectionTree::SelectionTreeNode *treeNode) {
+            if (!treeNode || !treeNode->node) {
+                return SelectionTree::WalkAction::STOP_NOW;
+            }
+            if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr()
+                && !treeNode->node->scopeName.empty()) {
+                if (auto expr = DynamicCast<Expr*>(treeNode->node)) {
+                    block = TweakUtils::FindOuterScopeNode(
+                        *sel.arkAst->packageInstance->ctx, *expr, isGlobal, range);
+                }
+                return SelectionTree::WalkAction::STOP_NOW;
+            }
+
+            return SelectionTree::WalkAction::WALK_CHILDREN;
+        });
+    GetInsertRange(sel, range, isGlobal, block, insertRange);
+}
+
+void ExtractVariable::GetInsertRange(
+    const Tweak::Selection &sel, Range &range, bool isGlobal, Ptr<Block> &block, Range &insertRange)
+{
+    if (isGlobal && sel.arkAst && sel.arkAst->file) {
+        insertRange = TweakUtils::FindGlobalInsertPos(*sel.arkAst->file, range);
+        return;
+    }
+    if (block) {
+        for (const auto &subNode : block->body) {
+            if (subNode && subNode->begin <= range.start && subNode->end >= range.end) {
+                insertRange = {subNode->begin, subNode->begin};
+                return;
+            }
+        }
+    }
 }
 
 void ExtractVariable::DealMultStatementOnSameLine(const Tweak::Selection &sel, const Range &range,

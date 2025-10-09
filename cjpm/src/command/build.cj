@@ -12,8 +12,8 @@ import std.regex.*
 import cjpm.implement.*
 import cjpm.config.*
 
-let BUILD_LONG_OPTION: Array<String> = ["verbose", "coverage", "output=", "target=", "incremental", "target-dir=",
-    "jobs=", "mock", "member=", "skip-script"]
+let BUILD_LONG_OPTION: Array<String> = ["verbose", "coverage", "output=", "target=", "enable-features=",
+    "no-feature-deduce", "incremental", "target-dir=", "jobs=", "lint", "mock", "member=", "skip-script"]
 let BUILD_USAGE: String = """
 Compile a local module and all of its dependencies.
 
@@ -28,10 +28,13 @@ Available options:
   -g                            enable compile debug version target
   --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
+  --enable-features <value>     explicitly specify comma-separated list of features to be enabled
+  --no-feature-deduce           disables auto-enabling of features, deduced from other options, machine properties, etc.
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
   --target-dir <value>          specify target directory
   -o, --output <value>          specify product name when compiling an executable file
+  -l, --lint                    enable cjlint code check
   --mock                        enable support of mocking classes in tests
   --skip-script                 disable script 'build.cj'."""
 @When[os == "Windows"]
@@ -102,7 +105,7 @@ class BuildCommand <: Handle {
 
         for (arg in unparseArgs) {
             if (!arg.startsWith("--")) {
-                eprintln("Error: unknow command '${arg}' for cjpm build")
+                eprintln("Error: unknown command '${arg}' for cjpm build")
                 return false
             }
             let option: String = arg[2..] // remove -- prefix
@@ -117,9 +120,13 @@ class BuildCommand <: Handle {
 
     public override func handleCommand(): Bool {
         if (this.arguments.size == 0) {
-            maxParallelSize = getCpus()
             let buildConfig = BuildConfig()
             buildConfig.globalConfig.resolveType = RESOLVE_BUILD
+            buildConfig.globalConfig.features = FeatureDeducer(buildConfig.globalConfig.features,
+                enabled: !buildConfig.globalConfig.noFeatureDeduce)
+                .deduceTargetFeatures(state.cjcInfo.target)
+                .deduceDependantFeatures()
+                .collect()
             return doBuild(buildConfig)
         }
 
@@ -129,8 +136,13 @@ class BuildCommand <: Handle {
         buildConfig.isIncremental = getBoolOption(argMap, "-i", "--incremental")
         buildConfig.isCov = getBoolOption(argMap, "--coverage")
         buildConfig.isDebug = getBoolOption(argMap, "-g")
+        buildConfig.isLint = getBoolOption(argMap, "-l", "--lint")
         buildConfig.mockSupported = getBoolOption(argMap, "--mock")
         buildConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")
+        buildConfig.globalConfig.noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
+
+        var featureDeducer = FeatureDeducer(buildConfig.globalConfig.features,
+            enabled: !buildConfig.globalConfig.noFeatureDeduce)
 
         if (!handleOutputName(argMap, buildConfig)) {
             return false
@@ -142,8 +154,24 @@ class BuildCommand <: Handle {
             return false
         }
 
+        if (let Some(features) <- handleEnableFeaturesOption(argMap)) {
+            featureDeducer = featureDeducer.addFeature(features)
+        }
+
         if (let Some(val) <- handleCrossTarget(argMap)) {
             buildConfig.isCrossCompile = val
+            if (buildConfig.isCrossCompile) {
+                match (Triple.fromString(crossCompileTarget)) {
+                    case Ok(triple) => featureDeducer = featureDeducer.deduceTargetFeatures(triple)
+                    case Err(errmsg) => 
+                        eprintln(errmsg)
+                        return false
+                }
+                
+            } else {
+                featureDeducer = featureDeducer
+                    .deduceTargetFeatures(state.cjcInfo.target)
+            }
         } else {
             return false
         }
@@ -168,12 +196,13 @@ class BuildCommand <: Handle {
         buildConfig.globalConfig.isIncremental = buildConfig.isIncremental
         buildConfig.globalConfig.resolveType = RESOLVE_BUILD
 
+        buildConfig.globalConfig.features = featureDeducer.deduceDependantFeatures().collect()
+
         return doBuild(buildConfig)
     }
 }
 
 public func handleParallelSize(argMap: HashMap<String, String>): Bool {
-    let cpuSize: Int64 = getCpus()
     let (sizeStr, sizeFlag) = getArgValue(argMap, "-j", "--jobs")
     if (sizeFlag) {
         var size: Int32 = 0
@@ -190,11 +219,17 @@ public func handleParallelSize(argMap: HashMap<String, String>): Bool {
                 "its valid range is (0, 2147483647]")
             return false
         } else {
-            maxParallelSize = min(Int64(size), 2 * cpuSize)
+            let newSize = Int64(size)
+            if (newSize > 2 * getCpus()) {
+                println(
+                    "Warning: the number of jobs '-j${newSize}' exceeds limit '${2 * getCpus()}', the number of jobs will be set to '-j${2 * getCpus()}'"
+                )
+                maxParallelSize = 2 * getCpus()
+            } else {
+                maxParallelSize = newSize
+            }
             return true
         }
     }
-
-    maxParallelSize = cpuSize
     return true
 }

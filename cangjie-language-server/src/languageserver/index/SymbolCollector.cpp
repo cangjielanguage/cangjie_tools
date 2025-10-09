@@ -1406,9 +1406,15 @@ void SymbolCollector::CollectRelations(
         }
 
         for (auto &member : id->GetMemberDecls()) {
+            if (!Ty::IsTyCorrect(member->ty)) {
+                continue;
+            }
+            (void)relations.emplace_back(Relation{.subject = GetDeclSymbolID(*member),
+                                                  .predicate = RelationKind::CONTAINED_BY,
+                                                  .object = GetDeclSymbolID(*id)});
             bool ignore =
                 member->astKind == ASTKind::VAR_DECL || member->TestAttr(Attribute::CONSTRUCTOR);
-            if (ignore || !Ty::IsTyCorrect(member->ty)) {
+            if (ignore) {
                 continue;
             }
             bool definedOverride = member->TestAttr(Attribute::REDEF, Attribute::STATIC) ||

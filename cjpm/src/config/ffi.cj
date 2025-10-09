@@ -45,6 +45,7 @@ public class ForeignInterfaces <: Serializable<ForeignInterfaces> {
         for ((cLibName, cLibrary) in cLibraries) {
             result.cLibs[cLibName] = cLibrary.path
         }
+
         return result
     }
 
@@ -60,8 +61,7 @@ public class ForeignInterfaces <: Serializable<ForeignInterfaces> {
     }
 }
 
-func verifyCLibConfig(cLibs: HashMap<String, String>, path: String,
-    jsonPath: String, targetString!: String = String()): Bool {
+func verifyCLibConfig(cLibs: HashMap<String, String>, path: String, jsonPath: String, targetString!: String = ""): Bool {
     var flag = true
     for ((cLibName, cLibPath) in cLibs) {
         if (!cLibNameCheck(cLibName, jsonPath)) {

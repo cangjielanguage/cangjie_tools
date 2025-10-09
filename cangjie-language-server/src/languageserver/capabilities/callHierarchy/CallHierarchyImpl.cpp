@@ -70,6 +70,31 @@ CallHierarchyItem DeclToCallHierarchyItem(Ptr<const Decl> decl)
     return result;
 }
 
+void DealAnonymousConstructorRange(Range& range, const lsp::Symbol&containerSym)
+{
+    if (!containerSym.location.IsZeroLoc() || containerSym.name != "init") {
+        return;
+    }
+ 
+    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return;
+    }
+    
+    lsp::SymbolID outerId = 0;
+    index->Relations({containerSym.id, lsp::RelationKind::CONTAINED_BY},
+                    [&outerId](const lsp::Relation& rel) {
+                        outerId = rel.object;
+                    });
+    if (outerId) {
+        lsp::Symbol outer;
+        index->Lookup({{outerId}}, [&outer](const lsp::Symbol& sym) {
+            outer = sym;
+        });
+        range = {outer.location.begin, outer.location.end};
+    }
+}
+
 CallHierarchyItem DeclToCallHierarchyItem(const lsp::Symbol&containerSym)
 {
     CallHierarchyItem result;
@@ -93,8 +118,10 @@ CallHierarchyItem DeclToCallHierarchyItem(const lsp::Symbol&containerSym)
     } else {
         result.name = containerSym.signature + ":" + containerSym.returnType;
     }
-    result.range = TransformFromChar2IDE({containerSym.location.begin, containerSym.location.end});
-    result.selectionRange = TransformFromChar2IDE({containerSym.location.begin, containerSym.location.end});
+    Range range = {containerSym.location.begin, containerSym.location.end};
+    DealAnonymousConstructorRange(range, containerSym);
+    result.range = TransformFromChar2IDE(range);
+    result.selectionRange = TransformFromChar2IDE(range);
     result.symbolId = containerSym.id;
     return result;
 }

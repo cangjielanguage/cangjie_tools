@@ -24,6 +24,8 @@ Available options:
   --skip-build                skip compile, only run the executable product
   --run-args <value>          the arguments to pass to the executable product
   --target-dir <value>        specify target directory
+  --enable-features <value>   explicitly specify comma-separated list of features to be enabled
+  --no-feature-deduce         disables auto-enabling of features, deduced from other options, machine properties, etc.
   -g                          enable debug version
   -V, --verbose               enable verbose
   --skip-script               disable script 'build.cj'."""
@@ -62,7 +64,18 @@ Available options:
             return false
         }
 
-        eprintln("Error: unknow command '${unparseArgs[0]}' for cjpm run")
+        if (unparseArgs.contains("--enable-features")) {
+            if (state.isExperimental) {
+                eprintln("Error: the '--enable-features' option needs a value")
+                return false
+            } else {
+                eprintln("Error: `--enable-features` is part of experimental Cangjie Multiplatform feature, " +
+                    "please enable `experimental = true` in cjpm.toml of this project")
+                return false
+            }
+        }
+
+        eprintln("Error: unknown command '${unparseArgs[0]}' for cjpm run")
         return false
     }
 
@@ -73,7 +86,8 @@ Available options:
 
     public override func handleCommand(): Bool {
         let (argMap, unparseArgs) = getParseOption(this.arguments, "gV",
-            ["verbose", "skip-build", "name=", "build-args=", "run-args=", "target-dir=", "skip-script"])
+            ["verbose", "skip-build", "name=", "build-args=", "run-args=", "target-dir=", "skip-script",
+                "enable-features=", "no-feature-deduce"])
 
         if (!handleUnparseArgs(unparseArgs)) {
             return false
@@ -85,7 +99,21 @@ Available options:
         runConfig.skipBuild = getBoolOption(argMap, "--skip-build")
         runConfig.buildArgs = getArgValue(argMap, "--build-args")[0]
         runConfig.runArgs = getArgValue(argMap, "--run-args")[0]
+        let (val, succ) = getArgValue(argMap, "--enable-features")
+        if (!state.isExperimental && succ) {
+            eprintln("Error: `--enable-features` is part of experimental Cangjie Multiplatform feature, " +
+                "please enable `experimental = true` in cjpm.toml of this project")
+            return false
+        }
+        runConfig.enableFeatures = val
         runConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")
+        runConfig.globalConfig.noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
+        if (!state.isExperimental && runConfig.globalConfig.noFeatureDeduce) {
+            eprintln("Error: `--no-feature-deduce` is part of experimental Cangjie Multiplatform feature, " +
+                "please enable `experimental = true` in cjpm.toml of this project")
+            return false
+        }
+
         let (runName, nameFlag) = getArgValue(argMap, "--name")
         if (nameFlag) {
             if (runName.isEmpty()) {
@@ -121,11 +149,26 @@ func execPreRun(runConfig: RunConfig): Bool {
     if (runConfig.isDebug) {
         buildOption.add("-g")
     }
+    if (runConfig.isVerbose) {
+        buildOption.add("-V")
+    }
+    if (!runConfig.enableFeatures.isEmpty()) {
+        if (state.isExperimental) {
+            buildOption.add("--enable-features=${runConfig.enableFeatures}")
+        } else {
+            eprintln("Error: `--enable-features` is part of experimental Cangjie Multiplatform feature, " +
+                "please enable `experimental = true` in cjpm.toml of this project")
+            return false
+        }
+    }
     if (!runConfig.targetPath.isEmpty()) {
         buildOption.add("--target-dir=${runConfig.targetPath}")
     }
     if (runConfig.globalConfig.isSkipScript) {
         buildOption.add("--skip-script")
+    }
+    if (runConfig.globalConfig.noFeatureDeduce) {
+        buildOption.add("--no-feature-deduce")
     }
 
     let cmdHandler = CommandFactory().createCommandHandler(buildOption.toArray())

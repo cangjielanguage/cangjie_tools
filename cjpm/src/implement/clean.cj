@@ -6,9 +6,9 @@
 
 package cjpm.implement
 
+import std.collection.*
 import std.fs.*
 import cjpm.config.*
-import std.collection.*
 
 // Command clean implement.
 public func doClean(rootPath: String, cmdDir: String, isDebug: Bool): Bool {

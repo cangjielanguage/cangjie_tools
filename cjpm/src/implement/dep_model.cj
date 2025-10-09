@@ -13,6 +13,7 @@ import std.sort.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import cjpm.config.*
+import cjpm.util.*
 
 // left - whether the build check is successful
 // right - whether mocks are used
@@ -53,6 +54,7 @@ class DepModel {
     let packageMtx: Mutex = Mutex()
     let errPrintMtx: Mutex = Mutex()
     let scanCjoMtx: Mutex = Mutex()
+    let scanPkgMtx: Mutex = Mutex()
     // Collect zero indegree packages
     var readyPkgs: ArrayList<String> = ArrayList<String>()
     public var targetMacroPkgs: HashSet<String> = HashSet<String>() // used by cross compile
@@ -60,11 +62,15 @@ class DepModel {
 
     // Super package record
     public var superPkgMap: HashMap<String, SuperPackageConfig> = HashMap<String, SuperPackageConfig>()
+    public var isCrossBin = false
     // Sub package map to super package
     public var superPkgSubMap: HashMap<String, String> = HashMap<String, String>()
-    public var isCrossBin = false
     // Binary dependencies record
     public var binDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
+    // Package dependencies record (pkg without test)
+    public var pkgBuildDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
+    // Package dependencies record (pkg with test)
+    public var pkgTestDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
 
     public init(globalConfig: GlobalConfig) {
         this.globalConfig = globalConfig
@@ -129,7 +135,7 @@ class DepModel {
             return (checkFlag, mockUsed)
         }
 
-        loadBinIncrementalCache()
+        loadDepIncrementalCache()
 
         for (name in this.depMap.keys()) {
             this.globalConfig.modulePath = this.depRootMap[name]
@@ -161,7 +167,7 @@ class DepModel {
         }
 
         if (this.globalConfig.resolveType == RESOLVE_BUILD) {
-            updateBinIncrementalCache()
+            updateDepIncrementalCache()
         }
 
         return (this.replaceRealPkg(), mockUsed)
@@ -227,13 +233,15 @@ class DepModel {
             }
         }
 
+        tomlInfo.pkg.actualSources = tomlInfo.pkg.sourceSetTree.selectSourceSets(tomlInfo.pkg.path, this.globalConfig.features)
+
         if (let Some(depInfo) <- requires) {
             if (let Some(outputType) <- depInfo.outputType) {
                 tomlInfo.pkg.outputType = outputType
             }
-            if (tomlInfo.pkg.outputType == EXE_TYPE) {
+            if (let Exe <- tomlInfo.pkg.outputType) {
                 let pathLoc = Path(curModulePath).join(CONFIG_FILE_NAME).toString()
-                eprintln("Error: the 'output-type' field of dependent module can't be '${EXE_TYPE}' in ${pathLoc}")
+                eprintln("Error: the 'output-type' field of dependent module can't be '${Exe}' in ${pathLoc}")
                 return FAILED_BUILD_CHECK_RESULT
             }
             // verify that `requires` block that added this module is compatible with its medatada
@@ -253,7 +261,8 @@ class DepModel {
                         "If existing dependency was updated in cjpm.toml then do `cjpm update`")
                     eprintln(errInfo)
                     return FAILED_BUILD_CHECK_RESULT
-                } else if (!isAlternative) {
+                }
+                if (!isAlternative) {
                     return (true, false)
                 }
             }
@@ -282,9 +291,9 @@ class DepModel {
                 curModulePath = memPath
             }
         } else {
-            if (this.globalConfig.isInstall && tomlInfo.isPkgConfig && tomlInfo.pkg.outputType != EXE_TYPE) {
+            if (this.globalConfig.isInstall && tomlInfo.isPkgConfig && tomlInfo.pkg.outputType != Exe) {
                 eprintln("Error: output-type in ${Path(path).join(CONFIG_FILE_NAME).toString()} " +
-                    "must be 'executable' for cjpm install")
+                    "must be '${Exe}' for cjpm install")
                 return Option.None
             }
             COMMON_INFO.moduleVersionMap.add(tomlInfo.pkg.name, tomlInfo.pkg.version)
@@ -299,7 +308,7 @@ class DepModel {
             (this.globalConfig.resolveType != RESOLVE_CHECK)) {
             var scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
                 this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
-            if (!runScript(scriptConfig, BUILD_SCRIPT_STEP_PRE, this.globalConfig.resolveType)) {
+            if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
                 return FAILED_BUILD_CHECK_RESULT
             }
             this.globalConfig.scriptList.add(scriptConfig)
@@ -322,13 +331,12 @@ class DepModel {
         if (!this.buildCheckTargetFfi(tomlInfo)) {
             return FAILED_BUILD_CHECK_RESULT
         }
-
         if (!crossCompileTarget.isEmpty() && !this.buildCheckCrossFFi(tomlInfo)) {
             return FAILED_BUILD_CHECK_RESULT
         }
 
-        let validPkgs = getAllPkgs(tomlInfo.pkg.srcDir, tomlInfo.pkg.name) ?? return FAILED_BUILD_CHECK_RESULT
-        tomlInfo.pkg.validPkgMap = validPkgs
+        tomlInfo.pkg.validPkgMap = getAllPkgs(tomlInfo.pkg.actualSources, tomlInfo.pkg.name)
+
         let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo)
         if (!processSuccess) {
             return (false, mockUsedInDependentPackages)
@@ -353,11 +361,9 @@ class DepModel {
     func buildCheckCrossBinDep(tomlInfo: TomlInfo): Bool {
         return buildCheckBinDependencies(tomlInfo, crossCompileTarget, this.crossBinDepMap)
     }
-
     func buildCheckTargetFfi(tomlInfo: TomlInfo): Bool {
         return buildCheckFfi(tomlInfo, targetConfigName, tomlInfo.ffi.cLibs, this.globalConfig.isDebug)
     }
-
     func buildCheckCrossFFi(tomlInfo: TomlInfo): Bool {
         return buildCheckFfi(tomlInfo, crossCompileTarget, tomlInfo.crossFfi.cLibs, this.globalConfig.isDebug)
     }
@@ -523,12 +529,14 @@ class DepModel {
         return taskFlag
     }
 
-    func collectCjoInfo(cjoPath: String, pkgMap: HashMap<String, RequiresPackagesInfo>, isPathOption: Bool,
-        libName: String, tomlPath: String): Bool {
-        let (flag, cjoInfo) = this.scanCjoInfo(cjoPath, this.globalConfig.isTest)
-        if (!flag) {
-            return false
+    func collectCjoInfo(cjoPath: String, pkgMap: HashMap<String, RequiresPackagesInfo>,
+        isPathOption: Bool, libName: String, tomlPath: String): Bool {
+
+        let cjoInfo = match (scanCjoInfo(cjoPath, this.globalConfig.isTest)) {
+            case Some(data) => data
+            case _ => return false
         }
+
         let (cangjiePath, libPath) = makePackagePath(cjoPath)
         let pkgInfo = RequiresPackagesInfo(cjoInfo.isMacroPackage, cangjiePath, libPath)
         if (isPathOption) {
@@ -568,11 +576,12 @@ class DepModel {
     }
 
     // Get package information by the '.cjo' file.
-    func scanCjoInfo(cjoPath: String, isTest: Bool): (Bool, RequiresPackages) {
+    func scanCjoInfo(cjoPath: String, isTest: Bool): ?RequiresPackages {
         let timeStamp = FileInfo(cjoPath).lastModificationTime.toUnixTimeStamp().toSeconds()
         if (this.binDepCacheMap.contains(cjoPath) && (timeStamp == this.binDepCacheMap[cjoPath].timeStamp)) {
-            return (true, this.binDepCacheMap[cjoPath])
+            return this.binDepCacheMap[cjoPath]
         }
+
         let arguments = ArrayList<String>(["--scan-dependency", cjoPath])
         if (isTest) {
             arguments.add("--test")
@@ -582,17 +591,16 @@ class DepModel {
         if (!scanFlag) {
             eprintln(errInfo)
             eprintln("Error: failed to obtain package import information of '${cjoPath}'")
-            return (false, RequiresPackages())
+            return None
         }
 
-        var p = RequiresPackages()
-        try {
-            p = RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(outInfo)))
+        var p = try {
+            RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(outInfo)))
         } catch (e: Exception) {
             eprintln(e.toString())
             eprintln("Error: failed to parse package import information of '${cjoPath}'")
             println(outInfo)
-            return (false, RequiresPackages())
+            return None
         }
 
         // CANGJIE_PATH check.
@@ -600,38 +608,78 @@ class DepModel {
         let (_, rootPath) = makePackagePath(cjoPath)
         if (!Path(rootPath).normalize().toString().endsWith(Path(rootPkgName).normalize().toString())) {
             eprintln("Error: the file '${cjoPath}' must be placed in the '${rootPkgName}' folder")
-            return (false, RequiresPackages())
+            return None
         }
 
         p.timeStamp = timeStamp
 
-        synchronized(this.scanCjoMtx) {
+        synchronized (this.scanCjoMtx) {
             this.binDepCacheMap.add(cjoPath, p)
         }
 
-        return (true, p)
+        return p
     }
 
-    // read incremental cache of bin-dependencies
-    func loadBinIncrementalCache(): Unit {
-        let binCachePath = Path(this.globalConfig.targetDir).join(BIN_INCREMENTAL_CACHE).toString()
-        if (!fileExists(binCachePath)) {
-            return
+    func scanPkgInfo(packagePaths: Array<Path>, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, ScanDependencyError> {
+        if (packagePaths.size != 1) {
+            return scanDependency(packagePaths, isTest: isTest, compileOptions: compileOptions)
         }
-        try {
-            var buf = String.fromUtf8(File.readFrom(binCachePath))
-            this.binDepCacheMap = HashMap<String, RequiresPackages>.deserialize(
-                DataModel.fromJson(JsonValue.fromStr(buf)))
-        } catch (e: Exception) {
-            eprintln("Warning: load ${binCachePath} failed\n${e.toString()}")
-            return
+        let pkgPath = packagePaths[0]
+        let pkgPathString = pkgPath.toString()
+        let timeStamp = FileInfo(pkgPath).lastModificationTime.toUnixTimeStamp().toSeconds()
+        if (!isTest && this.pkgBuildDepCacheMap.contains(pkgPathString) && (timeStamp == this.pkgBuildDepCacheMap[pkgPathString].timeStamp)) {
+            return Ok(this.pkgBuildDepCacheMap[pkgPathString])
+        } else if (isTest && this.pkgTestDepCacheMap.contains(pkgPathString) && (timeStamp == this.pkgTestDepCacheMap[pkgPathString].timeStamp)) {
+            return Ok(this.pkgTestDepCacheMap[pkgPathString])
         }
+        // update pkgDepCacheMap
+        let depRes = scanDependency(packagePaths, isTest: isTest, compileOptions: compileOptions)
+        var dep = match (depRes) {
+            case Ok(d) => d
+            case _ => return depRes
+        }
+        dep.timeStamp = timeStamp
+        synchronized (this.scanPkgMtx) {
+            if (isTest) {
+                this.pkgTestDepCacheMap.add(pkgPathString, dep)
+            } else {
+                this.pkgBuildDepCacheMap.add(pkgPathString, dep)
+            }
+        }
+        return depRes
     }
 
-    // update incremental cache of bin-dependencies
-    func updateBinIncrementalCache(): Unit {
-        let binCachePath = Path(this.globalConfig.targetDir).join(BIN_INCREMENTAL_CACHE).toString()
-        let cacheString = this.binDepCacheMap.serialize().toJson().toJsonString()
+    // read incremental cache of bin-dependencies and pkg-dependencies
+    func loadDepIncrementalCache(): Unit {
+        let depCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
+        if (!fileExists(depCachePath)) {
+            return
+        }
+ 
+        var buf = String.fromUtf8(File.readFrom(depCachePath))
+        var dm = DataModel.fromJson(JsonValue.fromStr(buf))
+ 
+        match (dm) {
+            case data: DataModelStruct => 
+                this.binDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("bin"))
+                this.pkgBuildDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-build"))
+                this.pkgTestDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-test"))
+            
+            case _ => 
+                throw Exception("this data is not DataModelStruct")
+                eprintln("Warning: load ${depCachePath} failed\n")
+                return
+        }
+    }
+ 
+    // update incremental cache of bin-dependencies and pkg-dependencies
+    func updateDepIncrementalCache(): Unit {
+        let binCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
+        let dmCacheRoot = DataModelStruct()
+                            .add(field<HashMap<String, RequiresPackages>>("bin", this.binDepCacheMap))
+                            .add(field<HashMap<String, RequiresPackages>>("pkg-build", this.pkgBuildDepCacheMap))
+                            .add(field<HashMap<String, RequiresPackages>>("pkg-test", this.pkgTestDepCacheMap))
+        let cacheString = dmCacheRoot.toJson().toJsonString()
         createAndWriteFile(binCachePath, cacheString)
         return
     }
@@ -646,12 +694,13 @@ class DepModel {
                 continue
             }
 
-            if (!(v.outputType.isEmpty() || OUTPUT_TYPE_LIST.contains(v.outputType))) {
-                eprintln("Error: the output-type '${v.outputType}' is invalid which is listed " +
-                    "in 'package-configuration' field at ${getPath(pkg.path, CONFIG_FILE_NAME)}")
-                checkFlag = false
-            }
-            if (OUTPUT_TYPE_LIST.contains(v.outputType)) {
+            if(let Unknown(str) <- v.outputType) {
+                if (!str.isEmpty()) {
+                    eprintln("Error: the output-type '${str}' is invalid which is listed" +
+                        " in 'package-configuration' field at ${getPath(pkg.path, CONFIG_FILE_NAME)}")
+                    checkFlag = false
+                }
+            } else {
                 this.packageDepMap[fullName].outputType = v.outputType
             }
 
@@ -752,7 +801,7 @@ class DepModel {
             this.depMap.add(name, finalDepInfo)
 
             let depInfo: DepInfo = this.depMap[name]
-            let (flag, isOnlineDep, depPath) = getDepPath(name, depInfo, this.globalConfig)
+            let (flag, isOnlineDep, depPath) = getDepPath(name, depInfo, prePath, this.globalConfig)
             if (!flag) {
                 buildCheckFlag = false
                 continue
@@ -813,7 +862,7 @@ class DepModel {
                 spawn {
                     =>
                     let pkgInfo: ResolveItem = ResolveItem(tomlInfo)
-                    pkgInfo.packagePath = pkg.path
+                    pkgInfo.packagePath = pkg.sources
                     pkgInfo.hasProdFiles = pkg.hasProdFiles
                     pkgInfo.hasTestFiles = pkg.hasTestFiles
                     let (flag, mockUsed) = runPackageTask(pkgInfo, pkg.hashCode, pkg.timeStamp, directDeps)
@@ -837,11 +886,14 @@ class DepModel {
         return (checkSuccessful, mockUsed)
     }
 
-    func runPackageTask(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64, directDeps: HashSet<String>): BuildCheckResult {
-        let (flag, info) = getPackageInfo(pkgInfo.packagePath, pkgInfo.compileOption, pkgInfo.customizedOption)
-        if (!flag) {
-            return FAILED_BUILD_CHECK_RESULT
+    func runPackageTask(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64,
+        directDeps: HashSet<String>): BuildCheckResult {
+
+        let info = match (getPackageInfo(pkgInfo.packagePath.allPaths, pkgInfo.compileOption, pkgInfo.customizedOption)) {
+            case Some(data) => data
+            case _ => return FAILED_BUILD_CHECK_RESULT
         }
+
         pkgInfo.fullName = info.packageName
         pkgInfo.isMacroPackage = info.isMacroPackage
         pkgInfo.accessLevel = info.accessLevel
@@ -876,16 +928,16 @@ class DepModel {
         }
 
         // The output type of current module is executable, but other package should be static in this module.
-        if (pkgInfo.modulePath == this.globalConfig.modulePath && !pkgInfo.packagePath.endsWith(pkgInfo.srcDir)) {
-            if (pkgInfo.outputType == EXE_TYPE) {
-                pkgInfo.outputType = STATIC_TYPE
+        if (pkgInfo.modulePath == this.globalConfig.modulePath && isSubpackage(pkgInfo.fullName)) {
+            if (pkgInfo.outputType == Exe) {
+                pkgInfo.outputType = Static
             }
         }
 
         if (pkgInfo.isMacroPackage) {
             // The output type of macro package should be 'dynamic'.
-            if (pkgInfo.outputType == STATIC_TYPE) {
-                pkgInfo.outputType = DYNAMIC_TYPE
+            if (let Static <- pkgInfo.outputType) {
+                pkgInfo.outputType = Dynamic
             }
         }
 
@@ -905,10 +957,10 @@ class DepModel {
         let tomlInfo: TomlInfo = this.depTomlMap[rootPkgName]
         var flag: Bool = false
         if (dep == rootPkgName) {
-            flag = (tomlInfo.pkg.outputType == EXE_TYPE)
+            flag = (tomlInfo.pkg.outputType == Exe)
         }
         if (tomlInfo.pkg.packageConfiguration.contains(dep)) {
-            flag = (tomlInfo.pkg.packageConfiguration[dep].outputType == EXE_TYPE)
+            flag = (tomlInfo.pkg.packageConfiguration[dep].outputType == Exe)
         }
 
         if (flag) {
@@ -922,16 +974,21 @@ class DepModel {
 
     // consistency check between package name and path.
     func packageCheck(pkgInfo: ResolveItem): Bool {
-        let pkgPath: String = pkgInfo.packagePath.removePrefix(pkgInfo.srcDir)
-        let actualName: String = getActualName(pkgPath, pkgInfo.rootPkgName)
-        if (pkgInfo.fullName != actualName) {
-            synchronized(this.errPrintMtx) {
-                eprintln("Error: the package name in ${pkgInfo.packagePath} is wrong, " +
-                    "the right name should be '${actualName}'")
+        if (state.isExperimental) {
+            return true
+        } else {
+            let packagePath = cleanCanonicalize(pkgInfo.packagePath.platformPaths[0]).getOrThrow().toString()
+            let canonicalizedPath = cleanCanonicalize(Path(pkgInfo.srcDir)).getOrThrow().toString()
+            let pkgPath: String = packagePath.removePrefix(canonicalizedPath)
+            let actualName: String = getActualName(pkgPath, pkgInfo.rootPkgName)
+            if (pkgInfo.fullName != actualName) {
+                synchronized (this.errPrintMtx) {
+                    eprintln("Error: the package name in ${packagePath} is wrong, the right name should be '${actualName}'")
+                }
+                return false
             }
-            return false
+            return true
         }
-        return true
     }
 
     func appendPkgInfo(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64): Bool {
@@ -945,51 +1002,42 @@ class DepModel {
         return true
     }
 
-    func getPackageInfo(pkgPath: String, cmdOption: String, customizedMap: HashMap<String, String>): (Bool, RequiresPackages) {
-        if (!sourcePathCheck(pkgPath)) {
-            synchronized(this.errPrintMtx) {
-                eprintln("Error: the '${pkgPath}' contains illegal characters")
+    func getPackageInfo(pkgPaths: Array<Path>, cmdOption: String, customizedMap: HashMap<String, String>): ?RequiresPackages {
+        let errors = ArrayList<String>()
+        for (path in pkgPaths) {
+            if (!sourcePathCheck(path)) {
+                errors.add("Error: the '${path}' contains illegal characters")
             }
-            return (false, RequiresPackages())
         }
 
-        var arguments = ArrayList<String>(["-p", pkgPath, "--scan-dependency"])
-        if (this.globalConfig.isTest) {
-            arguments.add("--test")
+        if (!errors.isEmpty()) {
+            synchronized (this.errPrintMtx) {
+                eprintln(
+                    String.join(errors |> collectArray, delimiter: '\n')
+                )
+            }
+            return None
         }
-        var cfgOption = ""
-        if (!cmdOption.isEmpty() && cmdOption.contains("--cfg")) {
-            cfgOption += cmdOption
+
+        var options = ""
+        if (cmdOption.contains("--cfg")) {
+            options = cmdOption
         }
         for (customizedKey in this.globalConfig.customizedOption) {
             if (customizedMap.contains(customizedKey) && customizedMap[customizedKey].contains("--cfg")) {
-                cfgOption += " ${customizedMap[customizedKey]}"
+                options += " ${customizedMap[customizedKey]}"
             }
         }
-        arguments.add(all: extractCfgOption(cfgOption))
+        let scanDepRes = scanPkgInfo(pkgPaths, isTest: this.globalConfig.isTest, compileOptions: options)
 
-        let (scanFlag, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, arguments)
-        let cmd: String = COMPILE_TOOL + " " + String.join(arguments.toArray(), delimiter: " ")
-        if (!scanFlag) {
-            synchronized(this.errPrintMtx) {
-                eprintln(errInfo)
-                eprintln("Error: failed to obtain package import information, please execute '${cmd}' to check")
-            }
-            return (false, RequiresPackages())
+        match (scanDepRes) {
+            case Err(e) =>
+                synchronized (this.errPrintMtx) {
+                    eprintln(e)
+                }
+                None
+            case Ok(t) => t
         }
-
-        var res = RequiresPackages()
-        try {
-            res = RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(outInfo)))
-        } catch (e: Exception) {
-            synchronized(this.errPrintMtx) {
-                eprintln("Error: failed to parse package import information, please execute '${cmd}' to check")
-                println(outInfo)
-            }
-            return (false, RequiresPackages())
-        }
-
-        return (true, res)
     }
 
     func collectJsonInformation(tomlInfo: TomlInfo): ArrayList<String> {
@@ -1003,7 +1051,7 @@ class DepModel {
             jsonData.add(k)
             jsonData.add(v)
         }
-        jsonData.add(tomlInfo.pkg.outputType)
+        jsonData.add(tomlInfo.pkg.outputType.toString())
         jsonData.add(tomlInfo.pkg.compileOption)
         jsonData.add(tomlInfo.pkg.linkOption)
         for ((k, v) in tomlInfo.profile.customizedOption) {
@@ -1012,7 +1060,7 @@ class DepModel {
         }
         for ((k, v) in tomlInfo.pkg.packageConfiguration) {
             jsonData.add(k)
-            jsonData.add(v.outputType)
+            jsonData.add(v.outputType.toString())
             jsonData.add(v.compileOption)
         }
         jsonData.add(tomlInfo.pkg.overrideCompileOption)
@@ -1112,64 +1160,60 @@ func getActualName(pkgPath: String, rootPkgName: String): String {
     return actualName
 }
 
-// get all package information for current module.
-func getAllPkgs(srcPath: String, rootPkgName: String): Option<ArrayList<PackageInfo>> {
-    var packageSrcPath = ArrayList<String>([srcPath])
-    // Get valid package directory.
+func getAllPkgs(srcDir: CMPSource, rootPkgName: String): Array<PackageInfo> {
+    var pkgDirQueue = ArrayList<CMPSource>([srcDir])
     var validPkgs = ArrayList<PackageInfo>()
     var pathDepth = 0
-    // Get all directory.
     do {
-        pathDepth = pathDepth + 1
-        var temp = ArrayList<String>()
-        for (pkgDirStr in packageSrcPath) {
-            if (!directoryExists(pkgDirStr)) {
-                eprintln("Error: directory '${pkgDirStr}' does not exist or path is too long")
-                return Option.None
-            }
-            if (!collectSinglePkg(validPkgs, pkgDirStr)) {
-                eprintln("Warning: there is no '.cj' file in directory '${pkgDirStr}', " +
-                    "and its subdirectories will not be scanned as source code")
-                continue
-            }
-            for (dirInfo in getDirectoryList(pkgDirStr)) {
-                temp.add(dirInfo.path.toString())
+        pathDepth++
+        var temp = ArrayList<CMPSource>().iterator()
+        for (pkgDir in pkgDirQueue) {
+            match (initPackageInfo(pkgDir)) {
+                case Ok(p) =>
+                    validPkgs.add(p)
+                    temp = temp |> concat(pkgDir.dirs())
+                case Err(e) =>
+                    println(e)
             }
         }
-        packageSrcPath = temp
-    } while (packageSrcPath.size != 0)
+        pkgDirQueue = temp |> collectArrayList
+    } while (pkgDirQueue.size != 0)
 
     if (pathDepth > 20) {
         eprintln("Warning: the module depth of the '${rootPkgName}' is more than 20")
     }
-
-    return validPkgs
+    return validPkgs.toArray()
 }
 
-func collectSinglePkg(validPkgs: ArrayList<PackageInfo>, pkgDir: String): Bool {
+func initPackageInfo(pkgDir: CMPSource): Result<PackageInfo, String> {
     var hasTestFile = false
     var hasProdFile = false
     var fileList = ArrayList<String>()
     var timeStamp: Int64 = Int64.Min
-    for (fileInfo in getFileList(pkgDir)) {
-        let fileName = fileInfo.path.toString()
-        if (fileName.endsWith("_test.cj")) {
+    for (fileInfo in pkgDir.files()) {
+        let path = canonicalize(fileInfo.path)
+        if (path.fileName.endsWith("_test.cj")) {
             hasTestFile = true
-            fileList.add(fileName)
+            fileList.add(path.toString())
             timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
-        } else if (fileName.endsWith(".cj")) {
+        } else if (path.extensionName == "cj") {
             hasProdFile = true
-            fileList.add(fileName)
+            fileList.add(path.toString())
             timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
         }
     }
     if (hasTestFile || hasProdFile) {
         sort(fileList, by: cmpStr, stable: true)
-        validPkgs.add(PackageInfo(canonicalize(pkgDir).toString(),
-            bufferHashCode(fileList), timeStamp, hasTestFile, hasProdFile))
-        return true
+        return Ok(PackageInfo(
+            pkgDir, bufferHashCode(fileList),
+            timeStamp, hasTestFile, hasProdFile
+        ))
     }
-    return false
+    if (pkgDir.allPaths.size == 1) {
+        return Err("Warning: there is no '.cj' file in directory '${pkgDir.allPaths[0]}', and its subdirectories will not be scanned as source code")
+    } else {
+        return Err("Warning: there is no '.cj' file in source-set directories '${pkgDir.allPaths}', and its subdirectories will not be scanned as source code")
+    }
 }
 
 public func checkGitLocalDep(name: String, curInfo: DepInfo, newInfo: DepInfo,
@@ -1178,4 +1222,64 @@ public func checkGitLocalDep(name: String, curInfo: DepInfo, newInfo: DepInfo,
         return false
     }
     return depPathMap[name] == newInfo.path.getOrDefault({=> ""})
+}
+
+enum ScanDependencyError <: ToString {
+    | FailedToExecute(String, String)
+    | FailedToParse(String, String)
+
+    public func toString(): String {
+        match (this) {
+            case FailedToExecute(cmd, error) =>
+                let sb = StringBuilder()
+                sb.append(error)
+                sb.append("\n")
+                sb.append("Error: failed to obtain package import information, please execute '${cmd}' to check")
+                sb.toString()
+            case FailedToParse(cmd, out) =>
+                let sb = StringBuilder()
+                sb.append("Error: failed to parse package import information, please execute '${cmd}' to check")
+                sb.append("\n")
+                sb.append(out)
+                sb.toString()
+        }
+    }
+}
+
+func scanDependency(packagePaths: Array<Path>, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, ScanDependencyError> {
+    let arguments = packagePaths |> flatMap { it: Path => ["-p", it.toString()] } |> concat(["--scan-dependency"]) |> collectArrayList
+    if (isTest) {
+        arguments.add("--test")
+    }
+    arguments.add(all: extractCfgOption(compileOptions))
+
+    let cmd: String = COMPILE_TOOL + " " + String.join(arguments.toArray(), delimiter: " ")
+    let (scanFlag, out, error) = execWithOutput(COMPILE_TOOL, arguments)
+
+    if (!scanFlag) {
+        return Err(
+            FailedToExecute(
+                cmd,
+                error
+            ))
+    }
+
+    try {
+        Ok(RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(out))))
+    } catch (_: Exception) {
+        Err(
+            FailedToParse(
+                cmd,
+                out
+            ))
+    }
+}
+
+private func cleanCanonicalize(path: Path): Option<Path> {
+    if (!directoryExists(path.toString()) && !fileExists(path.toString())) {
+        return None
+    }
+    let rawCanonicalized = canonicalize(path).toString().removeSuffix(PATH_SPLIT_CHAR)
+    let splitted = rawCanonicalized.split(PATH_SPLIT_CHAR)
+    Path([splitted[0]] |> concat(splitted[1..] |> filter { it => it != "." }) |> collectString(delimiter: PATH_SPLIT_CHAR)).normalize()
 }

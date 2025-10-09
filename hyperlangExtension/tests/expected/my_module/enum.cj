@@ -14,18 +14,21 @@ import ohos.base.*
 /* enum Colors {
 	 Red = RED,
 	 Green = GREEN,
-	 Blue = BLUE
+	 Blue = BLUE,
+	 Yellow = 'YELLOW'
 	}*/
 public enum Colors <: ToString & Equatable < Colors > {
     | Red
     | Green
-    | Blue 
+    | Blue
+    | Yellow 
 
     func get(): String {
         match(this) {
             case Red => "RED" 
             case Green => "GREEN" 
             case Blue => "BLUE" 
+            case Yellow => "YELLOW"  //todo: please check the value
         }
     }
     
@@ -34,6 +37,7 @@ public enum Colors <: ToString & Equatable < Colors > {
             case "RED" => Red 
             case "GREEN" => Green 
             case "BLUE" => Blue 
+            case "YELLOW" => Yellow  //todo: please check the value
             case _ => throw IllegalArgumentException("unknown value ${val}")
         }
     }
@@ -54,6 +58,7 @@ public enum Colors <: ToString & Equatable < Colors > {
             case(Red, Red) => true
             case(Green, Green) => true
             case(Blue, Blue) => true
+            case(Yellow, Yellow) => true
             case _ => false
         }
     }
@@ -226,5 +231,129 @@ public enum Response1 <: ToString & Equatable < Response1 > {
         !(this == that)
     }
 }
+
+// this is systemapi
+/*// @systemapi
+/* enum SystemErrorCode {
+	 success = 0,
+	 invalidInput = 1,
+	 networkError = 2,
+	 internalError = 3
+	}*/
+public enum SystemErrorCode <: ToString & Equatable < SystemErrorCode > {
+    | success
+    | invalidInput
+    | networkError
+    | internalError 
+
+    func get(): Int32 {
+        match(this) {
+            case success => 0 
+            case invalidInput => 1 
+            case networkError => 2 
+            case internalError => 3 
+        }
+    }
+    
+    static func parse(val: Int32): SystemErrorCode {
+        match(val) {
+            case 0 => success 
+            case 1 => invalidInput 
+            case 2 => networkError 
+            case 3 => internalError 
+            case _ => throw IllegalArgumentException("unknown value ${val}")
+        }
+    }
+    
+    static func tryParse(val: ?Int32): ?SystemErrorCode {
+        match(val) {
+            case Some(v) => parse(v)
+            case None => None
+        }
+    }
+    
+    public func toString(): String {
+        match(this) {
+            case success => "success"
+            case invalidInput => "invalidInput"
+            case networkError => "networkError"
+            case internalError => "internalError"
+        }
+    }
+    
+    public override operator func ==(that: SystemErrorCode): Bool {
+        match((this, that)) {
+            case(success, success) => true
+            case(invalidInput, invalidInput) => true
+            case(networkError, networkError) => true
+            case(internalError, internalError) => true
+            case _ => false
+        }
+    }
+    
+    public override operator func !=(that: SystemErrorCode): Bool {
+        !(this == that)
+    }
+}
+*/
+
+// this api is deprecated
+/*// @deprecated
+/* enum LegacyStatus {
+	 active = 0,
+	 inactive = 1,
+	 pending = 2
+	}*/
+public enum LegacyStatus <: ToString & Equatable < LegacyStatus > {
+    | active
+    | inactive
+    | pending 
+
+    func get(): Int32 {
+        match(this) {
+            case active => 0 
+            case inactive => 1 
+            case pending => 2 
+        }
+    }
+    
+    static func parse(val: Int32): LegacyStatus {
+        match(val) {
+            case 0 => active 
+            case 1 => inactive 
+            case 2 => pending 
+            case _ => throw IllegalArgumentException("unknown value ${val}")
+        }
+    }
+    
+    static func tryParse(val: ?Int32): ?LegacyStatus {
+        match(val) {
+            case Some(v) => parse(v)
+            case None => None
+        }
+    }
+    
+    public func toString(): String {
+        match(this) {
+            case active => "active"
+            case inactive => "inactive"
+            case pending => "pending"
+        }
+    }
+    
+    public override operator func ==(that: LegacyStatus): Bool {
+        match((this, that)) {
+            case(active, active) => true
+            case(inactive, inactive) => true
+            case(pending, pending) => true
+            case _ => false
+        }
+    }
+    
+    public override operator func !=(that: LegacyStatus): Bool {
+        !(this == that)
+    }
+}
+*/
 
 

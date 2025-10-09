@@ -589,12 +589,11 @@ dberr_no IndexDatabase::GetMatchingSymbols(
     try {
         Use (sql::SelectMatchingSymbols).execute(sqldb::with(pattern, flags, scope), [&](sqldb::Result row) {
             Symbol resSym;
-            bool result = true;
-            if (result = PopulateSymbolWithRank(row, resSym)) {
-                return result;
+            if (PopulateSymbolWithRank(row, resSym)) {
+                return true;
             }
-            if (result = PopulateReferenceCount(resSym)) {
-                return result;
+            if (PopulateReferenceCount(resSym)) {
+                return true;
             }
             return callback(resSym) ? RESULT_NEXT : RESULT_DONE;
         });

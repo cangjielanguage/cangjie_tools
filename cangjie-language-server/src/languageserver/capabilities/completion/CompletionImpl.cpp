@@ -98,8 +98,7 @@ std::string GetInterpolationPrefix(const ark::ArkAST &input, const StringPart &s
     std::vector<Token> tokenV;
     for (size_t i = 0; i < newTokens.size(); i ++) {
         auto nt = newTokens[i];
-        bool isValidTy = nt.kind == TokenKind::IDENTIFIER || nt.kind == TokenKind::DOT
-                         || nt.kind == TokenKind::LPAREN || nt.kind == TokenKind::RPAREN;
+        bool isValidTy = nt.kind == TokenKind::IDENTIFIER || nt.kind == TokenKind::DOT;
         if (isValidTy) {
             tokenV.push_back(nt);
         } else {
@@ -119,6 +118,7 @@ std::string GetInterpolationPrefix(const ark::ArkAST &input, const StringPart &s
     }
     std::string newPrefix;
     std::for_each(tokenV.begin(), tokenV.end(), [&newPrefix](Token t) { newPrefix += t.Value(); });
+    std::cerr << "newPrefix is " << newPrefix << std::endl;
     return newPrefix;
 }
 }

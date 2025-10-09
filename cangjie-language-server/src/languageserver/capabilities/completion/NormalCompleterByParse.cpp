@@ -200,40 +200,54 @@ std::pair<Ptr<Decl>, Ptr<Decl>> NormalCompleterByParse::CompleteCurrentPackages(
         if (!file) {
             continue;
         }
+        bool sameFile = file->fileHash == input.file->fileHash;
         for (auto &decl : file->decls) {
+            if (!sameFile && decl->TestAttr(Attribute::PRIVATE)) {
+                continue;
+            }
             if (!DealDeclInCurrentPackage(decl.get(), env)) {
                 continue;
             }
-            if (file->fileHash == input.file->fileHash && decl->GetBegin() <= pos &&
+            if (sameFile && decl->GetBegin() <= pos &&
                 pos <= decl->GetEnd()) {
                 innerDecl = decl.get();
             }
         }
     }
-    bool flag = !input.semaCache || !input.semaCache->file || !input.semaCache->file->curPackage ||
-                input.semaCache->file->curPackage->files.empty();
-    if (flag) {
+    semaCacheDecl = CompleteCurrentPackagesOnSema(input, pos, env);
+    env.isInPackage = false;
+    return {innerDecl, semaCacheDecl};
+}
+
+Ptr<Decl> NormalCompleterByParse::CompleteCurrentPackagesOnSema(const ArkAST &input, const Position pos,
+                                                                CompletionEnv &env)
+{
+    Ptr<Decl> semaCacheDecl = nullptr;
+    if (!input.semaCache || !input.semaCache->file || !input.semaCache->file->curPackage ||
+        input.semaCache->file->curPackage->files.empty()) {
         env.isInPackage = false;
-        return {innerDecl, semaCacheDecl};
+        return semaCacheDecl;
     }
     // add Sema topLevel completeItem
     for (auto &file : input.semaCache->file->curPackage->files) {
         if (!file || !file.get() || file->decls.empty()) {
             continue;
         }
+        bool sameFile = file->fileHash == input.file->fileHash;
         for (auto &decl : file->decls) {
-            if (decl && decl->astKind != Cangjie::AST::ASTKind::EXTEND_DECL) {
+            if (decl && decl->astKind != Cangjie::AST::ASTKind::EXTEND_DECL &&
+                !(!sameFile && decl->TestAttr(Attribute::PRIVATE))) {
                 env.CompleteNode(decl.get(), false, false, true);
-                if (file->fileHash == input.file->fileHash && decl->GetBegin() <= pos &&
+                if (sameFile && decl->GetBegin() <= pos &&
                     pos <= decl->GetEnd()) {
                     semaCacheDecl = decl.get();
                 }
             }
         }
     }
-    env.isInPackage = false;
-    return {innerDecl, semaCacheDecl};
+    return semaCacheDecl;
 }
+
 bool NormalCompleterByParse::CheckCompletionInParse(Ptr<Decl> decl)
 {
     if (!decl) {

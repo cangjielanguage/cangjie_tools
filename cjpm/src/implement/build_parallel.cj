@@ -77,8 +77,8 @@ class ParallelBuilder {
             return logFlag
         }
 
-        // Guaranteed valid order follows 'buildConfig.allPackages'
-        for (pkgName in this.buildConfig.allPackages) {
+        // Guaranteed valid order follows 'buildConfig.packageList.all'
+        for (pkgName in this.buildConfig.packageList.all) {
             if (!this.taskMap.contains(pkgName)) {
                 continue
             }
@@ -195,80 +195,96 @@ class ParallelBuilder {
         let envBuilder = EnvironmentBuilder()
         envBuilder.prepend(LD_PATH, ldPath)
 
-        let args: ArrayList<String> = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross)
-
-        CUR_PARALLEL_SIZE.fetchAdd(1)
-        if (!futJudge(args)) {
-            calculateParallel(CUR_PARALLEL_SIZE.load(), args)
+        let cjcCalls = ArrayList<ArrayList<String>>()
+        if (resolveConfig.packagePath.isMultiplatform) {
+            let (commonArgs, platformArgs) = getMultiplatformPipeline(resolveConfig, this.buildConfig, isNativeForCross)
+            cjcCalls.add(commonArgs)
+            cjcCalls.add(platformArgs)
+        } else {
+            let args = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross, false)
+            args.add(all: getTypeCommand(resolveConfig, this.buildConfig, isNativeForCross))
+            cjcCalls.add(args)
         }
 
-        let env = getVariables()
-        let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
-        if (this.buildConfig.isVerbose) {
-            let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
-            if (!isNativeForCross) {
-                if (!createAndWriteFile(resolveConfig.outLogFile, verbose)) {
-                    return false
-                }
-            } else {
-                if (!createAndWriteFile(resolveConfig.nativeOutLog, verbose)) {
-                    return false
-                }
+        var execCmdFlag: Bool = true
+        for (args in cjcCalls) {
+            if (!execCmdFlag) {
+                return false
             }
-        }
-
-        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-            addStartTime(resolveConfig.fullName, commandStr)
-        }
-        var execCmdFlag: Bool = false
-        var outFile: File
-        var errFile: File
-        var outFilePath: String = ""
-        var errFilePath: String = ""
-        try {
-            if (!isNativeForCross) {
-                outFilePath = resolveConfig.outLogFile
-                errFilePath = resolveConfig.errLogFile
-                outFile = File(resolveConfig.outLogFile, OpenMode.Append)
-                errFile = File(resolveConfig.errLogFile, OpenMode.Append)
-            } else {
-                outFilePath = resolveConfig.nativeOutLog
-                errFilePath = resolveConfig.nativeErrLog
-                outFile = File(resolveConfig.nativeOutLog, OpenMode.Append)
-                errFile = File(resolveConfig.nativeErrLog, OpenMode.Append)
+            execCmdFlag = false
+            CUR_PARALLEL_SIZE.fetchAdd(1)
+            if (!futJudge(args)) {
+                calculateParallel(CUR_PARALLEL_SIZE.load(), args)
             }
-        } catch (e: Exception) {
-            eprintln(e.message)
-            eprintln("Error: create '${outFilePath}' failed")
-            return false
-        }
-        try {
-            if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
-                if (returnCode == 0) {
-                    execCmdFlag = true
-                    if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-                        moveCjcProfToCjpmDir(resolveConfig, buildConfig.globalConfig.compilePerformanceTargetDir)
+
+            let env = getVariables()
+            let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
+            if (this.buildConfig.isVerbose) {
+                let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
+                if (!isNativeForCross) {
+                    if (!createAndWriteFile(resolveConfig.outLogFile, verbose, mode: Append)) {
+                        return false
                     }
                 } else {
-                    errFile.write(("Error: failed to compile package `${resolveConfig.fullName}`, " +
-                        "return code is ${returnCode}\n").toArray())
+                    if (!createAndWriteFile(resolveConfig.nativeOutLog, verbose, mode: Append)) {
+                        return false
+                    }
                 }
-            } else {
-                errFile.write(("Error: failed to compile package `${resolveConfig.fullName}` " +
-                    "with exception occurred\n").toArray())
             }
-        } catch (e: Exception) {
-            eprintln("Error: failed to write error log into ${errFilePath}: ${e.message}")
-            execCmdFlag = false
-        }
-        CUR_PARALLEL_SIZE.fetchSub(1)
-        outFile.close()
-        errFile.close()
 
-        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-            addEndTime(resolveConfig.fullName)
-        }
+            if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+                addStartTime(resolveConfig.fullName, commandStr)
+            }
+            var outFile: File
+            var errFile: File
+            var outFilePath: String = String()
+            var errFilePath: String = String()
+            try {
+                if (!isNativeForCross) {
+                    outFilePath = resolveConfig.outLogFile
+                    errFilePath = resolveConfig.errLogFile
+                    outFile = File(resolveConfig.outLogFile, OpenMode.Append)
+                    errFile = File(resolveConfig.errLogFile, OpenMode.Append)
+                } else {
+                    outFilePath = resolveConfig.nativeOutLog
+                    errFilePath = resolveConfig.nativeErrLog
+                    outFile = File(resolveConfig.nativeOutLog, OpenMode.Append)
+                    errFile = File(resolveConfig.nativeErrLog, OpenMode.Append)
+                }
+            } catch (e: Exception) {
+                eprintln(e.message)
+                eprintln("Error: create '${outFilePath}' failed")
+                return false
+            }
+            try {
+                if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
+                    if (returnCode == 0) {
+                        execCmdFlag = true
+                        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+                            moveCjcProfToCjpmDir(resolveConfig, buildConfig.globalConfig.compilePerformanceTargetDir)
+                        }
+                    } else {
+                        execCmdFlag = false
+                        errFile.write("Error: failed to compile package `${resolveConfig.fullName}`, return code is ${returnCode}\n".toArray())
+                        if (resolveConfig.packagePath.isMultiplatform) {
+                            errFile.write("${SourceLocationsPrinter(resolveConfig.packagePath, resolveConfig.features, project: resolveConfig.fullName)}".toArray())
+                        }
+                    }
+                } else {
+                    errFile.write("Error: failed to compile package `${resolveConfig.fullName}` with exception occurred\n".toArray())
+                }
+            } catch (e: Exception) {
+                eprintln("Error: failed to write error log into ${errFilePath}: ${e.message}")
+                execCmdFlag = false
+            }
+            CUR_PARALLEL_SIZE.fetchSub(1)
+            outFile.close()
+            errFile.close()
 
+            if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+                addEndTime(resolveConfig.fullName)
+            }
+        }
         return execCmdFlag
     }
 }
@@ -282,7 +298,7 @@ func moveCjcProfToCjpmDir(resolveConfig: ResolveConfig, profcompilePerformancePa
             copy(pkgNameProfPath, to: profPath, overwrite: true)
             remove(pkgNameProfPath)
         } else {
-            println("Warning: cannot find ${pkgNameProfPath.toString()} file")
+            eprintln("Error: cannot find ${pkgNameProfPath.toString()} file")
         }
     }
     return
@@ -325,6 +341,13 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
                 return false
             }
 
+            if (resolve.packagePath.isMultiplatform) {
+                let finalCommonPath = Path(finalPath).join("common").toString()
+                if (!createDirectory(finalCommonPath)) {
+                    return false
+                }
+            }
+
             var resolveConfig = ResolveConfig()
             resolveConfig.targetPath = finalPath
             resolveConfig.packagePath = resolve.packagePath
@@ -341,7 +364,7 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
             resolveConfig.nativePlatform = resolve.nativePlatform
             resolveConfig.superPkgCfg = resolve.superPkgCfg
             resolveConfig.hasTestFiles = resolve.hasTestFiles
-            if (buildConfig.isIncremental && resolveConfig.outputType == STATIC_TYPE &&
+            if (buildConfig.isIncremental && resolveConfig.outputType == Static &&
                 buildConfig.indirectRebuilds.contains(resolve.fullName)) {
                 resolveConfig.checkDepCjo = true
             }
@@ -421,10 +444,10 @@ func loadLogAndPrint(file: String, isStderr: Bool): Bool {
     return true
 }
 
-func getFinalPath(targetDir: String, nativeDir: String, outputType: String, isTargetPlatform: Bool, name: String,
+func getFinalPath(targetDir: String, nativeDir: String, outputType: OutputType, isTargetPlatform: Bool, name: String,
     requiredForTests: Bool): String {
     var res = ""
-    if (outputType == EXE_TYPE && !requiredForTests) {
+    if (outputType == Exe && !requiredForTests) {
         if (isTargetPlatform) {
             res = Path(targetDir).join(BIN).toString()
         } else {
@@ -452,7 +475,7 @@ func getLogPath(targetDir: String, nativeDir: String, isTargetPlatform: Bool, ro
 
 func calculateParallel(currentParalla: Int64, args: ArrayList<String>): Unit {
     var thisParallelSize = currentParalla
-    let totalParallelSize = getCpus()
+    let totalParallelSize = maxParallelSize
 
     if (currentParalla <= 2) {
         thisParallelSize = totalParallelSize

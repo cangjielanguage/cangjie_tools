@@ -221,6 +221,8 @@
 {"completion":{"testFile":"LSP_Completion_Override_003.test","id":"8","useDB":true}}
 {"completion":{"testFile":"LSP_Completion_Override_004.test","id":"19"}}
 {"completion":{"testFile":"LSP_Completion_Override_005.test","id":"31"}}
+{"completion":{"testFile":"LSP_Completion_Private_Topdecl.test","id":"5"}}
+{"completion":{"testFile":"LSP_Completion_2025090945008.test","id":"11"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
@@ -1116,3 +1118,8 @@
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Enum_Extend_Twice_001.test","id":"248"}}
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Extend_One_001.test","id":"255"}}
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Extend_Two_001.test","id":"256"}}
+
+{"fileReferences":{"testFile":"LSP_FileReferences_001.test","id":"2"}}
+{"fileReferences":{"testFile":"LSP_FileReferences_002.test","id":"2"}}
+{"fileReferences":{"testFile":"LSP_FileReferences_003.test","id":"2"}}
+{"fileReferences":{"testFile":"LSP_FileReferences_004.test","id":"2"}}

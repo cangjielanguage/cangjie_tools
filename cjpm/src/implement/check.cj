@@ -84,15 +84,15 @@ func dealWithSuperPkg(dm: DepModel): Unit {
             }
             superPkgCfg.subPkgSet.add(pkgName)
             if (!dm.packageDepMap[pkgName].isMacroPackage) {
-                dm.packageDepMap[pkgName].outputType = STATIC_TYPE
+                dm.packageDepMap[pkgName].outputType = Static
             }
         }
         dm.packageDepMap[superPkgName].superPkgCfg = superPkgCfg
-        if (dm.packageDepMap[superPkgName].outputType != DYNAMIC_TYPE) {
+        if (dm.packageDepMap[superPkgName].outputType != Dynamic) {
             println("Warning: output-type of combined root package '${superPkgName}' in " +
                 "${Path(dm.globalConfig.rootPath).join(CONFIG_FILE_NAME).toString()} is not 'dynamic', " +
                 "final output will be dynamic library")
-            dm.packageDepMap[superPkgName].outputType = DYNAMIC_TYPE
+            dm.packageDepMap[superPkgName].outputType = Dynamic
         }
     }
     for (notSupport in notSupportSet) {

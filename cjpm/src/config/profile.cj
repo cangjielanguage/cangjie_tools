@@ -33,6 +33,7 @@ public class Profile <: Serializable<Profile> {
     public var bench: TestProfile = TestProfile(JsonObject())
     public var run: RunProfile = RunProfile()
     public var customizedOption: HashMap<String, String> = HashMap<String, String>()
+    public var isExperimental = false
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -51,6 +52,10 @@ public class Profile <: Serializable<Profile> {
         result.run = RunProfile.deserialize((dms.get("run") as DataModelStruct) ?? DataModelStruct())
         result.customizedOption = HashMap<String, String>.deserialize(
             (dms.get(CUSTOMIZED_OPTION) as DataModelStruct) ?? DataModelStruct())
+        result.isExperimental = match (dms.get("experimental") as DataModelBool) {
+            case Some(val) => val.getValue()
+            case None => false
+        }
         return result
     }
 }
@@ -59,7 +64,7 @@ public class BuildProfile <: Serializable<BuildProfile> {
     public var ltoValue: String = ""
     public var incremental: Bool = false
     public var analysisCompilePerformance: Bool = false
-    public var combined: HashMap<String, String> = HashMap<String, String>()
+    public var combined: HashMap<String, OutputType> = HashMap<String, OutputType>()
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -74,10 +79,10 @@ public class BuildProfile <: Serializable<BuildProfile> {
         var result = BuildProfile()
         result.ltoValue = String.deserialize((dms.get("lto") as DataModelString) ?? DataModelString(""))
         result.incremental = Bool.deserialize((dms.get("incremental") as DataModelBool) ?? DataModelBool(false))
-        result.analysisCompilePerformance = Bool.deserialize(
-            (dms.get("performance_analysis") as DataModelBool) ?? DataModelBool(false))
-        result.combined = HashMap<String, String>.deserialize(
-            (dms.get("combined") as DataModelStruct) ?? DataModelStruct())
+        result.analysisCompilePerformance = Bool.deserialize((dms.get("performance_analysis") as DataModelBool) ??
+            DataModelBool(false))
+        result.combined = HashMap<String, OutputType>.deserialize((dms.get("combined") as DataModelStruct) ??
+            DataModelStruct())
         return result
     }
 }
@@ -355,13 +360,12 @@ public func verifyCombinedField(cfg: TomlInfo, path: String): Bool {
     var flag = true
     for ((pkgName, outputType) in cfg.profile.build.combined) {
         if (pkgName != cfg.pkg.name) {
-            eprintln(
-                "Error: field 'profile.build.combined' in ${Path(path).join(CONFIG_FILE_NAME).toString()} " +
-                    "can only used for root package '${cfg.pkg.name}', current value is '${pkgName}'")
+            eprintln("Error: field 'profile.build.combined' in ${Path(path).join(CONFIG_FILE_NAME).toString()} " +
+            "can only used for root package '${cfg.pkg.name}', current value is '${pkgName}'")
             flag = false
             continue
         }
-        if (outputType != DYNAMIC_TYPE) {
+        if (outputType != Dynamic) {
             eprintln(
                 "Error: field 'profile.build.combined.${cfg.pkg.name}' in " +
                     "${Path(path).join(CONFIG_FILE_NAME).toString()} can only configured as 'dynamic'")
@@ -380,7 +384,7 @@ func verifyCustomizedOption(customizedOption: HashMap<String, String>, path: Str
         if (!customizedOptionCheck(k, path)) {
             return false
         }
-        let ownOptions = ["jobs", "coverage", "verbose", "incremental", "help", "mock", "bench"]
+        let ownOptions = ["jobs", "coverage", "verbose", "incremental", "help", "lint", "mock", "bench"]
         if (ownOptions.contains(k)) {
             eprintln("Error: '${k}' is an option used by cjpm, it does not allow to be used as a customized key")
             return false
@@ -399,9 +403,9 @@ public func verifyEnvConfig(envConfig: HashMap<String, EnvInfo>, cmd: String, co
             return false
         }
         if (let Unknown(_) <- envInfo.spliceType) {
-            eprintln(
-                "Error: splice type of environment variable '${envName}' in profile '${cmd}' " +
-                    "in ${configFilePath} can be only '${SpliceType.ABSENT}', '${SpliceType.REPLACE}', '${SpliceType.PREPEND}' or '${SpliceType.APPEND}'")
+            eprintln("Error: splice type of environment variable '${envName}' in profile '${cmd}' " +
+                "in ${configFilePath} can be only '${SpliceType.ABSENT}', '${SpliceType.REPLACE}', " +
+                "'${SpliceType.PREPEND}' or '${SpliceType.APPEND}'")
             return false
         }
     }
@@ -418,7 +422,7 @@ func getMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float6
     } catch (_) {
     }
 
-    return Float64.parse(memoryStr) / K_BYTE // unit: MB
+    return Float64.parse(memoryStr) / K_BYTE  // unit: MB
 }
 
 /**
@@ -533,8 +537,8 @@ struct vm_statistics64_data_t {
 }
 
 @When[os == "macOS"]
-foreign func host_statistics64(mach_host: Int64, HOST_VM_INFO64: Int32, memoryData: CPointer<vm_statistics64_data_t>,
-    mach_msg_type_number_t: CPointer<UInt32>): Int64
+foreign func host_statistics64(mach_host: Int64, HOST_VM_INFO64: Int32,
+    memoryData: CPointer<vm_statistics64_data_t>, mach_msg_type_number_t: CPointer<UInt32>): Int64
 
 @When[os == "macOS"]
 foreign func mach_host_self(): Int64
@@ -575,18 +579,17 @@ public func getCjpmMemInfo(): Float64 {
 public func addMemoryProcess(): Future<Thread> {
     let cjpmMemOffset = getMemInfo() - getCjpmMemInfo()
     CJPM_COMPILE_INFO.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCjpmMemInfo())
-    let memoryProcess = spawn {
-        =>
-            while (true) {
-                if (Thread.currentThread.hasPendingCancellation) {
-                    return Thread.currentThread
-                }
-                sleep(100 * Duration.millisecond)
-                var cjpmRealTimeSystemPhysicalMemory = getMemInfo() - cjpmMemOffset
-                var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
-                CJPM_COMPILE_INFO.add(cjpmTime, cjpmRealTimeSystemPhysicalMemory)
+    let memoryProcess = spawn { =>
+        while (true) {
+            if (Thread.currentThread.hasPendingCancellation) {
+                return Thread.currentThread
             }
-            return Thread.currentThread
+            sleep(100 * Duration.millisecond)
+            var cjpmRealTimeSystemPhysicalMemory = getMemInfo() - cjpmMemOffset
+            var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
+            CJPM_COMPILE_INFO.add(cjpmTime,cjpmRealTimeSystemPhysicalMemory)
+        }
+        return Thread.currentThread
     }
     return memoryProcess
 }

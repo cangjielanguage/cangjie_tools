@@ -7,6 +7,16 @@ type ErrorCode = number;
 
 enum EventType {}
 
+enum ListenerStatusNumeric {
+    on,
+    off
+}
+ 
+enum ListenerStatusString {
+    on = "ON",
+    off = "OFF"
+}
+
 interface TestListener {
     "onStart"?: () => void;
     "onDestroy"?: () => void;
@@ -16,5 +26,26 @@ interface TestListener {
 }
 
 interface MyListener {
-    on(key: string, param: boolean, cb: (r: Record<string, string>) => void);
+    on(key: string, cb: (r: Record<string, string>) => void);
+    off(key: string, cb: (r: Record<string, string>, t:number) => void);
 }
+ 
+interface MyListener2 {
+    on(key: string, cb: (r: ListenerStatusNumeric) => void);
+}
+ 
+interface MyListener3 {
+    on(key: string, cb: (r: ListenerStatusString) => void);
+}
+ 
+class MyListener4 {
+    static on(key: string, cb: (r: ListenerStatusString) => void);
+}
+ 
+interface MyListener5 {
+    on(key: string, cb: Callback<number>)
+}
+ 
+export function on(key: string, cb: (r: Record<string, string>, option, t?:number) => void);
+ 
+export function off(key: string, cb?: (r: Record<string, string>, t:number) => void);

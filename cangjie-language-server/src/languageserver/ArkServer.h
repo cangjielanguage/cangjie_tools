@@ -67,6 +67,8 @@ public:
     void FindReferences(const std::string &file, const TextDocumentPositionParams &params,
                         const Callback<ValueOrError> &reply) const;
 
+    void FindFileReferences(const std::string &file, const Callback<ValueOrError> &reply) const;
+
     void LocateSymbolAt(const std::string &file, const TextDocumentPositionParams &params,
                         const Callback<ValueOrError> &reply) const;
 

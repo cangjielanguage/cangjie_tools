@@ -13,11 +13,15 @@ import cjpm.toml.Encoder as EncoderToml
 import cjpm.config.*
 
 // Command init implement.
-public func doInit(name: String, path: String, outputType: String, initWorkspace: Bool, typeFlag: Bool): Bool {
+public func doInit(name: String, path: String, outputType: OutputType, initExperimental: Bool, initWorkspace: Bool, typeFlag: Bool): Bool {
     var rootPkgName: String = ""
     var modPath: String = ""
 
     if (initWorkspace) {
+        if (initExperimental) {
+            eprintln("Error: cannot use flag '--workspace' together with '--experimental'")
+            return false
+        }
         addIgnoreInfo(name, path, typeFlag)
         modPath = DIR_CURRENT
         rootPkgName = WORKSPACE_NAME
@@ -34,7 +38,7 @@ public func doInit(name: String, path: String, outputType: String, initWorkspace
             return false
         }
     } else {
-        if (!createModule(rootPkgName, modPath, outputType)) {
+        if (!createModule(rootPkgName, modPath, outputType, initExperimental)) {
             return false
         }
     }
@@ -111,13 +115,13 @@ func initModule(name: String, path: String): Option<(String, String)> {
 }
 
 // Create module files
-func createModule(rootPkgName: String, modPath: String, outputType: String): Bool {
+func createModule(rootPkgName: String, modPath: String, outputType: OutputType, initExperimental: Bool): Bool {
     let configFileName: String = getPath(modPath, CONFIG_FILE_NAME)
     let srcDir: String = getPath(modPath, DIR_SRC)
 
     if (fileExists(configFileName)) {
         eprintln("Warning: the '${CONFIG_FILE_NAME}' file already exists")
-    } else if (!initTomlFile(rootPkgName, configFileName, outputType)) {
+    } else if (!initTomlFile(rootPkgName, configFileName, outputType, initExperimental)) {
         return false
     }
 
@@ -129,7 +133,7 @@ func createModule(rootPkgName: String, modPath: String, outputType: String): Boo
         return false
     }
 
-    if (outputType == EXE_TYPE) {
+    if (let Exe <- outputType) {
         let mainString = "package ${rootPkgName}\n\nmain(): Int64 {\n    println(\"hello world\")\n    return 0\n}"
         if (!createAndWriteFile(Path(srcDir).join("main.cj").toString(), mainString)) {
             return false
@@ -177,7 +181,7 @@ func createWorkspace(): Bool {
 }
 
 // Init default cjpm.toml file.
-func initTomlFile(rootPkgName: String, configFileName: String, outputType: String): Bool {
+func initTomlFile(rootPkgName: String, configFileName: String, outputType: OutputType, initExperimental: Bool): Bool {
     let (execRes, outInfo, errInfo) = execWithOutput(COMPILE_TOOL, ArrayList<String>(["-v"]))
     if (!execRes) {
         eprintln(errInfo)
@@ -185,6 +189,7 @@ func initTomlFile(rootPkgName: String, configFileName: String, outputType: Strin
     }
     let cjcVersion: String = getCjcVersion(outInfo)
     let tomlInfo: TomlInfo = TomlInfo(rootPkgName, outputType, cjcVersion)
+    tomlInfo.profile.isExperimental = initExperimental
     return createTomlFile(configFileName, tomlInfo)
 }
 
@@ -202,14 +207,14 @@ func createTomlFile(configFileName: String, tomlInfo: TomlInfo): Bool {
 }
 
 // Create and open a file named filePath, then write fileString to fileName.
-public func createAndWriteFile(filePath: String, fileString: String): Bool {
+public func createAndWriteFile(filePath: String, fileString: String, mode!: OpenMode = Write): Bool {
     if (directoryExists(filePath)) {
         eprintln("Error: failed to create '${filePath}', because a directory with the same name already exists")
         return false
     }
 
     var f: File = try {
-        File(filePath, Write)
+        File(filePath, mode)
     } catch (e: Exception) {
         let errMsg = "Error: create '${filePath}' failed"
         match (e) {

@@ -46,4 +46,18 @@ public func testNoGeneric(t: T): T {
     }
 }
 
+/**
+	 * @brief init(type: string, data: any): void
+	 */
+public func _init(`type`: String, data: Any): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_genericFunction", "init", { ctx =>[`type`.toJSValue(ctx), data.toJSValue(ctx)] })
+}
+
+/**
+	 * @brief getObject(extra: number, info: string): void
+	 */
+public func _getObject(extra: Float64, info: String): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_genericFunction", "getObject", { ctx =>[extra.toJSValue(ctx), info.toJSValue(ctx)] })
+}
+
 

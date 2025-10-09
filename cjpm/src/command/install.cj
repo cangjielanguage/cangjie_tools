@@ -35,6 +35,7 @@ Available option:
   --skip-build              install binary in target directory directly without building
   --list                    list all installed modules and their versions
   --skip-script             disable script 'build.cj'."""
+
 let SKIP_BUILD_WARNING = "Warning: cannot skip building while installing binary from Git, " +
     "--skip-build will be ignored"
 let INSTALL_TYPE_CONFLICT = "Error: cjpm install can have at most one type of configuration " +
@@ -42,8 +43,8 @@ let INSTALL_TYPE_CONFLICT = "Error: cjpm install can have at most one type of co
 
 class InstallCommand <: Handle {
     private let INSTALL_SHORT_OPTION: String = "Vm:gj:"
-    private let INSTALL_LONG_OPTION: Array<String> = ["verbose", "member=", "path=", "root=", "git=", "branch=",
-        "tag=", "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script"]
+    private let INSTALL_LONG_OPTION: Array<String> = ["verbose", "member=", "path=", "root=", "git=", "branch=", "tag=",
+        "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script"]
     public var installConfig: InstallConfig = InstallConfig()
 
     init(args: Array<String>) {
@@ -165,6 +166,12 @@ class InstallCommand <: Handle {
                 } else {
                     this.installConfig.installType = InstallType.Local
                 }
+            // used for central repository
+            case InstallType.Repo =>
+                if (pathFlag || gitFlag) {
+                    eprintln(INSTALL_TYPE_CONFLICT)
+                    return false
+                }
             case _ => ()
         }
         return true
@@ -228,9 +235,29 @@ class InstallCommand <: Handle {
                 if (targetDirFlag) {
                     eprintln("Warning: --target-dir will be ignored with --git")
                 }
+            // used for central repository
+            case InstallType.Repo =>
+                if (targetDirFlag) {
+                    eprintln("Warning: --target-dir will be ignored when installing central repository modules")
+                }
             case _ => ()
         }
 
         return doInstall(this.installConfig)
     }
+}
+
+// used for central repository
+func handleNameVersion(installConfig: InstallConfig, arg: String): Bool {
+    if (nameVersionCheck(arg)) {
+        installConfig.artifacts.add(arg)
+        installConfig.installType = InstallType.Repo
+        return true
+    }
+    if (arg.contains(":")) {
+        eprintln("Error: repo argument ${arg} is wrong, the example is '${EXAMPLE_NAME_VERSION}'")
+        return false
+    }
+    eprintln("Error: unknown command '${arg}' for cjpm install")
+    return false
 }

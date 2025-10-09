@@ -8,6 +8,7 @@ package cjpm
 
 import std.env.*
 import cjpm.command.*
+import cjpm.util.CliFailError
 
 func getCommandArgs(): Array<String> {
     return getCommandLine()[1..]
@@ -18,35 +19,41 @@ main(): Int64 {
 
     let factory = CommandFactory()
     let cmdHandler = factory.createCommandHandler(args)
+    try {
+        if (hasHelpCommand(cmdHandler)) {
+            return 0
+        }
 
-    if (hasHelpCommand(cmdHandler)) {
-        return 0
-    }
+        if (lackCjc()) {
+            return 1
+        }
 
-    if (lackCjc()) {
-        return 1
-    }
+        if (!runScriptPreCommand(cmdHandler.cmdName, cmdHandler.arguments)) {
+            cmdHandler.printError()
+            return 1
+        }
 
-    if (!runScriptPreCommand(cmdHandler.cmdName, cmdHandler.arguments)) {
+        if (!cmdHandler.handleCommand()) {
+            cmdHandler.printError()
+            return 1
+        }
+
+        if (!runScriptPostCommand(cmdHandler.cmdName)) {
+            cmdHandler.printError()
+            return 1
+        }
+
+        if (!postCommandScript()) {
+            cmdHandler.printError()
+            return 1
+        }
+
+        cmdHandler.printPass()
+    } catch (e: CliFailError) {
+        eprintln(e.message)
         cmdHandler.printError()
         return 1
     }
 
-    if (!cmdHandler.handleCommand()) {
-        cmdHandler.printError()
-        return 1
-    }
-
-    if (!runScriptPostCommand(cmdHandler.cmdName)) {
-        cmdHandler.printError()
-        return 1
-    }
-
-    if (!postCommandScript()) {
-        cmdHandler.printError()
-        return 1
-    }
-
-    cmdHandler.printPass()
     return 0
 }

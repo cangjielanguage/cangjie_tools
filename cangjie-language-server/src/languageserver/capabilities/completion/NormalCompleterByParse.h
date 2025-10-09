@@ -36,6 +36,8 @@ private:
     std::pair<Ptr<Decl>, Ptr<Decl>> CompleteCurrentPackages(const ArkAST &input, const Position pos,
                                                             CompletionEnv &env);
 
+    Ptr<Decl> CompleteCurrentPackagesOnSema(const ArkAST &input, const Position pos, CompletionEnv &env);                                                            
+
     void FillingDeclsInPackage(const std::string &packageName,
                                CompletionEnv &env,
                                Ptr<const Cangjie::AST::PackageDecl> pkgDecl);

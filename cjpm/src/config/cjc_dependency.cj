@@ -29,18 +29,20 @@ public class ImportInfo <: Serializable<ImportInfo> {
     }
 }
 
-public class FullName <: Serializable<FullName> {
-    public var packageName: String = ""
-    public var isStdlibPackage: Bool = false
-    public var orPkgName: String = ""
-    public var importsList: ArrayList<ImportInfo> = ArrayList<ImportInfo>()
+public struct FullName <: Serializable<FullName> {
+    private FullName(
+        public let packageName: String,
+        public let isStdlibPackage: Bool,
+        public let orPkgName: String,
+        public let importsList: Array<ImportInfo>
+    ) {}
 
     public func serialize(): DataModel {
         let result = DataModelStruct()
         result.add(field<String>("orPackage", this.orPkgName))
         result.add(field<String>("package", this.packageName))
         result.add(field<Bool>("isStd", this.isStdlibPackage))
-        result.add(field<ArrayList<ImportInfo>>("imports", this.importsList))
+        result.add(field<Array<ImportInfo>>("imports", this.importsList))
         return result
     }
 
@@ -49,12 +51,17 @@ public class FullName <: Serializable<FullName> {
             case data: DataModelStruct => data
             case _ => throw Exception("this data is not DataModelStruct")
         }
-        var result = FullName()
-        result.orPkgName = String.deserialize((dms.get("orPackage") as DataModelString) ?? DataModelString(""))
-        result.packageName = String.deserialize(dms.get("package"))
-        result.isStdlibPackage = Bool.deserialize(dms.get("isStd"))
-        result.importsList = ArrayList<ImportInfo>.deserialize((dms.get("imports") as DataModelSeq) ?? DataModelSeq())
-        return result
+        let packageName = String.deserialize(dms.get("package"))
+        let isStdlibPackage = Bool.deserialize(dms.get("isStd"))
+        let orPkgName = String.deserialize((dms.get("orPackage") as DataModelString) ?? DataModelString(""))
+        let importsList = Array<ImportInfo>.deserialize((dms.get("imports") as DataModelSeq) ?? DataModelSeq())
+
+        FullName(
+            packageName,
+            isStdlibPackage,
+            orPkgName,
+            importsList
+        )
     }
 }
 
@@ -76,6 +83,8 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.add(field<Int64>("timeStamp", this.timeStamp))
         result.add(field<ArrayList<FullName>>(DEPENDENCIES, this.dependencies))
         result.add(field<ArrayList<FullName>>("std-dependencies", this.stdDependencies))
+        result.add(field<Bool>("testUsed", this.testUsed))
+        result.add(field<Bool>("mockUsed", this.mockUsed))
         return result
     }
 
@@ -87,9 +96,10 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         var result = RequiresPackages()
         result.packageName = String.deserialize(dms.get("package"))
         result.isMacroPackage = Bool.deserialize(dms.get("isMacro"))
-        result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public")
-        )
+        result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public"))
         result.timeStamp = Int64.deserialize((dms.get("timeStamp") as DataModelInt) ?? DataModelInt(0))
+        result.testUsed = Bool.deserialize((dms.get("testUsed") as DataModelBool) ?? DataModelBool(false))
+        result.mockUsed = Bool.deserialize((dms.get("mockUsed") as DataModelBool) ?? DataModelBool(false))
         let allDependencies = ArrayList<FullName>.deserialize(dms.get(DEPENDENCIES))
         for (dependency in allDependencies) {
             if (!result.testUsed && isTestPackage(dependency)) {
@@ -199,11 +209,11 @@ public enum MockSupport <: Equatable<MockSupport> & ToString {
 }
 
 func isMockPackage(dependency: FullName) {
-    return dependency.isStdlibPackage &&
-        (dependency.packageName == "std.unittest.mock" || dependency.packageName == "std.unittest.mock.mockmacro")
+    return dependency.isStdlibPackage && (dependency.packageName == "std.unittest.mock" ||
+        dependency.packageName == "std.unittest.mock.mockmacro")
 }
 
 func isTestPackage(dependency: FullName) {
-    return dependency.isStdlibPackage &&
-        (dependency.packageName == "std.unittest" || dependency.packageName == "std.unittest.testmacro")
+    return dependency.isStdlibPackage && (dependency.packageName == "std.unittest" ||
+        dependency.packageName == "std.unittest.testmacro")
 }

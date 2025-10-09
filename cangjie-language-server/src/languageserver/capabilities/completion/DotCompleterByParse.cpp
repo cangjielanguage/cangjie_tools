@@ -235,25 +235,57 @@ void DotCompleterByParse::NestedMacroComplete(const ArkAST &input, const Positio
     if (!newSemaCache || !newSemaCache->file || newSemaCache->file->originalMacroCallNodes.empty()) {
         return;
     }
-    auto ty = GetTyFromMacroCallNodes(expr, std::move(newSemaCache));
+    Ptr<Ty> ty;
+    Ptr<NameReferenceExpr> resExpr;
+    GetTyFromMacroCallNodes(expr, std::move(newSemaCache), ty, resExpr);
     if (!ty) {
         return;
     }
-    std::unordered_set<Ptr<AST::Ty>> tys = {ty};
-    Candidate candidate(tys);
-    CompleteCandidate(pos, prefix, env, candidate);
+    if (Ty::IsTyCorrect(ty)) {
+        std::unordered_set<Ptr<AST::Ty>> tys = {ty};
+        Candidate candidate(tys);
+        CompleteCandidate(pos, prefix, env, candidate);
+        return;
+    }
+    if (!resExpr) {
+        return;
+    }
+    CompleteByReferenceTarget(pos, prefix, env, expr, resExpr);
 }
 
-Ptr<Ty> DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst)
+void DotCompleterByParse::CompleteByReferenceTarget(const Position &pos, const std::string &prefix, CompletionEnv &env,
+    const Ptr<Expr> &expr, const Ptr<NameReferenceExpr> &resExpr)
+{
+    std::string comPrefix = prefix;
+    if (comPrefix.empty()) {
+        if (auto tc = DynamicCast<TrailingClosureExpr *>(expr.get())) {
+            if (auto re = DynamicCast<RefExpr *>(tc->expr.get())) {
+                comPrefix = re->ref.identifier;
+            }
+            bool hasLocalDecl = CheckHasLocalDecl(comPrefix, resExpr->scopeName, tc, pos);
+            Candidate declOrTy = CompilerCangjieProject::GetInstance()->GetGivenReferenceTarget(
+                *context, resExpr->scopeName, *tc, hasLocalDecl, packageNameForPath);
+            CompleteCandidate(pos, prefix, env, declOrTy);
+            return;
+        }
+    }
+    bool hasLocalDecl = CheckHasLocalDecl(comPrefix, resExpr->scopeName, expr.get(), pos);
+    Candidate declOrTy = CompilerCangjieProject::GetInstance()->GetGivenReferenceTarget(
+        *context, resExpr->scopeName, *expr, hasLocalDecl, packageNameForPath);
+    CompleteCandidate(pos, prefix, env, declOrTy);
+}
+
+void DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst,
+    Ptr<Ty> &ty, Ptr<NameReferenceExpr> &resExpr)
 {
     Ptr<NameReferenceExpr> semaCacheExpr;
     auto macroCallNodes = &arkAst->file->originalMacroCallNodes;
     if (macroCallNodes->empty()) {
-        return nullptr;
+        return;
     }
     auto visitPre = [&expr, &semaCacheExpr](auto node) {
         if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
-            if (ma->begin == expr->begin) {
+            if (ma->begin == expr->begin && ma->end == expr->end) {
                 semaCacheExpr = ma;
                 return VisitAction::STOP_NOW;
             }
@@ -269,14 +301,16 @@ Ptr<Ty> DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique
         }
     }
     if (!semaCacheExpr) {
-        return nullptr;
+        return;
     }
-    auto macroNewPos = semaCacheExpr->GetMacroCallNewPos(semaCacheExpr->begin);
-    Ptr<Ty> ty;
-    auto searchTy = [&ty, &macroNewPos](auto node) {
+    Position nextTokenPos = GetMacroNodeNextPosition(arkAst, semaCacheExpr);
+    auto macroBeginPos = semaCacheExpr->GetMacroCallNewPos(semaCacheExpr->begin);
+    auto maNextTokenPos = semaCacheExpr->GetMacroCallNewPos(nextTokenPos);
+    auto searchTy = [&ty, &macroBeginPos, &maNextTokenPos, &resExpr](auto node) {
         if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
-            if (ma->begin == macroNewPos) {
+            if (ma->begin == macroBeginPos && (maNextTokenPos.IsZero() || ma->end <= maNextTokenPos)) {
                 ty = ma->ty;
+                resExpr = ma;
                 return VisitAction::STOP_NOW;
             }
         }
@@ -284,14 +318,30 @@ Ptr<Ty> DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique
     };
     auto decls = &arkAst->file->decls;
     if (decls->empty()) {
-        return nullptr;
+        return;
     }
     for (const auto &decl : *decls) {
         if (decl) {
             Walker(decl, searchTy).Walk();
         }
     }
-    return ty;
+}
+
+Position DotCompleterByParse::GetMacroNodeNextPosition(
+    const std::unique_ptr<ArkAST> &arkAst, const Ptr<NameReferenceExpr> &semaCacheExpr) const
+{
+    int index = arkAst->GetCurTokenByPos(semaCacheExpr->end, 0, static_cast<int>(arkAst->tokens.size()) - 1);
+    Position nextTokenPos;
+    if (index != -1 && index < static_cast<int>(arkAst->tokens.size()) - 1) {
+        int temp = index + 1;
+        while (temp <= static_cast<int>(arkAst->tokens.size()) - 1 && arkAst->tokens[temp].kind == TokenKind::NL) {
+            temp++;
+        }
+        if (temp <= static_cast<int>(arkAst->tokens.size()) - 1) {
+            nextTokenPos = arkAst->tokens[temp].Begin();
+        }
+    }
+    return nextTokenPos;
 }
 
 void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::string &prefix,

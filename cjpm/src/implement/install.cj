@@ -20,6 +20,8 @@ public class InstallBinary <: Serializable<InstallBinary> {
     public var version: String = ""
     public var localPath: String = ""
     public var gitUrl: String = ""
+    // used for central repository
+    public var repoUrl: String = ""
 
     public func serialize(): DataModel {
         var res = DataModelStruct()
@@ -29,6 +31,10 @@ public class InstallBinary <: Serializable<InstallBinary> {
         }
         if (!this.gitUrl.isEmpty()) {
             res.add(field<String>("git-url", this.gitUrl))
+        }
+        // used for central repository
+        if (!this.repoUrl.isEmpty()) {
+            res.add(field<String>("repo-url", this.repoUrl))
         }
         return res
     }
@@ -42,6 +48,8 @@ public class InstallBinary <: Serializable<InstallBinary> {
         result.version = String.deserialize((dms.get("version") as DataModelString) ?? DataModelString(""))
         result.localPath = String.deserialize((dms.get("path") as DataModelString) ?? DataModelString(""))
         result.gitUrl = String.deserialize((dms.get("git-url") as DataModelString) ?? DataModelString(""))
+        // used for central repository
+        result.repoUrl = String.deserialize((dms.get("repo-url") as DataModelString) ?? DataModelString(""))
         return result
     }
 
@@ -51,6 +59,8 @@ public class InstallBinary <: Serializable<InstallBinary> {
             binFrom = "from local project (${this.localPath})"
         } else if (!this.gitUrl.isEmpty()) {
             binFrom = "from git (${this.gitUrl})"
+        } else if (!this.repoUrl.isEmpty()) { // used for central repository
+            binFrom = "from repository (${this.repoUrl})"
         }
         println("${binName}: v${this.version} ${binFrom}")
     }
@@ -63,6 +73,7 @@ public func doInstall(installConfig: InstallConfig): Bool {
     }
 
     match (installConfig.installType) {
+        case InstallType.Default => ()
         case InstallType.Git =>
             if (!setGitRoot(installConfig) || !installProject(installConfig) || !cleanProject(installConfig)) {
                 return false
@@ -71,7 +82,11 @@ public func doInstall(installConfig: InstallConfig): Bool {
             if (!setLocalRoot(installConfig) || !installProject(installConfig)) {
                 return false
             }
-        case _ => ()
+        case InstallType.Repo => for (artifact in installConfig.artifacts) { // used for central repository
+            if (!setRepoRoot(installConfig, artifact) || !installProject(installConfig) || !cleanProject(installConfig)) {
+                return false
+            }
+        }
     }
 
     return true
@@ -268,7 +283,7 @@ func installAllExe(installConfig: InstallConfig): Bool {
     let dstBin = Path(installConfig.root).join(BIN)
     var res = false
     for (resolve in resInfo.resolves) {
-        if (resolve.outputType == EXE_TYPE) {
+        if (let Exe <- resolve.outputType) {
             let binName = resolve.fullName
             copy(srcBin.join(makeExeName(binName)), to: dstBin.join(makeExeName(binName)), overwrite: true)
             if (!installDynamicLibs(installConfig, binName)) {
@@ -319,6 +334,12 @@ func addInstallList(installConfig: InstallConfig, moduleName: String, binName: S
     match (installConfig.installType) {
         case InstallType.Local => installBinary.localPath = getCanonicalPath(installConfig.localPath)
         case InstallType.Git => installBinary.gitUrl = installConfig.gitConfig.url
+        case InstallType.Repo => // used for central repository
+            if (let Some(depot) <- Depot.new()) {
+                installBinary.repoUrl = depot.base_url
+            } else {
+                return false
+            }
         case _ => ()
     }
     if (installedBinList.contains(binName)) {

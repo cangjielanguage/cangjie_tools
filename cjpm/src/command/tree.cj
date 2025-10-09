@@ -78,8 +78,17 @@ class TreeCommand <: Handle {
             return false
         }
 
-        if (let None <- handleCrossTarget(argMap)) {
-            return false
+        var featureDeducer = FeatureDeducer(treeConfig.globalConfig.features,
+            enabled: !treeConfig.globalConfig.noFeatureDeduce)
+
+        match (handleCrossTarget(argMap)) {
+            case None => return false
+            case Some(true) => 
+                match (Triple.fromString(crossCompileTarget)) {
+                    case Ok(triple) => featureDeducer = featureDeducer.deduceTargetFeatures(triple)
+                    case Err(errmesg) => eprintln(errmesg); return false
+                }
+            case Some(false) => featureDeducer = featureDeducer.deduceTargetFeatures(state.cjcInfo.target)
         }
 
         if (unparseArgs.size != 0) {
@@ -89,9 +98,14 @@ class TreeCommand <: Handle {
                     return false
                 }
             }
-            eprintln("Error: unknow command '${unparseArgs[0]}' for cjpm tree")
+            eprintln("Error: unknown command '${unparseArgs[0]}' for cjpm tree")
             return false
         }
+
+        if (let Some(features) <- handleEnableFeaturesOption(argMap)) {
+            featureDeducer = featureDeducer.addFeature(features)
+        }
+        treeConfig.globalConfig.features = featureDeducer.deduceDependantFeatures().collect()
 
         return doTree(treeConfig)
     }

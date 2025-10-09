@@ -21,9 +21,11 @@ const C_LIBS = "c_libs"
 
 // '.cjpm-history' model
 public class ModuleResolve <: Serializable<ModuleResolve> {
-    public var resolves: ArrayList<ResolveItem> = ArrayList<ResolveItem>()
-    public var binDeps: HashMap<String, BinDeps> = HashMap<String, BinDeps>()
-    public var crossBinDeps: HashMap<String, BinDeps> = HashMap<String, BinDeps>()
+    public ModuleResolve(
+        public let resolves!: ArrayList<ResolveItem> = ArrayList(),
+        public let binDeps!: HashMap<String, BinDeps> = HashMap(),
+        public let crossBinDeps!: HashMap<String, BinDeps> = HashMap()
+    ) {}
 
     public func serialize(): DataModel {
         return DataModelStruct()
@@ -37,11 +39,11 @@ public class ModuleResolve <: Serializable<ModuleResolve> {
             case data: DataModelStruct => data
             case _ => throw Exception("this data is not DataModelStruct")
         }
-        var result = ModuleResolve()
-        result.resolves = ArrayList<ResolveItem>.deserialize(dms.get("resolves"))
-        result.binDeps = HashMap<String, BinDeps>.deserialize(dms.get("binDeps"))
-        result.crossBinDeps = HashMap<String, BinDeps>.deserialize(dms.get("crossBinDeps"))
-        return result
+        ModuleResolve(
+            resolves: ArrayList<ResolveItem>.deserialize(dms.get("resolves")),
+            binDeps: HashMap<String, BinDeps>.deserialize(dms.get("binDeps")),
+            crossBinDeps: HashMap<String, BinDeps>.deserialize(dms.get("crossBinDeps"))
+        )
     }
 
     public func forEachPkg(fn: (ResolveItem) -> Bool): Bool {
@@ -162,10 +164,10 @@ public class BinDeps <: Serializable<BinDeps> {
 // generate '.cjpm-history' data item
 public class ResolveItem <: Serializable<ResolveItem> {
     public var rootPkgName: String = ""
-    public var packagePath: String = ""
+    public var packagePath: CMPSource = CMPSource.empty
     public var modulePath: String = ""
     public var fullName: String = ""
-    public var outputType: String = ""
+    public var outputType: OutputType = Unknown("")
     public var compileOption: String = ""
     public var version: String = ""
     public var customizedOption: HashMap<String, String> = HashMap<String, String>()
@@ -201,9 +203,15 @@ public class ResolveItem <: Serializable<ResolveItem> {
         this.nativeLinkOption = toml.pkg.nativeLinkOption
         this.cLibs = toml.ffi.cLibs
         this.crossCLibs = toml.crossFfi.cLibs
-        this.srcDir = toml.pkg.srcDir
+        this.srcDir = toml.pkg.srcDir.value
         this.modulePath = toml.pkg.path
         this.version = toml.pkg.version
+    }
+
+    public prop isMultiplatform: Bool {
+        get() {
+            packagePath.isMultiplatform
+        }
     }
 
     public func isPureTestPkg(): Bool {
@@ -231,10 +239,10 @@ func serializeResolve(r: ResolveItem): DataModel {
     result
         .add(field<String>("rootPackageName", r.rootPkgName))
         .add(field<String>("modulePath", r.modulePath))
-        .add(field<String>("packagePath", r.packagePath))
+        .add(field<CMPSource>("packagePath", r.packagePath))
         .add(field<String>("fullName", r.fullName))
         .add(field<Bool>("isMacroPackage", r.isMacroPackage))
-        .add(field<String>(OUTPUT_TYPE, r.outputType))
+        .add(field<OutputType>(OUTPUT_TYPE, r.outputType))
         .add(field<String>(COMPILE_OPTION, r.compileOption))
         .add(field<String>(NATIVE_COMPILE_OPTION, r.nativeCompileOption))
         .add(field<HashMap<String, String>>(CUSTOMIZED_OPTION, r.customizedOption))
@@ -257,20 +265,20 @@ func deserializeResolve(dm: DataModel): ResolveItem {
         case _ => throw Exception("this data is not DataModelStruct")
     }
     var result = ResolveItem()
-    result.packagePath = String.deserialize(dms.get("packagePath"))
+    result.packagePath = CMPSource.deserialize(dms.get("packagePath"))
     result.modulePath = String.deserialize(dms.get("modulePath"))
     result.fullName = String.deserialize(dms.get("fullName"))
     result.rootPkgName = String.deserialize(dms.get("rootPackageName"))
     result.isMacroPackage = Bool.deserialize((dms.get("isMacroPackage") as DataModelBool) ?? DataModelBool(false))
-    result.outputType = String.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
+    result.outputType = OutputType.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
     result.compileOption = String.deserialize((dms.get(COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
-    result.nativeCompileOption = String.deserialize(
-        (dms.get(NATIVE_COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
-    result.customizedOption = HashMap<String, String>.deserialize(
-        (dms.get(CUSTOMIZED_OPTION) as DataModelStruct) ?? DataModelStruct())
+    result.nativeCompileOption = String.deserialize((dms.get(NATIVE_COMPILE_OPTION) as DataModelString) ??
+        DataModelString(""))
+    result.customizedOption = HashMap<String, String>.deserialize((dms.get(CUSTOMIZED_OPTION) as DataModelStruct) ??
+        DataModelStruct())
     result.linkOption = String.deserialize((dms.get(LINK_OPTION) as DataModelString) ?? DataModelString(""))
-    result.nativeLinkOption = String.deserialize(
-        (dms.get(NATIVE_LINK_OPTION) as DataModelString) ?? DataModelString(""))
+    result.nativeLinkOption = String.deserialize((dms.get(NATIVE_LINK_OPTION) as DataModelString) ??
+        DataModelString(""))
     result.requires = HashSet<String>.deserialize(dms.get("requires"))
     result.stdRequires = HashSet<String>.deserialize(dms.get("std-requires"))
     result.cLibs = HashMap<String, String>.deserialize(dms.get(C_LIBS))
@@ -285,23 +293,21 @@ func deserializeResolve(dm: DataModel): ResolveItem {
 
 // load '.cjpm-history' file from filePath
 public func loadHistoryFile(filePath: String): Option<ModuleResolve> {
-    var model: ModuleResolve = ModuleResolve()
     var (buf, flag) = loadStringFromFile(filePath)
     if (!flag) {
         return Option<ModuleResolve>.None
     }
     try {
-        model = ModuleResolve.deserialize(DataModel.fromJson(JsonValue.fromStr(buf)))
+        ModuleResolve.deserialize(DataModel.fromJson(JsonValue.fromStr(buf)))
     } catch (e: Exception) {
         eprintln("Error: load ${filePath} failed\n${e.toString()}")
-        return Option<ModuleResolve>.None
+        Option<ModuleResolve>.None
     }
-    return model
 }
 
 public func configureModuleResolveData(targetDir: String, nativeDir: String, resolve: ModuleResolve,
     macroDep!: HashSet<String> = HashSet<String>()):
-    (HashSet<String>, HashMap<String, ArrayList<String>>, HashMap<String, ArrayList<String>>, ArrayList<String>) {
+        (HashSet<String>, HashMap<String, ArrayList<String>>, HashMap<String, ArrayList<String>>, ArrayList<String>) {
     let ldPath: HashSet<String> = getLdPathConfig(targetDir, nativeDir, resolve, macroDep: macroDep)
     let (cLibLinkMap, crossCLibLinkMap) = getClibLink(resolve.resolves)
     let cjPathList = ArrayList<String>()
@@ -322,8 +328,8 @@ private func getExtraRuntimePaths(): Array<String> {
     // DYLD_LIBRARY_PATH to ensure cjc could find runtime libraries when SIP is enabled.
     var maybeCangjieHome = getVariable("CANGJIE_HOME")
     // If CANGJIE_HOME is not set, use the directory where cjc is located.
-    if (maybeCangjieHome.isNone() && cjcPath.isSome()) {
-        let cjcBinDir = Path(cjcPath.getOrThrow()).parent
+    if (maybeCangjieHome.isNone()) {
+        let cjcBinDir = Path(state.cjcPath).parent
         if (!cjcBinDir.isEmpty()) {
             let cjcBinFileInfo = FileInfo(cjcBinDir).parentDirectory
             maybeCangjieHome = cjcBinFileInfo?.path.toString()
@@ -346,7 +352,7 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
     var ldPath: HashSet<String> = HashSet<String>()
     for (v in resolve.resolves) {
         // Set LD_LIBRARY_PATH for each dynamiclib
-        if (v.outputType == DYNAMIC_TYPE) {
+        if (v.outputType == Dynamic) {
             ldPath.add(Path(targetDir).join(v.rootPkgName).toString())
         }
         for ((_, path) in v.cLibs) {
@@ -356,7 +362,7 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
             ldPath.add(path)
         }
         // Set LD_LIBRARY_PATH for native dynamic deps of macro packages
-        if (!crossCompileTarget.isEmpty() && macroDep.contains(v.fullName) && v.outputType == DYNAMIC_TYPE) {
+        if (!crossCompileTarget.isEmpty() && macroDep.contains(v.fullName) && v.outputType == Dynamic) {
             var path: Path = Path(nativeDir).join(v.rootPkgName)
             ldPath.add(path.toString())
         }

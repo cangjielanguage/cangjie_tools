@@ -6,6 +6,7 @@
 
 package cjpm.implement
 
+import std.deriving.{Derive, DeriveExclude}
 import std.collection.*
 import std.collection.concurrent.*
 import std.sync.*
@@ -14,6 +15,7 @@ import std.env.getVariables
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import cjpm.config.*
+import cjpm.util.{Result, PackageFqName}
 
 var dependencyMap: HashMap<String, HashSet<String>> = HashMap<String, HashSet<String>>()
 @When[os == "Windows"]
@@ -22,17 +24,13 @@ const TEST_GCNO_FILE: String = "$test"
 const TEST_GCNO_FILE: String = "\\$test"
 
 class PkgTestInfo {
-    public var fullName: String = ""
-    public var path: String = ""
-    public var linkOptions: Array<String> = Array()
-    public var outLogFile: String = ""
-    public var errLogFile: String = ""
-
-    init(fullName: String, path: String, linkOptions: Array<String>) {
-        this.fullName = fullName
-        this.path = path
-        this.linkOptions = linkOptions
-    }
+    PkgTestInfo(
+        public let fqname: PackageFqName,
+        public let packagePath: CMPSource,
+        public var linkOptions!: Array<String>,
+        public let outLogFile!: String = "",
+        public let errLogFile!: String = ""
+    ) { }
 }
 
 // Command test implement.
@@ -42,19 +40,21 @@ public func doTest(unparseArgs: Array<String>, testConfig: TestConfig): Bool {
         return true
     }
 
-    let (pathSet, checkFlag) = testArgsCheck(unparseArgs, testConfig)
+    let (packagesToTest, packagePathsToTest, checkFlag) = testArgsCheck(unparseArgs, testConfig)
+
     if (!checkFlag) {
         return false
     }
+
+    let tomlInfo: TomlInfo = loadModuleFile(DIR_CURRENT) ?? return false
+
+    testConfig.packagesToTest = packagesToTest
+    testConfig.packagePathsToTest = packagePathsToTest
+
     if (!testConfig.isModuleTest && !testConfig.testModule.isEmpty()) {
         eprintln("Error: single package unittest option conflicts with module test by '--module'")
         return false
     }
-    for (path in pathSet) {
-        testConfig.testPath.add(getCanonicalPath(path))
-    }
-
-    let tomlInfo: TomlInfo = loadModuleFile(DIR_CURRENT) ?? return false
 
     if (!replaceEnvforTargetDir(tomlInfo, Path(DIR_CURRENT).join(CONFIG_FILE_NAME).toString())) {
         return false
@@ -81,7 +81,7 @@ public func doTest(unparseArgs: Array<String>, testConfig: TestConfig): Bool {
     if (!testConfig.globalConfig.isSkipScript) {
         scriptConfig = makeScriptConfigByToml(testConfig.globalConfig.rootPath, testConfig.globalConfig.rootPath,
             tomlInfo, testConfig.isDebug, testConfig.isVerbose, testConfig.isCrossCompile) ?? return false
-        if (!runScript(scriptConfig, BUILD_SCRIPT_STEP_PRE, testConfig.origCommand)) {
+        if (!runScript(scriptConfig, Pre, testConfig.origCommand)) {
             return false
         }
     }
@@ -208,38 +208,75 @@ func startTest(testConfig: TestConfig, scriptConfig: ScriptConfig): Bool {
         return false
     }
 
-    return runScript(scriptConfig, BUILD_SCRIPT_STEP_POST, testConfig.origCommand)
+    return runScript(scriptConfig, Post, testConfig.origCommand)
 }
 
-func testArgsCheck(unparseArgs: Array<String>, testConfig: TestConfig): (HashSet<String>, Bool) {
+private enum TestArgKind {
+    | Long(String)
+    | Short(String)
+    | PkgArg(PackageFqName)
+    | DirArg(String)
+    | Unknown(String)
+}
+
+// Parses non-flag argument of `cjpm test` and decides whether that's an explicit path, or package fully qualified name
+private func deduceTestArgKind(s: String): TestArgKind {
+    if (s.startsWith('--')) {
+        Long(s[2..])
+    } else if (s.startsWith('-')) {
+        Short(s[1..])
+    } else {
+        if (state.isExperimental && !s.contains('/') && !s.contains('\\')) {
+            PkgArg(PackageFqName(s))
+        } else if (directoryExists(s)) {
+            DirArg(s)
+        } else {
+            Unknown(s)
+        }
+    }
+}
+
+func testArgsCheck(unparseArgs: Array<String>, testConfig: TestConfig): (HashSet<PackageFqName>, HashSet<String>, Bool) {
     var checkFlag: Bool = true
-    var pathSet = HashSet<String>()
+    var packagesToTest = HashSet<PackageFqName>()
+    var packagePathsToTest = HashSet<String>()
 
     if (unparseArgs.size == 0) {
-        return (pathSet, checkFlag)
+        return (packagesToTest, packagePathsToTest, checkFlag)
     }
 
     for (val in unparseArgs) {
-        if (directoryExists(val)) {
-            testConfig.isModuleTest = false
-            pathSet.add(val)
-        } else if (val.startsWith("--")) {
-            let option = val[2..]
-            if (!customizedOptionCheck(option, "")) {
+        match (deduceTestArgKind(val)) {
+            case Long(option) =>
+                if (!customizedOptionCheck(option, "")) {
+                    checkFlag = false
+                } else {
+                    testConfig.customizedOption.add(option)
+                }
+            case Short(flag) =>
+                eprintln("Error: unknown command '${val}' for cjpm ${testConfig.origCommand}")
                 checkFlag = false
-            } else {
-                testConfig.customizedOption.add(option)
-            }
-        } else if (val.startsWith("-")) {
-            eprintln("Error: unknow command '${val}' for cjpm ${testConfig.origCommand}")
-            checkFlag = false
-        } else {
-            eprintln("Error: the path '${val}' does not exist")
-            checkFlag = false
+            case PkgArg(fqname) =>
+                testConfig.isModuleTest = false
+                packagesToTest.add(fqname)
+            case DirArg(path) where state.isExperimental =>
+                testConfig.isModuleTest = false
+                let pname: String = match (scanDependency([Path(path)])) {
+                    case Ok(t) =>  ": ${t.packageName}"
+                    case Err(_) => ""
+                }
+                eprintln("Error: package arguments as directory paths are deprecated in experimental, please specify full-qualified name of the package instead${pname}")
+                checkFlag = false
+            case DirArg(path) where !state.isExperimental =>
+                testConfig.isModuleTest = false
+                packagePathsToTest.add(getCanonicalPath(path))
+            case Unknown(path) =>
+                eprintln("Error: the path '${path}' does not exist")
+                checkFlag = false
+            case _ => () // Check exaustiveness, if planning to change
         }
     }
-
-    return (pathSet, checkFlag)
+    return (packagesToTest, packagePathsToTest, checkFlag)
 }
 
 func execPreTestArgs(testConfig: TestConfig): Bool {
@@ -273,7 +310,7 @@ func execPreTestArgs(testConfig: TestConfig): Bool {
         return false
     }
     testConfig.rebuildList = buildConfig.rebuildList
-    testConfig.testPkgs = HashSet<String>(buildConfig.testPkgs)
+    testConfig.testPkgs = HashSet<String>(buildConfig.packageList.test)
     testConfig.globalConfig.targetDir = targetDirectoryCache
     testConfig.globalConfig.nativeDir = buildConfig.globalConfig.nativeDir
     testConfig.globalConfig.overrideCompileOption = buildConfig.globalConfig.overrideCompileOption
@@ -350,9 +387,9 @@ func collectCovData(isCov: Bool, pkgName: String): Bool {
 }
 
 // Get all the information in preparation for unittest.
-func prepareTest(res: ModuleResolve, testConfig: TestConfig): (HashMap<String, PackageDescription>, HashMap<String, Array<String>>) {
-    // Record the packages that need to be tested, the format is ["pkgPath": PackageDescription].
-    var testPkgsMap = HashMap<String, PackageDescription>()
+func prepareTest(res: ModuleResolve, testConfig: TestConfig): (HashMap<PackageFqName, PkgDescTest>, HashMap<PackageFqName, Array<String>>) {
+    // Record the packages that need to be tested, the format is ["pkgPath": PkgDescTest].
+    var testPkgsMap = HashMap<PackageFqName, PkgDescTest>()
     // Record all dependency.
     dependencyMap = getDependencyMap(res, testConfig)
     // Record c libs.
@@ -374,35 +411,47 @@ func prepareTest(res: ModuleResolve, testConfig: TestConfig): (HashMap<String, P
                 cLibPathSet.add(cLibPath)
             }
         }
+
         if (r.isMacroPackage) {
             continue
         }
         // package will be added into testPkgsMap if one of following conditions is satisfied:
         // 1. in single-package test mode, and package is contained in input package list;
         // 2. in module test mode, and module of the package is in module list or in test-member of workspace
+
+        let fqname = PackageFqName(r.fullName)
+        let specifiedArgIsPresent = if (state.isExperimental) {
+            !testConfig.isModuleTest && testConfig.packagesToTest.contains(fqname)
+        } else {
+            (!testConfig.isModuleTest && testConfig.packagePathsToTest.contains(r.packagePath.platformPaths[0].toString()))
+        }
         let testCheck: Bool = (testConfig.isModuleTest &&
             ((COMMON_INFO.inWorkspace && testModuleNames.contains(r.rootPkgName)) ||
             testConfig.testModule.contains(r.rootPkgName))) ||
-            (!testConfig.isModuleTest && testConfig.testPath.contains(r.packagePath))
+            specifiedArgIsPresent
+
         if (testCheck) {
-            testPkgsMap[r.packagePath] = PackageDescription(r.fullName, r.hasTestFiles, r.hasProdFiles,
-                r.hasTestsInProdFiles)
+            testPkgsMap[fqname] = PkgDescTest(
+                fqname,
+                r.packagePath,
+                r.hasTestFiles,
+                r.hasProdFiles,
+                r.hasTestsInProdFiles
+            )
         }
     }
 
     return (testPkgsMap, getTestLinkMap(testConfig, res, testPkgsMap.values(), dependencyMap))
 }
 
-func getTestLinkMap(testConfig: TestConfig, res: ModuleResolve, testPkgsMap: Collection<PackageDescription>,
-    dependencyMap: HashMap<String, HashSet<String>>): HashMap<String, Array<String>> {
-    let linkMap = HashMap<String, Array<String>>()
+func getTestLinkMap(testConfig: TestConfig, res: ModuleResolve, testPkgsMap: Collection<PkgDescTest>,
+    dependencyMap: HashMap<String, HashSet<String>>): HashMap<PackageFqName, Array<String>> {
+    let linkMap = HashMap<PackageFqName, Array<String>>()
     for (pkgDesc in testPkgsMap) {
-        let requires = if (dependencyMap.contains(pkgDesc.fullName)) {
-            dependencyMap[pkgDesc.fullName]
-        } else {
-            HashSet<String>()
-        }
-        linkMap[pkgDesc.fullName] = getLinkList(res, pkgDesc.fullName, requires, testConfig).toArray()
+        let requires = if (dependencyMap.contains(pkgDesc.fqname.value)) {
+            dependencyMap[pkgDesc.fqname.value]
+        } else { HashSet<String>() }
+        linkMap[pkgDesc.fqname] = getLinkList(res, pkgDesc.fqname.value, requires, testConfig).toArray()
     }
     return linkMap
 }
@@ -430,12 +479,12 @@ func appendModulesForWorkspace(res: ModuleResolve): HashSet<String> {
 }
 
 // Generate the required static library files in parallel, then execute the test command.
-func parallelTest(testConfig: TestConfig, testPkgsMap: HashMap<String, PackageDescription>,
-    linkMap: HashMap<String, Array<String>>): Bool {
+func parallelTest(testConfig: TestConfig, testPkgsMap: HashMap<PackageFqName, PkgDescTest>,
+    linkMap: HashMap<PackageFqName, Array<String>>): Bool {
     if (!testConfig.isModuleTest) {
-        for (pkgPath in testConfig.testPath) {
-            if (!testPkgsMap.contains(pkgPath)) {
-                eprintln("Warning: '${pkgPath}' is an invalid package path, it will be ignored")
+        for (pkgFqName in testConfig.packagesToTest) {
+            if (!testPkgsMap.contains(pkgFqName)) {
+                eprintln("Warning: unknown package `${pkgFqName}`, it will be ignored")
             }
         }
     }
@@ -500,7 +549,7 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
         if (testConfig.globalConfig.cLibLinkMap.contains(k)) {
             linkSort.add(all: testConfig.globalConfig.cLibLinkMap[k])
         }
-        if (testConfig.globalConfig.crossCLibLinkMap.contains(k)){
+        if (testConfig.globalConfig.crossCLibLinkMap.contains(k)) {
             linkSort.add(all: testConfig.globalConfig.crossCLibLinkMap[k])
         }
     }
@@ -578,16 +627,17 @@ func getRootPackageDir(pkgFullName: String, targetDir: String) {
 }
 
 func addOptionsForSeparateCompilation(pkgInfo: PkgTestInfo, testConfig: TestConfig) {
-    let rootProdPkgDir = getRootPackageDir(pkgInfo.fullName, testConfig.globalConfig.targetDir)
+    let rootProdPkgDir = getRootPackageDir(pkgInfo.fqname.value, testConfig.globalConfig.targetDir)
     if (testConfig.isLto) {
-        pkgInfo.linkOptions = ["${rootProdPkgDir}${PATH_SPLIT_CHAR}${pkgInfo.fullName}.bc"].concat(pkgInfo.linkOptions)
+        pkgInfo.linkOptions = ["${rootProdPkgDir}${PATH_SPLIT_CHAR}${pkgInfo.fqname}.bc"].concat(pkgInfo.linkOptions)
     } else {
-        pkgInfo.linkOptions = ["-L", rootProdPkgDir, "-l${pkgInfo.fullName}"].concat(pkgInfo.linkOptions)
+        pkgInfo.linkOptions = ["-L", rootProdPkgDir, "-l${pkgInfo.fqname}"].concat(pkgInfo.linkOptions)
     }
 }
 
 func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Bool): Bool {
     let cmdList = ArrayList<String>()
+    cmdList.add(all: [])
     for (p in testConfig.globalConfig.cjPathList where directoryExists(p)) {
         cmdList.add(all: ["--import-path", p])
     }
@@ -599,8 +649,8 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
         cmdList.add("--test")
     }
     cmdList.add(all: pkgInfo.linkOptions)
-    cmdList.add(all: ["-p", pkgInfo.path])
-    cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, pkgInfo.fullName, testConfig.isCrossCompile)])
+    cmdList.add(all: pkgInfo.packagePath.allPaths |> flatMap { it: Path => ["-p", it.toString()] } |> collectArray)
+    cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, pkgInfo.fqname.value, testConfig.isCrossCompile)])
     cmdList.add("--mock=${testConfig.mock}")
     if (testConfig.isCrossCompile) {
         cmdList.add("--target=${crossCompileTarget}")
@@ -616,6 +666,10 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     }
     cmdList.add("--no-sub-pkg")
 
+    if (state.isExperimental) {
+        cmdList.add("--experimental")
+    }
+
     if (!deleteFile(pkgInfo.outLogFile)) {
         return false
     }
@@ -625,7 +679,7 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     let env = getVariables()
 
     if (testConfig.isVerbose || testConfig.profile.verbose) {
-        let verbose: String = "Compiling test package `${pkgInfo.fullName}`: ${getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, cmdList)}\n"
+        let verbose: String = "Compiling test package `${pkgInfo.fqname}`: ${getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, cmdList)}\n"
         if (!createAndWriteFile(pkgInfo.outLogFile, verbose)) {
             return false
         }
@@ -716,6 +770,9 @@ func mkUnittestArgs(testConfig: TestConfig, includeJson!: Bool): Array<String> {
 
 func mkExecTestRunnerCommand(testConfig: TestConfig, pkgFullName: String, runnerArgs: Array<String>): (String, ArrayList<String>, EnvironmentBuilder) {
     let envBuilder = EnvironmentBuilder.fromEnvConfig(testConfig.envConfig)
+    for ((key, value) in HashMap<String, String>()) {
+        envBuilder.replace(key, value)
+    }
     envBuilder.prepend(LD_PATH, testConfig.globalConfig.ldPath)
 
     let cmdList = ArrayList<String>()
@@ -735,7 +792,7 @@ func mkExecTestPackageCommand(testConfig: TestConfig, pkgFullName: String): Test
     )
 }
 
-func compileAllTests(linkMap: HashMap<String, Array<String>>, testPkgsMap: HashMap<String, PackageDescription>,
+func compileAllTests(linkMap: HashMap<PackageFqName, Array<String>>, testPkgsMap: HashMap<PackageFqName, PkgDescTest>,
     testConfig: TestConfig): Bool {
     if (testConfig.skipBuild || testPkgsMap.isEmpty()) {
         if (testPkgsMap.isEmpty()) { // if no test package to compile, then generate dummy runner
@@ -754,11 +811,11 @@ func compileAllTests(linkMap: HashMap<String, Array<String>>, testPkgsMap: HashM
 
     if (testConfig.isIncremental) {
         loadTestIncremental(testConfig)
-        let finalTestPkgsMap = HashMap<String, PackageDescription>()
-        for ((pkgPath, pkgDesc) in testPkgsMap) {
-            if (testConfig.rebuildList.contains(pkgDesc.fullName) || rebuildTestPkgs(testConfig, pkgDesc.fullName) ||
-                rebuildPureTestPkgs(testConfig, pkgPath, pkgDesc.fullName)) {
-                finalTestPkgsMap.add(pkgPath, pkgDesc)
+        let finalTestPkgsMap = HashMap<PackageFqName, PkgDescTest>()
+        for ((pkgFqName, pkgDesc) in testPkgsMap) {
+            if (testConfig.rebuildList.contains(pkgDesc.fqname.value) || rebuildTestPkgs(testConfig, pkgDesc.fqname) ||
+                    rebuildPureTestPkgs(testConfig, pkgDesc.srcDir, pkgDesc.fqname)) {
+                finalTestPkgsMap.add(pkgDesc.fqname, pkgDesc)
             }
         }
         return parallelCompileTests(linkMap, finalTestPkgsMap, testConfig)
@@ -768,21 +825,21 @@ func compileAllTests(linkMap: HashMap<String, Array<String>>, testPkgsMap: HashM
 }
 
 // Check packages: rebuild if cjo file is changed
-func rebuildTestPkgs(testConfig: TestConfig, pkgName: String): Bool {
+func rebuildTestPkgs(testConfig: TestConfig, fqname: PackageFqName): Bool {
     try {
         let binPath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN)
-        let cjoFilePath = binPath.join("${pkgName}.cjo")
-        let testCjoFilePath = binPath.join("${pkgName}$test.cjo")
+        let cjoFilePath = binPath.join("${fqname}.cjo")
+        let testCjoFilePath = binPath.join("${fqname}$test.cjo")
         if (fileExists(cjoFilePath)) {
             return max(FileInfo(cjoFilePath).lastModificationTime.toUnixTimeStamp().toSeconds().toString(),
-                FileInfo(binPath.join(getUnittestOutput(pkgName, testConfig.isCrossCompile)))
+                FileInfo(binPath.join(getUnittestOutput(fqname.value, testConfig.isCrossCompile)))
                     .lastModificationTime.toUnixTimeStamp().toSeconds().toString()) !=
-                    testConfig.incrementalCache[pkgName]["binTimeStamp"]
+                    testConfig.incrementalCache[fqname.value]["binTimeStamp"]
         } else if (fileExists(testCjoFilePath)) {
             return max(FileInfo(testCjoFilePath).lastModificationTime.toUnixTimeStamp().toSeconds().toString(),
-                FileInfo(binPath.join(getUnittestOutput(pkgName, testConfig.isCrossCompile)))
+                FileInfo(binPath.join(getUnittestOutput(fqname.value, testConfig.isCrossCompile)))
                     .lastModificationTime.toUnixTimeStamp().toSeconds().toString()) !=
-                    testConfig.incrementalCache[pkgName]["binTimeStamp"]
+                    testConfig.incrementalCache[fqname.value]["binTimeStamp"]
         } else {
             return true
         }
@@ -792,20 +849,20 @@ func rebuildTestPkgs(testConfig: TestConfig, pkgName: String): Bool {
 }
 
 // Check pure test packages: rebuild if source files are changed or depended packages are changed
-func rebuildPureTestPkgs(testConfig: TestConfig, pkgPath: String, pkgName: String): Bool {
-    if (!testConfig.testPkgs.contains(pkgName)) {
+func rebuildPureTestPkgs(testConfig: TestConfig, pkgSrcDir: CMPSource, pkgName: PackageFqName): Bool {
+    if (!testConfig.testPkgs.contains(pkgName.value)) {
         return false
     }
 
     try {
-        if (genFileTimeStamp(pkgPath) != testConfig.incrementalCache[pkgName]["fileTimeStamp"]) {
+        if (getFileTimeStamp(pkgSrcDir) != testConfig.incrementalCache[pkgName.value]["fileTimeStamp"]) {
             return true
         }
     } catch (e: Exception) {
         return true
     }
 
-    for (require in testConfig.packageDepMap[pkgName].requires) {
+    for (require in testConfig.packageDepMap[pkgName.value].requires) {
         if (testConfig.rebuildList.contains(require)) {
             return true
         }
@@ -816,7 +873,7 @@ func rebuildPureTestPkgs(testConfig: TestConfig, pkgPath: String, pkgName: Strin
 
 // Load test incremental cache
 func loadTestIncremental(testConfig: TestConfig): Unit {
-    let testCachePath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join("incremental-cache.json")
+    let testCachePath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join(INCREMENTAL_CACHE)
     if (!fileExists(testCachePath)) {
         return
     }
@@ -836,7 +893,7 @@ func loadTestIncremental(testConfig: TestConfig): Unit {
 }
 
 // Save test incremental cache
-func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<String, PackageDescription>): Bool {
+func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<PackageFqName, PkgDescTest>): Bool {
     let testBinPath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN)
     testConfig.incrementalCache.add(".testrunner",
         HashMap<String, String>([
@@ -847,35 +904,35 @@ func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<String, Pa
                     .lastModificationTime.toUnixTimeStamp().toSeconds()).toString()),
             ("fileTimeStamp", FileInfo(testBinPath.join("testrunner.cj"))
                 .lastModificationTime.toUnixTimeStamp().toSeconds().toString())]))
-    for ((pkgPath, pkgDesc) in testPkgsMap) {
+    for ((pkgFqName, pkgDesc) in testPkgsMap) {
         let pkgCache = HashMap<String, String>()
-        let cjoFilePath = testBinPath.join("${pkgDesc.fullName}.cjo")
-        let testCjoFilePath = testBinPath.join("${pkgDesc.fullName}$test.cjo")
+        let cjoFilePath = testBinPath.join("${pkgDesc.fqname}.cjo")
+        let testCjoFilePath = testBinPath.join("${pkgDesc.fqname}$test.cjo")
         if (fileExists(cjoFilePath)) {
-            pkgCache.add("binTimeStamp",
-                max(FileInfo(cjoFilePath).lastModificationTime.toUnixTimeStamp().toSeconds(),
-                    FileInfo(testBinPath.join(getUnittestOutput(pkgDesc.fullName, testConfig.isCrossCompile)))
-                        .lastModificationTime.toUnixTimeStamp().toSeconds()).toString())
+            pkgCache.add("binTimeStamp", max(FileInfo(cjoFilePath).lastModificationTime.
+                toUnixTimeStamp().toSeconds(), FileInfo(testBinPath.
+                join(getUnittestOutput(pkgDesc.fqname.value, testConfig.isCrossCompile))).lastModificationTime.
+                toUnixTimeStamp().toSeconds()).toString())
         } else if (fileExists(testCjoFilePath)) {
-            pkgCache.add("binTimeStamp",
-                max(FileInfo(testCjoFilePath).lastModificationTime.toUnixTimeStamp().toSeconds(),
-                    FileInfo(testBinPath.join(getUnittestOutput(pkgDesc.fullName, testConfig.isCrossCompile)))
-                        .lastModificationTime.toUnixTimeStamp().toSeconds()).toString())
+            pkgCache.add("binTimeStamp", max(FileInfo(testCjoFilePath).lastModificationTime.
+                toUnixTimeStamp().toSeconds(), FileInfo(testBinPath.
+                join(getUnittestOutput(pkgDesc.fqname.value, testConfig.isCrossCompile))).lastModificationTime.
+                toUnixTimeStamp().toSeconds()).toString())
         } else {
             pkgCache.add("binTimeStamp", "")
         }
         // collect file time stamp
-        pkgCache.add("fileTimeStamp", genFileTimeStamp(pkgPath))
-        testConfig.incrementalCache.add(pkgDesc.fullName, pkgCache)
+        pkgCache.add("fileTimeStamp", getFileTimeStamp(pkgDesc.srcDir))
+        testConfig.incrementalCache.add(pkgDesc.fqname.value, pkgCache)
     }
     let cacheStr = testConfig.incrementalCache.serialize().toJson().toJsonString()
-    return createAndWriteFile(testBinPath.join("incremental-cache.json").toString(), cacheStr)
+    return createAndWriteFile(testBinPath.join(INCREMENTAL_CACHE).toString(), cacheStr)
 }
 
 // Collect file timestamp for pure test packages
-func genFileTimeStamp(pkgPath: String): String {
+func getFileTimeStamp(pkgSrcDir: CMPSource): String {
     var timeStamp: Int64 = Int64.Min
-    for (fileInfo in getFileList(pkgPath)) {
+    for (fileInfo in pkgSrcDir.files()) {
         let fileName = fileInfo.path.toString()
         if (fileName.endsWith("_test.cj")) {
             timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
@@ -885,7 +942,7 @@ func genFileTimeStamp(pkgPath: String): String {
 }
 
 // Create a unittest directory to store middle files.
-func checkTestDir(targetDir: String, testPkgsMap: Collection<PackageDescription>): Bool {
+func checkTestDir(targetDir: String, testPkgsMap: Collection<PkgDescTest>): Bool {
     let testBinPath: String = Path(targetDir).join(UNITTEST_BIN).toString()
     if (!createDirectory(testBinPath)) {
         return false
@@ -897,7 +954,7 @@ func checkTestDir(targetDir: String, testPkgsMap: Collection<PackageDescription>
     }
 
     for (pkgDesc in testPkgsMap) {
-        let rootPkgName: String = getRootPkgName(pkgDesc.fullName)
+        let rootPkgName: String = getRootPkgName(pkgDesc.fqname.value)
         let logModPath: String = Path(testLogPath).join(rootPkgName).toString()
         if (!createDirectory(logModPath)) {
             return false
@@ -907,7 +964,7 @@ func checkTestDir(targetDir: String, testPkgsMap: Collection<PackageDescription>
     return true
 }
 
-func packageTestIfNeeded(pkgInfo: PkgTestInfo, testConfig: TestConfig, pkgDesc: PackageDescription): Bool {
+func packageTestIfNeeded(pkgInfo: PkgTestInfo, testConfig: TestConfig, pkgDesc: PkgDescTest): Bool {
     return if (pkgDesc.hasTestFiles) {
         packageTest(pkgInfo, testConfig, pkgDesc.hasProdFiles)
     } else {
@@ -916,8 +973,8 @@ func packageTestIfNeeded(pkgInfo: PkgTestInfo, testConfig: TestConfig, pkgDesc: 
 }
 
 func parallelCompileTests(
-    linkMap: HashMap<String, Array<String>>,
-    testPkgsMap: HashMap<String, PackageDescription>,
+    linkMap: HashMap<PackageFqName, Array<String>>,
+    testPkgsMap: HashMap<PackageFqName, PkgDescTest>,
     testConfig: TestConfig
 ): Bool {
     let queue = LinkedBlockingQueue<(String, String)>()
@@ -942,25 +999,29 @@ func parallelCompileTests(
     let testLogPath: Path = Path(testConfig.globalConfig.targetDir).join(".test-logs")
     let sem = Semaphore(maxParallelSize)
     let testFut = ArrayList<Future<Bool>>()
-    for ((pkgPath, pkgDesc) in testPkgsMap) {
+    for ((pkgFqName, pkgDesc) in testPkgsMap) {
         sem.acquire()
         if (pkgDesc.hasTestsInProdFiles && !pkgDesc.hasTestFiles) {
             // If no test files, then generate dummy test file to further run prod package's tests
-            DummyTestFile.generateSources(testConfig.globalConfig.targetDir, pkgDesc.fullName)
-            DummyTestFile.compile(testConfig, pkgDesc.fullName, linkMap)
+            DummyTestFile.generateSources(testConfig.globalConfig.targetDir, pkgDesc.fqname.value)
+            DummyTestFile.compile(testConfig, pkgDesc.fqname, linkMap)
         }
-        testFut.add(
-            spawn {
-                =>
-                let pkgInfo = PkgTestInfo(pkgDesc.fullName, pkgPath, linkMap[pkgDesc.fullName])
-                let rootPkgName: String = getRootPkgName(pkgDesc.fullName)
-                pkgInfo.outLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fullName}.outlog").toString()
-                pkgInfo.errLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fullName}.errlog").toString()
-                let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
-                sem.release()
-                queue.add((pkgInfo.outLogFile, pkgInfo.errLogFile))
-                return flag
-            })
+        testFut.add(spawn { =>
+            let rootPkgName: String = getRootPkgName(pkgDesc.fqname.value)
+            let outLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fqname}.outlog").toString()
+            let errLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fqname}.errlog").toString()
+            let pkgInfo = PkgTestInfo(
+                pkgDesc.fqname,
+                pkgDesc.srcDir,
+                linkOptions: linkMap[pkgDesc.fqname],
+                outLogFile: outLogFile,
+                errLogFile: errLogFile
+            )
+            let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
+            sem.release()
+            queue.add((pkgInfo.outLogFile, pkgInfo.errLogFile))
+            return flag
+        })
     }
 
     // Compile test runner
@@ -997,19 +1058,20 @@ class DummyTestFile {
         File.writeTo(path, "package ${packageName}".toArray())
     }
 
-    static func compile(testConfig: TestConfig, packageName: String, linkMap: HashMap<String, Array<String>>): Bool {
+    static func compile(testConfig: TestConfig, fqname: PackageFqName, linkMap: HashMap<PackageFqName, Array<String>>): Bool {
         let cmdList = ArrayList<String>()
         if (testConfig.isCov) {
             cmdList.add("--coverage")
         }
+        cmdList.add(all: [])
         cmdList.add(
-            Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join("._${packageName}_test.cj").toString())
-        cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, packageName, testConfig.isCrossCompile)])
+            Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join("._${fqname}_test.cj").toString())
+        cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, fqname.value, testConfig.isCrossCompile)])
 
         let pkgInfo = PkgTestInfo(
-            packageName,
-            "",
-            linkMap.get(packageName) ?? Array<String>()
+            fqname,
+            CMPSource.empty,
+            linkOptions: linkMap.get(fqname) ?? Array<String>()
         )
         addOptionsForSeparateCompilation(pkgInfo, testConfig)
         cmdList.add("--test-only")
@@ -1059,6 +1121,9 @@ main() { testRunnerEntryMain() }"""
             return true
         }
         let cmdList = ArrayList<String>()
+        if (testConfig.isCov) {
+            cmdList.add("--coverage")
+        }
         cmdList.add(Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join("testrunner.cj").toString())
         cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, TestRunner.PKG_FULL_NAME, false)])
 
@@ -1120,7 +1185,7 @@ main() { testRunnerEntryMain() }"""
     }
 }
 
-func execAllTests(testPkgsMap: HashMap<String, PackageDescription>, testConfig: TestConfig): Bool {
+func execAllTests(testPkgsMap: HashMap<PackageFqName, PkgDescTest>, testConfig: TestConfig): Bool {
     if (!testConfig.skipBuild && (testConfig.noRun || testConfig.isVerbose)) {
         println("   Finished `test` profile compilation")
         // Note: Currently IDE relies on the message below to find correct path to test executable.
@@ -1145,21 +1210,20 @@ func execAllTests(testPkgsMap: HashMap<String, PackageDescription>, testConfig: 
     return deleteDirectory(BUILD_GCNO_OUTPUT) && deleteDirectory(TEST_GCNO_OUTPUT) && execTestFlag
 }
 
-func makeExecutableTests(testConfig: TestConfig, pkgFullNames: Collection<PackageDescription>): (Bool,
-    ExecutableTestProject) {
+func makeExecutableTests(testConfig: TestConfig, pkgFullNames: Collection<PkgDescTest>): (Bool, ExecutableTestProject) {
     let moduleNameToPackages = HashMap<String, ArrayList<ExecutableTestPackage>>()
     var successFlag = true
     for (pkgDesc in pkgFullNames) {
         if (!pkgDesc.hasTestFiles && !pkgDesc.hasTestsInProdFiles) {
             continue
         }
-        if (!validateOutputAndReport(testConfig.globalConfig.targetDir, pkgDesc.fullName, testConfig.isCrossCompile)) {
+        if (!validateOutputAndReport(testConfig.globalConfig.targetDir, pkgDesc.fqname.value, testConfig.isCrossCompile)) {
             successFlag = false
             continue
         }
-        let rootPkgName = getRootPkgName(pkgDesc.fullName)
-        let executeCommand = mkExecTestPackageCommand(testConfig, pkgDesc.fullName)
-        let packageInfo = ExecutableTestPackage(pkgDesc.fullName, executeCommand)
+        let rootPkgName = getRootPkgName(pkgDesc.fqname.value)
+        let executeCommand = mkExecTestPackageCommand(testConfig, pkgDesc.fqname.value)
+        let packageInfo = ExecutableTestPackage(pkgDesc.fqname.value, executeCommand)
         if (let Some(packages) <- moduleNameToPackages.get(rootPkgName)) {
             packages.add(packageInfo)
         } else {
@@ -1184,10 +1248,10 @@ func validateOutputAndReport(targetDir: String, pkgFullName: String, isCross: Bo
     }
 }
 
-func collectAllCovData(testConfig: TestConfig, pkgFullNames: Collection<PackageDescription>): Bool {
+func collectAllCovData(testConfig: TestConfig, pkgFullNames: Collection<PkgDescTest>): Bool {
     var successFlag = true
     for (pkgDesc in pkgFullNames) {
-        if (!collectCovData(testConfig.isCov, pkgDesc.fullName)) {
+        if (!collectCovData(testConfig.isCov, pkgDesc.fqname.value)) {
             successFlag = false
         }
     }
@@ -1339,11 +1403,15 @@ struct TestPackageExecuteCommand <: Serializable<TestPackageExecuteCommand> {
     }
 }
 
-struct PackageDescription {
-    PackageDescription(
-        let fullName: String,
-        let hasTestFiles: Bool,
-        let hasProdFiles: Bool,
-        let hasTestsInProdFiles: Bool
+// Support structure which contains only the information from ResolveItem struct relevant to compilation and
+// execution of the tests
+@Derive[Hashable]
+struct PkgDescTest {
+    PkgDescTest(
+        let fqname: PackageFqName,
+        @DeriveExclude let srcDir: CMPSource,
+        @DeriveExclude let hasTestFiles: Bool,
+        @DeriveExclude let hasProdFiles: Bool,
+        @DeriveExclude let hasTestsInProdFiles: Bool
     ) {}
 }

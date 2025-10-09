@@ -17,6 +17,10 @@ const std::unordered_set<Cangjie::TokenKind> COMPOUND_ASSIGN_OPERATORS = { Token
     TokenKind::BITAND_ASSIGN, TokenKind::BITOR_ASSIGN, TokenKind::OR_ASSIGN, TokenKind::INCR, TokenKind::DECR
 };
 
+const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_FUNC_EXPR = {
+    ASTKind::LAMBDA_EXPR, ASTKind::INTERPOLATION_EXPR
+};
+
 bool IsRefLoop(const Symbol& sym, const Node& self)
 {
     if (!sym.node) {
@@ -319,7 +323,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
         }
 
         if (root->selected == SelectionTree::Selection::Complete && root->node
-            && root->node->astKind == ASTKind::INTERPOLATION_EXPR) {
+            && CANNOT_EXTRACT_FUNC_EXPR.count(root->node->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(ExtractFunction::ExtractFunctionError::INVALID_CODE_SEGMENT))));
             return false;
@@ -354,10 +358,23 @@ class ExtractFunctionReturnStatementRule : public TweakRule {
                     &&
                     treeNode->node->astKind == ASTKind::RETURN_EXPR) {
                     returnExprEnd = treeNode->node->end;
-                    return SelectionTree::WalkAction::SKIP_CHILDREN;
+                    return SelectionTree::WalkAction::STOP_NOW;
                 }
 
-                if (!returnExprEnd.IsZero() && treeNode->node->end > returnExprEnd) {
+                return SelectionTree::WalkAction::WALK_CHILDREN;
+            });
+
+        SelectionTree::Walk(root, [&isValid, &extraOptions, &returnExprEnd]
+            (const SelectionTree::SelectionTreeNode *treeNode) {
+                if (!treeNode->node) {
+                    isValid = false;
+                    extraOptions.insert(std::make_pair("ErrorCode",
+                        std::to_string(static_cast<int>(TweakRule::TweakError::ERROR_AST))));
+                    return SelectionTree::WalkAction::STOP_NOW;
+                }
+
+                if (treeNode->selected == SelectionTree::Selection::Complete
+                    && !returnExprEnd.IsZero() && treeNode->node->end > returnExprEnd) {
                     isValid = false;
                     extraOptions.insert(std::make_pair("ErrorCode",
                         std::to_string(

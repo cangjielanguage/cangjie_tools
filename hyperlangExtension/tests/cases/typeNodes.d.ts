@@ -75,6 +75,8 @@ interface NestedTypes {
 	nested20: ComplexTypes<Record<string, (x: number) => Promise<string>>, string>;
 
 	nested21: ComplexTypes<Record<string, <T>(x: T) => Promise<string>>, string>;
+	 
+	nested22: ComplexTypes<Record<string, <T>(x?: T) => Promise<[string, string]>>, string>;
 }
 
 interface Optionals {

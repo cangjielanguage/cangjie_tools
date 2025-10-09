@@ -291,13 +291,15 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
 	};
     nested20: ComplexTypes<Record<String, (x: number) => Promise<String>>, String>;
     nested21: ComplexTypes<Record<String, <T>(x: T) => Promise<String>>, String>;
+    nested22: ComplexTypes<Record<String, <T>(x?: T) => Promise<[String, String]>>, String>;
     }*/
 
 public open class NestedTypes {
     
     protected NestedTypes(public var nested10: JSValue/* FIXME: `{ x: { value: number; unit: string } | number; y: { value: number; unit: string } | number }` */,
     public var nested20: ComplexTypes<HashMap<String, (x: Float64) -> JSValue/* FIXME: `Promise<string>` */>, String>,
-    public var nested21: ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>) {}
+    public var nested21: ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>,
+    public var nested22: ComplexTypes<HashMap<String, (x: ?T) -> JSValue/* FIXME: `Promise<(string, string)>` *//* FIXME: `<T>(x?: T) => Promise<(string, string)>` */>, String>) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -305,6 +307,7 @@ public open class NestedTypes {
         obj["nested10"] = nested10
         obj["nested20"] = nested20.toJSValue(context)
         obj["nested21"] = nested21.toJSValue(context)
+        obj["nested22"] = nested22.toJSValue(context)
         obj.toJSValue()
     }
     
@@ -313,7 +316,8 @@ public open class NestedTypes {
         NestedTypes(
         obj["nested10"],
         ComplexTypes<HashMap<String, (x: Float64) -> JSValue/* FIXME: `Promise<string>` */>, String>.fromJSValue(context, obj["nested20"]),
-        ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>.fromJSValue(context, obj["nested21"])
+        ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>.fromJSValue(context, obj["nested21"]),
+        ComplexTypes<HashMap<String, (x: ?T) -> JSValue/* FIXME: `Promise<(string, string)>` *//* FIXME: `<T>(x?: T) => Promise<(string, string)>` */>, String>.fromJSValue(context, obj["nested22"])
         )
     }
     
