@@ -85,13 +85,13 @@ void PrintHelp(void)
     Println("                               eg: ./cjlint -h");
     Println("   -v                      Show version");
     Println("                               eg: ./cjlint -v");
-    Println("   -f <value>              Detected file directory, it can be absolute path or relative path, "
-            "if it is directory, default file name is cjReport");
+    Println("   -f <value>              Detected file directory, it can be absolute path or relative path");
     Println("                               eg: ./cjlint -f fileDir -c . -m .");
     Println("   -e <v1:v2:...>          Excluded files, directories or configurations, splitted by ':'. "
             "Regular expressions are supported");
     Println("                               eg: ./cjlint -f fileDir -e fileDir/a/:fileDir/b/*.cj");
-    Println("   -o <value>              Output file path, it can be absolute path or relative path");
+    Println("   -o <value>              Output file path, it can be absolute path or relative path, "
+            "if it is directory, default file name is cjReport");
     Println("                               eg: ./cjlint -f fileDir -o ./out");
     Println("   -r [csv|json]           Report file format, it can be csv or json, default is json");
     Println("                               eg: ./cjlint -f fileDir -r csv -o ./out");

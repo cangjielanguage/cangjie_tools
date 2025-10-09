@@ -1,24 +1,24 @@
 # 静态检查工具
- 
+
 ## 功能简介
- 
+
 `CJLint(Cangjie Lint)`是一款静态检查工具，该工具是基于仓颉语言编程规范开发。通过它可以识别代码中不符合编程规范的问题，帮助开发者发现代码中的漏洞，写出满足 Clean Source 要求的仓颉代码。
- 
+
 ## 使用说明
- 
+
 `cjlint -h` 帮助信息，选项介绍。
- 
+
 ```text
 Options:
    -h              Show usage
                        eg: ./cjlint -h
    -v              Show version
                        eg: ./cjlint -v
-   -f <value>      Detected file directory, it can be absolute path or relative path, if it is directory, default file name is cjReport
+   -f <value>      Detected file directory, it can be absolute path or relative path
                        eg: ./cjlint -f fileDir -c . -m .
    -e <v1:v2:...>  Excluded files, directories or configurations, splitted by ':'. Regular expressions are supported
                        eg: ./cjlint -f fileDir -e fileDir/a/:fileDir/b/*.cj
-   -o <value>      Output file path, it can be absolute path or relative path
+   -o <value>      Output file path, it can be absolute path or relative path, if it is directory, default file name is cjReport
                        eg: ./cjlint -f fileDir -o ./out
    -r [csv|json]   Report file format, it can be csv or json, default is json
                        eg: ./cjlint -f fileDir -r csv -o ./out
@@ -26,63 +26,62 @@ Options:
                        eg: ./cjlint -f fileDir -c .
    -m <value>      Directory path where the modules directory is located, it can be absolute path or relative path to the executable file
                        eg: ./cjlint -f fileDir -m .
- 
+
 ```
- 
+
 `cjlint -f` 指定检查目录。
- 
+
 ```bash
 cjlint -f fileDir [option] fileDir...
 ```
- 
+
 > **注意：**
 >
 > `-f` 后面指定的是*.cj 文件所在`src`目录。
-> `--api-config`和`--module-name`为特定标签检查场景，不建议用户手动开启该选项。
- 
+
 正例：
- 
+
 ```bash
 cjlint -f xxx/xxx/src
 ```
- 
+
 反例：
- 
+
 ```bash
 cjlint -f xxx/xxx/src/xxx.cj
 ```
- 
+
 > **说明：**
 >
-> 上述限制来自编译器模块编译限制， 因为当前编译器编译选项正在重构，相关 API 不稳定；而模块编译较为稳定，因此工具当前仅支持模块编译方式。最终工具支持的编译选项会与编译器一致，支持其他编译方式。
- 
+> 当前工具支持目录扫描，暂不支持对单源码文件的独立检查，建议用户提供单包路径作为输入。
+
 `-r` 用来指定生成扫描报告的格式，目前支持`json`格式和`csv`格式。
- 
+
 `-r`需要与`-o`选项配合使用，如果没有`-o`指定输出到文件，即使指定了`-r`也不会生成扫描报告。如果指定了`-o`没有指定`-r`，那么默认生成`json`格式的扫描报告。
- 
+
 ```bash
 cjlint -f ./src -r csv -o ./report         // 生成report.csv文件
 cjlint -f ./src -r csv -o ./output/report  // 在output目录下生成report.csv文件
 ```
- 
+
 `-c`, `-m` 在开发者需要时用以指定`config`和`modules`所在的目录路径。
- 
+
 在默认情况下，`cjlint`会调用其所在目录下的`config`和`modules`作为默认的配置目录和依赖目录。若有需要，开发者可以用命令行选项 `-c`， `-m`来指定`config`和`modules`所在的目录路径。
- 
+
 例：指定的 config 和 modules 的路径分别为：`./tools/cjlint/config` 和 `./tools/cjlint/modules`。
- 
+
 则`config`和`modules`所在的目录路径同为`./tools/cjlint`, 所以命令应为：
- 
+
 ```bash
 cjlint -f ./src -c ./tools/cjlint -m ./tools/cjlint
 ```
- 
+
 ## 规则级告警屏蔽
- 
+
 可执行文件`cjlint`同目录下的`config`配置目录中，有`cjlint_rule_list.json`和`exclude_lists.json`两个配置文件。其中，`cjlint_rule_list.json`为规则列表配置文件，开发者可以通过增减其中的配置信息来决定进行哪些规则的检查。`exclude_lists.json`为告警屏蔽配置文件，开发者可以通过添加告警信息来屏蔽某一条规则的某一条告警。
 
 例： 若开发者只想检查如下 5 条规则，则`cjlint_rule_list.json`配置文件中只添加要检查的 5 条规则。
- 
+
  ```json
  {
    "RuleList": [
@@ -94,33 +93,33 @@ cjlint -f ./src -c ./tools/cjlint -m ./tools/cjlint
    ]
  }
  ```
- 
+
 例： 若开发者想要屏蔽某一条规则的某一条告警，可以在`exclude_lists.json`配置文件中添加屏蔽信息。
- 
+
 > **注意：**
 >
-> `path`不必填写绝对路径，但必须有`xxx.cj`格式，为模糊匹配。`line`为告警行号，为精确匹配。`colum`为告警列号，可选择性填写进行列号精确匹配。
- 
+> `path`不必填写绝对路径，但必须有`xxx.cj`格式，为模糊匹配。`line`为告警行号，为精确匹配。`column`为告警列号，可选择性填写进行列号精确匹配。
+
  ```json
  {
    "G.OTH.01" : [
      {"path":"xxx/example.cj", "line":"42"},
-     {"path":"xxx/example.cj", "line":"42", "colum": "2"},
-     {"path":"example.cj", "line":"42", "colum": "2"}
+     {"path":"xxx/example.cj", "line":"42", "column": "2"},
+     {"path":"example.cj", "line":"42", "column": "2"}
    ]
  }
  ```
- 
+
 ## 源代码注释告警屏蔽
- 
+
 **特殊注释 BNF**
- 
+
 ```text
 <content of cjlint-ignore comment> ::=  "cjlint-ignore"  [-start] <ignore-rule>{...} [description] | cjlint-ignore  <-end> [description]
 <ignore-rule> ::="!"<rule-name>
 <rule-name> ::= <letters>
 ```
- 
+
 > **注意：**
 >
 > - 特殊注释的 `cjlint-ignore` 与选项 `-start` 和 `-end` 以及屏蔽的规则需要写在同一行上，否则无法进行告警屏蔽。描述信息可以写在不同行。
@@ -202,40 +201,40 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
 /* cjlint-ignore -end description */
 // ERROR: 屏蔽规则没与 'cjlint-ignore' 在同一行，屏蔽告警失败
 ```
- 
+
 ## 文件级告警屏蔽
- 
+
 1. `cjlint` 可以通过 `-e` 选项支持文件级别的告警屏蔽。
- 
+
     通过在 `-e` 后添加屏蔽规则，即可将规则匹配的仓颉文件屏蔽，不会产生关于这些文件的告警。输入的规则为相对 `-f` 源码目录的相对路径（支持正则），输入字符串需要用双引号包含，多条屏蔽规则用空格分隔。例如，下面这条命令屏蔽了 `src/dir1/` 目录内的所有仓颉文件， `src/dir2/a.cj` 文件和 `src/` 目录下所有形如 `test*.cj` 的仓颉文件。
- 
+
     ```bash
     cjlint -f src/ -e "dir1/ dir2/a.cj test*.cj"
     ```
- 
+
 2. `cjlint` 可以通过后缀为 `.cfg` 的配置文件批量导入屏蔽规则。
- 
+
     通过 `-e` 选项导入配置文件，与其他屏蔽规则或配置文件用空格分隔。例如，下面这条命令屏蔽了 `src/dir1` 目录和 `src/exclude_config_1.cfg`、`src/dir2/exclude_config_2.cfg` 内配置的所有屏蔽规则对应的文件。
- 
+
     ```bash
     cjlint -f src/ -e "dir1/ exclude_config_1.cfg dir2/exclude_config_2.cfg"
     ```
- 
+
     `.cfg` 配置文件中可以配置多条屏蔽规则，每行均为一条屏蔽规则，屏蔽规则为相对该配置文件所在目录的相对路径（支持正则），无需双引号包含。例如在 `src/dir2/exclude_config_2.cfg` 中有以下配置，则上述的命令会将 `src/dir2/subdir1/` 目录和 `src/dir2/subdir2/a.cj` 文件加入屏蔽。
- 
+
     ```text
     subdir1/
     subdir2/a.cj
     ```
- 
+
 3. `cjlint` 可以通过默认配置文件批量导入屏蔽规则。
- 
+
     `cjlint` 屏蔽功能的默认配置文件名为 `cjlint_file_exclude.cfg`，位置在 `-f` 源码目录下。例如，当 `src/` 目录下存在 `src/cjlint_file_exclude.cfg` 这一配置文件时，`cjlint -f src/` 命令会屏蔽 `src/cjlint_file_exclude.cfg` 内配置的屏蔽规则对应的文件。如果开发者已经在 `-e` 选项中配置了其他有效的 `.cfg` 配置文件，则 `cjlint` 不会检查默认配置文件。
- 
+
 ## 支持检查的规范列表（持续新增中）
- 
+
 `cjlint` 默认启用的规范列表：
- 
+
 - G.NAM.01 包名采用全小写单词，允许包含数字和下划线。
 - G.NAM.02 源文件名采用全小写加下划线风格。
 - G.NAM.03 接口，类，struct、枚举类型和枚举成员构造，类型别名，采用大驼峰命名。
@@ -292,32 +291,32 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
 - G.OTH.03 禁止代码中包含公网地址。
 - G.OTH.04 不要使用 String 存储敏感数据，敏感数据使用结束后应立即清 0。
 - FFI.C.7 强制进行指针类型转换时避免出现截断错误。
- 
+
 `cjlint` 能够检测，但默认不启用的规范列表（开发者可通过将规范添加至 `cjlint_rule_list.json` 以启用这类规则）：
- 
+
 - G.NAM.06 变量的名称采用小驼峰。
 - G.VAR.03 避免使用全局变量。
 - G.FMT.13 文件头注释应该包含版权许可。
- 
+
 ## 规格说明
- 
+
 - G.CON.02 在异常可能出现的情况下，保证释放已持有的锁。
- 
+
     lock() 函数和 unlock() 函数赋值给变量，赋值后的变量再去加解锁的场景，该规则检查不覆盖。
- 
+
 - G.OTH.03 暂不支持宏检查。
 - 只有当宏包在正确的路径下时，`cjlint`才能支持宏检查。
- 
+
     例：a.cj 为宏包源码，其正确路径应为 xxx/src/a/a.cj。
- 
+
 - `cjlint`只有在宏被调用时才能对其进行检查，且无法对宏包中的冗余代码进行检查。
- 
+
 ## 支持语法禁用检查
- 
+
 1. `cjlint` 可以通过将 G.SYN.01 添加至 `cjlint_rule_list.json` 以启用禁用语法的检查。如果使用了禁用的语法元素，`cjlint` 将会报错。
- 
+
 2. 当前所支持`cjlint`检查的禁用语法如表中所示:
- 
+
    | 禁用语法     | 关键词          | 说明                                             |
    | ------------ | --------------- | ------------------------------------------------ |
    | 导入包       | Import          | 不允许随意导入包                                 |
@@ -343,9 +342,9 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
    | 高阶函数     | HigherOrderFunc | 函数类型的参数或返回值, 避免复杂代码             |
    | 其他基础类型 | PrimitiveType   | 不应使用 Int64、float64、bool 之外的其他基础类型 |
    | 其他容器类型 | ContainerType   | 应使用 List，Map，Set                            |
- 
+
 3. 通过将上述表格中的关键字添加到 `structural_rule_G_SYN_01.json` 中启用对应语法的禁用检查。举例：禁用导入包
- 
+
 ```json
 {
   "SyntaxKeyword": [
@@ -353,4 +352,4 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
   ]
 }
 ```
- 
+
