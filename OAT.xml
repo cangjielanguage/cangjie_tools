@@ -14,7 +14,7 @@
             <filefilter name="defaultFilter" desc="Files not to check">
                 <filteritem type="filename" name="COPYRIGHT|COPYRIGHT_EN" desc="doc file"/>
                 <filteritem type="filename" name="*.diff" desc="diff file"/>
-                <filteritem type="filename" name="*.cj|*.dylib|*.obfmap|*.expect|*.tsv|*.csv|*.der|*.text|*.key|*.zoneinfo.tar.g|errorTimeZone|*.expect|*.csr|*.der|Shanghai|*.info|*.dll|*.so|*.out|*.gz|TyKind.inc|*.base|*.test|*.list" desc="desc files"/>
+                <filteritem type="filename" name="*.dylib|*.obfmap|*.expect|*.tsv|*.csv|*.der|*.text|*.key|*.zoneinfo.tar.g|errorTimeZone|*.expect|*.csr|*.der|Shanghai|*.info|*.dll|*.so|*.out|*.gz|TyKind.inc|*.base|*.test|*.list" desc="desc files"/>
             </filefilter>
             <filefilter name="licenseFileNamePolicyFilter" desc="Filters for LICENSE file policies">
                 <filteritem type="filepath" name="doc/.*" desc="doc目录过滤"/>
@@ -41,7 +41,7 @@
             <filteritem type="filename" name="pkg1.jar" desc="cjpm测试需要, 完成检查"/>
             <filteritem type="filename" name="*.png" desc="PNG图片文件, 完成检查"/>
             <filteritem type="filename" name="*.jpg" desc="PNG图片文件, 完成检查"/>
-		</filefilter>	
+		</filefilter>
         </filefilterlist>
 		<licensematcherlist>
             <licensematcher name="Apache-2.0 with Runtime Library Exception" desc="If the scanning result is InvalidLicense, you can define matching rules here. Note that quotation marks must be escaped.">
