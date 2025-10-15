@@ -1,101 +1,115 @@
-# 仓颉语言服务工具开发者指南
+# Cangjie Language Server Developer Guide
 
-## 开源项目介绍
+## System Architecture
 
-该项目是一个语言服务工具，是在IDE上提供仓颉语言服务的服务器后端，需要搭配IDE客户端使用。开发者可以搭配仓颉发布的VSCode插件，或自行开发适配LSP协议的IDE客户端使用。
+This project is a language server that provides Cangjie language support for DevEco Studio. It functions as the backend and must be used in conjunction with the DevEco Studio client.
 
-这个工程可以编译成一个名为LSPServer的可执行文件。
+The project can be compiled into an executable named LSPServer.
 
-系统架构图如下：
+The system architecture diagram is as follows:
 
-![SystemArchitecture](./figures/SystemArchitecture.png)
+![SystemArchitecture](./figures/lsp-architecture.png)
 
-## 目录结构
+As shown in the architecture diagram:
+
+Protocol Interaction Management: Implementing communication with the DevEco Studio client using the LSP protocol, including message encapsulation, message forwarding, and message processing.
+
+LSP Features: Implements language server features such as code completion, go to definition, and semantic token highlight.
+- CodeCompletion: Provides real-time Cangjie code suggestions and completion as developers write code, based on the input content.
+- Definition: Allows developers to jump to the definition of a specified Cangjie code symbol, such as a class name, function name and variable name.
+- Hover: Displays detailed information about the code when the developer hovers the mouse, such as the definition type and related comments
+- SemanticHighlight: Applies language server syntax highlighting to Cangjie code, using different colors to distinguish various elements like class names, function names, and variables.
+- Diagnostic: Errors or warnings are highlighted in the relevant code segments when the code violates Cangjie syntax or semantic rules.
+- Rename: Provides a code renaming capability that automatically updates both the definition and all references of the symbol.
+
+AST Management: Implements the construction and management of the AST.
+
+Symbol Index: Implements the generation and modification of symbol indexes and offers search functionality.
+
+## Directory Structure
 
 ```text
 cangjie-language-server/
-|- build          # 语言服务源码构建脚本存放文件夹
-|- doc            # 语言服务开发指南和用户指南存放文件夹
-|- generate       # 语言服务自定义索引结构文件存放文件夹
-|  |- index.fbs   # 语言服务自定义索引结构文件
-└─ src            # 语言服务源码文件夹
-...
+|-- build          # Folder containing build scripts for language service source code
+|-- doc            # Folder containing developer guides and user manuals
+    |-- figures    # Folder containing images used in the language service documentation
+|-- generate       # Folder containing custom index structure files for language service
+    |-- index.fbs  # Custom index structure file for language service
+|--src             # Source code folder for language service 
+    |-- json-rpc            # folder for parsing/handling the LSP protocol
+    |-- languageserver      # folder for the core implementation of the language service
+        |-- capabilities    # Implementation of LSP features
+        |-- common          # Implementation of base functionality
+        |-- index           # Implementation of indexing functionality
+        |-- logger          # Implementation of logging functionality
+    |-- launcher            # folder for language service startup and initialization
 ```
 
-## 编译构建
+## Build Instructions
 
-### 构建准备
+### Prerequisites
 
-语言服务构建依赖cjc，所以在构建这个工程之前，我们应该先完成前置构建，构建方式参见[仓颉SDK集成构建指导书](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md)。更多软件依赖，参见[环境准备](https://gitcode.com/Cangjie/cangjie_build/blob/dev/docs/env_zh.md)。
+The language service build depends on cjc, so before building this project, we should first complete the prerequisite build. For build methods, refer to the [Openharmony SDK Integration Build Guide](). For additional software dependencies, see [Environment Preparation]().
 
-### 构建步骤
+### Build Steps
 
-1. 通过`git clone`命令获取`lsp`的最新源码：
+1. Obtain the latest LSP source code via `git clone` command:
 
 ```shell
 cd ${WORKDIR}
 git clone https://gitcode.com/Cangjie/cangjie_tools.git
 ```
 
-2. 完成前置构建准备后，配置环境变量：
+2. After completing prerequisite preparations, configure environment variables:
 
 ```shell
 export CANGJIE_HOME=/path/to/cangjie    # (for Linux/macOS)
 set CANGJIE_HOME=/path/to/cangjie       # (for Windows)
-# /path/to/cangjie路径为仓颉SDK（或前置依赖cjc构建产物）路径，根据实际情况作调整。Linux交叉编译Windows场景，需要准备Windows的SDK
+# The /path/to/cangjie should be adjusted to the actual path of Openharmony SDK (or cjc build output). For Linux cross-compiling to Windows scenarios, the Windows SDK needs to be prepared.
 ```
 
-3. 通过`cangjie-language-server/build`目录下的build.py来编译项目，命令如下:
+3. Compile the project using build.py in the `cangjie-language-server/build` directory with the following command:
 
 ```shell
 python3 build.py build -t release  # (for Linux/MacOS)
-python3 build.py build -t release --target windows-x86_64  # (for Linux-to-Windows)
+python3 build.py build -t release --target windows-x86_64  # (for Linux-to-Windows cross-compilation)
 ```
 
-构建完成后，将在`output/bin`下生成`LSPServer`二进制。
+After successful build, the `LSPServer` binary will be generated under `output/bin`.
 
-### 运行测试用例
+### Running Test Cases
 
-我们可以使用build.py来编译用于测试的项目，命令如下:
+We can use build.py to compile the project for testing with the following command:
 
 ```shell
 python3 build.py build -t release --test
 ```
 
-构建完成后，将在`output/bin`下生成`LSPServer`和`gtest_LSPServer_test`二进制。
+After build completion, both `LSPServer` and `gtest_LSPServer_test` binaries will be generated under `output/bin`.
 
-使用以下命令运行测试用例：
+Run test cases using:
 
 ```shell
 python3 build.py test
 ```
 
-### 更多构建选项
+### Additional Build Options
 
-`build.py`的`build`功能提供如下额外选项：
+The `build` function of `build.py` provides the following additional options:
 
-- `--target TARGET`：指定编译目标产物的运行平台，默认值为`native`，即本地平台，当前仅支持`linux`平台上通过`--target windows-x86_64`交叉编译`windows-x86_64`平台的产物；
-- `-t, --build-type BUILD_TYPE`：指定构建产物版本，可选值为`debug/release/relwithdebinfo`；
-- `-j, --job JOB`：指定编译时的并发度；
-- `--test`：编译运行测试用例的产物；
-- `-h, --help`：打印`build`功能的帮助信息。
+- `--target TARGET`: Specifies the target platform for compilation output. Default value is `native` (local platform). Currently only supports cross-compiling `windows-x86_64` platform targets from `linux` platform via `--target windows-x86_64`.
+- `-t, --build-type BUILD_TYPE`: Specifies build output version type. Optional values are `debug/release/relwithdebinfo`.
+- `-j, --job JOB`: Specifies compilation concurrency level.
+- `--test`: Compiles output for running test cases.
+- `-h, --help`: Prints help information for the `build` function.
 
-此外，`build.py`还提供如下额外功能：
+Additionally, `build.py` provides the following extra functions:
 
-- `install [--prefix PREFIX]`：将构建产物安装到指定路径，不指定路径时默认为`cangjie-language-server/output/bin`目录，`install` 前需要先正确执行 `build`；
-- `clean`：清除默认路径的构建产物；
-- `test`：运行测试用例；
-- `-h, --help`：打印`build.py`的帮助信息。
+- `install [--prefix PREFIX]`: Installs build output to specified path. Default path is `cangjie-language-server/output/bin` directory when not specified. Requires successful `build` execution first.
+- `clean`: Cleans build output from default paths.
+- `test`: Runs test cases.
+- `-h, --help`: Prints help information for `build.py`.
 
-## 仓颉 SDK 集成构建
+## Openharmony SDK Integration Build
 
-仓颉SDK集成构建，参见[仓颉SDK集成构建指导书](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md)。
-
-## 相关仓
-
-本仓为仓颉工具源码，本文档介绍的是仓颉语言服务工具，完整组件相关仓如下：
-
-- [仓颉编译器](https://gitcode.com/Cangjie/cangjie_compiler)：提供仓颉编译器源码；
-- [仓颉标准库](https://gitcode.com/Cangjie/cangjie_runtime)：提供仓颉标准库源码；
-- [仓颉运行时](https://gitcode.com/Cangjie/cangjie_runtime)：提供仓颉运行时源码；
-- [**仓颉工具**](https://gitcode.com/Cangjie/cangjie_tools)：提供仓颉工具套源码。
+For Openharmony SDK integration build, refer to the [Openharmony SDK Integration Build Guide](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md).

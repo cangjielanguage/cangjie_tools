@@ -1,19 +1,19 @@
-# 仓颉语言服务工具用户指南
+# Cangjie Language Server User Guide
 
-## 功能简介
+## Feature Overview
 
-`Cangjie Language Server` 仓颉语言服务工具基于仓颉语言提供定义跳转，查找引用和补全等语言服务功能。
+The `Cangjie Language Server` provides language service functionalities such as definition jumping, reference finding, and code completion based on the Cangjie language.
 
-## 使用说明
+## Usage Instructions
 
-使用仓颉语言服务工具需要结合仓颉SDK一起使用，确保SDK的`tools/bin`目录下有仓颉语言服务LSPServer二进制；此外还需要依赖对应的客户端(DevEco Studio 或 VScode)。
+To use the Cangjie Language Server, it must be combined with the Openharmony SDK. Ensure that the `tools/bin` directory of the SDK contains the LSPServer binary for the Cangjie language service. Additionally, the DevEco Studio client is required.
 
-`Cangjie Language Server` 启动参数如下：
+The startup parameters for `Cangjie Language Server` are as follows:
 
 ```bash
---test                用于在测试中启动LSPServer
---disableAutoImport   禁用补全自动包导入功能
---enable-log=<value>  默认关闭日志生成，如果传入true，则开启日志生成
---log-path=<value>    设置生成日志路径
--V                    开启生成崩溃日志功能
+--test                Used to launch LSPServer in test mode
+--disableAutoImport   Disables the automatic package import feature for code completion
+--enable-log=<value>  Disables log generation by default; pass true to open log generation
+--log-path=<value>    Sets the path for generated logs
+-V                    Enables crash log generation functionality
 ```
