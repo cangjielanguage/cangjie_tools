@@ -6,7 +6,14 @@
 
 package cjpm.config
 
-import std.collection.{collectString, collectHashMap, HashMap, MapEntryView, ArrayList}
+import std.collection.*
+
+import std.collection.{
+    collectString,
+    collectHashMap,
+    HashMap,
+    ArrayList
+}
 
 private enum Operation {
     | Prepend(String)
@@ -16,22 +23,19 @@ private enum Operation {
 }
 
 public class EnvironmentBuilder {
-    @When[os == "Windows"]
+    @When[ os == "Windows" ]
     private static let SEPARATOR = ";"
-
-    @When[os != "Windows"]
+    @When[ os != "Windows" ]
     private static let SEPARATOR = ":"
 
     private let operations = HashMap<String, ArrayList<Operation>>()
 
     private let casePreservation = HashMap<String, String>()
 
-    @When[os != "Windows"]
-    private func adjustForCaseSensitivity(s: String): String {
-        s
-    }
+    @When[ os != "Windows" ]
+    private func adjustForCaseSensitivity(s: String): String { s }
 
-    @When[os == "Windows"]
+    @When[ os == "Windows" ]
     private func adjustForCaseSensitivity(s: String): String {
         let normalized = s.toAsciiUpper()
         if (!casePreservation.contains(normalized)) {
@@ -40,24 +44,28 @@ public class EnvironmentBuilder {
         return casePreservation[normalized]
     }
 
-    @When[os == "Windows"]
+    @When [ os == "Windows" ]
     private func beforeFinish(env: Collection<(String, String)>): HashMap<String, String> {
-        // Because macro expansion is using linux runtime, environment variables are
+        // Because macro expansion is using linux runtime, environment variables are 
         // interpreted as case sensitive at macro expansion stage.
         // While at all other moments they interpreted as case insensitive.
         //
         // Thus the actual case of environment variable should never change!
         for ((k, _) in env) {
             let normalized = k.toAsciiUpper()
-            if (let Some(metKey) <- casePreservation.get(normalized) && let Some(ops) <- operations.remove(metKey)) {
+            if (
+                let Some(metKey) <- casePreservation.get(normalized) &&
+                let Some(ops) <- operations.remove(metKey)
+            ) {
                 operations[k] = ops
             }
         }
         env |> collectHashMap
     }
 
-    public init() {}
 
+    public init() { }
+    
     public func prepend(_name: String, value: String): Unit {
         let name = adjustForCaseSensitivity(_name)
         if (!operations.contains(name)) {
@@ -124,14 +132,10 @@ public class EnvironmentBuilder {
         for ((env, ops) in operations) {
             for (op in ops) {
                 match (op) {
-                    case Prepend(val) =>
-                        addEnvVar(env);
-                        prependValue(result.entryView(env), val)
-                    case Append(val) =>
-                        addEnvVar(env);
-                        appendValue(result.entryView(env), val)
+                    case Prepend(val) => addEnvVar(env); prependValue(result.entryView(env), val)
+                    case Append(val) => addEnvVar(env); appendValue(result.entryView(env), val)
                     case Replace(val) => result[env] = val
-                    case Absent(val) =>
+                    case Absent(val) => 
                         if (!originalEnvMap.contains(env)) {
                             result[env] = val
                         }
@@ -141,7 +145,7 @@ public class EnvironmentBuilder {
         result
     }
 
-    @When[os != "Windows"]
+    @When[ os != "Windows" ]
     public func finish(originalEnv: Collection<(String, String)>): HashMap<String, String> {
         let result = originalEnv |> collectHashMap
 
@@ -149,16 +153,15 @@ public class EnvironmentBuilder {
             for (op in ops) {
                 match (op) {
                     case Prepend(val) => prependValue(result.entryView(env), val)
-                    case Append(val) => appendValue(result.entryView(env), val)
+                    case Append(val)  => appendValue(result.entryView(env), val)
                     case Replace(val) => result[env] = val
-                    case Absent(val) =>
+                    case Absent(val)  =>
                         if (!result.contains(env)) {
                             result[env] = val
                         }
                 }
             }
         }
-
         result
     }
 
@@ -194,15 +197,10 @@ public class EnvironmentBuilder {
         result
     }
 
-    @When[os == "Windows"]
-    private static func asVar(v: String): String {
-        "%${v}%"
-    }
-
-    @When[os != "Windows"]
-    private static func asVar(v: String): String {
-        "$${v}"
-    }
+    @When[ os == "Windows" ]
+    private static func asVar(v: String): String { "%${v}%" }
+    @When[ os != "Windows" ]
+    private static func asVar(v: String): String { "$${v}" }
 
     private static func appendValue(view: MapEntryView<String, String>, value: String): Unit {
         if (let Some(curr) <- view.value) {
@@ -234,10 +232,10 @@ extend EnvironmentBuilder {
         let envBuilder = EnvironmentBuilder()
         for ((envName, envInfo) in envConfig) {
             match (envInfo.spliceType) {
-                case ABSENT => envBuilder.setIfAbsent(envName, envInfo.envValue)
+                case ABSENT =>  envBuilder.setIfAbsent(envName, envInfo.envValue)
                 case REPLACE => envBuilder.replace(envName, envInfo.envValue)
                 case PREPEND => envBuilder.prepend(envName, envInfo.envValue)
-                case APPEND => envBuilder.append(envName, envInfo.envValue)
+                case APPEND =>  envBuilder.append(envName, envInfo.envValue)
                 case _ => ()
             }
         }

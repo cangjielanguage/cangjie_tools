@@ -7,7 +7,7 @@
 
 [package]
   cjc-version = "0.61.5"
-  name = "refactor"
+  name = "default"
   description = "nothing here"
   version = "1.0.0"
   target-dir = ""

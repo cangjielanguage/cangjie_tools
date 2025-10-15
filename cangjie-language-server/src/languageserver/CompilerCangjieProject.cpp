@@ -1278,7 +1278,7 @@ bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
     }
     auto cycles = graph->FindCycles();
     if (cycles.second) {
-        ReportDiagForCirclePackages(cycles.first);
+        ReportCircularDeps(cycles.first);
     }
     return true;
 }
@@ -1359,62 +1359,31 @@ std::vector<std::vector<std::string>> CompilerCangjieProject::ResolveDependence(
     return res;
 }
 
-void CompilerCangjieProject::ReportDiagForCirclePackages(const std::vector<std::vector<std::string>> &cycles)
-{
-    for (auto &it : cycles) {
-        std::string circlePkgName;
-        std::set<std::string> sortedPackages(it.begin(), it.end());
-        for (auto &pkg : sortedPackages) {
-            circlePkgName += pkg + " ";
-        }
-        Position validPosForError;
-        for (auto &pkg: it) {
-            auto found = GetSourcePackagesByPkg(pkg);
-            if (!found || pkgInfoMap.find(pkg) == pkgInfoMap.end()) { continue; }
-            if (found->files.empty()) {
-                validPosForError = INVALID_POSITION;
-                pkgInfoMap[pkg]->diag->DiagnoseRefactor(DiagKindRefactor::module_unsupport_circular_dependencies,
-                                                        validPosForError,
-                                                        circlePkgName);
-            } else {
-                callback->RemoveDiagOfCurPkg(pkgInfoMap[pkg]->packagePath);
-                for (auto &file: found->files) {
-                    if (file == nullptr) { continue; }
-                    validPosForError = file->begin;
-                    pkgInfoMap[pkg]->diag->DiagnoseRefactor(DiagKindRefactor::module_unsupport_circular_dependencies,
-                                                            validPosForError,
-                                                            circlePkgName);
-                }
-            }
-        }
-    }
-}
-
 void CompilerCangjieProject::ReportCircularDeps(const std::vector<std::vector<std::string>> &cycles)
 {
-    for (const auto &iter :cycles) {
+    for (const auto &it : cycles) {
         std::string circlePkgName;
-
-        // Get circular package name string
-        for (const auto &pkg : iter) {
+        std::set<std::string> sortedPackages(it.begin(), it.end());
+        for (const auto &pkg : sortedPackages) {
             circlePkgName += pkg + " ";
         }
-
-        for (const auto &pkg : iter) {
-            auto found = GetSourcePackagesByPkg(pkg);
-            if (!found || pkgInfoMap.find(pkg) == pkgInfoMap.end()) {
+        for (const auto &pkg: it) {
+            const auto &dirPath = fullPkgNameToPath[pkg];
+            std::vector<std::string> files = GetAllFilesUnderCurrentPath(dirPath, CANGJIE_FILE_EXTENSION, false);
+            if (files.empty()) {
                 continue;
             }
             callback->RemoveDiagOfCurPkg(pkgInfoMap[pkg]->packagePath);
-            for (const auto &file : found->files) {
+            for (const auto &file: files) {
+                const auto &filePath = FileStore::NormalizePath(JoinPath(dirPath, file));
                 DiagnosticToken dt;
                 dt.category = LSP_ERROR_CODE;
                 dt.code = LSP_ERROR_CODE;
                 dt.message = "packages " + circlePkgName + "are in circular dependencies.";
-                dt.range = {{file->begin.fileID, 0, 0}, {file->begin.fileID, 0, 1}};
+                dt.range = {{0, 0, 0}, {0, 0, 1}};
                 dt.severity = 1;
                 dt.source = "Cangjie";
-                callback->UpdateDiagnostic(file->filePath, dt);
+                callback->UpdateDiagnostic(filePath, dt);
             }
         }
     }

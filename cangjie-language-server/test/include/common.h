@@ -23,7 +23,8 @@ enum TestType {
     CrossLanguageDefinition,
     OverrideMethods,
     CodeAction,
-    ApplyEdit
+    ApplyEdit,
+    FileReference
 };
 
 struct TextDocumentEditInfo {

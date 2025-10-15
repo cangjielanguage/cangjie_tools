@@ -144,7 +144,7 @@ func updateDepModule(depMap: HashMap<String, DepInfo>, requires: HashMap<String,
         depMap.add(name, v)
 
         let depInfo: DepInfo = depMap[name]
-        let (flag, isOnlineDep, depPath) = getDepPath(name, depInfo, UPDATE_GLOBAL_CONFIG)
+        let (flag, isOnlineDep, depPath) = getDepPath(name, depInfo, prePath, UPDATE_GLOBAL_CONFIG)
         if (!flag) {
             updateCheckFlag = false
             continue

@@ -1,5 +1,5 @@
 // Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0 
+// This source file is part of the Cangjie project, licensed under Apache-2.0
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
@@ -9,9 +9,8 @@ package cjpm.command
 import cjpm.implement.*
 import cjpm.config.*
 
-let INIT_TYPE_LIST = [EXE_TYPE, STATIC_TYPE, DYNAMIC_TYPE]
-let DEFAULT_INIT_TYPE = EXE_TYPE
-let INIT_LONG_OPTION: Array<String> = ["name=", "path=", "type=", "workspace"]
+let DEFAULT_INIT_TYPE: OutputType = Exe
+let INIT_LONG_OPTION: Array<String> = ["name=", "path=", "type=", "workspace", "experimental"]
 let INIT_USAGE: String = """
 Initialize a new cangjie module.
 This command creates "cjpm.toml" file, along with the necessary project directory "src".
@@ -25,11 +24,12 @@ Available options:
   --workspace                          initialize a workspace's default configuration file
   --name <value>                       specify root package name, default as current directory name
   --path <value>                       specify path to create the module, default as current directory
-  --type=<executable|static|dynamic>   define output type of current module."""
+  --type=<executable|static|dynamic>   define output type of current module
+  --experimental                       initializes Cangjie Multiplatform project."""
 
 // InitCommand represents the init command
 class InitCommand <: Handle {
-    private var outputType: String
+    private var outputType: OutputType
 
     init(args: Array<String>) {
         this.cmdName = args[0]
@@ -57,7 +57,7 @@ class InitCommand <: Handle {
             return false
         }
 
-        eprintln("Error: unknow command '${unparseArgs[0]}' for cjpm init")
+        eprintln("Error: unknown command '${unparseArgs[0]}' for cjpm init")
         return false
     }
 
@@ -77,19 +77,21 @@ class InitCommand <: Handle {
 
         let (newType, typeFlag) = getArgValue(argMap, "--type")
         if (typeFlag) {
-            if (!INIT_TYPE_LIST.contains(newType)) {
-                eprintln("Error: unknow command '--type=${newType}' for cjpm init")
+            let outputType = OutputType.fromString(newType)
+            if (let Unknown(s) <- outputType) {
+                eprintln("Error: unknown command '--type=${s}' for cjpm init")
                 return false
             }
-            this.outputType = newType
+            this.outputType = outputType
         }
 
+        let initExperimental: Bool = getBoolOption(argMap, "--experimental")
         let initWorkspace: Bool = getBoolOption(argMap, "--workspace")
 
         if (!handleUnparseArgs(unparseArgs)) {
             return false
         }
 
-        return doInit(rootPkgName, modulePath, this.outputType, initWorkspace, typeFlag)
+        return doInit(rootPkgName, modulePath, this.outputType, initExperimental, initWorkspace, typeFlag)
     }
 }

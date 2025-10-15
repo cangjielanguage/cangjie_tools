@@ -173,8 +173,10 @@ void Logger::HandleNewLog(size_t infoSize)
             outToFile.close();
             outToFile.clear();
         }
-        (void)rename(oldName.c_str(), newName.c_str());
-        RemoveRedundantLogFile();
+        if (rename(oldName.c_str(), newName.c_str()) == 0) {
+            logQueue.emplace(name);
+            RemoveRedundantLogFile();
+        }
         // open file
         outToFile.open(logPath, std::ios_base::app | std::ios_base::binary);
     }

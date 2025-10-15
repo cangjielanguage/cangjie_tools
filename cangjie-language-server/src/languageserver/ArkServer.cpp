@@ -285,6 +285,37 @@ void ArkServer::FindReferences(const std::string &file,
     arkScheduler->RunWithAST("References", file, action);
 }
 
+void ArkServer::FindFileReferences(const std::string &file, const Callback<ValueOrError> &reply) const
+{
+    auto action = [file, reply = std::move(reply), this](const InputsAndAST& inputAST) {
+        ReferencesResult result;
+        std::string unixPath = PathWindowsToLinux(file);
+        if (inputAST.ast == nullptr) {
+            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+            reply(value);
+            return;
+        }
+        FindReferencesImpl::FindFileReferences(*(inputAST.ast), result);
+        nlohmann::json jsonValue;
+        for (auto &iter : result.References) {
+            nlohmann::json temp;
+            if (unixPath.compare(URI::Resolve(iter.uri.file)) == 0) {
+                continue;
+            }
+            temp["uri"] = iter.uri.file;
+            temp["range"]["start"]["line"] = iter.range.start.line;
+            temp["range"]["start"]["character"] = iter.range.start.column;
+            temp["range"]["end"]["line"] = iter.range.end.line;
+            temp["range"]["end"]["character"] = iter.range.end.column;
+            (void)jsonValue.push_back(temp);
+        }
+        ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
+        reply(value);
+    };
+
+    arkScheduler->RunWithAST("FileReferences", file, action);
+}
+
 void ArkServer::FindWorkspaceSymbols(const std::string &query, const Callback<ValueOrError> &reply) const
 {
     auto action = [query, reply = std::move(reply)](const InputsAndAST &) {
@@ -706,6 +737,12 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
     auto action = [this, file, type, docMgr](const InputsAndAST &input) {
         if (type == FileChangeType::CHANGED) {
             Logger::Instance().LogMessage(MessageType::MSG_WARNING, "enter the scenario not supported ");
+            if (docMgr->GetDoc(file).version == -1) {
+                Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
+                const std::string &contents = GetFileContents(file);
+                int64_t version = docMgr->AddDoc(file, 0, contents);
+                AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
+            }
             return;
         }
         if (type == FileChangeType::CREATED) {

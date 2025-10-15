@@ -175,8 +175,6 @@ public:
 
     std::vector<std::string> GetIncTopologySort(const std::string &pkgName);
 
-    void ReportDiagForCirclePackages(const std::vector<std::vector<std::string>> &cycles);
-
     void ReportCircularDeps(const std::vector<std::vector<std::string>> &cycles);
 
     std::vector<std::vector<std::string>> ResolveDependence();

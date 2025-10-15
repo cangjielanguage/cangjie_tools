@@ -47,6 +47,21 @@ declare class CM {
     f8(result: string | Promise<string>): boolean
 }
 
+declare class TE {
+  /**
+  * @since 1.0.0
+  */
+  constructor(
+    param1?:Array<UInt8>,
+    param2?:Array<string>
+    callback:AsyncCallback<string>,
+  )
+  f1(): void;
+  f1(result: string | Promise<string>): Promise<string>;
+}
+
+declare function test(): Promise<string>
+
 declare function onEnumCb(p1: number | boolean, p2: Record<string, number> | Uint8Array | string): string
 
 // 构造函数

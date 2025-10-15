@@ -165,8 +165,12 @@ private:
 
     Ptr<Decl> FindTopDecl(const ArkAST &input, const std::string &prefix, CompletionEnv &env,
                           const Position &pos);
+
     void CompleteCandidate(const Position &pos, const std::string &prefix, CompletionEnv &env,
                            Candidate &declOrTy);
+
+    Position GetMacroNodeNextPosition(
+        const std::unique_ptr<ArkAST> &arkAst, const Ptr<NameReferenceExpr> &semaCacheExpr) const;
 
     /**
      * complete macro-modified field in macro node, ex:
@@ -182,7 +186,11 @@ private:
     void NestedMacroComplete(const ArkAST &input, const Position &pos, const std::string &prefix,
                               CompletionEnv &env, Ptr<Expr> expr);
 
-    Ptr<Ty> GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst);
+    void GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst,
+        Ptr<Ty> &ty, Ptr<NameReferenceExpr> &resExpr);
+
+    void CompleteByReferenceTarget(const Position &pos, const std::string &prefix, CompletionEnv &env,
+        const Ptr<Expr> &expr, const Ptr<NameReferenceExpr> &resExpr);
 
     Cangjie::ASTContext *context = nullptr;
 

@@ -58,7 +58,7 @@ cjfmt/
 3. 通过 `cjfmt/build` 目录下的构建脚本编译 `cjfmt`：
 
     ```shell
-    cd cangjie_tools/cjfmt/build
+    cd cangjie-tools/cjfmt/build
     python3 build.py build -t release
     ```
 
@@ -217,7 +217,7 @@ cjfmt -f a.cj -c ./cangjie-format.toml
 - `-l` 选项仅适用于格式化单个文件（选项 `-f`）。如果指定了目录（选项 `-d`），则 `-l` 选项无效。
 
 ```shell
-cjfmt -f a.cj -o .cj -l 10:25 // 仅格式化第10行至第25行
+cjfmt -f a.cj -o b.cj -l 10:25 // 仅格式化第10行至第25行
 ```
 
 ## 相关仓

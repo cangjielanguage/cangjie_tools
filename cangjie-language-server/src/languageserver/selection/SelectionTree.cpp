@@ -18,7 +18,6 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
         return false;
     }
     auto treeNode = std::make_unique<SelectionTreeNode>();
-    bool needCompilerAdd = false;
 
     Walker(decl, [&](auto node) {
         if (!node) {
@@ -30,12 +29,12 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
         if (node->isInMacroCall) {
             return VisitAction::SKIP_CHILDREN;
         }
-        if (node->TestAttr(Attribute::COMPILER_ADD)) {
+        if (node->begin > node->end) {
             return VisitAction::SKIP_CHILDREN;
         }
-        if (node->begin <= start && node->end >= end && !node->TestAttr(Attribute::COMPILER_ADD)) {
-            if (node->TestAttr(Attribute::MACRO_FUNC) || node->astKind ==ASTKind::INC_OR_DEC_EXPR) {
-                needCompilerAdd = true;
+        if (node->begin <= start && node->end >= end) {
+            if (!outerInterpExpr && node->astKind == ASTKind::INTERPOLATION_EXPR) {
+                outerInterpExpr = node;
             }
             treeNode->node = node;
             treeNode->Parent = nullptr;
@@ -43,6 +42,9 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
             MatchSelectedScope(node, start, end);
             FindTopDecl(*node);
             treeNode = std::make_unique<SelectionTreeNode>();
+            if (node->begin == start && node->end == end) {
+                return VisitAction::STOP_NOW;
+            }
             return VisitAction::WALK_CHILDREN;
         }
 
@@ -51,11 +53,11 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
     if (!Root) {
         return false;
     }
-    BuildTreeNode(Root.get(), start, end, needCompilerAdd);
+    BuildTreeNode(Root.get(), start, end);
     return true;
 }
 
-void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position start, Position end, bool needCompilerAdd)
+void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position start, Position end)
 {
     const Ptr<Node> parent = rootTreeNode->node.get();
     if (parent->begin > end || parent->end < start) {
@@ -69,11 +71,7 @@ void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position star
         if (node.get() == parent.get()) {
             return VisitAction::WALK_CHILDREN;
         }
-        if (node->TestAttr(Attribute::MACRO_FUNC) || node->astKind == ASTKind::INC_OR_DEC_EXPR
-            || node->astKind == ASTKind::INTERPOLATION_EXPR) {
-            needCompilerAdd = true;
-        }
-        if (node->TestAttr(Attribute::COMPILER_ADD) && !needCompilerAdd) {
+        if (node->begin > node->end) {
             return VisitAction::SKIP_CHILDREN;
         }
         const Ptr<SelectionTreeNode> treeNode = new SelectionTreeNode();  // maybe cause memory leak, add destructure
@@ -87,7 +85,7 @@ void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position star
             treeNode->selected = Selection::Partial;
         }
         rootTreeNode->Children.push_back(treeNode);
-        BuildTreeNode(treeNode.get(), start, end, needCompilerAdd);
+        BuildTreeNode(treeNode.get(), start, end);
         return VisitAction::SKIP_CHILDREN;
     }).Walk();
 }
@@ -234,6 +232,9 @@ void SelectionTree::MatchSelectedScope(Ptr<Node> node, Position start, Position 
 
 void SelectionTree::FindTopDecl(Cangjie::AST::Node &node)
 {
+    if (topDecl) {
+        return;
+    }
     Meta::match(node)(
         [&](Cangjie::AST::InterfaceDecl &interfaceDecl) {
             topDecl = &interfaceDecl;

@@ -58,10 +58,13 @@ Available options:
   -g                            enable compile debug version target
   --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
+  --enable-features <value>     explicitly specify comma-separated list of features to be enabled
+  --no-feature-deduce           disables auto-enabling of features, deduced from other options, machine properties, etc.
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
   --target-dir <value>          specify target directory
   -o, --output <value>          specify product name when compiling an executable file
+  -l, --lint                    enable cjlint code check
   --mock                        enable support of mocking classes in tests
   --skip-script                 disable script 'build.cj'.
 ```
@@ -78,6 +81,7 @@ Available options:
 - `--name <value>` 指定新建模块的 `root` 包名，不指定时默认为上一级子文件夹名称
 - `--path <value>` 指定新建模块的路径，不指定时默认为当前文件夹
 - `--type=<executable|static|dynamic>` 指定新建模块的产物类型，缺省时默认为 `executable`
+- `--experimental` 初始化仓颉多平台项目
 
 例如：
 
@@ -242,11 +246,14 @@ cjpm tree success
 - `-V, --verbose` 用于展示编译日志
 - `-g` 用于生成 `debug` 版本的输出产物
 - `--coverage` 用于生成覆盖率信息，默认情况下不开启覆盖率功能
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考  `profile.customized-option` 章节
+- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考 [profile.customized-option](./user_guide.md##profile.customized-option) 章节
+- `--enable-features <value>` 显式指定要启用的功能，可用逗号分隔
+- `no-feature-deduce` 禁用功能的自动启用，支持从其他选项或机器的相关属性推断等
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口
 - `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
 - `--target-dir <value>` 用于指定输出产物的存放路径
 - `-o, --output <value>` 用于指定输出可执行文件的名称，默认名称为 `main`（`Windows` 系统下则默认为 `main.exe`）。注意，当前不支持编译名称为 `cjc` 的可执行文件
+- `-l, --lint` 用于在编译时调用仓颉语言静态检查工具进行代码检查
 - `--mock` 带有此选项的构建版本中的类可用于在测试中进行 `mock` 测试
 - `--skip-script` 配置后，将会跳过构建脚本的编译运行
 
@@ -276,6 +283,44 @@ cjpm build success
 > **注意：**
 >
 > 根据仓颉包管理规格，只有符合要求的有效源码包才能被正确纳入编译范围。如果编译时出现 `no '.cj' file` 相关的告警，很可能是因为对应包不符合规范导致源码文件不被编译。如果出现这种情况，请参考[仓颉包管理规格说明](./user_guide.md#仓颉包管理规格说明)修改代码目录结构。
+
+在执行 `cjpm build` 之前，`cjpm` 会对当前模块或工作空间进行包依赖关系检查。若发现包之间存在相互导入关系形成依赖闭环，构建将被中止并返回错误信息，提示循环依赖路径。
+
+例如，模块 `demo` 的源代码目录结构如下：
+
+```text
+src
+├── main.cj
+├── aoo
+│   └── a.cj
+├── boo
+│   └── b.cj
+├── coo
+│   └── c.cj
+└── cjpm.toml
+```
+
+依赖关系为：包 `demo.aoo` 导入包 `demo.boo`，包 `demo.boo` 导入包 `demo.coo`，包 `demo.coo` 导入包 `demo.aoo`，三个包之间的依赖导入形成闭环，导致循环依赖：
+
+```text
+输入: cjpm build
+输出:
+cyclic dependency:
+demo.boo -> demo.coo
+demo.coo -> demo.aoo
+demo.aoo -> demo.boo
+
+Error: cjpm build failed
+```
+
+出现循环依赖后，开发者可以基于报错信息进行依赖关系排查。上例中，导入关系为 `demo.aoo -> demo.boo -> demo.coo -> demo.aoo`，开发者可依次从各包对应的目录下找到导入点并分析是否可以删除导入，从而解决循环依赖。例如，开发者可先从 `demo.aoo` 开始分析，在该包对应的代码目录中，查询哪些源码文件存在 `demo.boo` 包的导入，若这些文件实际上并没有功能依赖 `demo.boo`，则可以删除对应的导入。用同样的方法依次排查 `demo.boo` 和 `demo.coo`，删除冗余导入，从而尝试解决循环依赖问题。
+
+若经过上述排查，发现确实存在功能上的循环依赖情况，可以尝试下面的几个解决方法：
+
+- 重构导入顺序：尽量让依赖关系保持单向，避免回环，例如上例中 `demo.coo` 中依赖 `demo.aoo` 的部分可独立实现，即可拆解闭环；
+- 拆分模块：将相互引用的代码拆分到独立包，例如上例中可将三个子包合成一个包。
+
+在涉及到包依赖关系解析的其他命令中（例如 `tree`），若存在循环依赖，也会有相同的报错出现，也可以基于上述处理方式解决。
 
 ### run
 
@@ -471,6 +516,7 @@ cjpm build success
     - `nCores` 指定了并行的测试进程个数应该等于可用的 CPU 核数
     - `NUMBER` 指定了并行的测试进程个数值。该数值应该为正整数
     - `NUMBERnCores` 指定了并行的测试进程个数值为可用的 CPU 核数的指定数值倍。该数值应该为正数（支持浮点数或整数）
+- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
 - `--show-all-output` 启用测试输出打印，包括通过的测试用例
 - `--no-capture-output` 禁用测试输出捕获，输出将在测试执行期间立即打印
 - `--report-path <value>` 指定测试执行后的报告生成路径
@@ -487,8 +533,9 @@ cjpm build success
 ```text
 输入：
 cjpm test src --coverage
+cjcov --root=./ --html-details -o html_output
 输出：cjpm test success
-覆盖率数据生成：在 cov_output 目录下对应模块的目录中，会生成 gcno 和 gcda 文件
+覆盖率生成：在 html_output 目录下会生成 html 文件，总的覆盖率报告文件名固定为 index.html
 ```
 
 ```text
@@ -564,6 +611,7 @@ Summary: TOTAL: 1
     - `--exclude-tags=Unittest+Smoke+JiraTask3271` 运行所有未被标记为 `@Tag[Unittest, Smoke, JiraTask3271]` 同时都有的测试
     - `--include-tags=Unittest --exclude-tags=Smoke` 运行所有被标记为 `@Tag[Unittest]` 且不带有 `@Tag[Smoke]` 的测试
 - `--no-color` 关闭控制台颜色显示
+- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
 - `--random-seed <N>` 用来指定随机种子的值
 - `--report-path <value>` 指定执行后生成报告的路径。与 `test` 子命令不同，它具有默认值 `bench_report`
 - `--report-format <value>` 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
@@ -1059,6 +1107,10 @@ hello = { path = "./src/" }
 
 若需要指定不同平台可使用的 `c` 库配置，请参见 [target](./user_guide.md#target)。
 
+> **注意：**
+>
+> 在 `Windows` 系统的多模块场景下，若多个模块配置了同名 `c` 库，由于 `Windows` 特殊的库读取策略，会最优先读取运行目录下的库文件，因此最终的行为可能与其他系统不一致。
+
 ### "profile"
 
 `profile` 作为一种命令剖面配置项，用于控制某个命令执行时的默认配置项。目前支持如下场景：`build`、`test`、`bench`、`run` 和 `customized-option`。
@@ -1144,6 +1196,11 @@ demo = "dynamic"
 >     - 如果配置了该字段的模块直接或间接依赖了其他源码模块，那么这些依赖模块也需要配置该字段；
 >     - 构建脚本依赖的源码模块中，若配置了 `profile.build.combined`，不会生效；
 >     - 编译产物目标平台为 `macOS` 时，暂不支持 `profile.build.combined` 选项。
+
+若启用了 `combined` 配置，可能会出现无法通过导入关系识别的循环依赖，导致出现 `cyclic dependency` 循环依赖报错，解决方式如下：
+
+- 若报错信息中包含形如 `because of combined module 'demo'` 的报错，说明模块 `demo` 被配置成了 `combined` 模块，并且存在 `demo` 的子包直接或间接依赖 `demo` 包的情况，开发者可以查找并删去该模块子包中存在的对 `root` 包的导入，或者直接去除 `combined` 配置，从而解决此类循环依赖；
+- 若报错信息中包含形如 `between combined modules` 的报错，说明该条目中两个 `root` 包对应模块都被配置成了 `combined` 模块，且存在模块间（包括子包之间）的相互依赖，开发者可以查找并删去其中一个 `combined` 模块对另一个 `combined` 模块的包导入，或者直接去除两个模块的 `combined` 配置，从而解决此类循环依赖。
 
 #### "profile.test"
 
@@ -1760,11 +1817,12 @@ cj_project
 - 新建仓颉项目并编写源码 `xxx.cj` 文件，如示例结构所示的 `koo` 包和 `main.cj` 文件。
 
     ```shell
-    cjpm init --name test --path .../cj_project
-    mkdir koo
+    cjpm init --name test --path ./cj_project
+    cd cj_project
+    mkdir src/koo
     ```
 
-    此时，会自动生成 `src` 文件夹和默认的 `cjpm.toml` 配置文件。
+    此时，会在当前执行命令的目录下创建 `cj_project` 目录，并在该目录中自动生成 `src` 文件夹和默认的 `cjpm.toml` 配置文件。开发者可以自行在源码目录 `src` 中新建子包（如 `src/koo`），或是自行在各包中新增源码文件和测试文件。
 
 - 当前模块需要依赖外部的 `pro0` 模块时，可以新建 `pro0` 模块及该模块的配置文件，接下来编写该模块的源码文件，需要自行在 `pro0` 下新建 `src` 文件夹，在 `src` 下新建 `pro0` 的 root 包 `pro0.cj`，并将编写的仓颉包放置在 `src` 下，如示例结构所示的 `zoo` 包。
 
@@ -1924,4 +1982,334 @@ description = "nothing here"
 version = "1.0.0"
 name = "pro0"
 output-type = "static"
+```
+
+## 附录
+
+### 交叉编译使用说明
+
+`cjpm` 支持在部分平台之间交叉编译并运行。例如，假设目标平台为 `arch-sys-abi`，编译步骤如下：
+
+1. 配置目标平台所需的工具链。
+
+2. 在入口模块的 `cjpm.toml` 中，添加目标平台需要的编译选项配置：
+
+    ```text
+    [target.arch-sys-abi]
+      override-compile-option = "value"
+    ```
+
+   此配置会应用于所有依赖的模块。单模块编译模式下，可以替换成 `compile-option`。
+
+3. 若项目存在二进制依赖，则需要进行如下配置：
+
+    ```text
+    [target.arch-sys-abi.bin-dependencies]
+      path-option = [...]
+    [target.arch-sys-abi.bin-dependencies.package-option]
+      "..." = "..."
+    ```
+
+4. 使用如下命令进行编译构建或测试代码构建：
+
+    ```shell
+    cjpm build --target=arch-sys-abi  # 交叉编译目标平台的产物
+    cjpm test --target=arch-sys-abi   # 交叉编译目标平台的可执行测试文件
+    ```
+
+5. 将二进制产物导入到目标平台，即可正常运行。
+
+> **注意：**
+>
+> - 编译产物位于用户配置的 `target-dir` 目录下以目标平台 `target` 命名的目录。
+> - 若存在动态库依赖，则需要将动态库配置于运行环境的环境变量 `LD_LIBRARY_PATH`中。
+
+### 多平台构建使用说明
+
+为了支持多平台项目构建，在 `cjpm` 中引入了新的实体，例如 `features` 和 `source-sets`，以使多平台项目的开发更加高效。此功能为实验特性，需要在 `[profile]` 字段中指定 `experimental = true`。
+
+#### Feature
+
+`Feature` 是一个命名的标志，用于指定需要编译的源代码。以下是 `cjpm` 中可用的所有功能列表：
+
+```bash
+feature.os.posix
+feature.os.epoll
+feature.os.kqueue
+feature.os.windows
+feature.os.linux
+# OS is harmony
+feature.os.hm
+feature.os.darwin
+# The CPU architecture is `big-endian`
+feature.arch.big
+# The CPU architecture is `little-endian`
+feature.arch.little
+feature.arch.x64
+feature.arch.aarch64
+# The CPU uses `sse` instruction set
+feature.arch.sse1
+feature.arch.sse2
+feature.arch.sse3
+feature.arch.sse4.1
+feature.arch.sse4.2
+# The CPU uses `avx` instruction set
+feature.arch.avx1
+feature.arch.avx2
+feature.arch.avx512
+feature.arch.neon
+feature.env.ohos
+feature.env.gnu
+feature.env.mingw32
+feature.env.hos
+feature.env.android
+feature.cj.cjnative
+feature.cj.v0_54_3 # anything after `v` is interpreted as `cjc` version
+```
+
+这些值本身并不会以任何方式进行验证。使能如上 `feature` 编译的代码是否能够正确执行，由开发者自行验证。
+开发者可自定义 `feature` 的值和含义。
+开发者可以在 `cjpm` 的 `build`、`run` 和 `test` 命令中使用 `--enable-features` 选项，并在选项中提供以逗号分隔的 `feature` 值。
+例如：
+
+```bash
+cjpm build --enable-features=feature.os.linux,feature.env.gnu
+```
+
+#### Feature 推导
+
+如下列表中的 `feature` 值可以从正在使用的 `cjc` 或 `cjpm` 的其他编译选项（如 `--target` ）中推断出来，因此通常不必显式指定：
+
+```bash
+feature.os.posix
+feature.os.windows
+feature.os.linux
+feature.os.hm
+feature.os.darwin
+feature.arch.x64
+feature.arch.aarch64
+feature.env.ohos
+feature.env.gnu
+feature.env.mingw32
+feature.env.hos
+feature.env.android
+feature.cj.cjvm
+feature.cj.cjnative
+feature.cj.v0_54_3
+```
+
+如果在 `GNU/Linux` 机器上开发多平台项目，则可以通过如下命令来编译和运行源代码：
+
+```bash
+# 简短的命令
+cjpm run
+# 完整的命令
+cjpm run --enable-features=feature.os.linux,feature.env.gnu
+```
+
+交叉编译项目场景下，则需指定 `--target`。
+
+例如：
+
+```bash
+# 简短的命令
+cjpm build --target=aarch64-linux-android
+# 完整的命令
+cjpm build --target=aarch64-linux-android --enable-features=feature.arch.aarch64,feature.os.linux,feature.env.android
+```
+
+当 `cjpm` 推导到了多个源代码目录（编译错误），可使用选项 `--no-feature-deduce` 来禁用推导，并通过 `--enable-features` 明确指定 `feature` ：
+
+```bash
+# 将出现 "No source set was selected" 的错误信息
+cjpm build --target=aarch64-linux-android --no-feature-deduce
+# 可选择合适的 feature 值进行指定:
+# 1. [..., "feature.os.linux", "feature.env.android"]
+# 2. [..., "feature.os.linux"]
+# 3. [..., "feature.env.android"]
+
+cjpm build --no-feature-deduce --target=aarch64-linux-android --enable-features=feature.os.linux,feature.env.android
+```
+
+#### 源码集及其配置
+
+默认的 `cjpm.toml` 如下:
+
+```toml
+[package]
+  cjc-version = "0.57.1"
+  compile-option = ""
+  description = "nothing here"
+  link-option = ""
+  name = "cmp_lib"
+  output-type = "dynamic"
+  override-compile-option = ""
+  target-dir = ""
+  version = "1.0.0"
+  package-configuration = {}
+
+# 新增字段，指示多平台项目
+# [source-set]
+```
+
+对于 `source-set` 字段的配置，示例如下：
+
+```toml
+ # Example syntax:
+
+ # 仓颉代码的源码文件目录
+ [source-set.epoll]
+   src-dir = "src/net/select/epoll"
+   condition = [ "feature.os.epoll" ]
+
+ [source-set.kqueue]
+   src-dir = "src/net/select/kqueue"
+   condition = [ "feature.os.kqueue" ]
+```
+
+每个源码集声明包含 3 个部分：`source-set` 标识符、`src-dir` 和 `condition`。
+
+##### source-set 标识符
+
+`source-set` 标识符是源码集的唯一“路径”。此“路径”以 `.` 分隔，并且每个路径都应以 `source-set` 开头，因为它是所有声明的根。
+
+##### src-dir
+
+表示当启用此源码集时，查找软件包的源代码的位置。
+
+```toml
+# Possible syntax
+
+# 1. 单个目录
+[source-set.${source set fully qualified name}]
+  src-dir = "./src/linux/common"
+
+# 2. 多个目录
+# 所有指定目录将作为单个编译单元被编译，使之类似单个目录被编译。
+
+ [source-set.${source set fully qualified name}]
+   src-dir = ["./src/linux/dirA", "./src/linux/dirB"]
+```
+
+##### condition
+
+`condition` 指定必须启用的一个或多个 `feature`，以便编译相应的代码。
+
+```toml
+# 如果源码集声明不包含 `condition` 字段 - 则不设置任何约束。
+# 可能的语法:
+# 1. 同时满足多个 feature 。
+
+ [source-set.${source set fully qualified name}]
+   condition = ["feature.arch.aarch64", "feature.env.ohos", "feature.os.linux"]
+
+# 2. 满足多个 feature 的其中之一。
+
+[source-set.${source set fully qualified name}]
+  condition.1     = ["feature.arch.little"]
+  condiiton.alpha = ["feature.env.ohos"]
+  condiiton.beta  = ["feature.os.linux", "feature.os.posix"]  # 必须同时满足两个 feature。
+```
+
+#### 特殊源码集及其配置
+
+##### Common 源码集
+
+在同一层级上只能选择一个源码集，这样代码在不同平台之间保持隔离。但我们希望有一部分代码始终会被使用。这部分称为 `common` 源码集，其代码将在整个编译过程中始终包含，`condition` 配置不可用。示例如下：
+
+```toml
+[source-set.common]
+  src-dir = "./common"
+
+[source-set.socketSelection.common]
+  src-dir = "./socket/common"
+
+[source-set.socketSelection.kqueue]
+  src-dir = "./socket/kqueue"
+  condition = [ "feature.os.kqueue" ]
+```
+
+##### 嵌套源码集
+
+当源码集存在嵌套层级时，要求代码目录层级与源码集层级存在对应关系(及父级源码集的路径需为子级源码集路径的前缀)。同时，嵌套源码集场景下，不支持多个路径。
+
+```toml
+[source-set.common]
+  src-dir = "./common"
+
+[source-set.socketSelection]
+  src-dir = "./socketSelection/weird"
+
+[source-set.socketSelection.a]
+  src-dir = "./socketSelection/weird/a"
+
+[source-set.socketSelection.b]
+  src-dir = "./socketSelection/weird/b"
+```
+
+##### Other 源码集
+
+当配置文件中仅有单层源码集时，若 `cjpm` 匹配不到任何源码集，则会编译报错。但存在嵌套源码集时，`cjpm` 会隐式生成一个名为 `other` 的特殊源码集，路径将依据父级路径生成。若想要自定义路径，则可显式指定该源码集配置，但是其 `condition` 不可被配置。具体示例如下：
+
+```toml
+[source-set.common]
+  src-dir = "./common"
+
+[source-set.socketSelection]
+  src-dir = "./socketSelection"
+
+[source-set.socketSelection.weird]
+  src-dir = "./socketSelection/weird"
+  condition = [ "feature.os.linux", "feature.os.windows" ] # Practicall impossible condition to meet
+
+# This source set will be selected as fallback
+[source-set.socketSelection.other]
+  src-dir = "./socketSelection/other"
+```
+
+若没有选择任何顶层的源码集，报错信息如下：
+
+```text
+"No source set specified in ${path/to/cjpm.toml} was selected"
+```
+
+##### Default 源码集
+
+默认的源码集表示已在 `cjpm` 中默认支持的源码集类型。若无需修改相关配置，则无需在 `cjpm.toml` 中指定。若需修改，则可在配置文件中指定对应源码集并进行配置，配置将覆盖默认配置。
+
+例如，仅设置空 `source-set` 配置表示该项目为多平台项目。
+
+```toml
+[source-set]
+```
+
+此时 `cjpm` 将**隐式**生成默认的配置信息，如下：
+
+```toml
+[source-set.common]
+  src-dir = "./common"
+
+[source-set.windows]
+  src-dir = "./windows"
+  condition = ["feature.os.windows"]
+
+[source-set.linux]
+  src-dir = "./linux"
+  condition = ["feature.os.linux", "feature.env.gnu"]
+
+[source-set.darwin]
+  src-dir = "./darwin"
+  condition = ["feature.os.darwin"]
+
+[source-set.android]
+  src-dir = "./android"
+  condition = ["feature.os.linux", "feature.env.android"]
+
+[source-set.hos]
+  src-dir = "./hos"
+  condition = ["feature.os.linux", "feature.env.hos"]
+
+[source-set.ohos]
+  src-dir = "./ohos"
+  condition = ["feature.os.linux", "feature.env.ohos"]
 ```

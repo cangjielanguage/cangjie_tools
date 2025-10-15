@@ -257,6 +257,7 @@ ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environme
     MsgHandler->Bind("codeGenerator/overrideMethods", &ArkLanguageServer::OnOverrideMethods);
     MsgHandler->Bind("textDocument/codeAction", &ArkLanguageServer::OnCodeAction);
     MsgHandler->Bind("workspace/executeCommand", &ArkLanguageServer::OnCommand);
+    MsgHandler->Bind("textDocument/findFileReferences", &ArkLanguageServer::OnFileReference);
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
         MsgHandler->Bind("textDocument/codeLens", &ArkLanguageServer::OnCodeLens);
     }
@@ -300,6 +301,7 @@ nlohmann::json GetServerCapabilities(int syncKind)
         serverCapabilities["codeLensProvider"]["resolveProvider"] = true;
     }
     serverCapabilities["crossLanguageDefinition"] = true;
+    serverCapabilities["findFileReferences"] = true;
     std::set<std::string> triggerCharacters = {".", "`"};
     for (const std::string& item : triggerCharacters) {
         (void)serverCapabilities["completionProvider"]["triggerCharacters"].push_back(item);
@@ -817,6 +819,24 @@ void ArkLanguageServer::OnReference(const TextDocumentPositionParams &params, nl
         transp.Reply(std::move(id), std::move(result));
     };
     Server->FindReferences(file, params, std::move(reply));
+}
+
+void ArkLanguageServer::OnFileReference(const DocumentLinkParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnFileReference in");
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
+    if (!CheckFileInCangjieProject(file)) {
+        ReplyError(id);
+        return;
+    }
+
+    auto reply = [id, this](ValueOrError result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), std::move(result));
+    };
+    Server->FindFileReferences(file, std::move(reply));
 }
 
 void ArkLanguageServer::OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id)

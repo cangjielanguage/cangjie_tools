@@ -44,8 +44,8 @@ public class CommonInfo {
         }
         var targetInfo: TargetInfo = this.targetConfigMap[targetName].commonTargetInfo
         if (isDebug) {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].debugTargetInfo, targetName,
-                false)) {
+            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].debugTargetInfo,
+                targetName, false)) {
                 return false
             }
         } else {
@@ -59,8 +59,7 @@ public class CommonInfo {
         return true
     }
 
-    public func replaceTargetInfo(path: String, targetName: String, isDebug!: Bool = false,
-        isTest!: Bool = false): Bool {
+    public func replaceTargetInfo(path: String, targetName: String, isDebug!: Bool = false, isTest!: Bool = false): Bool {
         if (this.isReplaced) {
             return true
         }
@@ -130,8 +129,8 @@ public class WorkSpace <: Serializable<WorkSpace> {
         }
         var result = WorkSpace()
         result.members = ArrayList<String>.deserialize((dms.get("members") as DataModelSeq) ?? DataModelSeq())
-        result.buildMembers = ArrayList<String>.deserialize(
-            (dms.get("build-members") as DataModelSeq) ?? DataModelSeq())
+        result.buildMembers = ArrayList<String>.deserialize((dms.get("build-members") as DataModelSeq) ??
+            DataModelSeq())
         result.testMembers = ArrayList<String>.deserialize((dms.get("test-members") as DataModelSeq) ?? DataModelSeq())
         result.compileOption = String.deserialize((dms.get(COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
         result.overrideCompileOption = String.deserialize(
@@ -213,7 +212,6 @@ public func checkForWorkspace(rootPath: String, tomlInfo: TomlInfo, memberModule
     if (!COMMON_INFO.replaceTargetInfo(rootPath, crossCompileTarget, isDebug: isDebug, isTest: isTest)) {
         return false
     }
-
     return COMMON_INFO.getNativeOverrideOption(rootPath, targetConfigName, isDebug)
 }
 

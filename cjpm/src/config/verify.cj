@@ -7,6 +7,7 @@
 package cjpm.config
 
 import std.regex.*
+import std.fs.*
 
 // Regexp root package name.
 let EXAMPLE_ROOT_PACKAGE_NAME: String = "cjDemo"
@@ -14,6 +15,10 @@ let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
 // Regexp version.
 public let REGEXP_VERTION: String = "^(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
 let EXAMPLE_MODULE_VERSION: String = "1.0.0"
+// used for central repository
+let REGEXP_NAME_VERSION: String = "^(_*[a-zA-Z][_a-zA-Z0-9]*):(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
+// used for central repository
+public let EXAMPLE_NAME_VERSION: String = "cjModDemo:1.0.0"
 let EXAMPLE_CJC_VERSION: String = "1.0.0"
 // regexp c library name.
 let REGEXP_C_LIB_NAME: String = "^[A-Za-z0-9\\._\\-#%\\+,=@\\[\\]\\^\\{\\}~]+$"
@@ -86,6 +91,32 @@ func versionCheck(text: String, path: String): Bool {
     return false
 }
 
+// used for central repository
+// Check name:version args
+public func nameVersionCheck(text: String): Bool {
+    let matched = Regex(REGEXP_NAME_VERSION)
+    match (matched.find(text)) {
+        case Some(_) => return true
+        case None => return false
+    }
+}
+
+// used for central repository
+// Check central dependencies version in cjpm.toml.
+func centralVersionCheck(name: String, text: String, path: String): Bool {
+    if (text.isEmpty()) {
+        eprintln("Error: name of dependency from central repository in ${path} can't be empty")
+        return false
+    }
+    let matched = Regex(REGEXP_VERTION)
+    match (matched.find(text)) {
+        case Some(_) => return true
+        case None => eprintln("Error: version '${text}' for central repository dependency '${name}' in ${path} " +
+            "is wrong, the example is '${EXAMPLE_MODULE_VERSION}'")
+    }
+    return false
+}
+
 // Check cjc_version in cjpm.toml.
 func cjcVersionCheck(text: String, path: String): Bool {
     if (text.isEmpty()) {
@@ -103,9 +134,8 @@ func cjcVersionCheck(text: String, path: String): Bool {
 
 // Check output_type in cjpm.toml.
 func outputTypeCheck(text: String, path: String): Bool {
-    if (!OUTPUT_TYPE_LIST.contains(text)) {
-        let options: String = String.join(OUTPUT_TYPE_LIST, delimiter: "/")
-        eprintln("Error: the 'output-type' field in ${path} is wrong, optional value are '${options}'.")
+    if (let Unknown(_) <- OutputType.fromString(text)) {
+        eprintln("Error: the 'output-type' field in ${path} is wrong, optional value are '${Static}/${Dynamic}/${Exe}'.")
         return false
     }
     return true
@@ -133,23 +163,27 @@ public func ltoValueCheck(_: String, _: String): Bool {
 }
 
 public func safeCheck(text: String, path: String): Bool {
+    if (let Some(err) <- safeCheck_valueError(text, path)) {
+        eprintln(err)
+        return false
+    }
+    return true
+}
+
+public func safeCheck_valueError(text: String, path: String): ?String {
     let hasPath: Bool = !path.isEmpty()
     if (Regex(REGEXP_COMMAND_INJECTION).matches(text)) {
         var errorString: String = "Error: the '${text}' contains illegal characters"
         if (hasPath) {
             errorString += " in ${path}"
         }
-        eprintln(errorString)
-        return false
+        return errorString
     }
-    return true
+    return None
 }
 
-public func sourcePathCheck(text: String): Bool {
-    if (Regex(REGEXP_COMMAND_INJECTION).matches(text)) {
-        return false
-    }
-    return true
+public func sourcePathCheck(path: Path): Bool {
+    !Regex(REGEXP_COMMAND_INJECTION).matches(path.toString())
 }
 
 public func customizedOptionCheck(option: String, path: String): Bool {

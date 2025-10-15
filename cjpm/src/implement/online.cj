@@ -9,13 +9,23 @@ package cjpm.implement
 import std.fs.*
 import cjpm.config.*
 
-func getOnlineDepPath(depName: String, depInfo: DepInfo): Option<String> {
-    var depPath = depInfo.path ?? if (let Some((path, commit, _)) <- downloadGitDep(depName, depInfo)) {
-        depInfo.commitId = commit
-        path
+func getOnlineDepPath(modulePath: String, depName: String, depInfo: DepInfo): Option<String> {
+    var depPath = ""
+    // used for central repository
+    if (depInfo.isCenterRepoDep()) {
+        let (loadFlag, sourcePath) = processRepoDependencyModule(depName, depInfo.version.getOrThrow(), modulePath)
+        if (!loadFlag) {
+            return Option.None
+        }
+        depPath = sourcePath
     } else {
-        eprintln("Error: failed to retrieve git dependency ${depName}")
-        return Option.None
+        depPath = depInfo.path ?? if (let Some((path, commit, _)) <- downloadGitDep(depName, depInfo)) {
+            depInfo.commitId = commit
+            path
+        } else {
+            eprintln("Error: failed to retrieve git dependency ${depName}")
+            return Option.None
+        }
     }
     return getCanonicalPath(depPath)
 }
@@ -23,7 +33,7 @@ func getOnlineDepPath(depName: String, depInfo: DepInfo): Option<String> {
 func freshGitPathDep(depInfo: DepInfo, globalConfig: GlobalConfig): Unit {
     if (depInfo.isPathDep()) {
         let (url, commitId) = globalConfig.gitStack.top() ?? ("", "")
-        if (!url.isEmpty()) {
+        if (!url.isEmpty() && url != "repository") {
             depInfo.path = Option.None
             depInfo.git = url
             depInfo.commitId = commitId
@@ -33,22 +43,34 @@ func freshGitPathDep(depInfo: DepInfo, globalConfig: GlobalConfig): Unit {
     return
 }
 
-func getDepPath(name: String, depInfo: DepInfo, globalConfig: GlobalConfig): (Bool, Bool, String) {
+func getDepPath(name: String, depInfo: DepInfo, prePath: String, globalConfig: GlobalConfig): (Bool, Bool, String) {
+    var depPath: String = ""
     var isOnlineDep: Bool = false
-    var depPath = depInfo.path ?? if (let Some((path, commit, _)) <- downloadGitDep(name, depInfo)) {
-        depInfo.commitId = commit
+    // used for central repository
+    if (depInfo.isCenterRepoDep()) {
+        let (loadFlag, sourcePath) = processRepoDependencyModule(name, depInfo.version.getOrThrow(), prePath)
+        if (!loadFlag) {
+            return (false, false, "")
+        }
+        depPath = sourcePath
         isOnlineDep = true
-        globalConfig.gitStack.push((depInfo.git.getOrDefault({=> ""}), commit))
-        path
+        globalConfig.gitStack.push(("repository", ""))
     } else {
-        eprintln("Error: failed to retrieve git dependency ${name}")
-        return (false, false, "")
+        depPath = depInfo.path ?? if (let Some((path, commit, _)) <- downloadGitDep(name, depInfo)) {
+            depInfo.commitId = commit
+            isOnlineDep = true
+            globalConfig.gitStack.push((depInfo.git.getOrDefault({=> ""}), commit))
+            path
+        } else {
+            eprintln("Error: failed to retrieve git dependency ${name}")
+            return (false, false, "")
+        }
     }
     return (true, isOnlineDep, depPath)
 }
 
-func checkGitWorkspace(url: String, dependencyPath: String, targetCommit: String, gitStoragePath: Path): ?(String,
-    String, Bool) {
+func checkGitWorkspace(url: String, dependencyPath: String, targetCommit: String, gitStoragePath: Path):
+    ?(String, String, Bool) {
     let tomlInfo: TomlInfo = loadModuleFile(dependencyPath) ?? return (dependencyPath, targetCommit, false)
     if (tomlInfo.isWorkSpaceConfig) {
         let workspaceGitPath: String = gitStoragePath

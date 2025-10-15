@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-ArkTS interoperability.  
+`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-ArkTS interoperability.
 The input of this tool is ArkTS interface declaration files, such as files ending with .d.ts or .d.ets. The output includes a BUILD.gn file and a src folder. The src folder contains cj files where the generated interoperability code is stored. The tool also outputs a json file containing all information of the ArkTS files. To improve the ease of interoperability, DevEco Studio provides two tools: one is the ArkTS-to-Cangjie Bindings generator, which automatically generates code for ArkTS calling Cangjie and interface files on the ArkTS side through the @Interop macro expansion, and the other is the Cangjie-to-ArkTS Bindings generator (also known as the HLE tool). The overall technical architecture is shown in the figure below.
 
 ![HLE Architecture Diagram](../figures/HLE_eng.png)
@@ -61,7 +61,7 @@ Below is a build guide for Ubuntu 22 environment.
     [How to Install Node.js](https://dev.nodejs.cn/learn/how-to-install-nodejs/)
 
     For example, use the following commands:
-    
+
     ```sh
     # Download and install nvm:
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash

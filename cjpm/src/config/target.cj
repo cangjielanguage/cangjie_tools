@@ -77,8 +77,7 @@ public class TargetInfo <: Serializable<TargetInfo> {
             (dms.get(REPLACE_DEP) as DataModelStruct) ?? DataModelStruct())
         result.binDependencies = BinDependencies.deserialize(
             (dms.get(BIN_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
-        result.ffi= ForeignInterfaces.deserialize(
-            (dms.get(FFI) as DataModelStruct) ?? DataModelStruct())
+        result.ffi = ForeignInterfaces.deserialize((dms.get(FFI) as DataModelStruct) ?? DataModelStruct())
         return result
     }
 
@@ -115,7 +114,7 @@ public class TargetInfo <: Serializable<TargetInfo> {
         for ((k, v) in this.binDependencies.packageOption) {
             this.binDependencies.packageOption[k] = replaceEnvVars(v)
         }
-        for ((k,v) in this.ffi.cLibs) {
+        for ((k, v) in this.ffi.cLibs) {
             this.ffi.cLibs[k] = replaceEnvVars(v)
         }
     }
@@ -189,8 +188,8 @@ public class TargetConfig <: Serializable<TargetConfig> {
             (dms.get(REPLACE_DEP) as DataModelStruct) ?? DataModelStruct())
         result.commonTargetInfo.binDependencies = BinDependencies.deserialize(
             (dms.get(BIN_DEPENDENCIES) as DataModelStruct) ?? DataModelStruct())
-        result.commonTargetInfo.ffi = ForeignInterfaces.deserialize(
-            (dms.get(FFI) as DataModelStruct) ?? DataModelStruct())
+        result.commonTargetInfo.ffi = ForeignInterfaces.deserialize((dms.get(FFI) as DataModelStruct) ??
+            DataModelStruct())
         result.debugTargetInfo = TargetInfo.deserialize((dms.get("debug") as DataModelStruct) ?? DataModelStruct())
         result.releaseTargetInfo = TargetInfo.deserialize((dms.get("release") as DataModelStruct) ?? DataModelStruct())
         return result
@@ -211,8 +210,7 @@ public class TargetConfig <: Serializable<TargetConfig> {
     }
 }
 
-public func replaceTargetInfo(path: String, oriInfo: TargetInfo, newInfo: TargetInfo, targetName: String,
-    isTest: Bool): Bool {
+public func replaceTargetInfo(path: String, oriInfo: TargetInfo, newInfo: TargetInfo, targetName: String, isTest: Bool): Bool {
     oriInfo.compileOption = combineOptionString(oriInfo.compileOption, newInfo.compileOption)
     oriInfo.overrideCompileOption = combineOptionString(oriInfo.overrideCompileOption, newInfo.overrideCompileOption)
     oriInfo.linkOption = combineOptionString(oriInfo.linkOption, newInfo.linkOption)

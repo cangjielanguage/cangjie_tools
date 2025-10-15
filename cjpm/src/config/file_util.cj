@@ -146,7 +146,18 @@ public func getAbsolutePath(path: String): (String, Bool) {
     }
 }
 
-func fileExists(path: String): Bool {
+public func fileExists(path: String): Bool {
+    if (!exists(path)) {
+        return false
+    } else if (FileInfo(path).isRegular()) {
+        return true
+    } else if (FileInfo(path).isSymbolicLink()) {
+        return FileInfo(canonicalize(path)).isRegular()
+    }
+    return false
+}
+
+public func fileExists(path: Path): Bool {
     if (!exists(path)) {
         return false
     } else if (FileInfo(path).isRegular()) {

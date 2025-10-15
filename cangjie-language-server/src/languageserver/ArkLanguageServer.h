@@ -90,6 +90,8 @@ private:
 
     void OnReference(const TextDocumentPositionParams &params, nlohmann::json id);
 
+    void OnFileReference(const DocumentLinkParams &params, nlohmann::json id);
+
     void OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id);
 
     void OnCrossLanguageGoToDefinition(const CrossLanguageJumpParams &params, nlohmann::json id);

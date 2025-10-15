@@ -33,6 +33,8 @@ public:
 
     static void FindReferences(const ArkAST &ast, ReferencesResult &result, Cangjie::Position pos);
 
+    static void FindFileReferences(const ArkAST &ast, ReferencesResult &result);
+
     static void GetCurPkgUesage(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result);
 
     static void DealGenericParamDecl(

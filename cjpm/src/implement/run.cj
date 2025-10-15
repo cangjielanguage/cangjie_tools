@@ -86,8 +86,7 @@ func startRun(runConfig: RunConfig): Bool {
     let envBuilder = EnvironmentBuilder.fromEnvConfig(runConfig.envConfig)
     addLibEnvConfig(envBuilder, runConfig.targetPath, runConfig.globalConfig.nativeDir, runConfig.originTargetPath)
 
-    let exeTool = runConfig.filePath
-    let args = ArrayList<String>()
+    let (exeTool, args) = getExecPair(runConfig.filePath, runConfig.targetPath, runConfig.originTargetPath)
     if (!runConfig.runArgs.isEmpty()) {
         args.add(all: extractOptionByString(runConfig.runArgs))
     }
@@ -126,4 +125,8 @@ func addLibEnvConfig(envBuilder: EnvironmentBuilder, targetDir: String, nativeDi
     let resInfo: ModuleResolve = loadHistoryFile(historyFile) ?? ModuleResolve()
     let ldPath = getLdPathConfig(targetDir, nativeDir, resInfo)
     envBuilder.prepend(LD_PATH, ldPath)
+}
+
+func getExecPair(filePath: String, _: String, _: String): (String, ArrayList<String>) {
+    return (filePath, ArrayList<String>())
 }

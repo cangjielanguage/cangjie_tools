@@ -12,8 +12,30 @@ public const BUILD_SCRIPT_NAME: String = "build.cj"
 public const BUILD_SCRIPT_DIR: String = "build-script-cache"
 public const BUILD_SCRIPT_CACHE: String = ".script-hash"
 public const BUILD_SCRIPT_LOG: String = "script-log"
-public const BUILD_SCRIPT_STEP_PRE: String = "pre-"
-public const BUILD_SCRIPT_STEP_POST: String = "post-"
+
+public enum BuildScriptStep <: ToString & Equatable<BuildScriptStep> {
+    | Pre
+    | Post
+
+    public func toString(): String {
+        match (this) {
+            case Pre => "pre"
+            case Post => "post"
+        }
+    }
+
+    public operator func ==(other: BuildScriptStep): Bool {
+        match ((this, other)) {
+            case (Pre, Pre) => true
+            case (Post, Post) => true
+            case _ => false
+        }
+    }
+    public operator func !=(other: BuildScriptStep): Bool {
+        !(this == other)
+    }
+}
+
 public let BUILD_SCRIPT_CMD_PRE: Array<String> = ["check", "update", "tree", "run", "clean"]
 public let BUILD_SCRIPT_CMD_POST: Array<String> = ["check", "update", "tree", "run"]
 public let DEBUG_CMD: Array<String> = ["run", "clean"]
@@ -25,5 +47,6 @@ public const BUILD_SCRIPT_OUTPUT: String = "build-script"
 public const BUILD_SCRIPT_OUTPUT: String = "build-script.exe"
 public let RELOCATED_SCRIPT_MAP: HashSet<String> = HashSet<String>()
 // command, exe path, env map
-public let RUN_SCRIPT_CMD_MAP: HashMap<String, (String, String, HashMap<String, String>)> =
-    HashMap<String, (String, String, HashMap<String, String>)>()
+public let RUN_SCRIPT_CMD_MAP: HashMap<String, (String, String, HashMap<String, String>)> = HashMap<String,
+    (String, String, HashMap<String, String>)>()
+

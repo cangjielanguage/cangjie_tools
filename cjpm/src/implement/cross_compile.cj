@@ -1,5 +1,5 @@
 // Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0 
+// This source file is part of the Cangjie project, licensed under Apache-2.0
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
@@ -17,11 +17,12 @@ func appendNativeData(buildConfig: BuildConfig, data: ModuleResolve): Unit {
     }
 
     for (item in data.resolves) {
-        if (!buildConfig.macroPkgList.contains(item.fullName) && buildConfig.pkgRequireByMacro.contains(item.fullName)) {
+        if (!buildConfig.packageList.macros.contains(item.fullName) &&
+            buildConfig.pkgRequireByMacro.contains(item.fullName)) {
             item.nativePlatform = true
             continue
         }
-        if (buildConfig.macroPkgList.contains(item.fullName)) {
+        if (buildConfig.packageList.macros.contains(item.fullName)) {
             item.nativePlatform = true
             if (!buildConfig.targetMacroMods.contains(item.rootPkgName) &&
                 !buildConfig.targetMacroPkgs.contains(item.fullName)) {

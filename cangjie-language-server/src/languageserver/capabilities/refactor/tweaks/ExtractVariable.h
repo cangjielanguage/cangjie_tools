@@ -7,7 +7,7 @@
 #ifndef CANGJIE_LSP_EXTRACTVARIABLE_H
 #define CANGJIE_LSP_EXTRACTVARIABLE_H
 
-#include "../../../json-rpc/Protocol.h"
+#include "../../../../json-rpc/Protocol.h"
 #include "../Tweak.h"
 
 namespace ark {
@@ -45,7 +45,10 @@ public:
 
     static TextEdit InsertDeclaration(const Selection &sel, Range &range, std::string &varName);
 
-    static void FindInsertDeclPosition(const Selection &sel, Range &range, Range &insertRange, std::string &indent);
+    static void FindInsertDeclPosition(const Selection &sel, Range &range, Range &insertRange,
+        std::string &indent, bool &isGlobal);
+
+    static void FindInsertPositionByScopeName(const Selection &sel, Range &range, Range &insertRange, bool &isGlobal);
 
     static std::string GetVarModifier(const Selection &sel, Range &range);
 
@@ -55,6 +58,9 @@ public:
 
     static void DealMultStatementOnSameLine(
         const Tweak::Selection &sel, const Range &range, int firstToken4CurLine, Range &insertRange);
+
+    static void GetInsertRange(
+        const Selection &sel, Range &range, bool isGlobal, Ptr<Block> &block, Range &insertRange);
 };
 } // namespace ark
 

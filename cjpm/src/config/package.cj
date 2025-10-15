@@ -9,6 +9,7 @@ package cjpm.config
 import std.collection.*
 import std.fs.*
 import stdx.serialization.serialization.*
+import cjpm.util.WithDefault
 
 const FILE_VERSION = "cjc-version"
 const PACKAGE_NAME = "name"
@@ -27,7 +28,7 @@ public class Package <: Serializable<Package> {
     public var name: String = ""
     public var description: String = "nothing here"
     public var version: String = "1.0.0"
-    public var outputType: String = ""
+    public var outputType: OutputType = Unknown("")
     public var compileOption: String = ""
     public var overrideCompileOption: String = ""
     public var linkOption: String = ""
@@ -36,8 +37,10 @@ public class Package <: Serializable<Package> {
     public var path: String = ""
     public var packageConfiguration: HashMap<String, PackageConfiguration> = HashMap<String, PackageConfiguration>()
     public var targetDir: String = ""
-    public var srcDir: String = ""
-    public var validPkgMap: ArrayList<PackageInfo> = ArrayList<PackageInfo>()
+    public var srcDir: WithDefault<String> = WithDefault(DIR_SRC)
+    public var validPkgMap: Array<PackageInfo> = Array<PackageInfo>()
+    public var actualSources: CMPSource = CMPSource.empty
+    public var sourceSetTree: SourceSetsConfiguration = SourceSetsConfiguration()
 
     public func serialize(): DataModel {
         return serializePackage(this)
@@ -49,18 +52,22 @@ public class Package <: Serializable<Package> {
 }
 
 func serializePackage(pkg: Package): DataModel {
-    return DataModelStruct()
+    let dms = DataModelStruct()
         .add(field<String>(FILE_VERSION, pkg.cjcVersion))
         .add(field<String>(PACKAGE_NAME, pkg.name))
         .add(field<String>(DESCRIPTION, pkg.description))
         .add(field<String>(VERSION, pkg.version))
         .add(field<String>(TARGET_DIR, pkg.targetDir))
-        .add(field<String>(SRC_DIR, pkg.srcDir))
-        .add(field<String>(OUTPUT_TYPE, pkg.outputType))
+        .add(field<OutputType>(OUTPUT_TYPE, pkg.outputType))
         .add(field<String>(COMPILE_OPTION, pkg.compileOption))
         .add(field<String>(OVERRIDE_COMPILE_OPTION, pkg.overrideCompileOption))
         .add(field<String>(LINK_OPTION, pkg.linkOption))
         .add(field<HashMap<String, PackageConfiguration>>(PACKAGE_CONFIGURATION, pkg.packageConfiguration))
+    if (pkg.srcDir.isSet) {
+        dms.add(field<String>(SRC_DIR, pkg.srcDir.value))
+    } else {
+        dms
+    }
 }
 
 func deserializePackage(dm: DataModel): Package {
@@ -74,8 +81,10 @@ func deserializePackage(dm: DataModel): Package {
     result.description = String.deserialize((dms.get(DESCRIPTION) as DataModelString) ?? DataModelString(""))
     result.version = String.deserialize((dms.get(VERSION) as DataModelString) ?? DataModelString(""))
     result.targetDir = String.deserialize((dms.get(TARGET_DIR) as DataModelString) ?? DataModelString(""))
-    result.srcDir = String.deserialize((dms.get(SRC_DIR) as DataModelString) ?? DataModelString(DIR_SRC))
-    result.outputType = String.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
+    if (let Some(dmstr) <- (dms.get(SRC_DIR) as DataModelString) && !dmstr.getValue().isEmpty()) {
+        result.srcDir.modify(dmstr.getValue())
+    }
+    result.outputType = OutputType.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
     result.compileOption = String.deserialize((dms.get(COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
     result.overrideCompileOption = String.deserialize(
         (dms.get(OVERRIDE_COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
@@ -86,7 +95,7 @@ func deserializePackage(dm: DataModel): Package {
 }
 
 public class PackageConfiguration <: Serializable<PackageConfiguration> {
-    public var outputType: String = ""
+    public var outputType: OutputType = Unknown("")
     public var compileOption: String = ""
 
     // Serialize of toml is useless.
@@ -100,7 +109,7 @@ public class PackageConfiguration <: Serializable<PackageConfiguration> {
             case _ => throw Exception("this data is not DataModelStruct")
         }
         var result = PackageConfiguration()
-        result.outputType = String.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
+        result.outputType = OutputType.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
         result.compileOption = String.deserialize((dms.get(COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
         return result
     }
@@ -114,13 +123,12 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         return false
     }
 
-    if (cfg.pkg.srcDir.isEmpty()) {
-        cfg.pkg.srcDir = DIR_SRC
+    if (!state.isExperimental) {
+        if (!srcDirCheck(cfg.pkg.srcDir.value, path, configFilePath)) {
+            return false
+        }
+        cfg.pkg.srcDir.modify(getPath(path, cfg.pkg.srcDir.value))
     }
-    if (!srcDirCheck(cfg.pkg.srcDir, path, configFilePath)) {
-        return false
-    }
-    cfg.pkg.srcDir = getPath(path, cfg.pkg.srcDir)
 
     let checkList: Array<((String, String) -> Bool, ?String)> = [
         (nameCheck, cfg.pkg.name),
@@ -128,7 +136,7 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         (versionCheck, cfg.pkg.version),
         (safeCheck, cfg.pkg.compileOption),
         (safeCheck, cfg.pkg.overrideCompileOption),
-        (outputTypeCheck, cfg.pkg.outputType),
+        (outputTypeCheck, cfg.pkg.outputType.toString()),
         (safeCheck, cfg.pkg.targetDir),
         (verifyLinkOption, cfg.pkg.linkOption)
     ]

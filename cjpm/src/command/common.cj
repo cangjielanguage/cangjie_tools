@@ -36,8 +36,8 @@ func getBoolOption(argMap: HashMap<String, String>, shortArg: String, longArg: S
     return (argMap.contains(shortArg) || argMap.contains(longArg))
 }
 
-public func getParseOption(sysArgs: Array<String>, shortArg: String, longArgList: Array<String>): (HashMap<String, String>,
-    Array<String>) {
+public func getParseOption(sysArgs: Array<String>, shortArg: String, longArgList: Array<String>):
+    (HashMap<String, String>, Array<String>) {
     var ao = ArgOpt(sysArgs, shortArg, longArgList)
     let argMap: HashMap<String, String> = ao.getArgumentsMap()
     let unparseArgs = ao.getUnparseArgs()
@@ -67,6 +67,19 @@ func handleTargetDirOption(argMap: HashMap<String, String>): Option<String> {
         }
     }
     return Some(newDir)
+}
+
+func handleEnableFeaturesOption(argMap: HashMap<String, String>): Option<ArrayList<Feature>> {
+    let flag = "enable-features"
+    let (featureString, featuresFlag) = getArgValue(argMap, "--${flag}")
+    if (featuresFlag && !safeCheck(featureString, flag)) {
+        return None
+    }
+    if (featureString.isEmpty()) {
+        return ArrayList()
+    }
+    featureString.trimAscii().split(",", removeEmpty: true) |> map {it: String => Feature.fromString(it)} |>
+        collectArrayList
 }
 
 func handleFilterOption(argMap: HashMap<String, String>): Option<String> {
@@ -136,8 +149,7 @@ func crossCompileCheck(target: String): (Bool, Bool) {
             }
             crossCompileTarget = target
             return (true, true)
-        case None =>
-            eprintln("Error: the cross-compile target '${target}' is wrong, the example is 'aarch64-hm-gnu'")
+        case None => eprintln("Error: the cross-compile target '${target}' is wrong, the example is 'aarch64-hm-gnu'")
     }
 
     return (false, false)
@@ -154,7 +166,7 @@ public func lackCjc(): Bool {
     let maybeTargetConfigName = getTargetConfigName()
     if (maybeTargetConfigName.isSome()) {
         targetConfigName = maybeTargetConfigName.getOrThrow()
-        initCjcPath()
+        let _ = state.cjcPath
         return false
     }
     return true

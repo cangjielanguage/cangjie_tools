@@ -41,7 +41,7 @@
             <filteritem type="filename" name="pkg1.jar" desc="cjpm测试需要, 完成检查"/>
             <filteritem type="filename" name="*.png" desc="PNG图片文件, 完成检查"/>
             <filteritem type="filename" name="*.jpg" desc="PNG图片文件, 完成检查"/>
-		</filefilter>	
+		</filefilter>
         </filefilterlist>
 		<licensematcherlist>
             <licensematcher name="Apache-2.0 with Runtime Library Exception" desc="If the scanning result is InvalidLicense, you can define matching rules here. Note that quotation marks must be escaped.">

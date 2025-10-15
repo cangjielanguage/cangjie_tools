@@ -11,6 +11,7 @@ import std.fs.*
 import stdx.serialization.serialization.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
+import cjpm.util.*
 
 // Top-level fields
 const PACKAGE = "package"
@@ -20,6 +21,7 @@ const SCRIPT_DEPENDENCIES = "script-dependencies"
 const REPLACE_DEP = "replace"
 const PROFILE = "profile"
 const TARGET_CONFIG = "target"
+const SOURCE_SET_CONFIG = "source-set"
 
 public class TomlInfo <: Serializable<TomlInfo> {
     public var pkg: Package = Package()
@@ -42,7 +44,7 @@ public class TomlInfo <: Serializable<TomlInfo> {
         this.isWorkSpaceConfig = isWorkSpaceConfig
     }
 
-    public init(rootPkgName: String, outputType: String, cjcVersion: String) {
+    public init(rootPkgName: String, outputType: OutputType, cjcVersion: String) {
         this.pkg.name = rootPkgName
         this.pkg.outputType = outputType
         this.pkg.cjcVersion = cjcVersion
@@ -67,6 +69,11 @@ public class TomlInfo <: Serializable<TomlInfo> {
             result.add(field<WorkSpace>("workspace", this.workspace))
         }
         result.add(field<HashMap<String, DepInfo>>(DEPENDENCIES, this.dependencies))
+        if (this.profile.isExperimental) {
+            result.add(Field("profile",
+                DataModelStruct(ArrayList([field<Bool>("experimental", true)]))
+            ))
+        }
         return result
     }
 
@@ -76,8 +83,12 @@ public class TomlInfo <: Serializable<TomlInfo> {
             case _ => throw Exception("this data is not DataModelStruct")
         }
         var result = TomlInfo()
+
         match (dms.get(PACKAGE) as DataModelStruct) {
-            case Some(val) => result.pkg = Package.deserialize(val)
+            case Some(val) =>
+                let sourceSetCfgParser = ConfigParserVisitor()
+                result.pkg = Package.deserialize(val)
+                result.pkg.sourceSetTree = sourceSetCfgParser.visitRoot(dms)
             case None => result.isPkgConfig = false
         }
         match (dms.get("workspace") as DataModelStruct) {
@@ -105,6 +116,7 @@ public class TomlInfo <: Serializable<TomlInfo> {
             targetConfig.debugTargetInfo.targetName = targetName
             targetConfig.releaseTargetInfo.targetName = targetName
         }
+
         return result
     }
 
@@ -136,41 +148,16 @@ public class TomlInfo <: Serializable<TomlInfo> {
             checkList.add(all: targetConfig.getCheckEnvVars())
         }
 
-        for ((_, v) in this.dependencies) {
-            if (v.path.isSome()) {
-                checkList.add(v.path.getOrThrow())
-            }
-        }
+        checkList.addIfSome(all: this.dependencies |> map { it => it[1].path})
+        checkList.addIfSome(all: this.testDependencies |> map { it => it[1].path})
+        checkList.addIfSome(all: this.scriptDependencies |> map { it => it[1].path})
+        checkList.addIfSome(all: this.replaceDeps |> map { it => it[1].path})
 
-        for ((_, v) in this.testDependencies) {
-            if (v.path.isSome()) {
-                checkList.add(v.path.getOrThrow())
-            }
-        }
-
-        for ((_, v) in this.scriptDependencies) {
-            if (v.path.isSome()) {
-                checkList.add(v.path.getOrThrow())
-            }
-        }
-
-        for ((_, v) in this.replaceDeps) {
-            if (v.path.isSome()) {
-                checkList.add(v.path.getOrThrow())
-            }
-        }
-
-        for ((_, cLibPath) in this.ffi.cLibs) {
-            checkList.add(cLibPath)
-        }
-
-        for ((_, cLibPath) in this.crossFfi.cLibs) {
-            checkList.add(cLibPath)
-        }
-
-        for ((_, v) in this.pkg.packageConfiguration) {
-            checkList.add(v.compileOption)
-        }
+        checkList = checkList |>
+            concat(this.ffi.cLibs.values()) |>
+            concat(this.crossFfi.cLibs.values()) |>
+            concat(this.pkg.packageConfiguration.values() |> map { it => it.compileOption }) |>
+            collectArrayList
 
         var checkFlag = true
         for (str in checkList) {
@@ -458,8 +445,7 @@ public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String,
     if (!verifyDependencyConfig(cfg.dependencies, "'dependencies' field at ${configFilePath}", path)) {
         return false
     }
-    if (isTest && !verifyDependencyConfig(cfg.testDependencies,
-        "'test-dependencies' field at ${configFilePath}", path)) {
+    if (isTest && !verifyDependencyConfig(cfg.testDependencies, "'test-dependencies' field at ${configFilePath}", path)) {
         return false
     }
     if (!verifyDependencyConfig(cfg.scriptDependencies, "'script-dependencies' field at ${configFilePath}", path)) {
@@ -520,3 +506,4 @@ func verifyAll<T>(location: String, checkList: T): Bool where T <: Iterable<((St
 
     return result
 }
+

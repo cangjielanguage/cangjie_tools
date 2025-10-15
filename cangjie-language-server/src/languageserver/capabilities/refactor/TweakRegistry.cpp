@@ -9,6 +9,7 @@
 #include "Tweak.h"
 #include "tweaks/ExtractFunction.h"
 #include "tweaks/ExtractVariable.h"
+#include "tweaks/IntroduceConstant.h"
 
 namespace ark {
 #define REGISTER_TWEAK(TweakClass) \
@@ -23,8 +24,9 @@ namespace ark {
     [[maybe_unused]] TweakClass##Registrar TweakClass##_registrar; \
     }
 
-REGISTER_TWEAK(ExtractFunction);
-REGISTER_TWEAK(ExtractVariable);
+REGISTER_TWEAK(ExtractFunction)
+REGISTER_TWEAK(ExtractVariable)
+REGISTER_TWEAK(IntroduceConstant)
 
 std::unordered_map<std::string, TweakRegistry::Creator>& TweakRegistry::GetRegistry()
 {

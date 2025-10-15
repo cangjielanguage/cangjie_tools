@@ -133,6 +133,15 @@ void FindReferencesImpl::FindReferences(const ArkAST &ast, ReferencesResult &res
     }
 }
 
+void FindReferencesImpl::FindFileReferences(const ArkAST &ast, ReferencesResult &result)
+{
+    Logger &logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "FindReferencesImpl::FindFileReferences in.");
+    for (auto& decl: ast.file->decls) {
+        FindReferences(ast, result, decl->GetIdentifierPos() + DEFAULT_POSITION);
+    }
+}
+
 bool FindReferencesImpl::IsInvalidRef(const lsp::Ref& ref, Position pos, int curIdx, const ArkAST &ast)
 {
     if (curIdx == -1) {

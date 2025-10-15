@@ -2,7 +2,7 @@
 
 ## 简介
 
-本仓提供仓颉语言命令行工具链，包含项目管理工具、格式化工具、多语言桥接工具和语言服务工具。开发者可以通过命令行使用，也可以集成到DevEco Studio使用。
+本仓提供仓颉语言命令行工具链，包含项目管理工具、格式化工具、多语言桥接工具和语言服务工具等。开发者可以通过命令行使用，也可以集成到DevEco Studio使用。
 
 ## 系统架构
 
@@ -45,11 +45,11 @@
 
 若想获取工具的详细信息，请参阅各工具 `doc` 目录下的用户指南。
 
-每个工具对应的软件架构图请参考：	
+每个工具对应的软件架构图请参考：
 
-- [`cjpm` 软件架构图](./cjpm/doc/developer_guide_zh.md#开源项目介绍)	
-- [`cjfmt` 软件架构图](./cjfmt/doc/developer_guide_zh.md#开源项目介绍)	
-- [`hle` 软件架构图](./hyperlangExtension/doc/developer_guide_zh.md#开源项目介绍)	
+- [`cjpm` 软件架构图](./cjpm/doc/developer_guide_zh.md#开源项目介绍)
+- [`cjfmt` 软件架构图](./cjfmt/doc/developer_guide_zh.md#开源项目介绍)
+- [`hle` 软件架构图](./hyperlangExtension/doc/developer_guide_zh.md#开源项目介绍)
 - [`lsp` 系统架构图](./cangjie-language-server/doc/developer_guide_zh.md#开源项目介绍)
 
 ## 构建依赖
@@ -73,7 +73,7 @@
 | 开源软件名称               | 开源许可协议              | 使用说明                  | 使用主体 | 使用方式         |
 |----------------------|---------------------|-----------------------|------|--------------|
 | flatbuffers          | Apache License V2.0 | 仓颉语言服务对索引数据进行序列化和反序列化 | 语言服务 | 集成到仓颉二进制发布包中 |
-| JSON for Modern C++  | MIT License         | 仓颉语言服务用于报文解析和封装       | 语言服务 | 集成到仓颉二进制发布包中 |
+| JSON for Modern C++  | MIT License         | 仓颉语言服务用于报文解析和封装       | 语言服务、静态检查 | 集成到仓颉二进制发布包中 |
 | SQLite               | Public Domain       | 仓颉语言服务使用数据库存储索引数据     | 语言服务 | 集成到仓颉二进制发布包中 |
 
 构建方式参见[仓颉SDK集成构建指导书](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md)。更多软件依赖，参见[环境准备](https://gitcode.com/Cangjie/cangjie_build/blob/dev/docs/env_zh.md)。开源组件依赖部分可参考[第三方开源软件说明](./third_party/README.md)。

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This warehouse provides the Cangjie language command-line toolchain, which includes project management tools, formatting tools, multilingual bridging tools, and language service tools. Developers can use it through the command line or integrate it into DevEco Studio.
+This warehouse provides the Cangjie language command-line toolchain, which includes project management tools, formatting tools, multilingual bridging tools, and language service tools, etc. Developers can use it through the command line or integrate it into DevEco Studio.
 
 ## System Architecture
 
@@ -45,11 +45,11 @@ Cangjie Language CLI Toolchain currently supports the following platforms: Windo
 
 To get detailed information, please refer to the user guides in the corresponding doc directory.
 
-Please refer to the following software architecture diagrams for the command-line tools:	
+Please refer to the following software architecture diagrams for the command-line tools:
 
-- [software architecture diagram for `cjpm`](./cjpm/doc/developer_guide.md#开源项目介绍)	
-- [software architecture diagram for `cjfmt`](./cjfmt/doc/developer_guide.md#开源项目介绍)	
-- [software architecture diagram for `hle`](./hyperlangExtension/doc/developer_guide.md#开源项目介绍)	
+- [software architecture diagram for `cjpm`](./cjpm/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `cjfmt`](./cjfmt/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `hle`](./hyperlangExtension/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `lsp`](./cangjie-language-server/doc/developer_guide.md#开源项目介绍)
 
 ## Construction Dependencies
@@ -73,7 +73,7 @@ This project is licensed under [Apache-2.0 with Runtime Library Exception](./LIC
 | Software Name        | License             | Usage Description                                               | Main Component | Usage Method                               |
 |----------------------|---------------------|-----------------------------------------------------------------|----------------|--------------------------------------------|
 | flatbuffers          | Apache License V2.0 | Cangjie Language Server serializes and deserializes index data. | LSPServer      | Integrated into the Cangjie binary release |
-| JSON for Modern C++  | MIT License         | Cangjie Language Server for message parsing and encapsulation.  | LSPServer      | Integrated into the Cangjie binary release |
+| JSON for Modern C++  | MIT License         | Cangjie Language Server for message parsing and encapsulation.  | LSPServer, cjlint      | Integrated into the Cangjie binary release |
 | SQLite               | Public Domain       | Cangjie Language Server uses the database to store index data.  | LSPServer      | Integrated into the Cangjie binary release |
 
 For build methods, refer to the [Openharmony SDK Integration Build Guide](). For additional software dependencies, see [Environment Preparation](). For details on third-party dependencies, see the [Third-Party Open Source Software Documentation](./third_party/README.md)

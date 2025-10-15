@@ -444,6 +444,61 @@ public class CM {
         CM(input.asObject())
     }
 }
+
+/*class DeclareKeyword TE {
+    constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
+    f1(): void
+    f1(result: string | Promise<string>): Promise<String>
+    }*/
+
+public class TE {
+    
+    protected TE(var arkts_object: JSObject) {}
+    /**
+  * @brief constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
+  */
+    public init(callback: AsyncCallback<String>, param1!:?Array<UInt8> = None, param2!:?Array<String> = None) {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "TE").asClass(__ctx)
+            clazz.new(jsCallback,(param1?.toJSValue(__ctx)) ?? __ctx.undefined().toJSValue(), toJSArray < String >(__ctx, param2, { __ctx, item => item.toJSValue(ctx) })).asObject()
+        }
+    }
+    public init() {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "TE").asClass(__ctx)
+            clazz.new().asObject()
+        }
+    }
+    
+    /**
+	 * @brief f1(): void
+	 */
+    public func f1(): Unit {
+        jsObjApiCall < Unit >( arkts_object, "f1", emptyArg)
+    }
+    /**
+	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 */
+    public func f1(callback: AsyncCallback < String >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < String >( arkts_object, "f1", callback, { ctx =>[result.toJSValue(ctx)] })
+    }
+    /**
+	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 */
+    public func f1(callback: AsyncCallback < String >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < String >( arkts_object, "f1", callback, { ctx =>[result] })
+    }
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    static func fromJSValue(context: JSContext, input: JSValue): TE {
+        TE(input.asObject())
+    }
+}
 // 构造函数
 /*class DeclareKeyword Greeter {
     constructor(greeting: string): void
@@ -999,6 +1054,13 @@ public class RecordTest {
 }
 
 /***********METHOD***********/
+/**
+	 * @brief test(): Promise<String>
+	 */
+public func test(callback: AsyncCallback < String >): Unit {
+    hmsGlobalApiCallPromise < String >( "my_module_methods", "test", callback, emptyArg)
+}
+
 /**
 	 * @brief onEnumCb(p1: number | boolean, p2: Record<string, number> | Uint8Array | string): String
 	 */

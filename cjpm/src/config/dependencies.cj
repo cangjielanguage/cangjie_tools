@@ -13,14 +13,18 @@ import stdx.serialization.serialization.*
 const TYPE_ERR_INFO: String = "  - incompatible import type, only one of 'path' or 'git' is allowed"
 
 public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
+    // used for central repository
+    public var version: ?String = None
     public var path: ?String = None
     public var git: ?String = None
     public var commitId: ?String = None
     public var branch: ?String = None
     public var tag: ?String = None
-    public var outputType: ?String = None
+    public var outputType: ?OutputType = None
     public var pathInWorkspace: ?String = None
     public var pathDepInGit: Bool = false
+    // used for central repository
+    public var isSimpleConfig: Bool = false
     public var importedPath: String = ""
 
     public init() {}
@@ -48,10 +52,15 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
                 result.commitId = Option<String>.deserialize(data.get("commitId"))
                 result.branch = Option<String>.deserialize(data.get("branch"))
                 result.tag = Option<String>.deserialize(data.get("tag"))
-                result.outputType = Option<String>.deserialize(data.get(OUTPUT_TYPE))
+                result.outputType = Option<OutputType>.deserialize(data.get(OUTPUT_TYPE))
             case _ => throw Exception("this data is not DataModelStruct")
         }
         return result
+    }
+
+    // used for central repository
+    public func isCenterRepoDep(): Bool {
+        return this.version.isSome() && this.path.isNone() && this.git.isNone()
     }
 
     public func isPathDep(): Bool {
@@ -97,6 +106,12 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
         return false
     }
 
+    // If dependencies a and b with the same name are compatible, a and b must satisfy:
+    // 1. both are repository dependencies
+    // 2. one of them is repository dependency, and another is local/git dependency
+    // 3. both are local or git dependency, and with the same content
+    // Arguments: (isReplaced, errInfo)
+    // used for central repository
     public func isAlternative(other: DepInfo): (Bool, String) {
         if (this.outputType.isSome() && other.outputType.isSome() && this.outputType != other.outputType) {
             return (false, "  - incompatible output type")
@@ -106,15 +121,27 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
             // Current dependency is a local dependency
             if (other.isPathDep()) {
                 return (false, this.isSameDep(other))
-            } else {
+            } else if (other.isGitDep()) {
                 return (false, TYPE_ERR_INFO)
+            } else {
+                return (false, "")
             }
-        } else {
+        } else if (this.isGitDep()) {
             // Current dependency is a git dependency
             if (other.isPathDep()) {
                 return (false, TYPE_ERR_INFO)
-            } else {
+            } else if (other.isGitDep()) {
                 return (false, this.isSameDep(other))
+            } else {
+                return (false, "")
+            }
+        } else {
+            // Current dependency is a repository dependency
+            // used for central repository
+            if (other.isPathDep() || other.isGitDep()) {
+                return (true, "")
+            } else {
+                return (versionCompare(this.version.getOrThrow(), other.version.getOrThrow()), "")
             }
         }
     }
@@ -130,8 +157,9 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
     }
 
     public operator func ==(other: DepInfo): Bool {
-        this.path == other.path && this.git == other.git && this.commitId == other.commitId &&
-            this.branch == other.branch && this.tag == other.tag && this.outputType == other.outputType
+        this.version == other.version && this.path == other.path && this.git == other.git &&
+            this.commitId == other.commitId && this.branch == other.branch &&
+            this.tag == other.tag && this.outputType == other.outputType
     }
 
     public operator func !=(other: DepInfo): Bool {
@@ -162,6 +190,15 @@ extend<T> Option<T> {
 public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: String, modulePath: String): Bool {
     var checkFlag: Bool = true
     for ((name, v) in requires) {
+        // used for central repository
+        if (let Some(val) <- v.version) {
+            if (v.isSimpleConfig && !centralVersionCheck(name, val, errLoc)) {
+                checkFlag = false
+            } else if (!v.isSimpleConfig && !versionCheck(val, errLoc)) {
+                checkFlag = false
+            }
+        }
+
         let checkList: Array<((String, String) -> Bool, ?String)> = [(safeCheck, v.commitId), (nameCheck, name)]
 
         if (!verifyAll(errLoc, checkList)) {
@@ -179,7 +216,7 @@ public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: S
         }
 
         if (let Some(val) <- v.outputType) {
-            if (val != STATIC_TYPE && val != DYNAMIC_TYPE) {
+            if (!val.isLib) {
                 eprintln("Error: field 'output-type' in dependency '${name}' can only be 'static' or 'dynamic', " +
                     "please check ${errLoc}")
                 checkFlag = false
@@ -203,16 +240,18 @@ public func verifyDependencyField(dep: DepInfo, errLoc: String): Bool {
 
 func verifyDependencyField(dep: DepInfo, name: String, path: String): Bool {
     if (dep.path.isNone() && dep.git.isNone()) {
-        eprintln(
-            "Error: one of 'git' or 'path' fields must exist " +
-                "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
+        eprintln("Error: one of 'git' or 'path' fields must exist " +
+            "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
         return false
     }
     if (dep.path.isSome() && dep.git.isSome()) {
-        eprintln(
-            "Error: only one of 'git' or 'path' fields can exist " +
-                "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
+        eprintln("Error: only one of 'git' or 'path' fields can exist " +
+            "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
         return false
+    }
+    // used for central repository
+    if (let Some(version) <- dep.version) {
+        return centralVersionCheck(name, version, Path(path).join(CONFIG_FILE_NAME).toString())
     }
     return true
 }

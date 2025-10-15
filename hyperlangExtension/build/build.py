@@ -34,12 +34,10 @@ SUPPORTED_TARGET = ["native", "windows-x86_64"]
 # Check command
 def check_call(command):
     try:
-        env = os.environ.copy()
-        env["ZERO_AR_DATE"] = "1"
-        return subprocess.check_call(command, shell=True, env=env)
+        return subprocess.check_call(command)
     except subprocess.CalledProcessError as e:
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
-        sys.exit(e.returncode)
+        sys.exit(e.returncode) 
 
 # Build HLE
 def build(args):
@@ -60,16 +58,11 @@ def build(args):
     if build_type == "debug":
         DEBUG_MODE = "-g"
 
-    if IS_WINDOWS:
-        COMMON_OPTION = f"--trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR, '..', 'target')}"
+    if IS_WINDOWS: 
+        COMMON_OPTION = ['cjc.exe', f"--trimpath={CURRENT_DIR} {DEBUG_MODE}", '--import-path', f"{os.path.join(CURRENT_DIR, '..', 'target')}"]
     else:
-        COMMON_OPTION = f"-j1 --trimpath={CURRENT_DIR} {DEBUG_MODE} --import-path {os.path.join(CURRENT_DIR, '..', 'target')}"
-    # Get cjc executable file
-    if IS_WINDOWS:
-        CJC = "cjc.exe"
-    else:
-        CJC = "cjc"
-
+        COMMON_OPTION = ['cjc', '-j1', f"--trimpath={CURRENT_DIR} {DEBUG_MODE}", '--import-path', f"{os.path.join(CURRENT_DIR, '..', 'target')}"]
+    
     # Create output directories
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'target', 'bin'), exist_ok=True)
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'target', 'hle'), exist_ok=True)
@@ -77,24 +70,24 @@ def build(args):
     src_dirs = ['dtsparser', 'tool', 'entry']
     for src in src_dirs:
         if IS_LINUX or IS_MACOS:
-            returncode = check_call(f"{CJC} {COMMON_OPTION} -O2 --strip-all --no-sub-pkg -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -o libhle.{src}.a")
+            returncode = check_call(COMMON_OPTION + ['-O2', '--strip-all', '--no-sub-pkg', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src', src)}", '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '--output-type=staticlib', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-o', f"libhle.{src}.a"])
         if IS_WINDOWS:
-            returncode = check_call(f"{CJC} {COMMON_OPTION} -O2 --strip-all --no-sub-pkg -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -o libhle.{src}.a")
+            returncode = check_call(COMMON_OPTION + ['-O2', '--strip-all', '--no-sub-pkg', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src', src)}", '--import-path', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '--output-type=staticlib', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-o', f"libhle.{src}.a"])
         if IS_CROSS_WINDOWS:
-            returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} -O2 --strip-all --no-sub-pkg -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -o libhle.{src}.a")
-        if returncode != 0:
+            returncode = check_call(COMMON_OPTION + ['--target=x86_64-windows-gnu', '-O2', '--strip-all', '--no-sub-pkg', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src', src)}", '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '--output-type=staticlib', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-o', f"libhle.{src}.a"])
+        if returncode != 0: 
             print(f"build {src} failed")
             return returncode
-
+        
     if IS_LINUX:
-        returncode = check_call(f"{CJC} {COMMON_OPTION} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main")
+        returncode = check_call(COMMON_OPTION + ['--link-options=-z noexecstack -z relro -z now -s', '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '-L', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-lhle.dtsparser', '-lhle.tool', '-lhle.entry', '-L', f"{os.environ['CANGJIE_STDX_PATH']}", '-lstdx.logger', '-lstdx.log', '-lstdx.encoding.json.stream', '-lstdx.serialization.serialization', '-lstdx.encoding.json', '-lstdx.encoding.url', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src')}", '-O2', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'bin')}", '-o', 'main'])
     if IS_MACOS:
-        returncode = check_call(f"{CJC} {COMMON_OPTION} --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main")
+        returncode = check_call(COMMON_OPTION + ['--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '-L', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-lhle.dtsparser', '-lhle.tool', '-lhle.entry', '-L', f"{os.environ['CANGJIE_STDX_PATH']}", '-lstdx.logger', '-lstdx.log', '-lstdx.encoding.json.stream', '-lstdx.serialization.serialization', '-lstdx.encoding.json', '-lstdx.encoding.url', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src')}", '-O2', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'bin')}", '-o', 'main'])
     if IS_CROSS_WINDOWS:
-        returncode = check_call(f"{CJC} --target=x86_64-windows-gnu {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main.exe")
+        returncode = check_call(COMMON_OPTION + ['--target=x86_64-windows-gnu', '--import-path', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '--link-options=--no-insert-timestamp', '-L', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-lhle.dtsparser', '-lhle.tool', '-lhle.entry', '-L', f"{os.environ['CANGJIE_STDX_PATH']}", '-lstdx.logger', '-lstdx.log', '-lstdx.encoding.json.stream', '-lstdx.serialization.serialization', '-lstdx.encoding.json', '-lstdx.encoding.url', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src')}", '-O2', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'bin')}", '-o', 'main.exe'])
     if IS_WINDOWS:
-        returncode = check_call(f"{CJC} {COMMON_OPTION} --import-path {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, '..', 'target', 'hle')} -lhle.dtsparser -lhle.tool -lhle.entry -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.logger -lstdx.log -lstdx.encoding.json.stream -lstdx.serialization.serialization -lstdx.encoding.json -lstdx.encoding.url -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, '..', 'target', 'bin')} -o main.exe")
-    if returncode != 0:
+        returncode = check_call(COMMON_OPTION + ['--import-path', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '--import-path', f"{os.environ['CANGJIE_STDX_PATH']}", '--link-options=--no-insert-timestamp', '-L', f"{os.path.join(CURRENT_DIR, '..', 'target', 'hle')}", '-lhle.dtsparser', '-lhle.tool', '-lhle.entry', '-L', f"{os.environ['CANGJIE_STDX_PATH']}", '-lstdx.logger', '-lstdx.log', '-lstdx.encoding.json.stream', '-lstdx.serialization.serialization', '-lstdx.encoding.json', '-lstdx.encoding.url', '-p', f"{os.path.join(CURRENT_DIR, '..', 'src')}", '-O2', '--output-dir', f"{os.path.join(CURRENT_DIR, '..', 'target', 'bin')}", '-o', 'main.exe'])
+    if returncode != 0: 
         return returncode
 
     print("Successfully build HLE!")

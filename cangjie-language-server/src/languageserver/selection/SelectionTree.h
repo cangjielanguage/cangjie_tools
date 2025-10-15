@@ -69,6 +69,11 @@ public:
         return topDecl;
     }
 
+    const Ptr<Cangjie::AST::Node> OuterInterpExpr() const
+    {
+        return outerInterpExpr;
+    }
+
     using WalkCallBack = std::function<WalkAction(const SelectionTreeNode*)>;
 
     static void Walk(const SelectionTreeNode *node, WalkCallBack callBack) ;
@@ -86,7 +91,7 @@ private:
 
     void FindTopDecl(Cangjie::AST::Node &node);
 
-    static void BuildTreeNode(SelectionTreeNode *rootTreeNode, Position start, Position end, bool needCompilerAdd);
+    static void BuildTreeNode(SelectionTreeNode *rootTreeNode, Position start, Position end);
 
     static WalkAction WalkImpl(const SelectionTreeNode* node, WalkCallBack callBack);
 
@@ -97,6 +102,8 @@ private:
     Scope scope = Scope::UNKNOWN;
 
     Ptr<Cangjie::AST::Node> targetDecl = nullptr;
+
+    Ptr<Cangjie::AST::Node> outerInterpExpr = nullptr;
 };
 } // namespace ark
 
