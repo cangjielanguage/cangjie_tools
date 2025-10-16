@@ -1,52 +1,63 @@
-# 仓颉包管理工具开发者指南
+# Cangjie Project Manager Developer Guide
 
-## 开源项目介绍
+## System Architecture
 
-`cjpm（cangjie package manager）`是编译仓颉项目的构建工具，该工具使用仓颉语言实现，提供项目创建、项目编译、项目运行、单元测试等能力，其中项目支持多模块自动分析依赖，完成顺序构建。其设计目标是简化用户的工作流，提升跨平台开发效率，并提供高度可定制的配置选项。本工具的整体架构如图所示：
+`cjpm` is a project management tool for cangjie language, implemented in Cangjie language. It is designed to simplify user workflows. `cjpm` provides capabilities for project creation, project building, project execution, unit testing, and more. The overall architecture of this tool is illustrated as follows:
 
-![cjfmt架构设计图](../figures/cjpm架构.jpg)
+![cjpm Architecture Diagram](../figures/cjpm-architecture.jpg)
 
-## 目录
+As shown in the architecture diagram, the overall structure of `cjpm` is as follows:
 
-`cjpm` 源码目录如下所示，其主要功能如注释中所描述。
+- Command-line Argument Processing: The command-line argument processing module of `cjpm` supports project initialization, compilation and building, output execution, test case execution, dependency printing, dependency updates, output installation and uninstallation, and output cleanup via commands.
+- Configuration Management: Users can configure various settings via the `cjpm.toml` configuration file, including project information, dependency configurations, platform isolation settings, and workspace configurations. `cjpm` also performs checks to ensure the validity of these configurations.
+- Dependency Management: `cjpm` manages user-configured source dependencies, including configuration validity checks, incremental identification, configuration updates and parsing, and configuration display. It also supports configuring binary dependencies for C and Cangjie languages, along with command-line dependency printing.
+- Project Building: `cjpm` automates dependency parsing to generate package-level dependency graphs. It then invokes the Cangjie compiler to compile packages in dependency order, completing the project build. `cjpm` supports parallel and incremental compilation.
+- Project Testing: `cjpm` supports compiling test code within projects and running unit tests. It supports both single-package testing and module-level testing.
+- Compiler Integration Module: This module facilitates interaction with the Cangjie compiler, implementing imperative compiler invocation and result forwarding.
+
+Note that `cjpm` is a package management tool for the Cangjie project, and its product types are static libraries, dynamic libraries, and executable binary. To complete the HAP/APP build and packaging of OpenHarmony, it is also necessary to use the DevEco Hvigor tool provided by DevEco Studio.
+
+## Directory Structure
+
+The source code directory of `cjpm` is as follows, with main functionalities described in the comments.
 
 ```
 cjpm/src
-|-- command       # 命令功能代码
-|-- config        # 配置内容代码
-|-- implement     # 内部接口实现代码
-|-- toml          # toml 文件读写功能代码
-`-- main.cj       # 程序主入口
+|-- command       # Command functionality code
+|-- config        # Configuration content code
+|-- implement     # Internal interface implementation code
+|-- toml          # TOML file read/write functionality code
+`-- main.cj       # Program main entry
 ```
 
-## 安装和使用指导
+## Installation and Usage Guide
 
-### 构建准备
+### Build Preparation
 
-`cjpm` 需要以下工具来构建：
+`cjpm` requires the following tools for building:
 
 - `cangjie SDK`
-    - 开发者需要下载对应平台的 `cangjie SDK`：若想要编译本地平台产物，则需要的 `SDK` 为当前平台对应的版本；若想要从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `SDK` 为 `Linux` 版本。
-    - 然后，开发者需要执行对应 `SDK` 的 `envsetup` 脚本，确保 `SDK` 被正确配置。
-    - 若使用 `python` 构建脚本方式编译，可以使用自行编译的 `cangjie SDK`。请参阅 [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build) 了解源码编译 `cangjie SDK` 的方法。
-- 与 `cangjie SDK` 配套的 `stdx` 二进制库
-    - 开发者需要下载目标平台的 `stdx` 二进制库，或通过 `stdx` 源码编译出对应的 `stdx` 二进制库：若想要编译本地平台产物，则需要的 `stdx` 库为当前平台对应的版本；若想要从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `stdx` 库为 `Windows` 版本。
-    - 然后，开发者需要将 `stdx` 二进制库路径配置到环境变量 `CANGJIE_STDX_PATH` 中。若开发者直接下载 `stdx` 二进制库，则路径为解压得到的库目录下的 `static/stdx` 目录；若开发者通过 `stdx` 源码编译，则路径为 `stdx` 编译产物目录 `target` 下对应平台目录下的 `static/stdx` 目录，例如 `Linux-x86` 下为 `target/linux_x86_64_cjnative/static/stdx`。请参阅 [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx) 获取源码编译 `stdx` 库的方法。
-    - 此外，如果开发者想使用 `stdx` 动态库作为二进制库依赖，可以将上述路径配置中的 `static` 改为 `dynamic`。以此方式编译的 `cjpm` 无法独立运行，若想让其能够独立运行，需要将相同的 `stdx` 库路径配置到系统动态库环境变量中。
-- 若使用 `python` 构建脚本方式编译，请安装 `python3`
+    - Developers need to download the `cangjie SDK` for the corresponding platform: To compile native platform artifacts, the `SDK` version must match the current platform; to cross-compile `Windows` platform artifacts from a `Linux` platform, the `SDK` must be the `Linux` version.
+    - Then, developers must execute the `envsetup` script of the corresponding `SDK` to ensure proper configuration.
+    - If using the `python` build script method, developers can use a self-compiled `cangjie SDK`. Refer to [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build) for compiling `cangjie SDK` from source.
+- `stdx` binary library compatible with `cangjie SDK`
+    - Developers need to download the `stdx` binary library for the target platform or compile it from `stdx` source code: To compile native platform artifacts, the `stdx` library must match the current platform; to cross-compile `Windows` platform artifacts from a `Linux` platform, the `stdx` library must be the `Windows` version.
+    - Then, developers must configure the `stdx` binary library path in the environment variable `CANGJIE_STDX_PATH`. If downloading pre-built `stdx` binaries, the path is the `static/stdx` directory under the extracted library directory; if compiling from `stdx` source, the path is the `static/stdx` directory under the corresponding platform directory in the `target` output directory (e.g., `target/linux_x86_64_cjnative/static/stdx` for `Linux-x86`). Refer to [stdx Repository](https://gitcode.com/Cangjie/cangjie_stdx) for compiling `stdx` from source.
+    - Additionally, if developers want to use `stdx` dynamic libraries as binary dependencies, they can replace `static` with `dynamic` in the above path configuration. `cjpm` compiled this way cannot run independently; to enable standalone execution, the same `stdx` library path must be added to the system dynamic library environment variables.
+- If using the `python` build script method, install `python3`.
 
-### 构建步骤
+### Build Steps
 
-#### 构建方式一：使用 `cjpm` 编译
+#### Build Method 1: Using `cjpm` for Compilation
 
-`cjpm` 源码本身是一个 `cjpm` 模块。因此，可以使用 `cangjie SDK` 中的 `cjpm` 编译 `cjpm` 源码。配置完 `SDK` 和 `stdx` 后，开发者可以通过如下命令编译：
+The `cjpm` source code itself is a `cjpm` module. Therefore, the `cjpm` in `cangjie SDK` can be used to compile `cjpm` source code. After configuring the `SDK` and `stdx`, developers can compile using the following command:
 
 ```
 cd ${WORKDIR}/cangjie-tools/cjpm
 cjpm build -o cjpm
 ```
 
-编译出来的 `cjpm` 可执行文件目录如下：
+The compiled `cjpm` executable directory structure is as follows:
 
 ```
 // Linux/macOS
@@ -58,32 +69,31 @@ cjpm/target/release/bin
 `-- cjpm.exe
 ```
 
-目前源码仓中的 `cjpm.toml` 支持编译如下平台的 `cjpm`：
+Currently, the `cjpm.toml` in the source repository supports compiling `cjpm` for the following platforms:
+- `Linux/macOS` with `x86/arm` architecture;
+- `Windows x86`.
 
-- `Linux/macOS` 的 `x86/arm` 框架；
-- `Windows x86`。
-
-此外，若开发者想在 `Linux` 系统中交叉编译 `Windows` 平台产物，可以使用如下命令：
+Additionally, to cross-compile `Windows` platform artifacts from a `Linux` system, use the following command:
 
 ```
 cd ${WORKDIR}/cangjie-tools/cjpm
 cjpm build -o cjpm --target x86_64-w64-mingw32
 ```
 
-编译出来的 `cjpm` 可执行文件目录如下：
+The compiled `cjpm` executable directory structure is as follows:
 
 ```
 cjpm/target/x86_64-w64-mingw32/release/bin
 `-- cjpm.exe
 ```
 
-#### 构建方式二：使用构建脚本编译
+#### Build Method 2: Using Build Script for Compilation
 
-开发者可以使用 `build` 目录下的构建脚本 `build.py` 进行 `cjpm` 构建。若想使用 `build.py` 构建，开发者可以配置 `cangjie SDK` 和 `stdx` 库，也可以使用自行编译的 `cangjie SDK` 和 `stdx`。
+Developers can use the build script `build.py` in the `build` directory to compile `cjpm`. To use `build.py`, developers can either configure `cangjie SDK` and `stdx` libraries or use self-compiled `cangjie SDK` and `stdx`.
 
-构建流程如下：
+The build process is as follows:
 
-1. 通过 `cjpm/build` 目录下的构建脚本 `build.py` 编译 `cjpm`：
+1. Compile `cjpm` using the build script `build.py` in the `cjpm/build` directory:
 
     ```shell
     cd ${WORKDIR}/cangjie-tools/cjpm/build
@@ -91,53 +101,52 @@ cjpm/target/x86_64-w64-mingw32/release/bin
     python3 build.py build -t release --target windows-x86_64  (for Linux-to-Windows)
     ```
 
-    开发者需要通过 `-t, --build-type` 指定构建产物版本，可选值为 `debug/release`。
+    Developers must specify the build type with `-t, --build-type`, with options being `debug/release`.
 
-    编译成功后，`cjpm` 可执行文件会生成在 `cjpm/dist/` 目录中。
+    After successful compilation, the `cjpm` executable will be generated in the `cjpm/dist/` directory.
 
-2. 修改环境变量：
+2. Modify environment variables:
 
     ```shell
     export PATH=${WORKDIR}/cangjie-tools/cjpm/dist:$PATH     (for Linux/macOS)
     set PATH=${WORKDIR}/cangjie-tools/cjpm/dist;%PATH%       (for Windows)
     ```
 
-3. 验证 `cjpm` 是否安装成功：
+3. Verify `cjpm` installation:
 
     ```shell
     cjpm -h
     ```
 
-    如果输出 `cjpm` 的帮助信息，则表示安装成功。
+    If the help information for `cjpm` is displayed, the installation is successful.
 
-> **注意：**
+> **Note:**
 >
-> `Linux/macOS` 系统中，开发者可以将 `runtime` 动态库的路径配置到 `rpath` 中，以使编译出来的 `cjpm` 可以不通过系统动态库环境变量就能找到 `runtime` 动态库：
-> - 使用 `cjpm` 编译时，可以通过给 `cjc` 添加编译选项 `--set-runtime-rpath` 使编译出来的 `cjpm` 可以找到当前使用的 `cangjie SDK` 的 `runtime` 动态库。请在 `cjpm.toml` 中将这一编译选项添加到 `compile-option` 配置项中，从而使该编译选项应用于 `cjc` 编译命令中。
-> - 使用构建脚本 `build.py` 编译时，可以通过添加参数 `--set-rpath RPATH` 配置 `rpath` 的路径。
-> - `cangjie SDK` 中，`runtime` 动态库目录位于 `$CANGJIE_HOME/runtime/lib` 目录，基于运行平台划分成若干子目录，可以使用对应运行平台的库目录用于配置 `rpath`。
+> On `Linux/macOS` systems, developers can configure the `runtime` dynamic library path in `rpath` so that the compiled `cjpm` can locate the `runtime` dynamic library without relying on system dynamic library environment variables:
+> - When using `cjpm` for compilation, add the `--set-runtime-rpath` compile option to `cjc` to ensure the compiled `cjpm` can locate the `runtime` dynamic library of the current `cangjie SDK`. Add this option to the `compile-option` field in `cjpm.toml` to apply it to the `cjc` compile command.
+> - When using the `build.py` script, specify the `rpath` path with the `--set-rpath RPATH` parameter.
+> - In `cangjie SDK`, the `runtime` dynamic library directory is located under `$CANGJIE_HOME/runtime/lib`, divided into subdirectories by platform. Use the corresponding platform's library directory for `rpath` configuration.
 
-### 更多构建选项
+### Additional Build Options
 
-`build.py` 的 `build` 功能提供如下额外选项：
-- `--target TARGET`: 指定编译目标产物的运行平台，默认值为 `native`，即本地平台，当前仅支持 `linux` 平台上通过 `--target windows-x86_64` 交叉编译 `windows-x86_64` 平台的产物；
-- `--set-rpath RPATH`: 指定 `rpath` 路径；
-- `-t, --build-type BUILD_TYPE`: 指定构建产物版本，可选值为 `debug/release`；
-- `-h, --help`: 打印 `build` 功能的帮助信息。
+The `build` function of `build.py` provides the following additional options:
+- `--target TARGET`: Specifies the target platform for compilation (default: `native`). Currently, only cross-compiling `windows-x86_64` artifacts from `linux` is supported via `--target windows-x86_64`.
+- `--set-rpath RPATH`: Specifies the `rpath` path.
+- `-t, --build-type BUILD_TYPE`: Specifies the build type (`debug/release`).
+- `-h, --help`: Displays help information for the `build` function.
 
-此外，`build.py` 还提供如下额外功能：
+Additionally, `build.py` provides the following extra functionalities:
+- `install [--prefix PREFIX]`: Installs build artifacts to the specified path (default: `cjpm/dist/`). Requires successful execution of `build` first.
+- `clean`: Cleans build artifacts in the default path.
+- `-h, --help`: Displays help information for `build.py`.
 
-- `install [--prefix PREFIX]`: 将构建产物安装到指定路径，不指定路径时默认为 `cjpm/dist/` 目录；`install` 前需要先正确执行 `build`；
-- `clean`: 清除默认路径的构建产物；
-- `-h, --help`: 打印 `build.py` 的帮助信息。
+## API and Configuration Guide
 
-## API 和配置说明
+`cjpm` provides the following main commands and `toml` configuration files for project building and configuration management.
 
-`cjpm` 提供以下主要命令和 `toml` 配置文件，用于项目构建和配置管理。
+### Command Overview
 
-### 命令介绍
-
-执行 `cjpm -h` 后，会打印 `cjpm` 的命令列表，如下所示：
+Executing `cjpm -h` displays the command list for `cjpm`, as shown below:
 
 ```text
 Cangjie Package Manager
@@ -165,142 +174,119 @@ Available options:
 Use "cjpm [subcommand] --help" for more information about a command.
 ```
 
-常用命令介绍如下：
+Key commands are described below:
 
-1. `init` 命令：
+1. `init` command:
+    - Initializes a new Cangjie module or workspace. For modules, it creates a `cjpm.toml` configuration file and a `src` directory by default. For workspaces, it only creates `cjpm.toml` and scans existing Cangjie modules to populate the `members` field. Skips file creation if `cjpm.toml` or `main.cj` already exists.
 
-    `init` 用于初始化一个新的仓颉模块或者工作空间。初始化模块时，默认在当前文件夹创建配置文件 `cjpm.toml`，并新建 `src` 源码文件夹。初始化工作空间时仅会创建 `cjpm.toml` 文件，默认会扫描该路径下已有的仓颉模块并添加到 `members` 字段中。若已存在 `cjpm.toml` 文件，或源码文件夹内已存在 `main.cj`，则会跳过对应的文件创建步骤。
+2. `build` command:
+    - Builds the current Cangjie project. Dependency checks are performed before invoking `cjc` for compilation.
 
-2. `build` 命令：
+3. `run` command:
+    - Executes the compiled binary artifact of the current Cangjie project. Implicitly runs the `build` command to generate the executable.
 
-    `build` 用于构建当前仓颉项目，执行该命令前会先检查依赖项，检查通过后调用 `cjc` 进行构建。
+4. `clean` command:
+    - Cleans build artifacts of the current Cangjie project.
 
-3. `run` 命令：
+### Configuration Management
 
-    `run` 用于运行当前仓颉项目构建出的二进制产物。`run` 命令会默认执行 `build` 命令的流程，以生成最终用于运行的二进制文件。
+The module configuration file `cjpm.toml` defines basic information, dependencies, compile options, etc. `cjpm` primarily parses and executes based on this file.
 
-4. `clean` 命令：
-
-    `clean` 命令会清除当前仓颉项目的编译产物。
-
-### 配置管理
-
-模块配置文件 `cjpm.toml` 用于配置一些基础信息、依赖项、编译选项等内容，`cjpm` 主要通过这个文件进行解析执行。
-
-配置文件代码如下所示：
+Example configuration:
 
 ```toml
-[package] # 单模块配置字段，与 workspace 字段不能同时存在
-  cjc-version = "1.0.0" # 所需 `cjc` 的最低版本要求，必需
-  name = "demo" # 模块名及模块 root 包名，必需
-  description = "nothing here" # 描述信息，非必需
-  version = "1.0.0" # 模块版本信息，必需
-  compile-option = "" # 额外编译命令选项，非必需
-  override-compile-option = "" # 额外全局编译命令选项，非必需
-  link-option = "" # 链接器透传选项，可透传安全编译命令，非必需
-  output-type = "executable" # 编译输出产物类型，必需
-  src-dir = "" # 指定源码存放路径，非必需
-  target-dir = "" # 指定产物存放路径，非必需
-  package-configuration = {} # 单包配置选项，非必需
+[package] # Single-module configuration (mutually exclusive with [workspace])
+  cjc-version = "1.0.0" # Minimum required `cjc` version (required)
+  name = "demo" # Module name and root package name (required)
+  description = "nothing here" # Description (optional)
+  version = "1.0.0" # Module version (required)
+  compile-option = "" # Additional compile options (optional)
+  override-compile-option = "" # Additional global compile options (optional)
+  link-option = "" # Linker passthrough options (optional)
+  output-type = "executable" # Output artifact type (required)
+  src-dir = "" # Source directory path (optional)
+  target-dir = "" # Output directory path (optional)
+  package-configuration = {} # Per-package configuration (optional)
 
-[workspace] # 工作空间管理字段，与 package 字段不能同时存在
-  members = [] # 工作空间成员模块列表，必需
-  build-members = [] # 工作空间编译模块列表，需要是成员模块列表的子集，非必需
-  test-members = [] # 工作空间测试模块列表，需要是编译模块列表的子集，非必需
-  compile-option = "" # 应用于所有工作空间成员模块的额外编译命令选项，非必需
-  override-compile-option = "" # 应用于所有工作空间成员模块的额外全局编译命令选项，非必需
-  link-option = "" # 应用于所有工作空间成员模块的链接器透传选项，非必需
-  target-dir = "" # 指定产物存放路径，非必需
+[workspace] # Workspace configuration (mutually exclusive with [package])
+  members = [] # Workspace member modules (required)
+  build-members = [] # Subset of members to build (optional)
+  test-members = [] # Subset of build-members to test (optional)
+  compile-option = "" # Workspace-wide compile options (optional)
+  override-compile-option = "" # Workspace-wide global compile options (optional)
+  link-option = "" # Workspace-wide linker options (optional)
+  target-dir = "" # Output directory path (optional)
 
-[dependencies] # 源码依赖配置项，非必需
-  coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
-  doo = { path = "./pro1" } # 导入源码依赖
+[dependencies] # Source dependencies (optional)
+  coo = { git = "xxx", branch = "dev" } # Git dependency
+  doo = { path = "./pro1" } # Local path dependency
 
-[test-dependencies] # 测试阶段的依赖配置项，格式和 dependencies 相同，非必需
+[test-dependencies] # Test-phase dependencies (format same as [dependencies], optional)
 
-[script-dependencies] # 构建脚本的依赖配置项，格式和 dependencies 相同，非必需
+[script-dependencies] # Build script dependencies (format same as [dependencies], optional)
 
-[replace] # 依赖替换配置项，格式和 dependencies 相同，非必需
+[replace] # Dependency replacement (format same as [dependencies], optional)
 
-[ffi.c] # 导入 C 语言的库依赖，非必需
+[ffi.c] # C library dependencies (optional)
   clib1.path = "xxx"
 
-[profile] # 命令剖面配置项，非必需
-  build = {} # build 命令配置项
-  test = {} # test 命令配置项
-  bench = {} # bench 命令配置项
-  customized-option = {} # 自定义透传选项
+[profile] # Command profile configuration (optional)
+  build = {} # Build command configuration
+  test = {} # Test command configuration
+  bench = {} # Benchmark command configuration
+  customized-option = {} # Custom passthrough options
 
-[target.x86_64-unknown-linux-gnu] # 后端和平台隔离配置项，非必需
-  compile-option = "value1" # 额外编译命令选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  override-compile-option = "value2" # 额外全局编译命令选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  link-option = "value3" # 链接器透传选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
+[target.x86_64-unknown-linux-gnu] # Platform-specific configuration (optional)
+  compile-option = "value1" # Platform-specific compile options
+  override-compile-option = "value2" # Platform-specific global compile options
+  link-option = "value3" # Platform-specific linker options
 
-[target.x86_64-w64-mingw32.dependencies] # 适用于对应 target 的源码依赖配置项，非必需
+[target.x86_64-w64-mingw32.dependencies] # Platform-specific source dependencies (optional)
 
-[target.x86_64-w64-mingw32.test-dependencies] # 适用于对应 target 的测试阶段依赖配置项，非必需
+[target.x86_64-w64-mingw32.test-dependencies] # Platform-specific test dependencies (optional)
 
-[target.x86_64-unknown-linux-gnu.bin-dependencies] # 仓颉二进制库依赖，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  path-option = ["./test/pro0", "./test/pro1"] # 以文件目录形式配置二进制库依赖
-[target.x86_64-unknown-linux-gnu.bin-dependencies.package-option] # 以单文件形式配置二进制库依赖
+[target.x86_64-unknown-linux-gnu.bin-dependencies] # Platform-specific binary dependencies
+  path-option = ["./test/pro0", "./test/pro1"] # Directory-based binary dependencies
+[target.x86_64-unknown-linux-gnu.bin-dependencies.package-option] # File-based binary dependencies
   "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
   "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
   "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
 ```
 
-其中，常用字段的说明如下：
+Key configuration fields:
 
-1. 依赖配置
+1. Dependency Configuration:
+    - `dependencies`: Imports source dependencies for other Cangjie modules. Supports local path and remote Git dependencies.
+      ```toml
+      [dependencies]
+      pro0 = { path = "./pro0" }
+      ```
+    - `ffi.c`: Configures external C library dependencies.
+      ```toml
+      [ffi.c]
+      hello = { path = "./src/" }
+      ```
+    - `target.[target-name].bin-dependencies`: Imports pre-built Cangjie binary artifacts for specific platforms.
+      ```toml
+      [target.x86_64-unknown-linux-gnu.bin-dependencies]
+          path-option = ["./test/pro0", "./test/pro1"]
+      [target.x86_64-unknown-linux-gnu.bin-dependencies.package-option]
+          "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
+          "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
+          "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
+      ```
 
-    - `dependencies` 字段：
-
-        该字段通过源码方式导入依赖的其它仓颉模块，里面配置了当前构建所需要的其它模块的信息。目前，该字段支持本地路径依赖和远程 `git` 依赖。
-
-        ```toml
-        [dependencies]
-        pro0 = { path = "./pro0" }
-        ```
-
-    - `ffi.c` 字段：
-
-        该字段用于进行当前仓颉模块外部依赖 `c` 库的配置。该字段配置了依赖该库所需要的信息，包含库名和路径。
-
-        ```toml
-        [ffi.c]
-        hello = { path = "./src/" }
-        ```
-
-    - `target.[target-name].bin-dependencies` 字段：
-
-        该字段用于导入已编译好的、适用于指定 `target` 的仓颉库产物文件。仓颉二进制依赖需要用 `target` 字段进行平台隔离。
-
-        ```toml
-        [target.x86_64-unknown-linux-gnu.bin-dependencies]
-            path-option = ["./test/pro0", "./test/pro1"]
-        [target.x86_64-unknown-linux-gnu.bin-dependencies.package-option]
-            "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
-            "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
-            "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-        ```
-
-2. 跨平台配置
-
-    `cjpm.toml` 使用 `target` 字段进行跨平台配置。同一项目在不同平台上编译时，会应用不同的配置。
-
-    ```toml
-    [target.x86_64-unknown-linux-gnu]
-        compile-option = "value1"
-        override-compile-option = "value2"
-        link-option = "value3"
-    [target.x86_64-unknown-linux-gnu.dependencies]
-    [target.x86_64-unknown-linux-gnu.test-dependencies]
-    [target.x86_64-unknown-linux-gnu.bin-dependencies]
-        path-option = ["./test/pro0", "./test/pro1"]
-    [target.x86_64-unknown-linux-gnu.bin-dependencies.package-option]
-        "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
+2. Cross-Platform Configuration:
+    - The `target` field enables platform-specific configurations. Different configurations are applied when compiling the same project on different platforms.
+      ```toml
+      [target.x86_64-unknown-linux-gnu]
+          compile-option = "value1"
+          override-compile-option = "value2"
+          link-option = "value3"
+      ``````toml
         "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
         "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-    [target.x86_64-unknown-linux-gnu.bin-dependencies.ffi.c]
+    [target.x86_64-unknown-linux-gnu.ffi.c]
         "ctest" = "./test/c"
 
     [target.x86_64-unknown-linux-gnu.debug]
@@ -310,14 +296,14 @@ Use "cjpm [subcommand] --help" for more information about a command.
         [target.x86_64-unknown-linux-gnu.release.bin-dependencies]
     ```
 
-### 其他功能
+### Additional Features
 
-除了上述命令和配置项之外，`cjpm` 还支持一些其他功能，例如构建脚本、命令扩展等。
+In addition to the aforementioned commands and configuration items, `cjpm` also supports other features such as build scripts, command extensions, etc.
 
-若想获取 `cjpm` 所有命令、配置项和附加功能的详细信息，请参阅[《仓颉包管理工具用户指南》](./user_guide.md)。
+For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Package Manager User Guide》](./user_guide.md).
 
-## 相关仓
+## Related Repositories
 
-- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
-- [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx)
+- [cangjie Repository](https://gitcode.com/Cangjie/cangjie_compiler)
+- [stdx Repository](https://gitcode.com/Cangjie/cangjie_stdx)
 - [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)

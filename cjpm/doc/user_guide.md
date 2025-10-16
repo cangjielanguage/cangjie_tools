@@ -1,12 +1,12 @@
-# 仓颉包管理工具用户指南
+# Cangjie Project Manager User Guide
 
-## 功能简介
+## Overview
 
-`CJPM（Cangjie Package Manager）` 是仓颉语言的官方包管理工具，用于对仓颉项目模块系统进行管理与维护，涵盖模块初始化、依赖检查与更新等操作。它提供统一的编译入口，支持增量编译、并行编译等，支持自定义编译命令。
+`cjpm` is the official project management tool for the Cangjie language, designed to manage and maintain module systems in Cangjie projects. It supports operations such as module initialization, dependency checking, and updates. The tool provides a unified compilation entry point with features including incremental compilation, parallel compilation, and support for custom compilation commands.
 
-## 使用说明
+## Usage Instructions
 
-执行 `cjpm -h` 命令，查阅包管理工具的使用说明，如下所示。
+Execute the `cjpm -h` command to view the package manager's usage instructions as shown below.
 
 ```text
 Cangjie Package Manager
@@ -34,15 +34,15 @@ Available options:
 Use "cjpm [subcommand] --help" for more information about a command.
 ```
 
-基本的使用操作命令如下所示：
+Basic usage command example:
 
 ```shell
 cjpm build --help
 ```
 
-`cjpm` 是主程序的名称， `build` 是当前执行的可用命令， `--help` 是当前可用命令可用的配置项（配置项通常有长和短两种写法，效果相同）。
+Here, `cjpm` is the main program name, `build` is the currently executed command, and `--help` is a configurable option for the current command (options typically have both long and short forms with identical effects).
 
-成功执行后会显示如下结果：
+Successful execution will display the following result:
 
 ```text
 Compile a local module and all of its dependencies.
@@ -56,83 +56,77 @@ Available options:
   -j, --jobs <N>                the number of jobs to spawn in parallel during the build process
   -V, --verbose                 enable verbose
   -g                            enable compile debug version target
-  --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
-  --enable-features <value>     explicitly specify comma-separated list of features to be enabled
-  --no-feature-deduce           disables auto-enabling of features, deduced from other options, machine properties, etc.
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
   --target-dir <value>          specify target directory
   -o, --output <value>          specify product name when compiling an executable file
-  -l, --lint                    enable cjlint code check
   --mock                        enable support of mocking classes in tests
   --skip-script                 disable script 'build.cj'.
 ```
 
-## 命令说明
+## Command Descriptions
 
 ### init
 
-`init` 用于初始化一个新的仓颉模块或者工作空间。初始化模块时，默认在当前文件夹创建配置文件 `cjpm.toml`，并新建 `src` 源码文件夹。如果该模块的产物为可执行类型，则会在 `src` 下生成默认的 `main.cj` 文件，并在编译后打印输出 `hello world`。初始化工作空间时仅会创建 `cjpm.toml` 文件，默认会扫描该路径下已有的仓颉模块并添加到 `members` 字段中。若已存在 `cjpm.toml` 文件，或源码文件夹内已存在 `main.cj`，则会跳过对应的文件创建步骤。
+The `init` command initializes a new Cangjie module or workspace. When initializing a module, it creates a configuration file `cjpm.toml` in the current folder by default and establishes a `src` source code directory. If the module's output is of executable type, it generates a default `main.cj` file under `src`, which prints `hello world` after compilation. When initializing a workspace, only the `cjpm.toml` file is created, and existing Cangjie modules in the path are automatically scanned and added to the `members` field. If `cjpm.toml` already exists or `main.cj` is present in the source directory, corresponding file creation steps are skipped.
 
-`init` 有多个可配置项：
+Configurable options for `init` include:
 
-- `--workspace` 新建一个工作空间配置文件，指定该选项时以上其它选项无效会自动忽略
-- `--name <value>` 指定新建模块的 `root` 包名，不指定时默认为上一级子文件夹名称
-- `--path <value>` 指定新建模块的路径，不指定时默认为当前文件夹
-- `--type=<executable|static|dynamic>` 指定新建模块的产物类型，缺省时默认为 `executable`
-- `--experimental` 初始化仓颉多平台项目
+- `--workspace` creates a workspace configuration file; other options are ignored when this is specified
+- `--name <value>` specifies the `root` package name for the new module; defaults to the parent folder name if unspecified
+- `--path <value>` specifies the path for the new module; defaults to the current folder if unspecified
+- `--type=<executable|static|dynamic>` specifies the output type for the new module; defaults to `executable` if omitted
 
-例如：
+Examples:
 
 ```text
-输入: cjpm init
-输出: cjpm init success
+Input: cjpm init
+Output: cjpm init success
 ```
 
 ```text
-输入: cjpm init --name demo --path project
-输出: cjpm init success
+Input: cjpm init --name demo --path project
+Output: cjpm init success
 ```
 
 ```text
-输入: cjpm init --type=static
-输出: cjpm init success
+Input: cjpm init --type=static
+Output: cjpm init success
 ```
 
 ### check
 
-`check` 命令用于检查项目中所需的依赖项，执行成功将会打印有效的包编译顺序。
+The `check` command verifies project dependencies and prints valid package compilation order upon success.
 
-`check` 有多个可配置项：
+Configurable options for `check` include:
+- `-m, --member <value>` workspace-only option to specify a single module as the check entry point
+- `--no-tests` excludes test-related dependencies from output
+- `--skip-script` skips build script compilation and execution
 
-- `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为检查入口
-- `--no-tests` 配置后，测试相关的依赖将不会被打印
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
-
-例如：
+Examples:
 
 ```text
-输入: cjpm check
-输出:
+Input: cjpm check
+Output:
 The valid serial compilation order is:
     b.pkgA -> b
 cjpm check success
 ```
 
 ```text
-输入: cjpm check
-输出:
+Input: cjpm check
+Output:
 Error: cyclic dependency
 b.B -> c.C
 c.C -> d.D
 d.D -> b.B
-输出说明：上述输出中，b.B 代表以 b 为 root 包的模块中的一个名为 b.B 的子包
+Note: In the output above, b.B represents a subpackage named b.B within the module with b as its root package
 ```
 
 ```text
-输入: cjpm check
-输出:
+Input: cjpm check
+Output:
 Error: can not find the following dependencies
     pro1.xoo
     pro1.yoo
@@ -141,32 +135,30 @@ Error: can not find the following dependencies
 
 ### update
 
-`update` 用于将 `cjpm.toml` 里的内容更新到 `cjpm.lock`。当 `cjpm.lock` 不存在时，将会生成该文件。`cjpm.lock` 文件记录着 `git` 依赖的版本号等元信息，用于下次构建使用。
+The `update` command synchronizes `cjpm.toml` content to `cjpm.lock`. If `cjpm.lock` doesn't exist, it will be created. This file records metadata like version numbers for git dependencies, used in subsequent builds.
 
-`update` 有以下可配置项：
-
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
+Configurable option:
+- `--skip-script` skips build script compilation and execution
 
 ```text
-输入: cjpm update
-输出: cjpm update success
+Input: cjpm update
+Output: cjpm update success
 ```
 
 ### tree
 
-`tree` 命令用于可视化地展示仓颉源码中的包依赖关系。
+The `tree` command visually displays package dependency relationships in Cangjie source code.
 
-`tree` 有多个可配置项：
+Configurable options include:
+- `-V, --verbose` adds detailed package node information including name, version, and path
+- `--depth <N>` specifies maximum dependency tree depth (non-negative integer); shows all packages as root nodes when specified
+- `-p, --package <value>` specifies a package as root node to display its dependencies
+- `--invert <value>` specifies a package as root node and inverts the tree to show its dependents
+- `--target <value>` includes target platform dependencies in analysis
+- `--no-tests` excludes `test-dependencies` field items
+- `--skip-script` skips build script compilation and execution
 
-- `-V, --verbose` 增加包节点的详细信息，包括包名、版本号和包路径
-- `--depth <N>` 指定依赖树的最大深度，可选值是非负整数。指定该选项时，默认会以所有包作为根节点。其中，N 的值代表每个依赖树的子节点最大深度
-- `-p, --package <value>` 指定某个包为根节点，从而展示它的子依赖包，需要配置的值是包名
-- `--invert <value>` 指定某个包为根节点并反转依赖树，从而展示它被哪些包所依赖，需要配置的值是包名
-- `--target <value>` 将指定目标平台的依赖项加入分析，并展示依赖关系
-- `--no-tests` 排除 `test-dependencies` 字段的依赖项
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
-
-例如，模块 `a` 的源代码目录结构如下：
+Example module `a` source structure:
 
 ```text
 src
@@ -184,11 +176,11 @@ src
 └── cjpm.toml
 ```
 
-依赖关系为：包 `a` 导入包 `a.aoo`、`a.boo`，子包 `aoo` 导入包 `a.coo`，子包 `boo` 导入包 `coo`，子包 `doo` 导入包 `coo`。
+Dependency relationships: Package `a` imports `a.aoo` and `a.boo`; subpackage `aoo` imports `a.coo`; subpackage `boo` imports `coo`; subpackage `doo` imports `coo`.
 
 ```text
-输入: cjpm tree
-输出:
+Input: cjpm tree
+Output:
 |-- a
     └── a.aoo
         └── a.coo
@@ -201,8 +193,8 @@ cjpm tree success
 ```
 
 ```text
-输入: cjpm tree --depth 2 -p a
-输出:
+Input: cjpm tree --depth 2 -p a
+Output:
 |-- a
     └── a.aoo
         └── a.coo
@@ -212,8 +204,8 @@ cjpm tree success
 ```
 
 ```text
-输入: cjpm tree --depth 0
-输出:
+Input: cjpm tree --depth 0
+Output:
 |-- a
 |-- a.eoo
 |-- a.aoo
@@ -224,143 +216,94 @@ cjpm tree success
 ```
 
 ```text
-输入: cjpm tree --invert a.coo --verbose
-输出:
-|-- a.coo 1.2.0 （.../src/coo）
-    └── a.aoo 1.1.0 （.../src/aoo）
-            └── a 1.0.0 （.../src）
-    └── a.boo 1.1.0 （.../src/boo）
-            └── a 1.0.0 （.../src）
-    └── a.doo 1.3.0 （.../src/doo）
+Input: cjpm tree --invert a.coo --verbose
+Output:
+|-- a.coo 1.2.0 (.../src/coo)
+    └── a.aoo 1.1.0 (.../src/aoo)
+            └── a 1.0.0 (.../src)
+    └── a.boo 1.1.0 (.../src/boo)
+            └── a 1.0.0 (.../src)
+    └── a.doo 1.3.0 (.../src/doo)
 cjpm tree success
 ```
 
 ### build
 
-`build` 用于构建当前仓颉项目，执行该命令前会先检查依赖项，检查通过后调用 `cjc` 进行构建。
+The `build` command compiles the current Cangjie project after dependency verification, invoking `cjc` for compilation.
 
-`build` 有多个可配置项：
+Configurable options include:
+- `-i, --incremental` enables incremental compilation (full compilation by default)
+- `-j, --jobs <N>` sets maximum parallel compilation jobs (minimum of N and 2×CPU cores)
+- `-V, --verbose` shows compilation logs
+- `-g` generates debug version output
+- `--cfg` forwards custom `cfg` options from `cjpm.toml`
+- `-m, --member <value>` workspace-only option to specify a single compilation entry module
+- `--target <value>` enables cross-compilation to target platforms
+- `--target-dir <value>` specifies output directory
+- `-o, --output <value>` specifies executable output name (default: `main` or `main.exe` on Windows)
+- `--mock` enables class mocking support in test builds
+- `--skip-script` skips build script compilation and execution
 
-- `-i, --incremental` 用于指定增量编译，默认情况下是全量编译
-- `-j, --jobs <N>` 用于指定并行编译的最大并发数，最终的最大并发数取 `N` 和 `2倍 CPU 核数` 的最小值
-- `-V, --verbose` 用于展示编译日志
-- `-g` 用于生成 `debug` 版本的输出产物
-- `--coverage` 用于生成覆盖率信息，默认情况下不开启覆盖率功能
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考 [profile.customized-option](./user_guide.md##profile.customized-option) 章节
-- `--enable-features <value>` 显式指定要启用的功能，可用逗号分隔
-- `no-feature-deduce` 禁用功能的自动启用，支持从其他选项或机器的相关属性推断等
-- `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口
-- `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
-- `--target-dir <value>` 用于指定输出产物的存放路径
-- `-o, --output <value>` 用于指定输出可执行文件的名称，默认名称为 `main`（`Windows` 系统下则默认为 `main.exe`）。注意，当前不支持编译名称为 `cjc` 的可执行文件
-- `-l, --lint` 用于在编译时调用仓颉语言静态检查工具进行代码检查
-- `--mock` 带有此选项的构建版本中的类可用于在测试中进行 `mock` 测试
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
+> **Note:**
+> - The `-i, --incremental` option only enables package-level incremental compilation. Developers can manually forward `--incremental-compile` via `compile-option` in configuration files for function-level incremental compilation.
+> - Currently, `-i, --incremental` only supports source-based incremental analysis. Library import changes require full recompilation.
 
-> **注意：**
->
-> - `-i, --incremental` 选项仅会开启 `cjpm` 包级别的增量编译。开发者可以在配置文件的 `compile-option` 字段自行透传 `--incremental-compile` 和 `--experimental` 编译选项，从而开启 `cjc` 编译器提供的函数粒度增量功能。
-> - `-i, --incremental` 选项目前仅支持基于源码的增量分析。如果导入的库内容有变更，需要开发者重新使用全量方式构建。
+Intermediate files are stored in the `target` folder by default, with executables in `target/release/bin` or `target/debug/bin` depending on build mode. For reproducible builds, this command creates `cjpm.lock` recording exact dependency versions for subsequent builds. Update this file using the `update` command when necessary. This file should be committed to version control to ensure reproducible builds across team members.
 
-编译生成的中间文件默认会存放在 `target` 文件夹，而可执行文件会根据编译模式存放到 `target/release/bin` 或 `target/debug/bin` 文件夹。运行可执行文件的方式可参考 `run`。
-为了提供可复制的构建，此命令会创建 `cjpm.lock` 文件，该文件包含所有可传递依赖项的确切版本，这些依赖项将用于所有后续构建，需要更新该文件时请使用 `update` 命令。如果有必要保证每个项目参与者都有可复制的构建，那么此文件应提交到版本控制系统中。
-
-例如：
+Examples:
 
 ```text
-输入: cjpm build -V
-输出:
+Input: cjpm build -V
+Output:
 compile package module1.package1: cjc --import-path "target/release" --output-dir "target/release/module1" -p "src/package1" --output-type=staticlib -o libmodule1.package1.a
 compile package module1: cjc --import-path "target/release" --output-dir "target/release/bin" -p "src" --output-type=exe -o main
 cjpm build success
 ```
 
 ```text
-输入: cjpm build
-输出: cjpm build success
+Input: cjpm build
+Output: cjpm build success
 ```
 
-> **注意：**
->
-> 根据仓颉包管理规格，只有符合要求的有效源码包才能被正确纳入编译范围。如果编译时出现 `no '.cj' file` 相关的告警，很可能是因为对应包不符合规范导致源码文件不被编译。如果出现这种情况，请参考[仓颉包管理规格说明](./user_guide.md#仓颉包管理规格说明)修改代码目录结构。
-
-在执行 `cjpm build` 之前，`cjpm` 会对当前模块或工作空间进行包依赖关系检查。若发现包之间存在相互导入关系形成依赖闭环，构建将被中止并返回错误信息，提示循环依赖路径。
-
-例如，模块 `demo` 的源代码目录结构如下：
-
-```text
-src
-├── main.cj
-├── aoo
-│   └── a.cj
-├── boo
-│   └── b.cj
-├── coo
-│   └── c.cj
-└── cjpm.toml
-```
-
-依赖关系为：包 `demo.aoo` 导入包 `demo.boo`，包 `demo.boo` 导入包 `demo.coo`，包 `demo.coo` 导入包 `demo.aoo`，三个包之间的依赖导入形成闭环，导致循环依赖：
-
-```text
-输入: cjpm build
-输出:
-cyclic dependency:
-demo.boo -> demo.coo
-demo.coo -> demo.aoo
-demo.aoo -> demo.boo
-
-Error: cjpm build failed
-```
-
-出现循环依赖后，开发者可以基于报错信息进行依赖关系排查。上例中，导入关系为 `demo.aoo -> demo.boo -> demo.coo -> demo.aoo`，开发者可依次从各包对应的目录下找到导入点并分析是否可以删除导入，从而解决循环依赖。例如，开发者可先从 `demo.aoo` 开始分析，在该包对应的代码目录中，查询哪些源码文件存在 `demo.boo` 包的导入，若这些文件实际上并没有功能依赖 `demo.boo`，则可以删除对应的导入。用同样的方法依次排查 `demo.boo` 和 `demo.coo`，删除冗余导入，从而尝试解决循环依赖问题。
-
-若经过上述排查，发现确实存在功能上的循环依赖情况，可以尝试下面的几个解决方法：
-
-- 重构导入顺序：尽量让依赖关系保持单向，避免回环，例如上例中 `demo.coo` 中依赖 `demo.aoo` 的部分可独立实现，即可拆解闭环；
-- 拆分模块：将相互引用的代码拆分到独立包，例如上例中可将三个子包合成一个包。
-
-在涉及到包依赖关系解析的其他命令中（例如 `tree`），若存在循环依赖，也会有相同的报错出现，也可以基于上述处理方式解决。
+> **Note:**
+> Per Cangjie package specifications, only compliant source packages are included in compilation. Warnings like `no '.cj' file` indicate non-compliant package structures. Refer to [Cangjie Package Specifications](#cangjie-package-management-specification) for directory structure requirements.
 
 ### run
 
-`run` 用于运行当前项目构建出的二进制产物。`run` 命令会默认执行 `build` 命令的流程，以生成最终用于运行的二进制文件。
+The `run` command executes compiled binary outputs. It automatically triggers the `build` process to generate executable files.
 
-`run` 有多个可配置项：
+Configurable options include:
+- `--name <value>` specifies binary name (default: `main`; workspace binaries are in `target/release/bin`)
+- `--build-args <value>` controls `build` compilation parameters
+- `--skip-build` skips compilation and directly runs existing binaries
+- `--run-args <value>` forwards arguments to the executed binary
+- `--target-dir <value>` specifies output directory
+- `-g` runs debug version outputs
+- `-V, --verbose` shows execution logs
+- `--skip-script` skips build script compilation and execution
 
-- `--name <value>` 指定运行的二进制名称，不指定时默认为 `main`，工作空间下的二进制产物默认存放在 `target/release/bin` 路径下
-- `--build-args <value>` 控制 `build` 编译流程的参数
-- `--skip-build` 跳过编译流程，直接运行
-- `--run-args <value>` 透传参数给本次运行的二进制产物
-- `--target-dir <value>` 用于指定运行产物的存放路径
-- `-g` 用于运行 `debug` 版本的产物
-- `-V, --verbose` 用于展示运行日志
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
-
-例如：
+Examples:
 
 ```text
-输入: cjpm run
-输出: cjpm run success
+Input: cjpm run
+Output: cjpm run success
+``````markdown
+Input: cjpm run -g // This will execute cjpm build -i -g by default
+Output: cjpm run success
 ```
 
 ```text
-输入: cjpm run -g // 此时会默认执行 cjpm build -i -g 命令
-输出: cjpm run success
-```
-
-```text
-输入: cjpm run --build-args="-s -j16" --run-args="a b c"
-输出: cjpm run success
+Input: cjpm run --build-args="-s -j16" --run-args="a b c"
+Output: cjpm run success
 ```
 
 ### test
 
-`test` 用于编译并运行仓颉文件的单元测试用例，运行后打印测试结果，编译产物默认存放在 `target/release/unittest_bin` 文件夹。单元测试用例代码的写法可参考《仓颉编程语言标准库 API》中 `std.unittest` 库的说明。
+The `test` command is used to compile and run unit test cases for Cangjie files. After execution, it prints the test results. The compiled artifacts are stored by default in the `target/release/unittest_bin` directory. For writing unit test cases, refer to the `std.unittest` library documentation in the *Cangjie Programming Language Standard Library API*.
 
-该命令可以指定待测试的单包路径（支持指定多个单包，形如 `cjpm test path1 path2`），不指定路径时默认执行模块级别的单元测试。执行模块级别的单元测试时，默认只进行当前模块的单元测试，直接或间接依赖的其他所有模块内的测试均不会被执行。`test` 执行前提是当前项目能够 `build` 编译成功。
+This command can specify single-package paths to test (supports multiple paths, e.g., `cjpm test path1 path2`). If no path is specified, it defaults to module-level unit testing. When performing module-level unit testing, only the current module's tests are executed by default; tests in all directly or indirectly dependent modules are skipped. The `test` command requires the current project to compile successfully with `build`.
 
-模块的单元测试代码结构如下所示，其中 `xxx.cj` 存放该包的源码，`xxx_test.cj` 存放单元测试代码：
+The unit test code structure for a module is as follows, where `xxx.cj` contains the package source code and `xxx_test.cj` contains the unit test code:
 
 ```text
 └── src
@@ -375,18 +318,18 @@ Error: cjpm build failed
 └── cjpm.toml
 ```
 
-1. 单模块测试场景
+1. Single-module testing scenario
 
     ```text
-    输入: cjpm test
-    进度报告：
+    Input: cjpm test
+    Progress report:
     group test.koo                                    100% [||||||||||||||||||||||||||||] ✓    (00:00:01)
     group test.zoo                                      0% [----------------------------]      (00:00:00)
     test TestZ.sayhi                                                                           (00:00:00)
 
     passed: 1, failed: 0                                  33% [|||||||||-------------------]  1/3 (00:00:01)
 
-    输出:
+    Output:
     --------------------------------------------------------------------------------------------------
     TP: test, time elapsed: 177921 ns, RESULT:
         TCS: TestM, time elapsed: 177921 ns, RESULT:
@@ -422,11 +365,11 @@ Error: cjpm build failed
     cjpm test success
     ```
 
-2. 单包测试场景
+2. Single-package testing scenario
 
     ```text
-    输入: cjpm test src/koo
-    输出:
+    Input: cjpm test src/koo
+    Output:
     --------------------------------------------------------------------------------------------------
     TP: test.koo, time elapsed: 160133 ns, RESULT:
         TCS: TestK, time elapsed: 160133 ns, RESULT:
@@ -446,11 +389,11 @@ Error: cjpm build failed
     cjpm test success
     ```
 
-3. 多包测试场景
+3. Multi-package testing scenario
 
     ```text
-    输入: cjpm test src/koo src
-    输出:
+    Input: cjpm test src/koo src
+    Output:
     --------------------------------------------------------------------------------------------------
     TP: test.koo, time elapsed: 168204 ns, RESULT:
         TCS: TestK, time elapsed: 168204 ns, RESULT:
@@ -478,91 +421,81 @@ Error: cjpm build failed
     cjpm test success
     ```
 
-`test` 有多个可配置项：
+`test` has multiple configurable options:
 
-- `-j, --jobs <N>` 用于指定并行编译的最大并发数，最终的最大并发数取 `N` 和 `2倍 CPU 核数` 的最小值
-- `-V, --verbose` 配置项开启后，会输出单元测试的日志
-- `-g` 用于生成 `debug` 版本的单元测试产物，此时的产物存放在 `target/debug/unittest_bin` 文件夹
-- `-i, --incremental` 用于指定测试代码的增量编译，默认情况下是全量编译
-- `--no-run` 用于仅编译单元测试产物
-- `--skip-build` 用于仅执行单元测试产物
-- `--coverage` 用于生成覆盖率原始数据。使用 `cjpm test --coverage` 统计覆盖率时，源代码中的 `main` 不会再作为程序入口执行，因此会显示为未被覆盖。建议使用 `cjpm test` 之后，不再手写多余的 `main`
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项
-- `--module <value>` 用于指定目标测试模块，指定的模块需要被当前模块直接或间接依赖（或者是该模块本身），也可以通过 `--module "module1 module2"` 的方式指定多个符合要求的模块。不指定时默认只测试当前模块
-- `-m, --member <value>` 仅可在工作空间下使用，可用于指定测试单个模块
-- `--target <value>` 指定后，可交叉编译生成目标平台的单元测试结果，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
-- `--target-dir <value>` 用于指定单元测试产物的存放路径
-- `--dry-run` 配置后，将不执行用例，仅打印
-- `--filter <value>` 用于过滤测试的子集，`value` 的形式如下所示：
-    - `--filter=*` 匹配所有测试类
-    - `--filter=*.*` 匹配所有测试类的所有测试用例（结果和*相同）
-    - `--filter=*.*Test,*.*case*` 匹配所有测试类中以 `Test` 结尾的用例，或者所有测试类中名字中带有 `case` 的测试用例
-    - `--filter=MyTest*.*Test,*.*case*,-*.*myTest` 匹配所有 `MyTest` 开头测试类中以 `Test` 结尾的用例，或者名字中带有 `case` 的用例，或者名字中不带有 `myTest` 的测试用例
-- `--include-tags <value>` 用于获取由 `@Tag` 宏指定的测试类别的子集。 `value` 的形式如下：
-    - `--include-tags=Unittest` 运行所有标记为 `@Tag[Unittest]` 的测试
-    - `--include-tags=Unittest,Smoke` 运行所有标记为 `@Tag[Unittest]`、`@Tag[Smoke]` 任一或同时都有的测试
-    - `--include-tags=Unittest+Smoke` 运行所有标记为 `@Tag[Unittest]`、`@Tag[Smoke]` 同时都有的测试
-    - `--include-tags=Unittest+Smoke+JiraTask3271,Backend` 运行所有标记为 `@Tag[Backend]`、`@Tag[Unittest, Smoke, JiraTask3271]`其一的测试
-- `--exclude-tags <value>` 用于排除由 `@Tag` 宏指定的测试类别的子集。`value` 的形式如下：
-    - `--exclude-tags=Unittest` 运行所有未被标记为 `@Tag[Unittest]` 的测试
-    - `--exclude-tags=Unittest,Smoke` 运行所有未被标记为 `@Tag[Unittest]`、`@Tag[Smoke]` 其一或同时都有的测试
-    - `--exclude-tags=Unittest+Smoke+JiraTask3271` 运行所有未被标记为 `@Tag[Unittest, Smoke, JiraTask3271]` 同时都有的测试
-    - `--include-tags=Unittest --exclude-tags=Smoke` 运行所有被标记为 `@Tag[Unittest]` 且不带有 `@Tag[Smoke]` 的测试
-- `--no-color` 关闭控制台颜色显示
-- `--random-seed <N>` 用于指定随机种子的值
-- `--timeout-each <value>` value 的格式为 `%d[millis|s|m|h]`，为每个测试用例指定默认的超时时间
-- `--parallel` 用于指定测试用例并行执行的方案， `value` 的形式如下所示：
-    - `<BOOL>` 可为 `true` 或 `false`，指定为 `true` 时，测试类可被并行运行，并行进程个数将受运行系统上的 CPU 核数控制
-    - `nCores` 指定了并行的测试进程个数应该等于可用的 CPU 核数
-    - `NUMBER` 指定了并行的测试进程个数值。该数值应该为正整数
-    - `NUMBERnCores` 指定了并行的测试进程个数值为可用的 CPU 核数的指定数值倍。该数值应该为正数（支持浮点数或整数）
-- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
-- `--show-all-output` 启用测试输出打印，包括通过的测试用例
-- `--no-capture-output` 禁用测试输出捕获，输出将在测试执行期间立即打印
-- `--report-path <value>` 指定测试执行后的报告生成路径
-- `--report-format <value>` 指定报告输出格式，当前单元测试报告仅支持 `xml` 格式（可忽略大小写），使用其它值将会抛出异常
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
-- `--no-progress` 禁用进度报告。如果指定选项 `--dry-run`，则隐含选项 `--no-progress`
-- `--progress-brief` 显示简短（单行）进度报告而不是详细进度报告
-- `--progress-entries-limit <value>` 限制进度报告中显示的条目数量。默认值：`0`。允许的值：
-    - `0` 不限制条目数
-    - `n` 其中 `n` 是正整数，指定终端上可以同时显示的最大条目
+- `-j, --jobs <N>`: Specifies the maximum number of parallel compilation jobs. The final maximum concurrency is the minimum of `N` and `2 × CPU cores`.
+- `-V, --verbose`: When enabled, outputs unit test logs.
+- `-g`: Generates `debug` version unit test artifacts, stored in the `target/debug/unittest_bin` directory.
+- `-i, --incremental`: Specifies incremental compilation for test code. Full compilation is performed by default.
+- `--no-run`: Only compiles unit test artifacts without running them.
+- `--skip-build`: Only executes precompiled unit test artifacts.
+- `--cfg`: Allows passing custom `cfg` options from `cjpm.toml`.
+- `--module <value>`: Specifies the target test module(s). The specified module(s) must be directly or indirectly dependent on the current module (or the module itself). Multiple modules can be specified using `--module "module1 module2"`. If unspecified, only the current module is tested.
+- `-m, --member <value>`: Only usable in workspaces, specifies testing a single module.
+- `--target <value>`: Enables cross-compilation for target platforms. Refer to the [target](#target) section in `cjpm.toml`.
+- `--target-dir <value>`: Specifies the output directory for unit test artifacts.
+- `--dry-run`: Prints test cases without executing them.
+- `--filter <value>`: Filters test subsets. `value` formats:
+    - `--filter=*`: Matches all test classes.
+    - `--filter=*.*`: Matches all test cases in all test classes (same as `*`).
+    - `--filter=*.*Test,*.*case*`: Matches test cases ending with `Test` or containing `case` in their names.
+    - `--filter=MyTest*.*Test,*.*case*,-*.*myTest`: Matches test cases in classes starting with `MyTest` and ending with `Test`, or containing `case`, or excluding those containing `myTest`.
+- `--include-tags <value>`: Runs tests with specified `@Tag` annotations. `value` formats:
+    - `--include-tags=Unittest`: Runs tests marked with `@Tag[Unittest]`.
+    - `--include-tags=Unittest,Smoke`: Runs tests marked with either `@Tag[Unittest]` or `@Tag[Smoke]`.
+    - `--include-tags=Unittest+Smoke`: Runs tests marked with both `@Tag[Unittest]` and `@Tag[Smoke]`.
+    - `--include-tags=Unittest+Smoke+JiraTask3271,Backend`: Runs tests marked with `@Tag[Backend]` or `@Tag[Unittest, Smoke, JiraTask3271]`.
+- `--exclude-tags <value>`: Excludes tests with specified `@Tag` annotations. `value` formats:
+    - `--exclude-tags=Unittest`: Runs tests not marked with `@Tag[Unittest]`.
+    - `--exclude-tags=Unittest,Smoke`: Runs tests not marked with either `@Tag[Unittest]` or `@Tag[Smoke]`.
+    - `--exclude-tags=Unittest+Smoke+JiraTask3271`: Runs tests not marked with all of `@Tag[Unittest, Smoke, JiraTask3271]`.
+    - `--include-tags=Unittest --exclude-tags=Smoke`: Runs tests marked with `@Tag[Unittest]` but not `@Tag[Smoke]`.
+- `--no-color`: Disables colored console output.
+- `--random-seed <N>`: Specifies the random seed value.
+- `--timeout-each <value>`: Format `%d[millis|s|m|h]`. Sets a default timeout for each test case.
+- `--parallel`: Specifies parallel test execution. `value` formats:
+    - `<BOOL>`: `true` or `false`. If `true`, test classes run in parallel with processes limited by CPU cores.
+    - `nCores`: Sets the number of parallel processes equal to available CPU cores.
+    - `NUMBER`: Sets a fixed number of parallel processes (positive integer).
+    - `NUMBERnCores`: Sets parallel processes as a multiple of CPU cores (supports floats/integers).
+- `--show-all-output`: Enables output printing for passed test cases.
+- `--no-capture-output`: Disables output capture, printing output immediately during test execution.
+- `--report-path <value>`: Specifies the path for test reports.
+- `--report-format <value>`: Specifies report format. Currently, only `xml` is supported (case-insensitive). Other values throw exceptions.
+- `--skip-script`: Skips build script compilation and execution.
+- `--no-progress`: Disables progress reporting. Implied if `--dry-run` is specified.
+- `--progress-brief`: Shows a brief (single-line) progress report instead of detailed reports.
+- `--progress-entries-limit <value>`: Limits the number of entries shown in progress reports. Default: `0`. Allowed values:
+    - `0`: No limit.
+    - `n`: Positive integer specifying the maximum entries displayed.
 
-`cjpm test` 参数选项使用示例:
+`cjpm test` usage examples:
 
 ```text
-输入：
-cjpm test src --coverage
-cjcov --root=./ --html-details -o html_output
-输出：cjpm test success
-覆盖率生成：在 html_output 目录下会生成 html 文件，总的覆盖率报告文件名固定为 index.html
+Input: cjpm test --filter=*
+Output: cjpm test success
 ```
 
 ```text
-输入: cjpm test --filter=*
-输出: cjpm test success
+Input: cjpm test src --report-path=reports --report-format=xml
+Output: cjpm test success
 ```
 
-```text
-输入: cjpm test src --report-path=reports --report-format=xml
-输出: cjpm test success
-```
-
-> **注意：**
+> **Note:**
 >
-> `cjpm test` 会自动构建所有带有 `mock` 支持的包，因此在测试中，开发者可以对自定义的类或依赖源模块的类进行 `mock` 测试。为了能够从一些二进制依赖中 `mock` 类，应该通过 `cjpm build --mock` 来构建带有 `mock` 支持的类。
+> `cjpm test` automatically builds all packages with `mock` support, allowing developers to perform `mock` tests on custom classes or dependent modules. To `mock` classes from binary dependencies, build with `cjpm build --mock`.
 
 ### bench
 
-`bench` 用于执行测试文件的性能用例并直接打印测试结果。编译产物默认存放在 `target/release/unittest_bin` 文件夹中。性能用例由 `@Bench` 宏标注。更多关于如何编写性能用例代码的详细信息，请参见《仓颉编程语言标准库 API》中对 `std.unittest` 库的描述。
+The `bench` command executes performance test cases and prints results directly. Compiled artifacts are stored in `target/release/unittest_bin` by default. Performance cases are annotated with `@Bench`. For details on writing performance tests, refer to the `std.unittest` library in the *Cangjie Programming Language Standard Library API*.
 
-该命令可以指定待测试的单包路径（支持指定多个单包，形如 `cjpm bench path1 path2`），不指定路径时默认执行模块级别的单元测试。与 `test` 一样，执行模块级别的单元测试时，默认只进行当前模块的单元测试。`bench` 执行前提是当前项目能够 `build` 编译成功。
+This command can specify single-package paths (supports multiple paths, e.g., `cjpm bench path1 path2`). If unspecified, it defaults to module-level testing. Like `test`, module-level testing only executes the current module's tests by default. `bench` requires the project to compile successfully with `build`.
 
-与 `test` 子命令类似，如果您有 `xxx.cj` 文件，则 `xxx_test.cj` 也可以包含性能测试用例。
+Similar to `test`, if you have `xxx.cj` files, `xxx_test.cj` can also contain performance test cases.
 
 ```text
-输入: cjpm bench
-输出:
+Input: cjpm bench
+Output:
 TP: bench, time elapsed: 8107939844 ns, RESULT:
     TCS: Test_UT, time elapsed: 8107939844 ns, RESULT:
     | Case       |   Median |         Err |   Err% |     Mean |
@@ -581,293 +514,271 @@ Summary: TOTAL: 1
     FAILED: 0
 ```
 
-`bench` 有多个可配置项：
+`bench` configurable options:
 
-- `-j, --jobs <N>` 用来指定并行编译的最大并发数，最终的最大并发数取 `N` 和 `2倍 CPU 核数` 的最小值
-- `-V, --verbose` 配置项开启后，会输出单元测试的日志
-- `-g` 用来生成 `debug` 版本的单元测试产物，此时的产物存放在 `target/debug/unittest_bin` 文件夹
-- `-i, --incremental` 用于指定测试代码的增量编译，默认情况下是全量编译
-- `--no-run` 用来仅编译单元测试产物
-- `--skip-build` 用来仅执行单元测试产物
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项
-- `--module <value>` 用于指定目标测试模块，指定的模块需要被当前模块直接或间接依赖（或者是该模块本身），也可以通过 `--module "module1 module2"` 的方式指定多个符合要求的模块。不指定时默认只测试当前模块
-- `-m, --member <value>` 仅可在工作空间下使用，可用来指定测试单个模块
-- `--target <value>` 指定后，可交叉编译生成目标平台的单元测试结果，`cjpm.toml` 中的配置可参考 `cross-compile-configuration` 部分
-- `--target-dir <value>` 用来指定单元测试产物的存放路径
-- `--dry-run` 配置后，将不执行用例，仅打印
-- `--filter <value>` 用于过滤测试的子集，`value` 的形式如下所示：
-    - `--filter=*` 匹配所有测试类
-    - `--filter=*.*` 匹配所有测试类所有测试用例(结果和*相同)
-    - `--filter=*.*Test,*.*case*` 匹配所有测试类中以 `Test` 结尾的用例，或者所有测试类中名字中带有 `case` 的测试用例
-    - `--filter=MyTest*.*Test,*.*case*,-*.*myTest` 匹配所有 `MyTest` 开头测试类中以 `Test` 结尾的用例，或者名字中带有 `case` 的用例，或者名字中不带有 `myTest` 的测试用例
-- `--include-tags <value>` 用于获取由 `@Tag` 宏指定的测试类别的子集。 `value` 的形式如下：
-    - `--include-tags=Unittest` 运行所有标记为 `@Tag[Unittest]` 的测试
-    - `--include-tags=Unittest,Smoke` 运行所有标记为 `@Tag[Unittest]`、`@Tag[Smoke]` 任一或同时都有的测试
-    - `--include-tags=Unittest+Smoke` 运行所有标记为 `@Tag[Unittest, Smoke]` 同时都有的测试
-    - `--include-tags=Unittest+Smoke+JiraTask3271,Backend` 运行所有标记为 `@Tag[Backend]`、`@Tag[Unittest, Smoke, JiraTask3271]`其一的测试
-- `--exclude-tags <value>` 用于排除由 `@Tag` 宏指定的测试类别的子集。`value` 的形式如下：
-    - `--exclude-tags=Unittest` 运行所有未被标记为 `@Tag[Unittest]` 的测试
-    - `--exclude-tags=Unittest,Smoke` 运行所有未被标记为 `@Tag[Unittest]`、`@Tag[Smoke]` 其一或同时都有的测试
-    - `--exclude-tags=Unittest+Smoke+JiraTask3271` 运行所有未被标记为 `@Tag[Unittest, Smoke, JiraTask3271]` 同时都有的测试
-    - `--include-tags=Unittest --exclude-tags=Smoke` 运行所有被标记为 `@Tag[Unittest]` 且不带有 `@Tag[Smoke]` 的测试
-- `--no-color` 关闭控制台颜色显示
-- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
-- `--random-seed <N>` 用来指定随机种子的值
-- `--report-path <value>` 指定执行后生成报告的路径。与 `test` 子命令不同，它具有默认值 `bench_report`
-- `--report-format <value>` 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
-- `--baseline-path <value>` 与当前性能结果进行比较的现有报告的路径。默认情况下它使用 `--report-path` 值
-- `--skip-script` 配置后，将会跳过构建脚本的编译运行
+- `-j, --jobs <N>`: Specifies maximum parallel compilation jobs (minimum of `N` and `2 × CPU cores`).
+- `-V, --verbose`: Enables performance test logs.
+- `-g`: Generates `debug` version artifacts in `target/debug/unittest_bin`.
+- `-i, --incremental`: Enables incremental compilation (full compilation by default).
+- `--no-run`: Only compiles performance test artifacts.
+- `--skip-build`: Only executes precompiled artifacts.
+- `--cfg`: Passes custom `cfg` options from `cjpm.toml`.
+- `--module <value>`: Specifies target module(s) (must be directly/indirectly dependent or the module itself). Multiple modules can be specified with `--module "module1 module2"`.
+- `-m, --member <value>`: Workspace-only; specifies a single module to test.
+- `--target <value>`: Enables cross-compilation for target platforms. Refer to `cross-compile-configuration` in `cjpm.toml`.
+- `--target-dir <value>`: Specifies output directory for artifacts.
+- `--dry-run`: Prints test cases without execution.
+- `--filter <value>`: Filters test subsets. `value` formats:
+    - `--filter=*`: Matches all test classes.
+    - `--filter=*.*`: Matches all test cases (same as `*`).
+    - `--filter=*.*Test,*.*case*`: Matches test cases ending with `Test` or containing `case`.
+    - `--filter=MyTest*.*Test,*.*case*,-*.*myTest`: Matches test cases in `MyTest*` classes ending with `Test`, or containing `case`, or excluding `myTest`.
+- `--include-tags <value>`: Runs tests with specified `@Tag` annotations. `value` formats:
+    - `--include-tags=Unittest`: Runs tests marked with `@Tag[Unittest]`.
+    - `--include-tags=Unittest,Smoke`: Runs tests marked with either `@Tag[Unittest]` or `@Tag[Smoke]`.
+    - `--include-tags=Unittest+Smoke`: Runs tests marked with both `@Tag[Unittest]` and `@Tag[Smoke]`.
+    - `--include-tags=Unittest+Smoke+JiraTask3271,Backend`: Runs tests marked with `@Tag[Backend]` or `@Tag[Unittest, Smoke, JiraTask3271]`.
+- `--exclude-tags <value>`: Excludes tests with specified `@Tag` annotations. `value` formats:
+    - `--exclude-tags=Unittest`: Runs tests not marked with `@Tag[Unittest]`.
+    - `--exclude-tags=Unittest,Smoke`: Runs tests not marked with either `@Tag[Unittest]` or `@Tag[Smoke]`.
+    - `--exclude-tags=Unittest+Smoke+JiraTask3271`: Runs tests not marked with all of `@Tag[Unittest, Smoke, JiraTask3271]`.
+    - `--include-tags=Unittest --exclude-tags=Smoke`: Runs tests marked with `@Tag[Unittest]` but not `@Tag[Smoke]`.
+- `--no-color`: Disables colored console output.
+- `--random-seed <N>`: Specifies the random seed value.
+- `--report-path <value>`: Specifies report output path. Unlike `test`, it defaults to `bench_report`.
+- `--report-format <value>`: Supports `csv` and `csv-raw` formats for performance reports.
+- `--baseline-path <value>`: Path to compare current results with existing reports. Defaults to `--report-path`.
+- `--skip-script`: Skips build script compilation and execution.
 
-`cjpm bench` 参数选项使用示例:
+`cjpm bench` usage examples:
 
 ```text
-输入: cjpm bench
-输出: cjpm bench success
+Input: cjpm bench
+Output: cjpm bench success
 
-输入: cjpm bench src
-输出: cjpm bench success
+Input: cjpm bench src
+Output: cjpm bench success
 
-输入: cjpm bench src --filter=*
-输出: cjpm bench success
+Input: cjpm bench src --filter=*
+Output: cjpm bench success
 
-输入: cjpm bench src --report-format=csv
-输出: cjpm bench success
+Input: cjpm bench src --report-format=csv
+Output: cjpm bench success
 ```
 
-> **注意：**
+> **Note:**
 >
-> 带有 `cjpm bench` 并不包含完全的 `mock` 支持，以避免在基准测试中由于在编译器中的 `mock` 处理而增加的任何开销。
-> 使用 `cjpm bench` 选项时，如果使用 `mock` ，编译器不会报错，以便能够将常规测试和基准测试一起编译。但是要避免运行使用 `mock` 的基准测试，否则会抛出运行时异常。
-
-### clean
-
-`clean` 用于清理构建过程中的临时产物（`target` 文件夹）。该命令支持通过短选项 `-g` 指定仅清理 `debug` 版本的产物。该命令支持通过长选项 `--target-dir <value>` 用于指定清理的产物存放路径，开发者需自身保证清理该目录行为的安全性。如果使用了 `cjpm build --coverage` 或者 `cjpm test --coverage` 功能，还会清除 `cov_output` 文件夹，以及当前目录下的 `*.gcno` 文件和 `*.gcda` 文件。同时，该命令也支持通过 `--skip-script` 配置跳过构建脚本的编译运行。
-
-例如：
-
-```text
-输入: cjpm clean
-输出: cjpm clean success
-```
-
-```text
-输入: cjpm clean --target-dir temp
-输出: cjpm clean success
-```
-
-> **注意：**
->
-> 在 `Windows` 平台上，在子进程执行完成后立即清理子进程的可执行文件或父目录可能会失败。如果遇到该问题，可以在一小段延迟后重新尝试 `clean` 命令。
+> `> On the `Windows` platform, immediately cleaning up the executable files or parent directories of a child process after its execution may fail. If this issue is encountered, you can retry the `clean` command after a short delay.
 
 ### install
 
-`install` 用于安装仓颉项目，执行该命令前会先进行编译，然后将编译产物安装到指定路径，安装产物以仓颉项目名命名（`Windows` 系统上会有 `.exe` 后缀）。`install` 安装的项目产物类型需要是 `executable`。
+`install` is used to install the Cangjie project. Before executing this command, it will first compile the project and then install the compiled artifacts to the specified path. The installed artifacts are named after the Cangjie project (with a `.exe` suffix on `Windows` systems). The type of project artifact installed by `install` must be `executable`.
 
-`install` 有多个可配置项：
+`install` has several configurable options:
 
-- `-V, --verbose` 用于展示安装日志。
-- `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口以安装单一模块。
-- `-g` 用于生成 `debug` 版本的安装产物。
-- `--path <value>` 用于指定本地安装项目的路径，默认为当前路径下的项目。
-- `--root <value>` 用于指定可执行文件的安装路径。不配置时 `Linux` / `macOS` 系统下默认为 `$HOME/.cjpm`，`Windows` 系统下默认为 `%USERPROFILE%/.cjpm`；配置时将会安装于 `value`。
-- `--git <value>` 用于指定 `git` 安装的项目 `url`。
-- `--branch <value>` 用于指定 `git` 安装的项目分支。
-- `--tag <value>` 用于指定 `git` 安装的项目 `tag`。
-- `--commit <value>` 用于指定 `git` 安装的项目 `commit ID`。
-- `-j, --jobs <N>` 用于指定并行编译的最大并发数，最终的最大并发数取 `N` 和 `2倍 CPU 核数` 的最小值。
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项。
-- `--target-dir <value>` 用于指定编译产物的存放路径。
-- `--name <value>` 用于指定最终安装的产物名。
-- `--skip-build` 用于跳过编译阶段以直接安装产物，需要项目处于编译完成状态，且仅在本地安装场景下生效。
-- `--list` 用于打印已安装产物列表。
-- `--skip-script` 配置后，将会跳过待安装模块的构建脚本的编译运行。
+- `-V, --verbose`: Displays installation logs.
+- `-m, --member <value>`: Can only be used in a workspace to specify a single module as the compilation entry point for installing a single module.
+- `-g`: Generates a `debug` version of the installed artifacts.
+- `--path <value>`: Specifies the local installation path for the project. The default is the current directory.
+- `--root <value>`: Specifies the installation path for the executable file. If not configured, the default path is `$HOME/.cjpm` on `Linux`/`macOS` systems and `%USERPROFILE%/.cjpm` on `Windows` systems. If configured, the artifacts will be installed under `value`.
+- `--git <value>`: Specifies the `git` URL for the project to be installed.
+- `--branch <value>`: Specifies the branch of the `git` project to be installed.
+- `--tag <value>`: Specifies the `tag` of the `git` project to be installed.
+- `--commit <value>`: Specifies the `commit ID` of the `git` project to be installed.
+- `-j, --jobs <N>`: Specifies the maximum number of parallel compilation jobs. The final maximum concurrency is the minimum of `N` and `2 times the number of CPU cores`.
+- `--cfg`: If specified, custom `cfg` options in `cjpm.toml` can be passed through.
+- `--target-dir <value>`: Specifies the path for storing compiled artifacts.
+- `--name <value>`: Specifies the name of the final installed artifact.
+- `--skip-build`: Skips the compilation phase and directly installs the artifacts. This requires the project to be in a compiled state and only works for local installations.
+- `--list`: Prints the list of installed artifacts.
+- `--skip-script`: If configured, the build script compilation and execution for the module to be installed will be skipped.
 
-`install` 功能有如下注意事项：
+Notes for `install` functionality:
 
-- `install` 共有两种安装方式：安装本地项目（通过 `--path` 配置项目路径）和安装 `git` 项目（通过 `--git` 配置项目 `url`）。这两种安装方式至多只能配置一种，否则 `install` 将报错。任意一种均未配置时，默认安装当前目录下的本地项目。
-- `install` 编译项目时，默认开启增量编译。
-- `git` 相关配置仅在配置 `--git` 后生效，否则会被忽略，包括 `--branch`, `--tag` 和 `--commit`。当配置多个 `git` 相关配置时，仅会生效优先级更高的配置，优先级排序为 `--commit` > `--branch` > `--tag`。
-- 若已存在同名可执行文件被安装，则原来的文件将被替换。
-- 假设安装路径为 `root`（`root` 为配置的安装路径，不配置则为默认路径），则可执行文件将被安装于 `root/bin`。
-- 若项目存在动态库依赖，可执行程序所需动态库会被安装到 `root/libs`，按程序名分隔为若干目录，开发者需要将对应目录加入相应路径（`Linux` 中为 `LD_LIBRARY_PATH`，`Windows` 中为 `PATH`，`macOS` 中为 `DYLD_LIBRARY_PATH`）方可使用。
-- 默认安装路径（`Linux` / `macOS` 系统下默认为 `$HOME/.cjpm`，`Windows` 系统下默认为 `%USERPROFILE%/.cjpm`）会在 `envsetup` 中被加入 `PATH`。
-- `install` 在安装 `git` 项目后，对应的编译产物目录会被清除。
-- 在待安装项目仅存在一个可执行文件产物时，指定 `--name` 会将其更名后安装；若存在多个可执行文件产物，指定 `--name` 会仅安装对应名称的产物。
-- 配置 `--list` 时，`install` 会打印已安装产物列表，此时除 `--root` 以外的所有配置项均会被忽略。配置 `--root` 后，`--list` 会打印配置路径下已安装的产物列表，否则会打印默认路径下的列表。
+- `install` supports two installation methods: installing a local project (via `--path` to specify the project path) and installing a `git` project (via `--git` to specify the project URL). Only one of these methods can be configured at a time; otherwise, `install` will report an error. If neither is configured, the default is to install the local project in the current directory.
+- When compiling a project, `install` enables incremental compilation by default.
+- Git-related configurations (`--branch`, `--tag`, and `--commit`) only take effect if `--git` is configured; otherwise, they are ignored. If multiple git-related configurations are specified, only the one with higher priority will take effect. The priority order is `--commit` > `--branch` > `--tag`.
+- If an executable file with the same name already exists, it will be replaced.
+- Assuming the installation path is `root` (`root` is the configured installation path or the default path if not configured), the executable file will be installed under `root/bin`.
+- If the project has dynamic library dependencies, the dynamic libraries required by the executable will be installed under `root/libs`, separated into directories by program name. Developers need to add the corresponding directories to the appropriate paths (`LD_LIBRARY_PATH` on `Linux`, `PATH` on `Windows`, and `DYLD_LIBRARY_PATH` on `macOS`) to use them.
+- The default installation path (`$HOME/.cjpm` on `Linux`/`macOS` and `%USERPROFILE%/.cjpm` on `Windows`) will be added to `PATH` during `envsetup`.
+- After installing a `git` project, `install` will clean up the corresponding compiled artifact directory.
+- If the project to be installed has only one executable artifact, specifying `--name` will rename it during installation. If there are multiple executable artifacts, specifying `--name` will only install the artifact with the corresponding name.
+- When `--list` is configured, `install` will print the list of installed artifacts, and all other configuration options except `--root` will be ignored. If `--root` is configured, `--list` will print the list of installed artifacts under the specified path; otherwise, it will print the list under the default path.
 
-例如：
+Examples:
 
 ```text
-cjpm install --path path/to/project # 从本地路径 path/to/project 中安装
-cjpm install --git url              # 从 git 对应地址安装
+cjpm install --path path/to/project # Installs from the local path path/to/project
+cjpm install --git url              # Installs from the git URL
 ```
 
 ### uninstall
 
-`uninstall` 用于卸载仓颉项目，清除对应的可执行文件和依赖文件。
+`uninstall` is used to uninstall the Cangjie project, removing the corresponding executable files and dependency files.
 
-`uninstall` 需要配置参数 `name`，以卸载名为 `name` 的产物，配置多个 `name` 时会依次删除。`uninstall` 可以通过 `--root <value>` 指定卸载的可执行文件路径，不配置时 `Linux` / `macOS` 系统下默认为 `$HOME/.cjpm`，`Windows` 系统下默认为 `%USERPROFILE%/.cjpm`，配置时将会卸载安装于 `value/bin` 的产物和安装于 `value/libs` 的依赖。
+`uninstall` requires the parameter `name` to uninstall the artifact named `name`. Multiple `name` parameters can be specified for sequential deletion. `uninstall` can specify the path of the executable file to be uninstalled via `--root <value>`. If not configured, the default path is `$HOME/.cjpm` on `Linux`/`macOS` systems and `%USERPROFILE%/.cjpm` on `Windows` systems. If configured, it will uninstall the artifacts under `value/bin` and the dependencies under `value/libs`.
 
-> **注意：**
+> **Note:**
 >
-> `cjpm` 在 `Windows` 平台暂不支持在中文路径下使用，如果遇到问题，请通过修改目录名规避。
+> `cjpm` currently does not support paths containing Chinese characters on the `Windows` platform. If issues arise, please modify the directory name to avoid them.
 
-## 模块配置文件说明
+## Module Configuration File Description
 
-模块配置文件 `cjpm.toml` 用于配置一些基础信息、依赖项、编译选项等内容，`cjpm` 主要通过这个文件进行解析执行。其中，模块名可以在 `cjpm.toml` 中进行重命名，但是包名不能在 `cjpm.toml` 中进行重命名。
+The module configuration file `cjpm.toml` is used to configure basic information, dependencies, compilation options, etc. `cjpm` primarily parses and executes based on this file. The module name can be renamed in `cjpm.toml`, but the package name cannot be renamed.
 
-配置文件代码如下所示：
+The configuration file code is as follows:
 
 ```text
-[package] # 单模块配置字段，与 workspace 字段不能同时存在
-  cjc-version = "1.0.0" # 所需 `cjc` 的最低版本要求，必需
-  name = "demo" # 模块名及模块 root 包名，必需
-  description = "nothing here" # 描述信息，非必需
-  version = "1.0.0" # 模块版本信息，必需
-  compile-option = "" # 额外编译命令选项，非必需
-  override-compile-option = "" # 额外全局编译命令选项，非必需
-  link-option = "" # 链接器透传选项，可透传安全编译命令，非必需
-  output-type = "executable" # 编译输出产物类型，必需
-  src-dir = "" # 指定源码存放路径，非必需
-  target-dir = "" # 指定产物存放路径，非必需
-  package-configuration = {} # 单包配置选项，非必需
+[package] # Single-module configuration field, cannot coexist with the workspace field
+  cjc-version = "1.0.0" # Minimum required version of `cjc`, mandatory
+  name = "demo" # Module name and module root package name, mandatory
+  description = "nothing here" # Description, optional
+  version = "1.0.0" # Module version information, mandatory
+  compile-option = "" # Additional compilation command options, optional
+  override-compile-option = "" # Additional global compilation command options, optional
+  link-option = "" # Linker passthrough options, can pass security compilation commands, optional
+  output-type = "executable" # Type of compiled output artifact, mandatory
+  src-dir = "" # Specifies the source code storage path, optional
+  target-dir = "" # Specifies the artifact storage path, optional
+  package-configuration = {} # Single-package configuration options, optional
 
-[workspace] # 工作空间管理字段，与 package 字段不能同时存在
-  members = [] # 工作空间成员模块列表，必需
-  build-members = [] # 工作空间编译模块列表，需要是成员模块列表的子集，非必需
-  test-members = [] # 工作空间测试模块列表，需要是编译模块列表的子集，非必需
-  compile-option = "" # 应用于所有工作空间成员模块的额外编译命令选项，非必需
-  override-compile-option = "" # 应用于所有工作空间成员模块的额外全局编译命令选项，非必需
-  link-option = "" # 应用于所有工作空间成员模块的链接器透传选项，非必需
-  target-dir = "" # 指定产物存放路径，非必需
+[workspace] # Workspace management field, cannot coexist with the package field
+  members = [] # List of workspace member modules, mandatory
+  build-members = [] # List of workspace compilation modules, must be a subset of member modules, optional
+  test-members = [] # List of workspace test modules, must be a subset of compilation modules, optional
+  compile-option = "" # Additional compilation command options applied to all workspace member modules, optional
+  override-compile-option = "" # Additional global compilation command options applied to all workspace member modules, optional
+  link-option = "" # Linker passthrough options applied to all workspace member modules, optional
+  target-dir = "" # Specifies the artifact storage path, optional
 
-[dependencies] # 源码依赖配置项，非必需
-  coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
-  doo = { path = "./pro1" } # 导入源码依赖
+[dependencies] # Source code dependency configuration, optional
+  coo = { git = "xxx", branch = "dev" } # Imports a `git` dependency
+  doo = { path = "./pro1" } # Imports a source code dependency
 
-[test-dependencies] # 测试阶段的依赖配置项，格式和 dependencies 相同，非必需
+[test-dependencies] # Dependency configuration for the test phase, same format as dependencies, optional
 
-[script-dependencies] # 构建脚本的依赖配置项，格式和 dependencies 相同，非必需
+[script-dependencies] # Dependency configuration for build scripts, same format as dependencies, optional
 
-[replace] # 依赖替换配置项，格式和 dependencies 相同，非必需
+[replace] # Dependency replacement configuration, same format as dependencies, optional
 
-[ffi.c] # 导入 C 语言的库依赖，非必需
+[ffi.c] # Imports C language library dependencies, optional
   clib1.path = "xxx"
 
-[profile] # 命令剖面配置项，非必需
-  build = {} # build 命令配置项
-  test = {} # test 命令配置项
-  bench = {} # bench 命令配置项
-  customized-option = {} # 自定义透传选项
+[profile] # Command profile configuration, optional
+  build = {} # Build command configuration
+  test = {} # Test command configuration
+  bench = {} # Bench command configuration
+  customized-option = {} # Custom passthrough options
 
-[target.x86_64-unknown-linux-gnu] # 后端和平台隔离配置项，非必需
-  compile-option = "value1" # 额外编译命令选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  override-compile-option = "value2" # 额外全局编译命令选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  link-option = "value3" # 链接器透传选项，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
+[target.x86_64-unknown-linux-gnu] # Backend and platform isolation configuration, optional
+  compile-option = "value1" # Additional compilation command options for specific target compilation processes and cross-compilation target platforms, optional
+  override-compile-option = "value2" # Additional global compilation command options for specific target compilation processes and cross-compilation target platforms, optional
+  link-option = "value3" # Linker passthrough options for specific target compilation processes and cross-compilation target platforms, optional
 
-[target.x86_64-w64-mingw32.dependencies] # 适用于对应 target 的源码依赖配置项，非必需
+[target.x86_64-w64-mingw32.dependencies] # Source code dependency configuration for the corresponding target, optional
 
-[target.x86_64-w64-mingw32.test-dependencies] # 适用于对应 target 的测试阶段依赖配置项，非必需
+[target.x86_64-w64-mingw32.test-dependencies] # Test phase dependency configuration for the corresponding target, optional
 
-[target.x86_64-unknown-linux-gnu.bin-dependencies] # 仓颉二进制库依赖，适用于特定 target 的编译流程和指定该 target 作为交叉编译目标平台的编译流程，非必需
-  path-option = ["./test/pro0", "./test/pro1"] # 以文件目录形式配置二进制库依赖
-[target.x86_64-unknown-linux-gnu.bin-dependencies.package-option] # 以单文件形式配置二进制库依赖
+[target.x86_64-unknown-linux-gnu.bin-dependencies] # Cangjie binary library dependencies for specific target compilation processes and cross-compilation target platforms, optional
+  path-option = ["./test/pro0", "./test/pro1"] # Configures binary library dependencies in directory form
+[target.x86_64-unknown-linux-gnu.bin-dependencies.package-option] # Configures binary library dependencies in single-file form
   "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
   "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
   "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
 ```
 
-当以上字段在 `cjpm.toml` 中没有使用时，默认为空（对于路径，默认为配置文件所在的路径）。
+If the above fields are not used in `cjpm.toml`, they default to empty (for paths, the default is the path where the configuration file is located).
 
 ### "cjc-version"
 
-仓颉编译器最低版本要求，必须和当前环境版本兼容才可以执行。一个合法的仓颉版本号是由三段数字组成，中间使用 `.` 隔开，每个数字均为自然数，且没有多余的前缀 `0`。例如：
+The minimum required version of the Cangjie compiler, which must be compatible with the current environment version to execute. A valid Cangjie version number consists of three segments of numbers separated by `.`, with each number being a natural number and no redundant prefix `0`. For example:
 
-- `1.0.0` 是一个有效的版本号；
-- `1.00.0` 不是一个有效的版本号，因为 `00` 中含有多余的前缀 `0`；
-- `1.2e.0` 不是一个有效的版本号，因为 `2e` 不是自然数。
+- `1.0.0` is a valid version number;
+- `1.00.0` is not a valid version number because `00` contains a redundant prefix `0`;
+- `1.2e.0` is not a valid version number because `2e` is not a natural number.
 
 ### "name"
 
-当前仓颉模块名称，同时也是模块 `root` 包名。
+The current Cangjie module name, which is also the module `root` package name.
 
-一个合法的仓颉模块名称必须是一个合法的标识符。标识符可由字母、数字、下划线组成，标识符的开头必须是字母，例如 `cjDemo` 或者 `cj_demo_1`。
+A valid Cangjie module name must be a valid identifier. Identifiers can consist of letters, numbers, and underscores, and must start with a letter, such as `cjDemo` or `cj_demo_1`.
 
-> **注意：**
+> **Note:**
 >
-> 当前仓颉模块名暂不支持使用 Unicode 字符，仓颉模块名必须是一个仅含 ASCII 字符的合法的标识符。
+> Currently, Cangjie module names do not support Unicode characters. A Cangjie module name must be a valid identifier containing only ASCII characters.
 
 ### "description"
 
-当前仓颉模块描述信息，仅作说明用，不限制格式。
+Description of the current Cangjie module, for informational purposes only, with no format restrictions.
 
 ### "version"
 
-当前仓颉模块版本号，由模块所有者管理，主要供模块校验使用。模块版本号的格式同 `cjc-version`。
+The version number of the current Cangjie module, managed by the module owner, primarily for module validation. The format of the module version number is the same as `cjc-version`.
 
 ### "compile-option"
 
-传给 `cjc` 的额外编译选项。多模块编译时，每个模块设置的 `compile-option` 对该模块内的所有包生效。
+Additional compilation options passed to `cjc`. During multi-module compilation, the `compile-option` set for each module applies to all packages within that module.
 
-例如：
+For example:
 
 ```text
 compile-option = "-O1 -V"
 ```
 
-这里填入的命令会在 `build` 执行时插入到编译命令中间，多个命令可以用空格隔开。
+The commands entered here will be inserted into the compilation command during `build` execution, with multiple commands separated by spaces.
 
 ### "override-compile-option"
 
-传给 `cjc` 的额外全局编译选项。多模块编译时，编译入口模块设置的 `override-compile-option` 对该模块及依赖的所有其他模块的包生效。
+Additional global compilation options passed to `cjc`. During multi-module compilation, the `override-compile-option` set for the compilation entry module applies to all packages within that module and its dependencies.
 
-例如：
+For example:
 
 ```text
 override-compile-option = "-O1 -V"
 ```
 
-这里填入的命令会在 `build` 执行时插入到编译命令中间，并且拼接于模块配置的 `compile-option` 内容之后，优先级高于 `compile-option`。
+The commands entered here will be inserted into the compilation command during `build` execution and concatenated after the module's `compile-option`, with higher priority than `compile-option`.
 
-> **注意：**
+> **Note:**
 >
-> - `override-compile-option` 会生效于依赖模块内的包，开发者需保证配置的 `cjc` 编译选项与依赖模块内配置的 `compile-option` 没有冲突，否则编译过程中执行 `cjc` 将出现相应报错。对于不冲突的同类 `cjc` 编译选项，`override-compile-option` 内的选项优先级高于 `compile-option`。
-> - 在工作空间编译场景下，仅 `workspace` 内配置的 `override-compile-option` 选项会应用于工作空间内所有模块所有包的编译；即使使用 `-m` 指定以单模块为入口模块进行编译，也不会使用入口模块的 `override-compile-option`。
+> - `override-compile-option` applies to packages within dependency modules. Developers must ensure that the configured `cjc` compilation options do not conflict with the `compile-option` in dependency modules. Otherwise, errors will occur during `cjc` execution. For non-conflicting compilation options of the same type, the options in `override-compile-option` take precedence over those in `compile-option`.
+> - In workspace compilation scenarios, only the `override-compile-option` configured in `workspace` applies to all packages in all modules within the workspace. Even if `-m` is used to specify a single module as the entry module for compilation, the entry module's `override-compile-option` will not be used.
 
 ### "link-option"
 
-传给链接器的编译选项，可用于透传安全编译命令，如下所示:
+Compilation options passed to the linker, which can be used to pass security compilation commands, as shown below:
 
 ```text
 link-option = "-z noexecstack -z relro -z now --strip-all"
 ```
 
-> **注意：**
+> **Note:**
 >
-> `link-option` 中配置的命令在编译时只会自动透传给动态库和可执行产物对应的包。
+> The commands configured in `link-option` are only automatically passed to packages corresponding to dynamic libraries and executable artifacts during compilation.
 
 ### "output-type"
 
-编译输出产物的类型，包含可执行程序和库两种形式，相关的输入如下表格所示。如果想生成 `cjpm.toml` 时该字段自动填充为 `static`，可使用命令 `cjpm init --type=static --name=modName`，不指定类型时默认生成为 `executable`。只有主模块的该字段可以为 `executable`。
+The type of compiled output artifact, including executable programs and libraries. The related inputs are shown in the table below. To automatically fill this field as `static` when generating `cjpm.toml`, use the command `cjpm init --type=static --name=modName`. If no type is specified, it defaults to `executable`. Only the main module's `output-type` can be `executable`.
 
-|     输入     |                 说明 |
-| :----------: | :------------------: |
-| "executable" |           可执行程序 |
-|   "static"   | 静态库 |
-|  "dynamic"   | 动态库 |
-|     其它     |                 报错 |
+|     Input     |               Description |
+| :-----------: | :-----------------------: |
+| "executable"  |          Executable program |
+|   "static"    | Static library |
+|  "dynamic"    | Dynamic library |
+|    Others     |               Error |
 
 ### "src-dir"
 
-该字段可以指定源码的存放路径，不指定时默认为 `src` 文件夹。
+This field specifies the path for storing source code. If not specified, it defaults to the `src` directory.
 
 ### "target-dir"
 
-该字段可以指定编译产物的存放路径，不指定时默认为 `target` 文件夹。若该字段不为空，执行 `cjpm clean` 时会删除该字段所指向的文件夹，开发者需自身保证清理该目录行为的安全性。
+This field specifies the path for storing compiled artifacts. If not specified, it defaults to the `target` directory. If this field is not empty, executing `cjpm clean` will delete the directory specified by this field. Developers must ensure the safety of cleaning this directory.
 
-> **注意：**
+> **Note:**
 >
-> 若在编译时同时指定了 `--target-dir` 选项，则该选项的优先级会更高。
+> If `--target-dir` is specified during compilation, this option takes higher priority.
 
 ```text
 target-dir = "temp"
@@ -875,7 +786,7 @@ target-dir = "temp"
 
 ### "package-configuration"
 
-每个模块的单包可配置项。该选项是个 `map` 结构，需要配置的包名作为 `key`，单包配置信息作为 `value`。当前可配置的信息包含输出类型和条件选项（`output-type`,`compile-option`），这几个选项可缺省按需配置。如下所示，`demo` 模块中的 `demo.aoo` 包的输出类型会被指定为动态库类型，`-g` 命令会在编译时透传给 `demo.aoo` 包。
+Single-package configuration options for each module. This option is a `map` structure, where the package name to be configured is the `key`, and the single-package configuration information is the `value`. Currently, configurable information includes output type and conditional options (`output-type`, `compile-option`), which can be configured as needed. For example, the output type of the `demo.aoo` package in the `demo` module will be specified as a dynamic library, and the `-g` command will be passed to the `demo.aoo` package during compilation.
 
 ```text
 [package.package-configuration."demo.aoo"]
@@ -883,7 +794,7 @@ target-dir = "temp"
   compile-option = "-g"
 ```
 
-如果在不同字段配置了相互兼容的编译选项，生成命令的优先级如下所示。
+If mutually compatible compilation options are configured in different fields, the priority of generating commands is as follows:
 
 ```text
 [package]
@@ -891,17 +802,17 @@ target-dir = "temp"
 [package.package-configuration.demo]
   compile-option = "-O2"
 
-# profile字段会在下文介绍
+# The profile field will be introduced later
 [profile.customized-option]
   cfg1 = "-O0"
 
-输入: cjpm build --cfg1 -V
-输出: cjc --import-path build -O0 -O1 -O2 ...
+Input: cjpm build --cfg1 -V
+Output: cjc --import-path build -O0 -O1 -O2 ...
 ```
 
-通过配置这个字段，可以同时生成多个二进制产物（生成多个二进制产物时，`-o, --output <value>` 选项将会失效），示例如下：
+By configuring this field, multiple binary artifacts can be generated simultaneously (when generating multiple binary artifacts, the `-o, --output <value>` option will be invalid). Example:
 
-源码结构的示例，模块名为 `demo`：
+Example of source code structure, with the module name `demo`:
 
 ```text
 src
@@ -914,7 +825,7 @@ src
 └──  main.cj
 ```
 
-配置方式的示例：
+Example of configuration:
 
 ```text
 [package.package-configuration."demo.aoo"]
@@ -923,14 +834,14 @@ src
   output-type = "executable"
 ```
 
-多个二进制产物的示例：
+Example of multiple binary artifacts:
 
 ```text
-输入：cjpm build
-输出：cjpm build success
+Input: cjpm build
+Output: cjpm build success
 
-输入：tree target/release/bin
-输出：target/release/bin
+Input: tree target/release/bin
+Output: target/release/bin
 |-- demo.aoo
 |-- demo.boo
 `-- demo
@@ -938,25 +849,21 @@ src
 
 ### "workspace"
 
-该字段可管理多个模块作为一个工作空间，支持以下配置项：
+This field manages multiple modules as a workspace and supports the following configurations:
 
-- `members = ["aoo", "path/to/boo"]`：列举包含在此工作空间的本地源码模块，支持绝对路径和相对路径。该字段的成员必须是一个模块，不允许是另一个工作空间
-- `build-members = []`：本次编译的模块，不指定时默认编译该工作空间内的所有模块。该字段的成员必须被包含在 `members` 字段中
-- `test-members = []`：本次测试的模块，不指定时默认单元测试该工作空间内的所有模块。该字段的成员必须被包含在 `build-members` 字段中
-- `compile-option = ""`：工作空间的公共编译选项，非必需
-- `override-compile-option = ""`：工作空间的公共全局编译选项，非必需
-- `link-option = ""`：工作空间的公共链接选项，非必需
-- `target-dir = ""`：工作空间的产物存放路径，非必需，默认为 `target`
+- `members = ["aoo", "path/to/boo"]`: Lists local source code modules included in this workspace, supporting absolute and relative paths. The members of this field must be modules, not another workspace.
+- `build-members = []`: Modules to be compiled this time. If not specified, all modules in the workspace are compiled by default. The members of this field must be included in the `members` field.
+- `test-members = []`: Modules to be tested this time. If not specified, all modules in the workspace are unit-tested by default. The members of this field must be included in the `build-members` field.
+- `compile-option = ""`: Common compilation options for the workspace, optional.
+- `override-compile-option = ""`: Common global compilation options for the workspace, optional.
+- `link-option = ""`: Common linker options for the workspace, optional.
+- `target-dir = ""`: Artifact storage path for the workspace, optional, defaults to `target`.
 
-工作空间内的公共配置项，对所有成员模块生效。例如：配置了 `[dependencies] xoo = { path = "path_xoo" }` 的源码依赖，则所有成员模块可以直接使用 `xoo` 模块，无需在每个子模块的 `cjpm.toml` 中再配置。
+Common configurations in the workspace apply to all member modules. For example, if a source code dependency `[dependencies] xoo = { path = "path_xoo" }` is configured, all member modules can directly use the `xoo` module without reconfiguring it in each submodule's `cjpm.toml`.
 
-> **注意：**
+> **Note:**
 >
-> `package` 字段用于配置模块的通用信息，不允许和 `workspace` 字段出现在同一个 `cjpm.toml` 中，除 `package` 外的其它字段均可在工作空间中使用。
-
-工作空间目录举例：
-
-```text
+> The `package` field is used to configure general module information and cannot coexist with the `workspace` field in the same `cjpm.toml`. All other fields except```text
 root_path
 ├── aoo
 │    ├── src
@@ -970,7 +877,7 @@ root_path
 └── cjpm.toml
 ```
 
-工作空间的配置文件使用举例：
+Example workspace configuration file usage:
 
 ```text
 [workspace]
@@ -989,9 +896,9 @@ abc = { path = "libs" }
 
 ### "dependencies"
 
-该字段通过源码方式导入依赖的其它仓颉模块，里面配置了当前构建所需要的其它模块的信息。目前，该字段支持本地路径依赖和远程 `git` 依赖。
+This field imports dependent Cangjie modules via source code, configuring information about other modules required for the current build. Currently, it supports local path dependencies and remote `git` dependencies.
 
-要指定本地依赖项，请使用 `path` 字段，并且它必须包含有效的本地路径。例如，下面的两个子模块 `pro0` 和 `pro1` 和主模块的代码结构如下：
+To specify local dependencies, use the `path` field, which must contain a valid local path. For example, the code structure of two submodules `pro0` and `pro1` along with the main module is as follows:
 
 ```text
 ├── pro0
@@ -1015,7 +922,7 @@ abc = { path = "libs" }
      └── main.cj
 ```
 
-在主模块的 `cjpm.toml` 中进行如下配置后，即可在源码中使用 `pro0` 和 `pro1` 模块：
+After configuring the main module's `cjpm.toml` as follows, the `pro0` and `pro1` modules can be used in the source code:
 
 ```text
 [dependencies]
@@ -1023,43 +930,43 @@ abc = { path = "libs" }
   pro1 = { path = "./pro1" }
 ```
 
-要指定远程 `git` 依赖项，请使用 `git` 字段，并且它必须包含 `git` 支持的任何格式的有效 `url`。要配置 `git` 依赖关系，最多可以有一个 `branch`、`tag` 和 `commitId` 字段，这些字段允许分别选择特定的分支、标记或提交哈希，若配置多个此类字段则仅会生效优先级最高的配置，优先级顺序为 `commitId` > `branch` > `tag`。例如，进行如下配置后，即可在源码中使用特定 `git` 仓库地址的 `pro0` 和 `pro1` 模块：
+To specify remote `git` dependencies, use the `git` field, which must contain a valid `url` in any format supported by `git`. For `git` dependencies, at most one of the `branch`, `tag`, or `commitId` fields can be configured to select a specific branch, tag, or commit hash, respectively. If multiple such fields are configured, only the highest-priority configuration will take effect, with priority order being `commitId` > `branch` > `tag`. For example, with the following configuration, the `pro0` and `pro1` modules from specific `git` repositories can be used in the source code:
 
 ```text
 [dependencies]
-  pro0 = { git = "https://github.com/example", tag = "v1.0.0"}
-  pro1 = { git = "https://gitee.com/example", branch = "dev"}
+  pro0 = { git = "git://github.com/org/pro0.git", tag = "v1.0.0"}
+  pro1 = { git = "https://gitee.com/anotherorg/pro1", branch = "dev"}
 ```
 
-在这种情况下， `cjpm` 将下载对应存储库的最新版本，并将当前 `commit-hash` 保存在 `cjpm.lock` 文件中。所有后续的 `cjpm` 调用都将使用保存的版本，直到使用 `cjpm update`。
+In this case, `cjpm` will download the latest version of the corresponding repository and save the current `commit-hash` in the `cjpm.lock` file. All subsequent `cjpm` calls will use the saved version until `cjpm update` is used.
 
-通常需要一些身份验证才能访问 `git` 存储库。 `cjpm` 不要求提供所需的凭据，因此应使用现有的 `git` 身份验证支持。如果用于 `git` 的协议是 `https` ，则需要使用一些现有的 git 凭据帮助程序。在 `Windows` 上，可在安装 `git` 时一起安装凭据帮助程序，默认使用。在 `Linux/macOS` 上，请参见 `git` 官方文档中 `git-config` 的配置说明，了解有关设置凭据帮助程序的详细信息。如果协议是 `ssh` 或 `git` ，则应使用基于密钥的身份验证。如果密钥受密码短语保护，则开发者应确保 `ssh-agent` 正在运行，并且在使用 `cjpm` 之前通过 `ssh-add` 添加密钥。
+Authentication is typically required to access `git` repositories. `cjpm` does not request credentials, so existing `git` authentication support should be used. If the protocol for `git` is `https`, an existing git credential helper must be used. On `Windows`, the credential helper can be installed with `git` and is used by default. On `Linux/macOS`, refer to the `git-config` documentation in the official `git` documentation for details on setting up credential helpers. If the protocol is `ssh` or `git`, key-based authentication should be used. If the key is passphrase-protected, developers should ensure `ssh-agent` is running and the key is added via `ssh-add` before using `cjpm`.
 
-`dependencies` 字段可以通过 `output-type` 属性指定编译产物类型，指定的类型可以与源码依赖自身的编译产物类型不一致，且仅能为 `static` 或者 `dynamic`， 如下所示：
+The `dependencies` field can specify the compilation output type via the `output-type` attribute. The specified type can differ from the compilation output type of the source dependency itself and can only be `static` or `dynamic`, as shown below:
 
 ```text
 [dependencies]
   pro0 = { path = "./pro0", output-type = "static" }
-  pro1 = { git = "https://gitee.com/example", output-type = "dynamic" }
+  pro1 = { git = "https://gitee.com/anotherorg/pro1", output-type = "dynamic" }
 ```
 
-进行如上配置后，将会忽略 `pro0` 和 `pro1` 的 `cjpm.toml` 中的 `output-type` 配置，将这两个模块的产物分别编译成 `static` 和 `dynamic` 类型。
+With the above configuration, the `output-type` settings in the `cjpm.toml` files of `pro0` and `pro1` will be ignored, and these modules' outputs will be compiled as `static` and `dynamic` types, respectively.
 
 ### "test-dependencies"
 
-具有与 `dependencies` 字段相同的格式。它用于指定仅在测试过程中使用的依赖项，而不是构建主项目所需的依赖项。模块开发者应将此字段用于此模块的下游用户不需要感知的依赖项。
+This field has the same format as the `dependencies` field. It is used to specify dependencies that are only used during testing, not for building the main project. Module developers should use this field for dependencies that downstream users of this module do not need to be aware of.
 
-`test-dependencies` 内的依赖仅可用于文件名形如 `xxx_test.cj` 的测试文件，在编译时这些依赖将不会被编译。`test-dependencies` 在 `cjpm.toml` 中的配置格式与 `dependencies` 相同。
+Dependencies within `test-dependencies` can only be used in test files named like `xxx_test.cj`. These dependencies will not be compiled during the build process. The configuration format for `test-dependencies` in `cjpm.toml` is the same as for `dependencies`.
 
 ### "script-dependencies"
 
-具有与 `dependencies` 字段相同的格式。它用于指定仅在编译构建脚本中使用的依赖项，而不是构建主项目所需的依赖项。构建脚本相关功能将在[其他-构建脚本](./user_guide.md#构建脚本)章节中详述。
+This field has the same format as the `dependencies` field. It is used to specify dependencies that are only used in build scripts, not for building the main project. Build script-related features will be detailed in the [Other-Build Scripts](#build-scripts) section.
 
 ### "replace"
 
-具有与 `dependencies` 字段相同的格式。它用于指定间接依赖的同名替换项，配置的依赖项会作为编译该模块时最终使用的依赖版本。
+This field has the same format as the `dependencies` field. It is used to specify replacements for indirect dependencies with the same name. The configured dependencies will be used as the final version during the compilation of the module.
 
-例如，如下模块 `aaa` 依赖了一个本地模块 `bbb`：
+For example, the module `aaa` depends on a local module `bbb`:
 
 ```text
 [package]
@@ -1069,7 +976,7 @@ abc = { path = "libs" }
   bbb = { path = "path/to/bbb" }
 ```
 
-主模块 `demo` 依赖 `aaa` 的情况下，`bbb` 即成为 `demo` 的间接依赖模块。在这种情况下，主模块 `demo` 若想替换 `bbb` 为另一个同名模块，例如在另一个路径 `new/path/to/bbb` 下的 `bbb` 模块，则可以进行如下配置：
+When the main module `demo` depends on `aaa`, `bbb` becomes an indirect dependency of `demo`. If the main module `demo` wants to replace `bbb` with another module of the same name, such as the `bbb` module in a different path `new/path/to/bbb`, it can configure as follows:
 
 ```text
 [package]
@@ -1082,130 +989,49 @@ abc = { path = "libs" }
   bbb = { path = "new/path/to/bbb" }
 ```
 
-配置后，编译 `demo` 模块时实际使用的间接依赖 `bbb` 即为`new/path/to/bbb` 下的 `bbb` 模块，`aaa` 中配置的 `path/to/bbb` 下的 `bbb` 模块不会被编译。
+After configuration, the actual indirect dependency `bbb` used when compiling the `demo` module will be the `bbb` module in `new/path/to/bbb`, and the `bbb` module in `path/to/bbb` configured in `aaa` will not be compiled.
 
-> **注意：**
+> **Note:**
 >
-> 仅入口模块的 `replace` 字段会在编译时生效。
+> Only the `replace` field of the entry module takes effect during compilation.
 
 ### "ffi.c"
 
-当前仓颉模块外部依赖 `c` 库的配置。该字段配置了依赖该库所需要的信息，包含库名和路径。
+Configuration for external C library dependencies of the current Cangjie module. This field configures the information required to depend on the library, including the library name and path.
 
-开发者需要自行编出动态库或静态库放到设置的 `path` 下，可参考下面的例子。
+Developers need to compile the dynamic or static library themselves and place it in the specified `path`. Refer to the example below.
 
-仓颉调用外部 `c` 动态库的方法说明：
+Instructions for calling external C dynamic libraries in Cangjie:
 
-- 自行将相应的 `hello.c` 文件编成 `.so`库（在该文件路径执行 `clang -shared -fPIC hello.c -o libhello.so`）
-- 修改该项目的 `cjpm.toml` 文件，配置 `ffi.c` 字段，如下面的例子所示。其中，`./src/` 是编出的 `libhello.so` 相对当前目录的地址，`hello` 为库名。
-- 执行 `cjpm build`，即可编译成功。
+- Compile the corresponding `hello.c` file into a `.so` library (execute `clang -shared -fPIC hello.c -o libhello.so` in the file path).
+- Modify the project's `cjpm.toml` file to configure the `ffi.c` field as shown in the example below. Here, `./src/` is the relative path of the compiled `libhello.so` to the current directory, and `hello` is the library name.
+- Execute `cjpm build` to compile successfully.
 
 ```text
 [ffi.c]
 hello = { path = "./src/" }
 ```
 
-若需要指定不同平台可使用的 `c` 库配置，请参见 [target](./user_guide.md#target)。
-
-> **注意：**
->
-> 在 `Windows` 系统的多模块场景下，若多个模块配置了同名 `c` 库，由于 `Windows` 特殊的库读取策略，会最优先读取运行目录下的库文件，因此最终的行为可能与其他系统不一致。
-
 ### "profile"
 
-`profile` 作为一种命令剖面配置项，用于控制某个命令执行时的默认配置项。目前支持如下场景：`build`、`test`、`bench`、`run` 和 `customized-option`。
+`profile` is a command profile configuration item used to control default settings when executing certain commands. Currently, the following scenarios are supported: `build`, `test`, `bench`, `run`, and `customized-option`.
 
 #### "profile.build"
 
 ```text
 [profile.build]
-lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，仅 `Linux` 平台支持该功能
-performance_analysis = true # 开启编译性能分析功能
-incremental = true # 是否默认开启增量编译
-[profile.build.combined]
-demo = "dynamic" # 将模块整体编译成一个动态库文件，key 值为模块名
+lto = "full"  # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on `Linux` platforms.
+incremental = true # Whether to enable incremental compilation by default
 ```
 
-编译流程的控制项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.build` 项才会生效。
+Control items for the compilation process. All fields are optional and will not take effect if not configured. Only the `profile.build` settings of the top-level module will take effect.
 
-`lto` 配置项的取值为 `full` 或 `thin`，对应 `LTO` 优化支持的两种编译模式：`full LTO` 将所有编译模块合并到一起，在全局上进行优化，这种方式可以获得最大的优化潜力，同时也需要更长的编译时间；`thin LTO` 在多模块上使用并行优化，同时默认支持链接时增量编译，编译时间比 `full LTO` 短，但是因为失去了更多的全局信息，所以优化效果不如 `full LTO`。
-
-`performance_analysis` 配置项的取值为 `true` 或 `false`，代表是否开启编译性能分析功能。当开启此功能时，`cjpm` 会在编译产物目录下的 `performance_analysis` 目录中生成 `.prof` 和 `.json` 文件，这些文件记录了编译过程中的时间和内存消耗。例如，编译产物目录默认为 `target` 目录，且编译模式为 `debug`，则产物目录结构如下：
-
-```text
-demo
-├── cjpm.toml
-├── src
-|   └── demo.cj
-└── target
-    └── debug
-        └── performance_analysis
-            ├── xxx1.prof
-            ├── ...
-            ├── xxxN.prof
-            ├── xxx1.json
-            ├── ...
-            └── xxxN.json
-```
-
-`combined` 配置项是一个键值对，其中键为模块名，即 `package.name`，值为 `dynamic`。配置该配置项之前，该模块会根据 `package.output-type` 配置将各个包编译成独立的动态库或静态库文件；配置后，该模块的编译方式改为：
-
-- 模块内除 `root` 包以外的子包以静态库形式编译；
-- `root` 包以动态库形式编译，并且链接所有子包的静态库，无论子包是否被 `root` 包依赖。其他模块以二进制依赖形式依赖该动态库时，可以使用所有子包内的符号。
-
-例如，假设模块 `demo` 的结构如下：
-
-```text
-demo
-├── cjpm.toml
-└── src
-     ├── aoo
-     |    └── aoo.cj
-     ├── boo
-     |    └── boo.cj
-     └── demo.cj
-```
-
-模块配置文件 `cjpm.toml` 内配置如下：
-
-```text
-[package]
-name = "demo"
-
-[profile.build.combined]
-demo = "dynamic"
-```
-
-在编译之后，最终的编译产物目录 `target/release/demo` 中的产物列表如下（以 `Linux` 为例）：
-
-```text
-|-- libdemo.so
-|-- libdemo.aoo.a
-|-- libdemo.boo.a
-|-- demo.cjo
-|-- demo.aoo.cjo
-|-- demo.boo.cjo
-```
-
-模块开发者可以将上述产物列表中的所有 `cjo` 文件和 `root` 包动态库 `libdemo.so` 提供给其他模块作为二进制依赖，无需提供子包的静态库文件。其他模块依赖该动态库之后，可以在代码中依赖其所有子包，例如可以通过 `import demo.aoo` 的方式依赖 `demo.aoo` 包。
-
-> **注意：**
->
-> - 在应用此配置时，编译 `root` 包动态库需要使用其所有子包的静态库，因此需要保证 `root` 包不被其子包直接或间接导入。
-> - 目前 `profile.build.combined` 配置项为实验特性，暂不稳定，开发者若想启用该配置，需要注意如下限制：
->     - 如果配置了该字段的模块直接或间接依赖了其他源码模块，那么这些依赖模块也需要配置该字段；
->     - 构建脚本依赖的源码模块中，若配置了 `profile.build.combined`，不会生效；
->     - 编译产物目标平台为 `macOS` 时，暂不支持 `profile.build.combined` 选项。
-
-若启用了 `combined` 配置，可能会出现无法通过导入关系识别的循环依赖，导致出现 `cyclic dependency` 循环依赖报错，解决方式如下：
-
-- 若报错信息中包含形如 `because of combined module 'demo'` 的报错，说明模块 `demo` 被配置成了 `combined` 模块，并且存在 `demo` 的子包直接或间接依赖 `demo` 包的情况，开发者可以查找并删去该模块子包中存在的对 `root` 包的导入，或者直接去除 `combined` 配置，从而解决此类循环依赖；
-- 若报错信息中包含形如 `between combined modules` 的报错，说明该条目中两个 `root` 包对应模块都被配置成了 `combined` 模块，且存在模块间（包括子包之间）的相互依赖，开发者可以查找并删去其中一个 `combined` 模块对另一个 `combined` 模块的包导入，或者直接去除两个模块的 `combined` 配置，从而解决此类循环依赖。
+The `lto` configuration can be `full` or `thin`, corresponding to two compilation modes supported by `LTO` optimization: `full LTO` merges all compilation modules together for global optimization, which offers the greatest optimization potential but requires longer compilation time; `thin LTO` uses parallel optimization across multiple modules and supports incremental compilation by default, with shorter compilation time than `full LTO` but less optimization effectiveness due to reduced global information.
 
 #### "profile.test"
 
 ```text
-[profile.test] # 使用举例
+[profile.test] # Example usage
 parallel=true
 filter=*.*
 no-color = true
@@ -1225,45 +1051,45 @@ cjHeapSize = { value = "32GB", splice-type = "replace" }
 PATH = { value = "/usr/bin", splice-type = "prepend" }
 ```
 
-测试配置支持指定编译和运行测试用例时的选项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.test` 项才会生效。选项列表与 `cjpm test` 提供的控制台执行选项一致。如果选项在配置文件和控制台中同时被配置，则控制台中的选项优先级高于配置文件中的选项。`profile.test` 支持的运行时选项：
+Test configuration supports specifying options for compiling and running test cases. All fields are optional and will not take effect if not configured. Only the `profile.test` settings of the top-level module will take effect. The option list is consistent with the console execution options provided by `cjpm test`. If an option is configured in both the configuration file and the console, the console option takes precedence over the configuration file. `profile.test` supports the following runtime options:
 
-- `filter` 指定用例过滤器，参数值类型为字符串，格式与 [test 命令说明](./user_guide.md#test)中 `--filter` 的值格式一致
-- `timeout-each <value>` 中 `value` 的格式为 `%d[millis|s|m|h]`，为每个测试用例指定默认的超时时间
-- `parallel` 指定测试用例并行执行的方案，`value` 的形式如下所示：
-    - `<BOOL>` 值为 `true` 或 `false`，指定为 `true` 时，测试类可被并行运行，并行进程个数将受运行系统上的 CPU 核数控制
-    - `nCores` 指定并行的测试进程个数应该等于可用的 CPU 核数
-    - `NUMBER` 指定并行的测试进程个数值。该数值应该为正整数
-    - `NUMBERnCores` 指定并行的测试进程个数值为可用的 CPU 核数的指定数值倍。该数值应该为正数（支持浮点数或整数）
-- `option:<value>` 与 `@Configure` 协同定义运行选项。例如，如下选项：
-    - `random-seed` 用来指定随机种子的值，参数值类型为正整数
-    - `no-color` 指定执行结果在控制台中是否无颜色显示，值为 `true` 或 `false`
-    - `report-path` 指定测试执行后的报告生成路径（不能通过 `@Configure` 配置）
-    - `report-format` 指定报告输出格式，当前当前单元测试报告仅支持 `xml` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置），性能测试报告仅支持 `csv` 和 `csv-raw` 格式
-    - `verbose` 指定显示编译过程详细信息，参数值类型为 `BOOL`，即值可为 `true` 或 `false`
+- `filter` specifies a test case filter, with a string value format consistent with the `--filter` value format in the [test command description](#test).
+- `timeout-each <value>` where `value` is in the format `%d[millis|s|m|h]`, specifying the default timeout for each test case.
+- `parallel` specifies the parallel execution scheme for test cases, with `value` as follows:
+    - `<BOOL>`: `true` or `false`. When `true`, test classes can run in parallel, with the number of parallel processes controlled by the CPU cores on the system.
+    - `nCores`: Specifies that the number of parallel test processes should equal the available CPU cores.
+    - `NUMBER`: Specifies the number of parallel test processes as a positive integer.
+    - `NUMBERnCores`: Specifies the number of parallel test processes as a multiple of the available CPU cores. The value should be positive (supports floating-point or integer values).
+- `option:<value>`: Defines runtime options in conjunction with `@Configure`. For example:
+    - `random-seed`: Specifies the random seed value, with a positive integer parameter value.
+    - `no-color`: Specifies whether execution results are displayed without color in the console, with values `true` or `false`.
+    - `report-path`: Specifies the path for generating test execution reports (cannot be configured via `@Configure`).
+    - `report-format`: Specifies the report output format. Currently, unit test reports only support `xml` format (case-insensitive), and using other values will throw an exception (cannot be configured via `@Configure`). Performance test reports only support `csv` and `csv-raw` formats.
+    - `verbose`: Specifies whether to display detailed compilation process information, with a `BOOL` parameter value (`true` or `false`).
 
 #### "profile.test.build"
 
-用于指定支持的编译选项，其列表如下:
+Used to specify supported compilation options, including:
 
-- `compile-option` 是一个包含附加 `cjc` 编译选项的字符串。为顶级 `compile-option` 字段做补充
-- `lto` 指定是否开启 `LTO` 优化编译模式，该值可为 `thin` 或 `full` ，仅 `Linux` 平台支持该功能
-- `mock` 显式设置 `mock` 模式，可能的选项：`on`、`off`、`runtime-error` 。对 `test` / `build` 子命令默认值为 `on`，对于 `bench` 子命令默认值为 `runtime-error`
+- `compile-option`: A string containing additional `cjc` compilation options, supplementing the top-level `compile-option` field.
+- `lto`: Specifies whether to enable `LTO` optimization compilation mode, with values `thin` or `full`. This feature is only supported on `Linux` platforms.
+- `mock`: Explicitly sets the `mock` mode, with possible options: `on`, `off`, `runtime-error`. The default value for `test`/`build` subcommands is `on`, and for `bench` subcommands, it is `runtime-error`.
 
 #### "profile.test.env"
 
-用于在 `test` 命令时运行可执行文件时配置临时环境变量，`key` 值为需要配置的环境变量的名称，有如下配置项:
+Used to configure temporary environment variables when running executable files during the `test` command. The `key` is the name of the environment variable to configure, with the following configuration items:
 
-- `value` 指定配置的环境变量值
-- `splice-type` 指定环境变量的拼接方式，非必填，不配置时默认为 `absent`，共有以下四种取值：
-    - `absent`: 该配置仅在环境内不存在同名环境变量时生效，若存在同名环境变量则忽略该配置
-    - `replace`: 该配置会替代环境中已有的同名环境变量
-    - `prepend`: 该配置会拼接在环境中已有的同名环境变量之前
-    - `append`: 该配置会拼接在环境中已有的同名环境变量之后
+- `value`: Specifies the value of the environment variable.
+- `splice-type`: Specifies the splicing method for the environment variable, optional, defaulting to `absent` if not configured. Possible values:
+    - `absent`: The configuration only takes effect if no environment variable with the same name exists in the environment. If a variable with the same name exists, this configuration is ignored.
+    - `replace`: The configuration replaces any existing environment variable with the same name.
+    - `prepend`: The configuration is prepended to any existing environment variable with the same name.
+    - `append`: The configuration is appended to any existing environment variable with the same name.
 
 #### "profile.bench"
 
 ```text
-[profile.bench] # 使用举例
+[profile.bench] # Example usage
 no-color = true
 random-seed = 10
 report-path = "bench_report"
@@ -1272,28 +1098,28 @@ report-format = "csv"
 verbose = true
 ```
 
-测试配置支持指定编译和运行测试用例时的选项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.bench` 项才会生效。选项列表与 `cjpm bench` 提供的控制台执行选项一致。如果选项在配置文件和控制台中同时被配置，则控制台中的选项优先级高于配置文件中的选项。`profile.bench` 支持的运行时选项:
+Benchmark configuration supports specifying options for compiling and running test cases. All fields are optional and will not take effect if not configured. Only the `profile.bench` settings of the top-level module will take effect. The option list is consistent with the console execution options provided by `cjpm bench`. If an option is configured in both the configuration file and the console, the console option takes precedence over the configuration file. `profile.bench` supports the following runtime options:
 
-- `filter` 指定用例过滤器，参数值类型为字符串, 格式与 [bench 命令说明](#bench)中 `--filter` 的值格式一致
-- `option:<value>` 与 `@Configure` 协同定义运行选项。例如，如下选项：
-    - `random-seed` 用来指定随机种子的值, 参数值类型为正整数
-    - `no-color` 指定执行结果在控制台中是否无颜色显示，值为 `true` 或 `false`
-    - `report-path` 指定测试执行后的报告生成路径（不能通过 `@Configure` 配置）
-    - `report-format` 指定报告输出格式，当前当前单元测试报告仅支持 `xml` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置）, 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
-    - `verbose` 指定显示编译过程详细信息，参数值类型为 `BOOL`, 即值可为 `true` 或 `false`
-    - `baseline-path` 与当前性能结果进行比较的现有报告的路径。默认情况下它使用 `--report-path` 值。
+- `filter`: Specifies a test case filter, with a string value format consistent with the `--filter` value format in the [bench command description](#bench).
+- `option:<value>`: Defines runtime options in conjunction with `@Configure`. For example:
+    - `random-seed`: Specifies the random seed value, with a positive integer parameter value.
+    - `no-color`: Specifies whether execution results are displayed without color in the console, with values `true` or `false`.
+    - `report-path`: Specifies the path for generating test execution reports (cannot be configured via `@Configure`).
+    - `report-format`: Specifies the report output format. Currently, unit test reports only support `xml` format (case-insensitive), and using other values will throw an exception (cannot be configured via `@Configure`). Performance test reports only support `csv` and `csv-raw` formats.
+    - `verbose`: Specifies whether to display detailed compilation process information, with a `BOOL` parameter value (`true` or `false`).
+    - `baseline-path`: Path to an existing report for comparison with current performance results. By default, it uses the `--report-path` value.
 
 #### "profile.bench.build"
 
-用于指定为 `cjpm bench` 构建可执行文件时使用的附加编译选项。与 `profile.test.build` 具有相同的配置。
+Used to specify additional compilation options for building executable files with `cjpm bench`. The configuration is the same as `profile.test.build`.
 
 #### "profile.bench.env"
 
-支持配置在 `bench` 命令时运行可执行文件时的环境变量配置，配置方式同 `profile.test.env`。
+Supports configuring environment variables when running executable files during the `bench` command, with the same configuration method as `profile.test.env`.
 
 #### "profile.run"
 
-运行可执行文件时的选项，支持配置在 `run` 命令时运行可执行文件时的环境变量配置 `env`，配置方式同 `profile.test.env`。
+Options for running executable files, supporting environment variable configuration `env` when running executable files during the `run` command, with the same configuration method as `profile.test.env`.
 
 #### "profile.customized-option"
 
@@ -1304,61 +1130,56 @@ cfg2 = "--cfg=\"feature1=tiger, feature2=dog\""
 cfg3 = "-O2"
 ```
 
-自定义透传给 `cjc` 的选项，通过 `--cfg1 --cfg3` 使能，每个模块设置的 `customized-option` 对该模块内的所有包生效。例如，执行 `cjpm build --cfg1 --cfg3` 命令时，透传给 `cjc` 的命令则为 `--cfg="feature1=lion, feature2=cat" -O2`。
+Custom options passed through to `cjc`, enabled via `--cfg1 --cfg3`. Each module's `customized-option` settings apply to all packages within that module. For example, when executing the `cjpm build --cfg1 --cfg3` command, the options passed to `cjc` will be `--cfg="feature1=lion, feature2=cat" -O2`.
 
-> **注意：**
+> **Note:**
 >
-> 这里的条件值必须是一个合法的标识符。
+> The conditional value here must be a valid identifier.
 
 ### "target"
 
-多后端、多平台隔离选项，用于配置不同后端、不同平台情况下的一系列不同配置项。以 `Linux` 系统为例，`target` 配置方式如下：
+Multi-backend, multi-platform isolation options, used to configure different settings for different backends and platforms. Taking the `Linux` system as an example, the `target` configuration is as follows:
 
 ```text
-[target.x86_64-unknown-linux-gnu] # Linux 系统的配置项
-  compile-option = "value1" # 额外编译命令选项
-  override-compile-option = "value2" # 额外全局编译命令选项
-  link-option = "value3" # 链接器透传选项
-  [target.x86_64-unknown-linux-gnu.dependencies] # 源码依赖配置项
-  [target.x86_64-unknown-linux-gnu.test-dependencies] # 测试阶段依赖配置项
-  [target.x86_64-unknown-linux-gnu.bin-dependencies] # 仓颉二进制库依赖
+[target.x86_64-unknown-linux-gnu] # Configuration items for Linux systems
+  compile-option = "value1" # Additional compilation command options
+  override-compile-option = "value2" # Additional global compilation command options
+  link-option = "value3" # Linker pass-through options
+  [target.x86_64-unknown-linux-gnu.dependencies] # Source dependency configuration items
+  [target.x86_64-unknown-linux-gnu.test-dependencies] # Test phase dependency configuration items
+  [target.x86_64-unknown-linux-gnu.bin-dependencies] # Cangjie binary library dependencies
     path-option = ["./test/pro0", "./test/pro1"]
   [target.x86_64-unknown-linux-gnu.bin-dependencies.package-option]
     "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
     "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
     "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-  [target.x86_64-unknown-linux-gnu.ffi.c] # C 二进制库依赖
-    "ctest" = "./test/c"
 
-[target.x86_64-unknown-linux-gnu.debug] # Linux 系统的 debug 配置项
+[target.x86_64-unknown-linux-gnu.debug] # Debug configuration items for Linux systems
   [target.x86_64-unknown-linux-gnu.debug.test-dependencies]
 
-[target.x86_64-unknown-linux-gnu.release] # Linux 系统的 release 配置项
+[target.x86_64-unknown-linux-gnu.release] # Release configuration items for Linux systems
   [target.x86_64-unknown-linux-gnu.release.bin-dependencies]
 ```
 
-开发者可以通过配置 `target.target-name` 字段为某个 `target` 添加一系列配置项。`target` 的名称可以在相应的仓颉环境下通过命令 `cjc -v` 获取，命令输出中的 `Target` 项目即为该环境对应的 `target` 名称。上述用例应用于 `Linux` 系统，其他平台也适用，同样可以通过命令 `cjc -v` 获取 `target` 名称。
+Developers can add a series of configuration items for a `target` by configuring the `target.target-name` field. The `target` name can be obtained in the corresponding Cangjie environment via the command `cjc -v`, where the `Target` item in the command output is the `target` name for that environment. The above example applies to the `Linux` system but is also applicable to other platforms, where the `target` name can similarly be obtained viaDedicated configuration items that can be configured for a specific `target` will apply to the compilation process under that `target`, as well as cross-compilation processes where other `targets` specify this `target` as the target platform. The list of configurable items is as follows:
 
-可为特定 `target` 配置的专用配置项，将会适用于该 `target` 下的编译流程，同时也会适用于其他 `target` 指定该 `target` 作为目标平台的交叉编译流程。配置项列表如下：
+- `compile-option`: Additional compilation command options
+- `override-compile-option`: Additional global compilation command options
+- `link-option`: Linker passthrough options
+- `dependencies`: Source code dependency configuration items, with the same structure as the `dependencies` field
+- `test-dependencies`: Test phase dependency configuration items, with the same structure as the `test-dependencies` field
+- `bin-dependencies`: Cangjie binary library dependencies, whose structure is introduced later
+- `compile-macros-for-target`: Macro package control items during cross-compilation. This option does not support distinguishing between `debug` and `release` compilation modes mentioned below.
 
-- `compile-option`：额外编译命令选项
-- `override-compile-option`：额外全局编译命令选项
-- `link-option`：链接器透传选项
-- `dependencies`：源码依赖配置项，结构同 `dependencies` 字段
-- `test-dependencies`：测试阶段依赖配置项，结构同 `test-dependencies` 字段
-- `bin-dependencies`：仓颉二进制库依赖，结构在下文中介绍
-- `ffi.c`：仓颉模块外部依赖 `c` 库的配置，结构同 `ffi.c` 字段
-- `compile-macros-for-target`：交叉编译时的宏包控制项，该选项不支持区分下述的 `debug` 和 `release` 编译模式
-
-开发者可以通过配置 `target.target-name.debug` 和 `target.target-name.release` 字段为该 `target` 额外配置在 `debug` 和 `release` 编译模式下特有的配置，可配置的配置项同上。配置于此类字段的配置项将仅应用于该 `target` 的对应编译模式。
+Developers can configure `target.target-name.debug` and `target.target-name.release` fields to specify additional configurations unique to `debug` and `release` compilation modes for this `target`. The configurable items are the same as above. Items configured in these fields will only apply to the corresponding compilation mode of this `target`.
 
 #### "target.target-name[.debug/release].bin-dependencies"
 
-该字段用于导入已编译好的、适用于指定 `target` 的仓颉库产物文件，以导入下述的 `pro0` 模块和 `pro1` 模块的三个包来举例说明。
+This field is used to import precompiled Cangjie library artifacts suitable for the specified `target`. The following example demonstrates importing three packages from the `pro0` and `pro1` modules.
 
-> **注意：**
+> **Note:**
 >
-> 非特殊需求场景，不建议使用该字段，请使用上文介绍的 `dependencies` 字段导入模块源码。
+> Unless specifically required, it is not recommended to use this field. Please use the `dependencies` field introduced earlier to import module source code.
 
 ```text
 ├── test
@@ -1375,16 +1196,16 @@ cfg3 = "-O2"
 └── cjpm.toml
 ```
 
-方式一，通过 `path-option` 导入：
+Method 1: Import via `path-option`:
 
 ```text
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
   path-option = ["./test/pro0", "./test/pro1"]
 ```
 
-`path-option` 选项为字符串数组结构，每个元素代表待导入的路径名称。`cjpm` 会自动导入该路径下所有符合规则的仓颉库包，这里的合规性是指库名称的格式为 `完整包名`。例如，上述例子中的 `pro0.xoo.cjo` 对应的库名称应为 `libpro0.xoo.so` 或 `libpro0.xoo.a`。库名称不满足该规则的包只能通过 `package-option` 选项进行导入。
+The `path-option` is a string array structure, where each element represents the path name to be imported. `cjpm` will automatically import all Cangjie library packages under this path that comply with the rules. Compliance here refers to the library name format being the `full package name`. For example, in the above example, `pro0.xoo.cjo` should correspond to a library named `libpro0.xoo.so` or `libpro0.xoo.a`. Packages whose library names do not meet this rule can only be imported via the `package-option`.
 
-方式二，通过 `package-option` 导入：
+Method 2: Import via `package-option`:
 
 ```text
 [target.x86_64-unknown-linux-gnu.bin-dependencies.package-option]
@@ -1393,13 +1214,13 @@ cfg3 = "-O2"
   "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
 ```
 
-`package-option` 选项为 `map` 结构，`pro0.xoo` 名称作为 `key` (`toml` 配置文件中含有 `.` 的字符串作为整体时，需要用 `""` 包含)，所以 `key` 的值为 `libpro0.xoo.so` 。前端文件 `cjo` 的路径作为 `value`，对应于该 `cjo` 的 `.a` 或 `.so` 需放置在相同路径下。
+The `package-option` is a `map` structure, where `pro0.xoo` serves as the `key` (strings containing `.` in `toml` configuration files must be enclosed in `""` when used as a whole), so the `key` value is `libpro0.xoo.so`. The path to the frontend file `cjo` serves as the `value`, and the corresponding `.a` or `.so` file for this `cjo` must be placed in the same path.
 
-> **注意：**
+> **Note:**
 >
-> 如果同时通过 `package-option` 和 `path-option` 导入了相同的包，则 `package-option` 字段的优先级更高。
+> If the same package is imported via both `package-option` and `path-option`, the `package-option` field takes higher priority.
 
-其中，源码 `main.cj` 调用 `pro0.xoo`、`pro0.yoo`、`pro1.zoo` 包的代码示例如下所示。
+The following example shows how the source code `main.cj` calls the `pro0.xoo`, `pro0.yoo`, and `pro1.zoo` packages.
 
 ```cangjie
 import pro0.xoo.*
@@ -1407,45 +1228,45 @@ import pro0.yoo.*
 import pro1.zoo.*
 
 main(): Int64 {
-    var res = x + y + z // x, y, z 分别为 pro0.xoo, pro0.yoo, pro1.zoo 中定义的值
+    var res = x + y + z // x, y, z are values defined in pro0.xoo, pro0.yoo, and pro1.zoo respectively
     println(res)
     return 0
 }
 ```
 
-> **注意：**
+> **Note:**
 >
-> 依赖的仓颉动态库文件可能是其他模块通过配置 `profile.build.combined` 生成的 `root` 包编译产物，包含其所有子包的符号。因此，在依赖检查时，如果找不到某个包对应的仓颉库，会使用该包对应的 `root` 包作为依赖，并打印告警提示。开发者需要保证以此方式导入的 `root` 包是通过对应方式生成的仓颉库文件，否则该库文件可能不会包含子包的符号，导致编译报错。
-> 例如，源码中通过 `import demo.aoo` 导入了 `demo.aoo` 包，在二进制依赖中没有找到该包对应的仓颉库，`cjpm` 会尝试寻找该包对应的 `root` 包的动态库，即 `libdemo.so`，如果找到则使用该库作为依赖。
+> The dependent Cangjie dynamic library files may be `root` package compilation artifacts generated by other modules via the `profile.build.combined` configuration, containing symbols from all their sub-packages. Therefore, during dependency checking, if a package's corresponding Cangjie library is not found, the `root` package corresponding to that package will be used as a dependency, and a warning will be printed. Developers must ensure that `root` packages imported this way are generated via the corresponding method; otherwise, the library file may not contain the sub-package symbols, leading to compilation errors.
+> For example, if the source code imports the `demo.aoo` package via `import demo.aoo`, and the binary dependency does not contain the corresponding Cangjie library for this package, `cjpm` will attempt to find the dynamic library of the `root` package corresponding to this package, i.e., `libdemo.so`. If found, it will use this library as the dependency.
 
 #### "target.target-name.compile-macros-for-target"
 
-该字段用于配置宏包的交叉编译方式，有如下三种情况：
+This field configures the cross-compilation method for macro packages, with the following three scenarios:
 
-方式一：宏包在交叉编译时默认仅编译本地平台的产物，不编译目标平台的产物，对该模块内的所有宏包生效
+Method 1: By default, macro packages only compile artifacts for the local platform during cross-compilation, not for the target platform. This applies to all macro packages within the module.
 
 ```text
-[target.目标平台]
+[target.target-platform]
   compile-macros-for-target = ""
 ```
 
-方式二：在交叉编译时同时编译本地平台和目标平台的产物，对该模块内的所有宏包生效
+Method 2: During cross-compilation, artifacts for both the local and target platforms are compiled. This applies to all macro packages within the module.
 
 ```text
-[target.目标平台]
-  compile-macros-for-target = "all" # 配置项为字符串形式，可选值必须为 all
+[target.target-platform]
+  compile-macros-for-target = "all" # The configuration item is a string, and the optional value must be "all"
 ```
 
-方式三：指定该模块内的某些宏包在交叉编译时同时编译本地平台和目标平台的产物，其它未指定的宏包采取方式一的默认模式
+Method 3: Specify that certain macro packages within the module should compile artifacts for both the local and target platforms during cross-compilation. Other unspecified macro packages will follow Method 1's default mode.
 
 ```text
-[target.目标平台]
-  compile-macros-for-target = ["pkg1", "pkg2"] # 配置项为字符串数字形式，可选值是宏包名
+[target.target-platform]
+  compile-macros-for-target = ["pkg1", "pkg2"] # The configuration item is a string array, and the optional values are macro package names
 ```
 
-#### "target" 相关字段合并规则
+#### "target" Field Merging Rules
 
-`target` 配置项中的内容可能同时存在于 `cjpm.toml` 的其他选项中，例如 `compile-option` 字段在 `package` 字段中也可以存在，区别在于 `package` 中的该字段会应用于全部 `target`。`cjpm` 对这些重复的字段会按照特定的方式将所有可应用的配置合并。以 `x86_64-unknown-linux-gnu` 的 `debug` 编译模式为例，有如下的 `target` 配置：
+Configuration items in `target` may coexist with other options in `cjpm.toml`. For example, the `compile-option` field can also exist in the `package` field, with the difference that the `package` field applies to all `targets`. `cjpm` merges these duplicate fields in a specific way. Taking the `debug` compilation mode for `x86_64-unknown-linux-gnu` as an example, the `target` configuration is as follows:
 
 ```text
 [package]
@@ -1486,73 +1307,73 @@ main(): Int64 {
     "pro2.xoo" = "./test/pro2/pro2.xoo.cjo"
 ```
 
-`target` 配置项在与 `cjpm.toml` 公共配置项或者相同 `target` 的其他级别的配置项共存时，按照如下的优先级合并：
+When `target` configuration items coexist with public configuration items in `cjpm.toml` or other levels of configuration items for the same `target`, they are merged according to the following priority:
 
-1. `debug/release` 模式下对应 `target` 的配置
-2. `debug/release` 无关的对应 `target` 的配置
-3. 公共配置项
+1. Configuration for the corresponding `target` in `debug/release` mode
+2. Configuration for the corresponding `target` unrelated to `debug/release`
+3. Public configuration items
 
-以上述的 `target` 配置为例，`target` 各个配置项按照以下规则合并：
+Taking the above `target` configuration as an example, the `target` configuration items are merged according to the following rules:
 
-- `compile-option`：将所有适用的同名配置项按照优先级拼接，优先级更高的配置拼接在后方。在本例中，在 `x86_64-unknown-linux-gnu` 的 `debug` 编译模式下，最终生效的 `compile-option` 值为 `compile-0 compile-1 compile-2`，在 `release` 编译模式下为 `compile-0 compile-1`，在其他 `target` 中为 `compile-0`。
-- `override-compile-option`：同上。由于 `override-compile-option` 优先级高于 `compile-option`，在最后的编译命令中，拼接完成的 `override-compile-option` 会整体置于拼接完成的 `compile-option` 之后。
-- `link-option`：同上。
-- `dependencies`：源码依赖将被直接合并，如果其中存在依赖冲突则会报错。在本例中，在 `x86_64-unknown-linux-gnu` 的 `debug` 编译模式下，最终生效的 `dependencies` 为 `dep0`, `dep1` 和 `dep2`，而在 `release` 编译模式下仅有 `dep0` 和 `dep1` 生效。在其他 `target` 中，仅有 `dep0` 生效。
-- `test-dependencies`：同上。
-- `bin-dependencies`：二进制依赖将按照优先级合并，如果有冲突则仅有优先级更高的依赖将会被加入，同优先级的配置先加入 `package-option` 配置。在本例中，在 `x86_64-unknown-linux-gnu` 的 `debug` 编译模式下，`./test/pro1` 和 `./test/pro2` 内的二进制依赖将被加入，而在 `release` 模式下仅会加入 `./test/pro1`。由于 `bin-dependencies` 没有公共配置，因此在其他 `target` 中不会有二进制依赖生效。
+- `compile-option`: All applicable configuration items with the same name are concatenated according to priority, with higher-priority configurations appended later. In this example, in the `debug` compilation mode for `x86_64-unknown-linux-gnu`, the final `compile-option` value is `compile-0 compile-1 compile-2`. In `release` mode, it is `compile-0 compile-1`, and for other `targets`, it is `compile-0`.
+- `override-compile-option`: Same as above. Since `override-compile-option` has higher priority than `compile-option`, in the final compilation command, the concatenated `override-compile-option` will be placed after the concatenated `compile-option`.
+- `link-option`: Same as above.
+- `dependencies`: Source code dependencies are merged directly. If conflicts exist, an error will be reported. In this example, in the `debug` compilation mode for `x86_64-unknown-linux-gnu`, the final `dependencies` are `dep0`, `dep1`, and `dep2`. In `release` mode, only `dep0` and `dep1` are active. For other `targets`, only `dep0` is active.
+- `test-dependencies`: Same as above.
+- `bin-dependencies`: Binary dependencies are merged according to priority. If conflicts exist, only the higher-priority dependency is added. For configurations with the same priority, `package-option` configurations are added first. In this example, in the `debug` compilation mode for `x86_64-unknown-linux-gnu`, binary dependencies from `./test/pro1` and `./test/pro2` are added. In `release` mode, only `./test/pro1` is added. Since `bin-dependencies` has no public configuration, no binary dependencies are active for other `targets`.
 
-在本例的交叉编译场景中，若在其他平台中指定了 `x86_64-unknown-linux-gnu` 作为目标 `target`，则 `target.x86_64-unknown-linux-gnu` 的配置也会按照上述规则与公共配置项合并并应用；如果处于 `debug` 编译模式，也将应用 `target.x86_64-unknown-linux-gnu.debug` 的配置项。
+In the cross-compilation scenario of this example, if `x86_64-unknown-linux-gnu` is specified as the target `target` on other platforms, the configuration for `target.x86_64-unknown-linux-gnu` will also be merged with public configuration items according to the above rules and applied. If in `debug` compilation mode, the configuration for `target.x86_64-unknown-linux-gnu.debug` will also be applied.
 
-### 环境变量配置
+### Environment Variable Configuration
 
-在 `cjpm.toml` 中可以用环境变量配置字段值，`cjpm` 会从当前运行环境中获取对应的环境变量值，并替换到实际的配置值中。例如，以下的 `dependencies` 字段中使用环境变量进行了路径配置：
+Environment variables can be used to configure field values in `cjpm.toml`. `cjpm` will retrieve the corresponding environment variable values from the current runtime environment and substitute them into the actual configuration values. For example, the following `dependencies` field uses an environment variable for path configuration:
 
 ```text
 [dependencies]
 aoo = { path = "${DEPENDENCY_PATH}/aoo" }
 ```
 
-则在读取模块 `aoo` 时，`cjpm` 会获取 `DEPENDENCY_PATH` 变量值并进行替换，得到模块 `aoo` 的最终路径。
+When reading the module `aoo`, `cjpm` will retrieve the `DEPENDENCY_PATH` variable value and substitute it to obtain the final path for the module `aoo`.
 
-支持使用环境变量配置的字段列表如下：
+The list of fields that support environment variable configuration is as follows:
 
-- 单模块配置字段 `package` 中的如下字段：
-    - 单包配置项 `package-configuration` 中的单包编译选项 `compile-option`
-- 工作空间管理字段 `workspace` 中的如下字段：
-    - 成员模块列表 `members`
-    - 编译模块列表 `build-members`
-    - 测试模块列表 `test-members`
-- `package` 与 `workspace` 中均存在的如下字段：
-    - 编译选项 `compile-option`
-    - 全局编译选项 `override-compile-option`
-    - 链接选项 `link-option`
-    - 编译产物存放路径 `target-dir`
-- 构建依赖列表 `dependencies` 中本地依赖项的 `path` 字段
-- 测试依赖列表 `test-dependencies` 中本地依赖项的 `path` 字段
-- 构建脚本依赖列表 `script-dependencies` 中本地依赖项的 `path` 字段
-- 命令剖面配置项 `profile` 中的自定义透传选项 `customized-option`
-- 外部 `c` 库配置项 `ffi.c` 中的 `path` 字段
-- 平台隔离选项 `target` 中的如下字段：
-    - 编译选项 `compile-option`
-    - 全局编译选项 `override-compile-option`
-    - 链接选项 `link-option`
-    - 构建依赖列表 `dependencies` 中本地依赖项的 `path` 字段
-    - 测试依赖列表 `test-dependencies` 中本地依赖项的 `path` 字段
-    - 构建脚本依赖列表 `script-dependencies` 中本地依赖项的 `path` 字段
-    - 二进制依赖字段 `bin-dependencies` 中的 `path-option` 和 `package-option` 字段
+- The following fields in the single-module configuration field `package`:
+    - Single-package compilation option `compile-option` in the `package-configuration` field
+- The following fields in the workspace management field `workspace`:
+    - Member module list `members`
+    - Compilation module list `build-members`
+    - Test module list `test-members`
+- The following fields present in both `package` and `workspace`:
+    - Compilation option `compile-option`
+    - Global compilation option `override-compile-option`
+    - Link option `link-option`
+    - Compilation artifact output path `target-dir`
+- The `path` field for local dependencies in the build dependency list `dependencies`
+- The `path` field for local dependencies in the test dependency list `test-dependencies`
+- The `path` field for local dependencies in the build script dependency list `script-dependencies`
+- Custom passthrough option `customized-option` in the command profile configuration item `profile`
+- The `path` field in the external `c` library configuration item `ffi.c`
+- The following fields in the platform isolation option `target`:
+    - Compilation option `compile-option`
+    - Global compilation option `override-compile-option`
+    - Link option `link-option`
+    - The `path` field for local dependencies in the build dependency list `dependencies`
+    - The `path` field for local dependencies in the test dependency list `test-dependencies`
+    - The `path` field for local dependencies in the build script dependency list `script-dependencies`
+    - The `path-option` and `package-option` fields in the binary dependency field `bin-dependencies`
 
-## 配置和缓存文件夹
+## Configuration and Cache Directories
 
-`cjpm` 通过 `git` 下载文件的存储路径可以通过 `CJPM_CONFIG` 环境变量指定。如果未指定，则 `Linux/macOS` 上的默认位置为 `$HOME/.cjpm`，`Windows` 上的默认位置为 `%USERPROFILE%/.cjpm` 。
+The storage path for files downloaded by `cjpm` via `git` can be specified using the `CJPM_CONFIG` environment variable. If not specified, the default location is `$HOME/.cjpm` on `Linux/macOS` and `%USERPROFILE%/.cjpm` on `Windows`.
 
-## 仓颉包管理规格说明
+## Cangjie Package Management Specification
 
-在仓颉包管理规格中，对于一个文件目录，被识别为一个有效源码包的要求如下：
+In the Cangjie package management specification, for a file directory to be recognized as a valid source code package, the following requirements must be met:
 
-1. 必须直接包含至少一个仓颉代码文件；
-2. 其父包（包括父包的父包，直至 `root` 包）也为有效源码包。其中，模块 `root` 包不存在父包，因此仅需满足条件 1。
+1. It must directly contain at least one Cangjie code file.
+2. Its parent package (including the parent's parent package, up to the `root` package) must also be a valid source code package. The module `root` package has no parent package, so it only needs to meet condition 1.
 
-例如，有如下名为 `demo` 的 `cjpm` 项目：
+For example, consider the following `cjpm` project named `demo`:
 
 ```text
 demo
@@ -1566,15 +1387,15 @@ demo
 └── cjpm.toml
 ```
 
-其中，`demo.pkg0` 对应目录内没有直接包含仓颉代码，因此 `demo.pkg0` 不是一个有效源码包；`demo.pkg0.aoo` 和 `demo.pkg0.boo` 包虽然直接包含仓颉代码文件 `aoo.cj` 和 `boo.cj`，但由于其上游包 `demo.pkg0` 不是有效源码包，因此这两个包也不是有效源码包。
+Here, the `demo.pkg0` directory does not directly contain Cangjie code, so `demo.pkg0` is not a valid source code package. Although the `demo.pkg0.aoo` and `demo.pkg0.boo` packages directly contain Cangjie code files `aoo.cj` and `boo.cj`, their upstream package `demo.pkg0` is not a valid source code package, so these two packages are also invalid.
 
-当 `cjpm` 识别到 `demo.pkg0` 这样的不直接包含仓颉文件的包时，会将其视为非源码包，忽略其所有子包，并打印如下告警：
+When `cjpm` detects a package like `demo.pkg0` that does not directly contain Cangjie files, it will treat it as a non-source package, ignore all its sub-packages, and print the following warning:
 
 ```text
 Warning: there is no '.cj' file in directory 'demo/src/pkg0', and its subdirectories will not be scanned as source code
 ```
 
-因此，如果开发者需要配置一个有效的源码包，则该包内必须直接包含至少一个仓颉代码文件，并且其上游包都需要是有效源码包。以上述项目 `demo` 为例，如果想要让 `demo.pkg0`,`demo.pkg0.aoo` 和 `demo.pkg0.boo` 均被识别为有效源码包，则可以在 `demo/src/pkg0` 内添加一个仓颉代码文件，如下所示：
+Therefore, if developers need to configure a valid source code package, the package must directly contain at least one Cangjie code file, and all its upstream packages must also be valid source code packages. For the above `demo` project, to ensure that `demo.pkg0`, `demo.pkg0.aoo`, and `demo.pkg0.boo` are all recognized as valid source code packages, a Cangjie code file can be added to `demo/src/pkg0`, as shown below:
 
 ```text
 demo
@@ -1589,31 +1410,31 @@ demo
 └── cjpm.toml
 ```
 
-`demo/src/pkg0/pkg0.cj` 需要是一个符合包管理规格的仓颉代码文件，可以不包含功能代码，例如如下形式：
+The `demo/src/pkg0/pkg0.cj` file must be a Cangjie code file that complies with the package management specification. It does not need to contain functional code, as shown below:
 
 ```cangjie
 package demo.pkg0
 ```
 
-## 命令扩展
+## Command Extension
 
-`cjpm` 提供命令扩展机制，开发者可以通过文件名形如 `cjpm-xxx(.exe)` 的可执行文件扩展 `cjpm` 的命令。
+`cjpm` provides a command extension mechanism. Developers can extend `cjpm` commands via executable files named in the format `cjpm-xxx(.exe)`.
 
-针对可执行文件 `cjpm-xxx`（`Windows` 系统中为 `cjpm-xxx.exe`），若系统环境变量 `PATH` 中配置了该文件所在的路径，则可以使用如下的命令运行该可执行文件：
+For an executable file `cjpm-xxx` (`cjpm-xxx.exe` on Windows), if the directory containing this file is configured in the system environment variable `PATH`, the following command can be used to run the executable:
 
 ```shell
 cjpm xxx [args]
 ```
 
-其中 `args` 为可能需要的输入给 `cjpm-xxx(.exe)` 的参数列表。上述命令等价于：
+Here, `args` represents the possible arguments passed to `cjpm-xxx(.exe)`. The above command is equivalent to:
 
 ```shell
 cjpm-xxx(.exe) [args]
 ```
 
-运行 `cjpm-xxx(.exe)` 可能会依赖某些动态库，在这种情况下，开发者需要手动将需要使用的动态库所在的目录添加到环境变量中。
+Running `cjpm-xxx(.exe)` may depend on certain dynamic libraries. In such cases, developers must manually add the directory containing the required dynamic libraries to the environment variables.
 
-下面以 `cjpm-demo` 为例，该可执行文件由以下仓颉代码编译得到：
+The following example uses `cjpm-demo`, an executable compiled from the following Cangjie code:
 
 ```cangjie
 import std.process.*
@@ -1633,20 +1454,20 @@ main(): Int64 {
 }
 ```
 
-则在将其目录添加到 `PATH` 之后，运行对应命令，会运行该可执行文件并获得对应的输出。
+After adding its directory to `PATH`, running the corresponding command will execute the executable and produce the corresponding output.
 
 ```text
-输入：cjpm demo hello,world
-输出：Output: hello,world
+Input: cjpm demo hello,world
+Output: Output: hello,world
 ```
 
-`cjpm` 内部已有的命令优先级更高，因此无法用此方式扩展这些命令。例如，即使系统环境变量中存在名为 `cjpm-build` 的可执行文件，`cjpm build` 也不会运行该文件，而是运行 `cjpm` 并将 `build` 作为参数输入 `cjpm`。
+The built-in commands of `cjpm` have higher priority, so these commands cannot be extended in this way. For example, even if there is an executable named `cjpm-build` in the system environment variables, `cjpm build` will not execute that file but will instead run `cjpm` with `build` as an argument passed to `cjpm`.
 
-## 构建脚本
+## Build Scripts
 
-`cjpm` 提供构建脚本机制，开发者可以在构建脚本中定义需要 `cjpm` 在某个命令前后的行为。
+`cjpm` provides a build script mechanism that allows developers to define behaviors for `cjpm` before or after executing specific commands.
 
-构建脚本源文件固定命名为 `build.cj`，位于仓颉项目主目录下，即与 `cjpm.toml` 同级。执行 `init` 命令新建仓颉项目时，`cjpm` 默认不创建 `build.cj`，开发者若有相关需求，可以自行按如下的模板格式在指定位置新建并编辑 `build.cj`。
+The build script source file must be named `build.cj` and located in the root directory of the Cangjie project, at the same level as `cjpm.toml`. When creating a new Cangjie project using the `init` command, `cjpm` does not create `build.cj` by default. Developers who need it can manually create and edit `build.cj` in the specified location according to the following template format.
 
 ```cangjie
 // build.cj
@@ -1700,32 +1521,32 @@ main(): Int64 {
 }
 ```
 
-`cjpm` 针对一系列命令支持使用构建脚本定义命令前后行为。例如，针对 `build` 命令，可在 `main` 函数中的 `match` 内定义 `pre-build`，执行想要在 `build` 命令执行前需要执行的功能函数 `stagePreBuild`（功能函数的命名不做要求）。`build` 命令后的行为可以以相同的方式通过添加 `post-build` 的 `case` 选项定义。针对其他命令的命令前后行为的定义类似，只需要添加相应的 `pre/post` 选项和对应的功能函数即可。
+`cjpm` supports defining pre- and post-command behaviors for a series of commands using build scripts. For example, for the `build` command, you can define `pre-build` in the `match` block within the `main` function to execute the desired functionality before the `build` command (the naming of the function is not restricted). Post-command behaviors can be defined similarly by adding a `post-build` case. The same approach applies to other commands by adding corresponding `pre/post` options and their associated functions.
 
-在定义某一命令前后的行为后，`cjpm` 在执行该命令时会首先编译 `build.cj`，并在执行前后执行对应的行为。同样以 `build` 为例，在定义了 `pre-build` 和 `post-build` 后运行 `cjpm build`，则会按照如下步骤运行整个 `cjpm build` 流程：
+After defining pre- and post-command behaviors, `cjpm` will first compile `build.cj` when executing the command and then run the corresponding behaviors before and after the command. For example, if `pre-build` and `post-build` are defined and `cjpm build` is run, the entire `cjpm build` process will follow these steps:
 
-1. 进行编译流程前，首先编译 `build.cj`；
-2. 执行 `pre-build` 对应的功能函数；
-3. 进行 `cjpm build` 编译流程；
-4. 编译流程顺利结束后，`cjpm` 会执行 `post-build` 对应的功能函数。
+1. Before the build process, compile `build.cj`;
+2. Execute the function corresponding to `pre-build`;
+3. Proceed with the `cjpm build` compilation process;
+4. After the compilation completes successfully, `cjpm` will execute the function corresponding to `post-build`.
 
-构建脚本支持的命令如下：
+The following commands support build scripts:
 
-- `build`, `test`, `bench`：同时支持执行依赖模块构建脚本中定义的 `pre` 和 `post` 流程
-- `run`, `install`：仅支持运行对应模块的 `pre` 和 `post` 构建脚本流程，或者在进行编译时执行依赖模块的 `pre-build` 和 `post-build` 流程
-- `check`, `tree`, `update`：仅支持运行对应模块的 `pre` 和 `post` 构建脚本流程
-- `clean`：仅支持运行对应模块的 `pre` 构建脚本流程
+- `build`, `test`, `bench`: Support both pre and post processes defined in dependent modules' build scripts.
+- `run`, `install`: Only support running the pre and post build script processes of the corresponding module or executing the `pre-build` and `post-build` processes of dependent modules during compilation.
+- `check`, `tree`, `update`: Only support running the pre and post build script processes of the corresponding module.
+- `clean`: Only support running the pre-build script process of the corresponding module.
 
-在执行这些命令时，若配置了 `--skip-script` 选项，则会跳过所有构建脚本的编译运行，包括依赖模块的构建脚本。
+When executing these commands, if the `--skip-script` option is configured, all build script compilation and execution will be skipped, including those of dependent modules.
 
-构建脚本的使用说明如下：
+Usage notes for build scripts:
 
-- 功能函数的返回值需要满足一定要求：当功能函数执行成功时，需要返回 `0`；执行失败时返回除 `0` 以外的任意 `Int64` 类型变量。
-- `build.cj` 中的所有输出都将被重定向到项目目录下，路径为 `build-script-cache/[target|release]/[module-name]/bin/script-log`。开发者如果在功能函数中添加了一些输出内容，可在该文件中查看。
-- 若项目根目录下不存在 `build.cj`，则 `cjpm` 将按正常流程执行；若存在 `build.cj` 并定义了某一命令的前后行为，则在 `build.cj` 编译失败或者功能函数返回值不为 `0` 时，即使该命令本身能够顺利执行，命令也将异常中止。
-- 多模块场景下，被依赖模块的 `build.cj` 构建脚本会在编译和单元测试流程中生效。被依赖模块构建脚本中的输出同样重定向到 `build-script-cache/[target|release]` 下对应模块名目录中的日志文件。
+- The return value of the function must meet specific requirements: return `0` on success and any `Int64` value other than `0` on failure.
+- All outputs from `build.cj` will be redirected to the project directory at `build-script-cache/[target|release]/[module-name]/bin/script-log`. Developers can check the output content added in the functions in this file.
+- If `build.cj` does not exist in the project root directory, `cjpm` will execute the normal process. If `build.cj` exists and defines pre/post behaviors for a command, the command will abort abnormally if `build.cj` fails to compile or the function returns a non-zero value, even if the command itself could execute successfully.
+- In multi-module scenarios, the `build.cj` build scripts of dependent modules take effect during compilation and unit testing. Outputs from dependent module build scripts are also redirected to log files in the corresponding module directory under `build-script-cache/[target|release]`.
 
-例如，下面的构建脚本 `build.cj` 定义了 `build` 前后的行为：
+For example, the following build script `build.cj` defines pre- and post-build behaviors:
 
 ```cangjie
 import std.process.*
@@ -1749,21 +1570,21 @@ main(): Int64 {
 }
 ```
 
-则在执行 `cjpm build` 命令时，`cjpm` 将会执行 `stagePreBuild` 和 `stagePostBuild`。`cjpm build` 执行完成后，`script-log` 日志文件内会有如下输出：
+When executing `cjpm build`, `cjpm` will run `stagePreBuild` and `stagePostBuild`. After `cjpm build` completes, the `script-log` file will contain the following output:
 
 ```text
 PRE-BUILD
 POST-BUILD
 ```
 
-构建脚本可以通过 `cjpm.toml` 中的 `script-dependencies` 字段导入依赖模块，格式同 `dependencies`。例如，在 `cjpm.toml` 中有如下配置，导入了 `aoo` 模块，并且 `aoo` 模块内有一个名为 `aaa()` 的方法：
+Build scripts can import dependent modules via the `script-dependencies` field in `cjpm.toml`, with the same format as `dependencies`. For example, the following configuration in `cjpm.toml` imports the `aoo` module, which contains a method named `aaa()`:
 
 ```text
 [script-dependencies]
 aoo = { path = "./aoo" }
 ```
 
-则可以在构建脚本中导入该依赖，使用依赖中的接口 `aaa()`：
+You can then import this dependency in the build script and use the interface `aaa()`:
 
 ```cangjie
 import std.process.*
@@ -1788,11 +1609,11 @@ main(): Int64 {
 }
 ```
 
-构建脚本依赖 `script-dependencies` 与源码相关依赖（源码依赖项 `dependencies` 和测试依赖项 `test-dependencies`）相互独立，源码和测试代码无法使用 `script-dependencies` 中的依赖模块，构建脚本也无法使用 `dependencies` 和 `test-dependencies` 中的依赖模块。若需要在构建脚本和源码/测试代码中使用同一模块，需要在 `script-dependencies` 和 `dependencies/test-dependencies` 中同时配置。
+Build script dependencies (`script-dependencies`) are independent of source code dependencies (`dependencies` and `test-dependencies`). Source and test code cannot use modules from `script-dependencies`, and build scripts cannot use modules from `dependencies` or `test-dependencies`. If a module is needed in both build scripts and source/test code, it must be configured in both `script-dependencies` and `dependencies/test-dependencies`.
 
-## 使用示例
+## Usage Examples
 
-以下面仓颉项目的目录结构为例，介绍 `cjpm` 的使用方法，该目录下对应的源码文件示例可见[源代码](./user_guide.md#示例的源代码)。该仓颉项目的模块名为 `test`。
+The following example demonstrates the usage of `cjpm` with the directory structure of a Cangjie project. The corresponding source code files for this example can be found in [Source Code](#example-source-code). The module name of this Cangjie project is `test`.
 
 ```text
 cj_project
@@ -1812,19 +1633,18 @@ cj_project
 └── cjpm.toml
 ```
 
-### init、build 的使用
+### Using `init` and `build`
 
-- 新建仓颉项目并编写源码 `xxx.cj` 文件，如示例结构所示的 `koo` 包和 `main.cj` 文件。
+- Create a new Cangjie project and write source code files (e.g., `xxx.cj`), such as the `koo` package and `main.cj` file in the example structure.
 
     ```shell
-    cjpm init --name test --path ./cj_project
-    cd cj_project
-    mkdir src/koo
+    cjpm init --name test --path .../cj_project
+    mkdir koo
     ```
 
-    此时，会在当前执行命令的目录下创建 `cj_project` 目录，并在该目录中自动生成 `src` 文件夹和默认的 `cjpm.toml` 配置文件。开发者可以自行在源码目录 `src` 中新建子包（如 `src/koo`），或是自行在各包中新增源码文件和测试文件。
+    This will automatically generate the `src` folder and a default `cjpm.toml` configuration file.
 
-- 当前模块需要依赖外部的 `pro0` 模块时，可以新建 `pro0` 模块及该模块的配置文件，接下来编写该模块的源码文件，需要自行在 `pro0` 下新建 `src` 文件夹，在 `src` 下新建 `pro0` 的 root 包 `pro0.cj`，并将编写的仓颉包放置在 `src` 下，如示例结构所示的 `zoo` 包。
+- When the current module depends on an external `pro0` module, create the `pro0` module and its configuration file. Then, write the source code for this module, manually creating the `src` folder under `pro0` and placing the Cangjie packages under `src`, such as the `zoo` package in the example structure.
 
     ```shell
     mkdir pro0 && cd pro0
@@ -1832,7 +1652,7 @@ cj_project
     mkdir src/zoo
     ```
 
-- 主模块依赖 `pro0` 时，需要按照手册说明去配置主模块配置文件的 `dependencies` 字段。配置无误后，执行 `cjpm build` 即可，生成的可执行文件在 `target/release/bin/` 目录下。
+- When the main module depends on `pro0`, configure the `dependencies` field in the main module's configuration file as described in the manual. After ensuring the configuration is correct, execute `cjpm build`. The generated executable will be in the `target/release/bin/` directory.
 
     ```shell
     cd cj_project
@@ -1841,27 +1661,27 @@ cj_project
     cjpm run
     ```
 
-### test、clean 的使用
+### Using `test` and `clean`
 
-- 按示例结构，编写完每个文件对应的 `xxx_test.cj` 单元测试文件后，可以执行下述代码进行单元测试，生成的文件在 `target/release/unittest_bin` 目录下。
+- After writing the corresponding `xxx_test.cj` unit test files for each file in the example structure, execute the following commands to run unit tests. The generated files will be in the `target/release/unittest_bin` directory.
 
     ```shell
     cjpm test
     ```
 
-    或者
+    Or:
 
     ```shell
-    cjpm test src src/koo pro0/src/zoo
+    cjpm test src src/koo pro/src/zoo
     ```
 
-- 想要手动删除 `target` 、`cov_output` 文件夹、`*.gcno` 、`*.gcda` 等中间件时，执行如下命令：
+- To manually delete intermediate files like `target`, execute:
 
     ```shell
     cjpm clean
     ```
 
-### 示例的源代码
+### Example Source Code
 
 ```cangjie
 // cj_project/src/main.cj
@@ -1941,15 +1761,13 @@ public let z: Int32 = 26
 
 func concatZ(s1: String, s2: String): String {
     return s1 + s2
-}
-```
-
+}```markdown
 ```cangjie
 // cj_project/pro0/src/zoo/zoo_test.cj
 package pro0.zoo
 
-import std.unittest.* // testfame
-import std.unittest.testmacro.* // macro_Defintion
+import std.unittest.* // Test framework
+import std.unittest.testmacro.* // Macro definition
 
 @Test
 public class TestZ{
@@ -1982,334 +1800,4 @@ description = "nothing here"
 version = "1.0.0"
 name = "pro0"
 output-type = "static"
-```
-
-## 附录
-
-### 交叉编译使用说明
-
-`cjpm` 支持在部分平台之间交叉编译并运行。例如，假设目标平台为 `arch-sys-abi`，编译步骤如下：
-
-1. 配置目标平台所需的工具链。
-
-2. 在入口模块的 `cjpm.toml` 中，添加目标平台需要的编译选项配置：
-
-    ```text
-    [target.arch-sys-abi]
-      override-compile-option = "value"
-    ```
-
-   此配置会应用于所有依赖的模块。单模块编译模式下，可以替换成 `compile-option`。
-
-3. 若项目存在二进制依赖，则需要进行如下配置：
-
-    ```text
-    [target.arch-sys-abi.bin-dependencies]
-      path-option = [...]
-    [target.arch-sys-abi.bin-dependencies.package-option]
-      "..." = "..."
-    ```
-
-4. 使用如下命令进行编译构建或测试代码构建：
-
-    ```shell
-    cjpm build --target=arch-sys-abi  # 交叉编译目标平台的产物
-    cjpm test --target=arch-sys-abi   # 交叉编译目标平台的可执行测试文件
-    ```
-
-5. 将二进制产物导入到目标平台，即可正常运行。
-
-> **注意：**
->
-> - 编译产物位于用户配置的 `target-dir` 目录下以目标平台 `target` 命名的目录。
-> - 若存在动态库依赖，则需要将动态库配置于运行环境的环境变量 `LD_LIBRARY_PATH`中。
-
-### 多平台构建使用说明
-
-为了支持多平台项目构建，在 `cjpm` 中引入了新的实体，例如 `features` 和 `source-sets`，以使多平台项目的开发更加高效。此功能为实验特性，需要在 `[profile]` 字段中指定 `experimental = true`。
-
-#### Feature
-
-`Feature` 是一个命名的标志，用于指定需要编译的源代码。以下是 `cjpm` 中可用的所有功能列表：
-
-```bash
-feature.os.posix
-feature.os.epoll
-feature.os.kqueue
-feature.os.windows
-feature.os.linux
-# OS is harmony
-feature.os.hm
-feature.os.darwin
-# The CPU architecture is `big-endian`
-feature.arch.big
-# The CPU architecture is `little-endian`
-feature.arch.little
-feature.arch.x64
-feature.arch.aarch64
-# The CPU uses `sse` instruction set
-feature.arch.sse1
-feature.arch.sse2
-feature.arch.sse3
-feature.arch.sse4.1
-feature.arch.sse4.2
-# The CPU uses `avx` instruction set
-feature.arch.avx1
-feature.arch.avx2
-feature.arch.avx512
-feature.arch.neon
-feature.env.ohos
-feature.env.gnu
-feature.env.mingw32
-feature.env.hos
-feature.env.android
-feature.cj.cjnative
-feature.cj.v0_54_3 # anything after `v` is interpreted as `cjc` version
-```
-
-这些值本身并不会以任何方式进行验证。使能如上 `feature` 编译的代码是否能够正确执行，由开发者自行验证。
-开发者可自定义 `feature` 的值和含义。
-开发者可以在 `cjpm` 的 `build`、`run` 和 `test` 命令中使用 `--enable-features` 选项，并在选项中提供以逗号分隔的 `feature` 值。
-例如：
-
-```bash
-cjpm build --enable-features=feature.os.linux,feature.env.gnu
-```
-
-#### Feature 推导
-
-如下列表中的 `feature` 值可以从正在使用的 `cjc` 或 `cjpm` 的其他编译选项（如 `--target` ）中推断出来，因此通常不必显式指定：
-
-```bash
-feature.os.posix
-feature.os.windows
-feature.os.linux
-feature.os.hm
-feature.os.darwin
-feature.arch.x64
-feature.arch.aarch64
-feature.env.ohos
-feature.env.gnu
-feature.env.mingw32
-feature.env.hos
-feature.env.android
-feature.cj.cjvm
-feature.cj.cjnative
-feature.cj.v0_54_3
-```
-
-如果在 `GNU/Linux` 机器上开发多平台项目，则可以通过如下命令来编译和运行源代码：
-
-```bash
-# 简短的命令
-cjpm run
-# 完整的命令
-cjpm run --enable-features=feature.os.linux,feature.env.gnu
-```
-
-交叉编译项目场景下，则需指定 `--target`。
-
-例如：
-
-```bash
-# 简短的命令
-cjpm build --target=aarch64-linux-android
-# 完整的命令
-cjpm build --target=aarch64-linux-android --enable-features=feature.arch.aarch64,feature.os.linux,feature.env.android
-```
-
-当 `cjpm` 推导到了多个源代码目录（编译错误），可使用选项 `--no-feature-deduce` 来禁用推导，并通过 `--enable-features` 明确指定 `feature` ：
-
-```bash
-# 将出现 "No source set was selected" 的错误信息
-cjpm build --target=aarch64-linux-android --no-feature-deduce
-# 可选择合适的 feature 值进行指定:
-# 1. [..., "feature.os.linux", "feature.env.android"]
-# 2. [..., "feature.os.linux"]
-# 3. [..., "feature.env.android"]
-
-cjpm build --no-feature-deduce --target=aarch64-linux-android --enable-features=feature.os.linux,feature.env.android
-```
-
-#### 源码集及其配置
-
-默认的 `cjpm.toml` 如下:
-
-```toml
-[package]
-  cjc-version = "0.57.1"
-  compile-option = ""
-  description = "nothing here"
-  link-option = ""
-  name = "cmp_lib"
-  output-type = "dynamic"
-  override-compile-option = ""
-  target-dir = ""
-  version = "1.0.0"
-  package-configuration = {}
-
-# 新增字段，指示多平台项目
-# [source-set]
-```
-
-对于 `source-set` 字段的配置，示例如下：
-
-```toml
- # Example syntax:
-
- # 仓颉代码的源码文件目录
- [source-set.epoll]
-   src-dir = "src/net/select/epoll"
-   condition = [ "feature.os.epoll" ]
-
- [source-set.kqueue]
-   src-dir = "src/net/select/kqueue"
-   condition = [ "feature.os.kqueue" ]
-```
-
-每个源码集声明包含 3 个部分：`source-set` 标识符、`src-dir` 和 `condition`。
-
-##### source-set 标识符
-
-`source-set` 标识符是源码集的唯一“路径”。此“路径”以 `.` 分隔，并且每个路径都应以 `source-set` 开头，因为它是所有声明的根。
-
-##### src-dir
-
-表示当启用此源码集时，查找软件包的源代码的位置。
-
-```toml
-# Possible syntax
-
-# 1. 单个目录
-[source-set.${source set fully qualified name}]
-  src-dir = "./src/linux/common"
-
-# 2. 多个目录
-# 所有指定目录将作为单个编译单元被编译，使之类似单个目录被编译。
-
- [source-set.${source set fully qualified name}]
-   src-dir = ["./src/linux/dirA", "./src/linux/dirB"]
-```
-
-##### condition
-
-`condition` 指定必须启用的一个或多个 `feature`，以便编译相应的代码。
-
-```toml
-# 如果源码集声明不包含 `condition` 字段 - 则不设置任何约束。
-# 可能的语法:
-# 1. 同时满足多个 feature 。
-
- [source-set.${source set fully qualified name}]
-   condition = ["feature.arch.aarch64", "feature.env.ohos", "feature.os.linux"]
-
-# 2. 满足多个 feature 的其中之一。
-
-[source-set.${source set fully qualified name}]
-  condition.1     = ["feature.arch.little"]
-  condiiton.alpha = ["feature.env.ohos"]
-  condiiton.beta  = ["feature.os.linux", "feature.os.posix"]  # 必须同时满足两个 feature。
-```
-
-#### 特殊源码集及其配置
-
-##### Common 源码集
-
-在同一层级上只能选择一个源码集，这样代码在不同平台之间保持隔离。但我们希望有一部分代码始终会被使用。这部分称为 `common` 源码集，其代码将在整个编译过程中始终包含，`condition` 配置不可用。示例如下：
-
-```toml
-[source-set.common]
-  src-dir = "./common"
-
-[source-set.socketSelection.common]
-  src-dir = "./socket/common"
-
-[source-set.socketSelection.kqueue]
-  src-dir = "./socket/kqueue"
-  condition = [ "feature.os.kqueue" ]
-```
-
-##### 嵌套源码集
-
-当源码集存在嵌套层级时，要求代码目录层级与源码集层级存在对应关系(及父级源码集的路径需为子级源码集路径的前缀)。同时，嵌套源码集场景下，不支持多个路径。
-
-```toml
-[source-set.common]
-  src-dir = "./common"
-
-[source-set.socketSelection]
-  src-dir = "./socketSelection/weird"
-
-[source-set.socketSelection.a]
-  src-dir = "./socketSelection/weird/a"
-
-[source-set.socketSelection.b]
-  src-dir = "./socketSelection/weird/b"
-```
-
-##### Other 源码集
-
-当配置文件中仅有单层源码集时，若 `cjpm` 匹配不到任何源码集，则会编译报错。但存在嵌套源码集时，`cjpm` 会隐式生成一个名为 `other` 的特殊源码集，路径将依据父级路径生成。若想要自定义路径，则可显式指定该源码集配置，但是其 `condition` 不可被配置。具体示例如下：
-
-```toml
-[source-set.common]
-  src-dir = "./common"
-
-[source-set.socketSelection]
-  src-dir = "./socketSelection"
-
-[source-set.socketSelection.weird]
-  src-dir = "./socketSelection/weird"
-  condition = [ "feature.os.linux", "feature.os.windows" ] # Practicall impossible condition to meet
-
-# This source set will be selected as fallback
-[source-set.socketSelection.other]
-  src-dir = "./socketSelection/other"
-```
-
-若没有选择任何顶层的源码集，报错信息如下：
-
-```text
-"No source set specified in ${path/to/cjpm.toml} was selected"
-```
-
-##### Default 源码集
-
-默认的源码集表示已在 `cjpm` 中默认支持的源码集类型。若无需修改相关配置，则无需在 `cjpm.toml` 中指定。若需修改，则可在配置文件中指定对应源码集并进行配置，配置将覆盖默认配置。
-
-例如，仅设置空 `source-set` 配置表示该项目为多平台项目。
-
-```toml
-[source-set]
-```
-
-此时 `cjpm` 将**隐式**生成默认的配置信息，如下：
-
-```toml
-[source-set.common]
-  src-dir = "./common"
-
-[source-set.windows]
-  src-dir = "./windows"
-  condition = ["feature.os.windows"]
-
-[source-set.linux]
-  src-dir = "./linux"
-  condition = ["feature.os.linux", "feature.env.gnu"]
-
-[source-set.darwin]
-  src-dir = "./darwin"
-  condition = ["feature.os.darwin"]
-
-[source-set.android]
-  src-dir = "./android"
-  condition = ["feature.os.linux", "feature.env.android"]
-
-[source-set.hos]
-  src-dir = "./hos"
-  condition = ["feature.os.linux", "feature.env.hos"]
-
-[source-set.ohos]
-  src-dir = "./ohos"
-  condition = ["feature.os.linux", "feature.env.ohos"]
 ```
