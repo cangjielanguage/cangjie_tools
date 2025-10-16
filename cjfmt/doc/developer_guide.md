@@ -1,111 +1,125 @@
-# 仓颉格式化工具开发者指南
+# Cangjie Formatter Developer Guide
 
-## 开源项目介绍
+## System Architecture
 
-`cjfmt (Cangjie Formatter)` 仓颉格式化工具是一款基于仓颉语言编程规范开发的代码自动格式化工具。其整体技术架构如图所示：
+`cjfmt (Cangjie Formatter)` is a code formatting tool specifically designed for the Cangjie language. `cjfmt` supports automatically adjusting code indentation, spacing, and line breaks to help developers maintain clean and consistent code style effortlessly. Its overall technical architecture is shown in the following diagram:
 
-![cjfmt架构设计图](../figures/cjfmt架构.jpg)
+![cjfmt Architecture Diagram](../figures/cjfmt-architecture.jpg)
 
-## 目录
+As illustrated in the architecture diagram, the overall architecture of `cjfmt` is as follows:
 
-` cjfmt ` 源码目录如下图所示，其主要功能如注释中所描述。
+- Command-line Parameter Management: The command parameter processing module of `cjfmt` supports file-level source code formatting, directory-level source code formatting, and block-level code formatting via commands. It also handles formatting style configuration and formatting result output.
+
+- Configuration Management: Users configure formatting styles via the `cangjie-format.toml` configuration file, including indentation width, line width limits, and line break styles.
+
+- Input Module: Processes input for formatting source code, accepting source code directories, files, or snippets, and forwards them to the formatting module for processing.
+
+- Source Code Compilation: Invokes Cangjie's frontend capabilities to perform lexical and syntactic analysis on source code awaiting formatting, constructing the corresponding Abstract Syntax Tree (AST).
+
+- Formatting: Traverses AST nodes to generate a nested intermediate structure. Applies formatting strategies to process this intermediate structure and transforms it into the target formatted source code.
+
+- Output Module: Processes the formatted source code output, supporting overwriting the input file or outputting to a new directory or file.
+
+## Directory Structure
+
+The source code directory of `cjfmt` is shown below, with main functionalities described in the comments.
 ```
 cjfmt/
-|-- build                   # 构建脚本
-|-- config                  # 配置文件
-|-- doc                     # 介绍文档
-|-- include                 # 源码相关头文件
+|-- build                   # Build scripts
+|-- config                  # Configuration files
+|-- doc                     # Documentation
+|-- include                 # Header files
 |-- src
     |-- Format
-        |-- DocProcessor    # Doc结构体转化为源码
-        `-- NodeFormatter    # AST节点转化为Doc结构体
+        |-- DocProcessor    # Converts Doc struct to source code
+        |-- NodeFormatter    # Converts AST nodes to Doc struct
 ```
 
-## 安装和使用指导
+## Installation and Usage Guide
 
-`cjfmt` 需要以下工具来构建：
+`cjfmt` requires the following tools for building:
 
-- `clang` 或者 `gcc`编译器
+- `clang` or `gcc` compiler
 
-### 构建准备
+### Build Preparation
 
-`cjfmt` 构建依赖 `cjc`, 构建方式参见[SDK 构建](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md)
+`cjfmt` depends on `cjc` for building. Refer to [SDK Build]() for build instructions.
 
-### 构建步骤
+### Build Steps
 
-本地构建流程如下：
+Local build process:
 
-1. 通过 `git clone` 命令获取 `cjfmt` 的最新源码：
+1. Get the latest source code via `git clone`:
 
     ```shell
     cd ${WORKDIR}
     git clone https://gitcode.com/Cangjie/cangjie_tools.git
     ```
 
-2. 配置环境变量：
+2. Configure environment variables:
 
     ```shell
     export CANGJIE_HOME=${WORKDIR}/cangjie    (for Linux/macOS)
     set CANGJIE_HOME=${WORKDIR}/cangjie       (for Windows)
     ```
 
-    `cjfmt` 的编译依赖 `cangjie` 仓的编译产物, 因此需要配置环境变量 `CANGJIE_HOME` 指定 `SDK` 的位置。上述 `${WORKDIR}/cangjie` 仅作为示意，请根据 `SDK` 的实际位置进行调整。
+    `cjfmt` compilation depends on `cangjie` build artifacts, so the `CANGJIE_HOME` environment variable must point to the SDK location. `${WORKDIR}/cangjie` is just an example - adjust according to actual SDK location.
 
-   > **注意：**
+   > **Note:**
    >
-   > - `Windows` 的环境变量配置需要正确使用目录分隔符，并确认路径中的中文字符被正确识别和处理。
+   > - On Windows, ensure correct directory separators are used and Chinese characters in paths are properly handled.
 
-3. 通过 `cjfmt/build` 目录下的构建脚本编译 `cjfmt`：
+3. Compile `cjfmt` using build scripts in `cjfmt/build`:
 
     ```shell
-    cd cangjie-tools/cjfmt/build
+    cd cangjie_tools/cjfmt/build
     python3 build.py build -t release
     ```
 
-    当前支持 `debug`、`release` 两种编译类型，开发者需要通过 `-t` 或者 `--build-type` 指定。
+    Currently supports `debug` and `release` build types, specified via `-t` or `--build-type`.
 
-4. 安装到指定目录：
+4. Install to target directory:
 
     ```shell
     python3 build.py install
     ```
 
-    默认安装到 `cjfmt/dist` 目录下，支持开发者通过 `install` 命令的参数 `--prefix` 指定安装目录：
+    Default installation path is `cjfmt/dist`. Developers can specify installation directory via `--prefix`:
 
     ```shell
     python3 build.py install --prefix ./output
     ```
 
-    编译产物目录结构为:
+    Build output structure:
 
     ```
     dist/
     |-- bin
-        `-- cjfmt                   # 可执行文件，Windows 中为 cjfmt.exe
+        `-- cjfmt                   # Executable (cjfmt.exe on Windows)
     |-- config
-        `-- cangjie-format.toml     # 格式化工具配置文件
+        `-- cangjie-format.toml     # Formatter config file
     ```
 
-5. 验证 `cjfmt` 是否安装成功：
+5. Verify installation:
 
     ```shell
     ./cjfmt -h
     ```
 
-    开发者进入安装路径的 `bin` 目录下执行上述操作，如果输出 `cjfmt` 的帮助信息，则表示安装成功。注意，可执行文件 `cjfmt` 依赖 `cangjie-lsp` 动态库，请将库路径配置到系统动态库环境变量中。以 `Linux` 环境为例：
+    Execute this in the `bin` directory. If help info is displayed, installation succeeded. Note: The `cjfmt` executable depends on `cangjie-lsp` dynamic library - ensure library path is in system environment variables. For Linux:
 
     ```shell
     export LD_LIBRARY_PATH=$CANGJIE_HOME/tools/lib:$LD_LIBRARY_PATH
     ./cjfmt -h
     ```
 
-6. 清理编译中间产物：
+6. Clean build artifacts:
 
    ```shell
    python3 build.py clean
    ```
 
-当前同样支持 `Linux` 平台交叉编译 `Windows` 下运行的 `cjfmt` 产物，构建指令如下：
+Cross-compiling for Windows from Linux:
 
 ```shell
 export CANGJIE_HOME=${WORKDIR}/cangjie
@@ -113,25 +127,25 @@ python3 build.py build -t release --target windows-x86_64
 python3 build.py install
 ```
 
-执行该命令后，构建产物默认位于 `cjfmt/dist` 目录下。请注意从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `SDK` 为 `Windows` 版本。
+Output will be in `cjfmt/dist`. Note: Windows version SDK is required for cross-compilation.
 
-### 更多构建选项
+### Additional Build Options
 
-`python3 build.py build` 命令也支持其它参数设置，具体可通过如下命令来查询：
+View all build parameters via:
 
 ```shell
 python3 build.py build -h
 ```
 
-## API 和配置说明
+## API and Configuration Reference
 
-`cjfmt` 提供以下主要命令，用于项目构建和配置管理。
+`cjfmt` provides the following main commands for project building and configuration management.
 
-### 命令介绍
+### Command Overview
 
-使用命令行操作 `cjfmt [option] file [option] file`
+Usage: `cjfmt [option] file [option] file`
 
-`cjfmt -h` 帮助信息，选项介绍
+`cjfmt -h` displays help info and options:
 
 ```text
 Usage:
@@ -161,66 +175,65 @@ Options:
                      eg: cjfmt -f a.cj -o ./fmta.cj -l 1:25
 ```
 
-### 文件格式化
+### File Formatting
 
 `cjfmt -f`
 
-- 格式化并覆盖源文件，支持相对路径和绝对路径。
+- Format and overwrite source file (supports relative/absolute paths):
 
 ```shell
 cjfmt -f ../../../test/uilang/Thread.cj
 ```
 
-- 选项`-o` 新建一个`.cj`文件导出格式化后的代码，源文件和输出文件支持相对路径和绝对路径。
+- Use `-o` to output formatted code to new file:
 
 ```shell
 cjfmt -f ../../../test/uilang/Thread.cj -o ../../../test/formated/Thread.cj
 ```
 
-### 目录格式化
+### Directory Formatting
 
 `cjfmt -d`
 
-- 选项 `-d` 让开发者指定扫描仓颉源代码目录，对文件夹下的仓颉源码格式化，支持相对路径和绝对路径。
+- Format all Cangjie source files in specified directory:
 
 ```shell
-cjfmt -d test/              // 源文件目录为相对目录
+cjfmt -d test/              // Relative path
 
-cjfmt -d /home/xxx/test     // 源文件目录为绝对目录
+cjfmt -d /home/xxx/test     // Absolute path
 ```
 
-- 选项 `-o` 为输出目录，可以是已存在的路径，若不存在则会创建相关的目录结构，支持相对路径和绝对路径；目录的最大长度 MAX_PATH 不同的系统之间存在差异，如 Windows 上这个值一般不能超过 260；在 Linux 上这个值一般建议不能超过 4096。
+- Use `-o` to specify output directory (will be created if nonexistent). Note OS-specific path length limits (e.g. 260 chars on Windows, 4096 on Linux):
 
 ```shell
 cjfmt -d test/ -o /home/xxx/testout
 
 cjfmt -d /home/xxx/test -o ../testout/
 
-cjfmt -d testsrc/ -o /home/../testout   // 源文件文件夹testsrc/不存在；报错：error: Source file path not exist!
+cjfmt -d testsrc/ -o /home/../testout   // Error if source directory doesn't exist
 ```
 
-### 格式化配置文件
+### Configuration File
 
 `cjfmt -c`
 
-- 选项 `-c` 允许开发者指定客制化的格式化工具配置文件。
+- Specify custom formatting configuration file:
 
 ```shell
 cjfmt -f a.cj -c ./cangjie-format.toml
 ```
 
-### 片段格式化
+### Partial Formatting
 
 `cjfmt -l`
 
-- 选项 `-l` 允许开发者指定应格式化文件的某一部分进行格式化，格式化程序将仅对提供的行范围内的源代码应用规则。
-- `-l` 选项仅适用于格式化单个文件（选项 `-f`）。如果指定了目录（选项 `-d`），则 `-l` 选项无效。
+- Format only specified line range (works only with `-f`):
 
 ```shell
-cjfmt -f a.cj -o b.cj -l 10:25 // 仅格式化第10行至第25行
+cjfmt -f a.cj -o .cj -l 10:25 // Formats only lines 10-25
 ```
 
-## 相关仓
+## Related Repositories
 
-- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
-- [SDK 构建](https://gitcode.com/Cangjie/cangjie_build)
+- [cangjie repo](https://gitcode.com/Cangjie/cangjie_compiler)
+- [SDK Build](https://gitcode.com/Cangjie/cangjie_build)

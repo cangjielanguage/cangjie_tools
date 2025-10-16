@@ -1,14 +1,14 @@
-# 仓颉格式化工具用户指南
+# Cangjie Formatter User Guide
 
-## 功能简介
+## Introduction
 
-`CJFMT(Cangjie Formatter)` 仓颉格式化工具是一款基于仓颉语言编程规范开发的代码自动格式化工具。
+`CJFMT (Cangjie Formatter)` is an automated code formatting tool developed based on the Cangjie language programming specifications.
 
-## 使用说明
+## Usage Instructions
 
-使用命令行操作 `cjfmt [option] file [option] file`
+Command line usage: `cjfmt [option] file [option] file`
 
-`cjfmt -h` 帮助信息，选项介绍
+`cjfmt -h` displays help information and option descriptions
 
 ```text
 Usage:
@@ -19,81 +19,82 @@ Options:
                      eg: cjfmt -h
    -v            Show version
                      eg: cjfmt -v
-   -f            Specifies the file in the required format. The value can be a relative path or an absolute path.
+   -f            Specifies the file to be formatted. The value can be a relative or absolute path.
                      eg: cjfmt -f test.cj
-   -d            Specifies the file directory in the required format. The value can be a relative path or an absolute path.
+   -d            Specifies the directory containing files to be formatted. The value can be a relative or absolute path.
                      eg: cjfmt -d test/
-   -o <value>    Output. If a single file is formatted, '-o' is followed by the file name. Relative and absolute paths are supported;
-                 If a file in the file directory is formatted, a path must be added after -o. The path can be a relative path or an absolute path.
+   -o <value>    Output destination. For single file formatting, '-o' is followed by the output filename (supports relative/absolute paths).
+                 For directory formatting, a path must be specified after -o (supports relative/absolute paths).
                      eg: cjfmt -f a.cj -o ./fmta.cj
                      eg: cjfmt -d ~/testsrc -o ./testout
-   -c <value>    Specify the format configuration file, relative and absolute paths are supported.
-                 If the specified configuration file fails to be read, cjfmt will try to read the default configuration file in CANGJIE_HOME.
-                 If the default configuration file also fails to be read, will use the built-in configuration.
+   -c <value>    Specifies the formatting configuration file (supports relative/absolute paths).
+                 If the specified config file cannot be read, cjfmt will attempt to read the default config file from CANGJIE_HOME.
+                 If the default config also fails, built-in configurations will be used.
                      eg: cjfmt -f a.cj -c ./config/cangjie-format.toml
                      eg: cjfmt -d ~/testsrc -c ~/home/project/config/cangjie-format.toml
-   -l <region>   Only format lines in the specified region for the provided file. Only valid if a single file was specified.
-                 Region has a format of [start:end] where 'start' and 'end' are integer numbers representing first and last lines to be formated in the specified file.
-                 Line count starts with 1.
+   -l <region>   Only formats specified line ranges in the input file (only valid with single file mode).
+                 Format: [start:end] where 'start' and 'end' are line numbers (1-based).
                      eg: cjfmt -f a.cj -o ./fmta.cj -l 1:25
 ```
 
-### 文件格式化
+### File Formatting
 
 `cjfmt -f`
 
-- 格式化并覆盖源文件，支持相对路径和绝对路径。
+- Format and overwrite source file (supports relative/absolute paths):
 
 ```shell
 cjfmt -f ../../../test/uilang/Thread.cj
 ```
 
-- 选项 `-o` 新建一个 `.cj` 文件导出格式化后的代码，源文件和输出文件支持相对路径和绝对路径。
+- Option `-o` creates a new `.cj` file with formatted output (supports relative/absolute paths):
 
 ```shell
 cjfmt -f ../../../test/uilang/Thread.cj -o ../../../test/formated/Thread.cj
 ```
 
-### 目录格式化
+### Directory Formatting
 
 `cjfmt -d`
 
-- 选项 `-d` 让开发者指定扫描仓颉源代码目录，对文件夹下的仓颉源码格式化，支持相对路径和绝对路径。
+- Option `-d` specifies the Cangjie source directory to scan and format (supports relative/absolute paths):
 
 ```shell
-cjfmt -d test/              // 源文件目录为相对目录
+cjfmt -d test/              // Relative path
 
-cjfmt -d /home/xxx/test     // 源文件目录为绝对目录
+cjfmt -d /home/xxx/test     // Absolute path
 ```
 
-- 选项 `-o` 为输出目录，可以是已存在的路径，若不存在则会创建相关的目录结构，支持相对路径和绝对路径；目录的最大长度 MAX_PATH 不同的系统之间存在差异，如 `Windows` 上这个值一般不能超过 260；在 `Linux` 上这个值一般建议不能超过 4096。
+- Option `-o` specifies output directory (can be existing or new). Note MAX_PATH limitations:
+  - Windows: typically ≤260 characters
+  - Linux: recommended ≤4096 characters
 
 ```shell
 cjfmt -d test/ -o /home/xxx/testout
 
 cjfmt -d /home/xxx/test -o ../testout/
 
-cjfmt -d testsrc/ -o /home/../testout   // 源文件文件夹testsrc/不存在；报错：error: Source file path not exist!
+cjfmt -d testsrc/ -o /home/../testout   // Error if source directory doesn't exist
 ```
 
-### 格式化配置文件
+### Configuration File
 
 `cjfmt -c`
 
-- 选项 `-c` 允许开发者指定客制化的格式化工具配置文件。
+- Option `-c` allows custom formatting configuration:
 
 ```shell
 cjfmt -f a.cj -c ./cangjie-format.toml
 ```
 
-默认 cangjie-format.toml 所含配置文件如下，其值也为 `cjfmt` 工具内置配置选项的值：
+Default cangjie-format.toml configuration (also used as built-in defaults):
 
 ```toml
 # indent width
-indentWidth = 4 # Range of indentWidth: [0, 8]
+indentWidth = 4 # Range: [0, 8]
 
-# limit length
-linelimitLength = 120 # Range of indentWidth: [1, 120]
+# line length limit
+linelimitLength = 120 # Range: [1, 120]
 
 # line break type
 lineBreakType = "LF" # "LF" or "CRLF"
@@ -101,10 +102,10 @@ lineBreakType = "LF" # "LF" or "CRLF"
 # allow Multi-line Method Chain when it's level equal or greater than multipleLineMethodChainLevel
 allowMultiLineMethodChain = false
 
-# if allowMultiLineMethodChain's value is true,
-# and method chain's level is equal or greater than multipleLineMethodChainLevel,
-# method chain will be formatted to multi-line method chain.
-# e.g. A.b().c() level is 2, A.b().c().d() level is 3
+# if allowMultiLineMethodChain is true,
+# and method chain's level ≥ multipleLineMethodChainLevel,
+# method chain will be formatted to multi-line.
+# e.g. A.b().c() level=2, A.b().c().d() level=3
 # ObjectA.b().c().d().e().f() =>
 # ObjectA
 #     .b()
@@ -112,71 +113,70 @@ allowMultiLineMethodChain = false
 #     .d()
 #     .e()
 #     .f()
-multipleLineMethodChainLevel = 5 # Range of multipleLineMethodChainLevel: [2, 10]
+multipleLineMethodChainLevel = 5 # Range: [2, 10]
 
-# allow Multi-line Method Chain when it's length greater than linelimitLength
+# allow Multi-line Method Chain when exceeding linelimitLength
 multipleLineMethodChainOverLineLength = true
 ```
 
-> **说明：**
+> **Note:**
 >
-> 若客制化的格式化工具配置文件读取失败，则读取 CANGJIE_HOME 环境下的默认格式化工具配置文件 `cangjie-format.toml`。
-> 若 CANGJIE_HOME 环境下的默认格式化工具配置文件 `cangjie-format.toml` 同样读取失败，则使用 `cjfmt` 内置格式化配置选项。
-> 若格式化工具配置文件中的某个配置选项读取失败，则该配置选项使用 `cjfmt` 内置格式化配置选项。
+> If custom config fails, reads default `cangjie-format.toml` from CANGJIE_HOME.
+> If default config also fails, uses built-in configurations.
+> For any failed config option, uses built-in default for that option.
 
-### 片段格式化
+### Partial Formatting
 
 `cjfmt -l`
 
-- 选项 `-l` 允许开发者指定应格式化文件的某一部分进行格式化，格式化程序将仅对提供的行范围内的源代码应用规则。
-- `-l` 选项仅适用于格式化单个文件（选项 `-f`）。如果指定了目录（选项 `-d`），则 `-l` 选项无效。
+- Option `-l` formats only specified line ranges (only works with single file mode `-f`):
 
 ```shell
-cjfmt -f a.cj -o b.cj -l 10:25 // 仅格式化第10行至第25行
+cjfmt -f a.cj -o .cj -l 10:25 // Formats only lines 10-25
 ```
 
-## 格式化规则
+## Formatting Rules
 
-- 一个源文件按顺序包含版权、package、import、顶层元素，且用空行分隔。
+- Source files should contain (in order) copyright, package, import, and top-level elements, separated by blank lines.
 
-【正例】
+【Correct Example】
 
 ```cangjie
-// 第一部分，版权信息
+// Part 1: Copyright
 /*
  * Copyright (c) [Year of First Pubication]-[Year of Latest Update]. [Company Name]. All rights reserved.
  */
 
-// 第二部分，package 声明
+// Part 2: Package declaration
 package com.myproduct.mymodule
 
-// 第三部分，import 声明
-import std.collection.HashMap   // 标准库
+// Part 3: Imports
+import std.collection.HashMap   // Standard library
 
-// 第四部分，public 元素定义
+// Part 4: Public elements
 public class ListItem <: Component {
     // CODE
 }
 
-// 第五部分，internal 元素定义
+// Part 5: Internal elements
 class Helper {
     // CODE
 }
 ```
 
-> **说明：**
+> **Note:**
 >
-> 仓颉格式化工具不会强制用空行将版权信息部分与其他部分分隔，若开发者在版权信息下方留有一个或多个空行，则格式化工具会保留一个空行。
+> The formatter doesn't enforce blank lines after copyright, but preserves one if present.
 
-- 采用一致的空格缩进，每次缩进 4 个空格。
+- Consistent 4-space indentation:
 
-【正例】
+【Correct Example】
 
 ```cangjie
 class ListItem {
-    var content: Array<Int64> // 符合：相对类声明缩进 4 个空格
+    var content: Array<Int64> // Correct: 4-space indent relative to class
     init(
-        content: Array<Int64>, // 符合：函数参数相对函数声明缩进 4 个空格
+        content: Array<Int64>, // Correct: 4-space indent for parameters
         isShow!: Bool = true,
         id!: String = ""
     ) {
@@ -185,128 +185,125 @@ class ListItem {
 }
 ```
 
-- 使用统一的大括号换行风格，对于非空块状结构，大括号使用 K&R 风格。
+- K&R brace style for non-empty blocks:
 
-【正例】
+【Correct Example】
 
 ```cangjie
-enum TimeUnit { // 符合：跟随声明放行末，前置 1 空格
+enum TimeUnit { // Correct: Brace on same line with space
     Year | Month | Day | Hour
-} // 符合：右大括号独占一行
+} // Correct: Closing brace on new line
 
-class A { // 符合：跟随声明放行末，前置 1 空格
+class A { // Correct: Brace on same line with space
     var count = 1
 }
 
-func fn(a: Int64): Unit { // 符合：跟随声明放行末，前置 1 空格
-    if (a > 0) { // 符合：跟随声明放行末，前置 1 空格
+func fn(a: Int64): Unit { // Correct: Brace on same line with space
+    if (a > 0) { // Correct: Brace on same line with space
     // CODE
-    } else { // 符合：右大括号和 else 在同一行
+    } else { // Correct: } else on same line
         // CODE
-    } // 符合：右大括号独占一行
+    } // Correct: Closing brace on new line
 }
 
-// lambda 函数
+// Lambda functions
 let add = {
-    base: Int64, bonus: Int64 => // 符合: lambda 表达式中非空块遵循 K&R 风格
-    print("符合 news")
+    base: Int64, bonus: Int64 => // Correct: K&R style for lambda
+    print("Correct news")
     base + bonus
 }
-
 ```
 
-- 按照仓颉语言编程规范中的规则 G.FMT.10，使用空格突出关键字和重要信息。
+- Spacing around keywords and important elements (per G.FMT.10):
 
-【正例】
+【Correct Example】
 
 ```cangjie
-var isPresent: Bool = false  // 符合：变量声明冒号之后有一个空格
-func method(isEmpty!: Bool): RetType { ... } // 符合：函数定义（命名参数 / 返回类型）中的冒号之后有一个空格
+var isPresent: Bool = false  // Correct: Space after colon
+func method(isEmpty!: Bool): RetType { ... } // Correct: Space after colons
 
-method(isEmpty: isPresent) // 符合: 命名参数传值中的冒号之后有一个空格
+method(isEmpty: isPresent) // Correct: Space after named parameter colon
 
-0..MAX_COUNT : -1 // 符合: range 操作符区间前后没有空格，步长冒号前后两侧有一个空格
+0..MAX_COUNT : -1 // Correct: No space around .., spaces around step colon
 
 var hundred = 0
-do { // 符合：关键字 do 和后面的括号之间有一个空格
+do { // Correct: Space after do
     hundred++
-} while (hundred < 100) // 符合：关键字 while 和前面的括号之间有一个空格
+} while (hundred < 100) // Correct: Space before while
 
-func fn(paramName1: ArgType, paramName2: ArgType): ReturnType { // 符合：圆括号和内部相邻字符之间不出现空格
+func fn(paramName1: ArgType, paramName2: ArgType): ReturnType { // Correct: No inner paren spaces
     ...
-    for (i in 1..4) { // 符合：range 操作符左右两侧不留空格
+    for (i in 1..4) { // Correct: No spaces around range operator
         ...
     }
 }
 
-let listOne: Array<Int64> = [1, 2, 3, 4] // 符合：方括号和圆括号内部两侧不出现空格
+let listOne: Array<Int64> = [1, 2, 3, 4] // Correct: No inner bracket spaces
 
-let salary = base + bonus // 符合：二元操作符左右两侧留空格
+let salary = base + bonus // Correct: Spaces around binary operators
 
-x++ // 符合：一元操作符和操作数之间不留空格
+x++ // Correct: No space for unary operators
 ```
 
-- 减少不必要的空行，保持代码紧凑。
+- Minimize unnecessary blank lines:
 
-【反例】
+【Incorrect Example】
 
 ```cangjie
 class MyApp <: App {
     let album = albumCreate()
     let page: Router
-    // 空行
-    // 空行
-    // 空行
-    init() {           // 不符合：类型定义内部使用连续空行
+    // Blank line
+    // Blank line
+    // Blank line
+    init() {           // Incorrect: Multiple consecutive blank lines
         this.page = Router("album", album)
     }
 
     override func onCreate(): Unit {
 
-        println( "album Init." )  // 不符合：大括号内部首尾存在空行
+        println( "album Init." )  // Incorrect: Blank lines inside braces
 
     }
 }
 ```
 
-- 减少不必要的分号，以代码简洁优先。
+- Minimize unnecessary semicolons:
 
-【格式化前】
+【Before Formatting】
 
 ```cangjie
-package demo.analyzer.filter.impl; // 冗余的分号
+package demo.analyzer.filter.impl; // Redundant semicolon
 
-internal import demo.analyzer.filter.StmtFilter; // 冗余的分号
-internal import demo.analyzer.CJStatment; // 冗余的分号
+internal import demo.analyzer.filter.StmtFilter; // Redundant semicolon
+internal import demo.analyzer.CJStatment; // Redundant semicolon
 
 func fn(a: Int64): Unit {
     println( "album Init." );
 }
 ```
 
-【格式化后】
+【After Formatting】
 
 ```cangjie
-package demo.analyzer.filter.impl // 冗余的分号
+package demo.analyzer.filter.impl // Semicolon removed
 
-internal import demo.analyzer.filter.StmtFilter // 冗余的分号
-internal import demo.analyzer.CJStatment // 冗余的分号
+internal import demo.analyzer.filter.StmtFilter // Semicolon removed
+internal import demo.analyzer.CJStatment // Semicolon removed
 
 func fn(a: Int64): Unit {
     println("album Init.");
 }
 ```
 
-- 按照仓颉语言编程规范中的规则 G.FMT.12 规定的优先级排列修饰符关键字。
-
-以下是推荐的顶层元素的修饰符排列优先级：
+- Modifier keyword ordering follows priority rules in G.FMT.12.Here are the recommended modifier precedence rules for top-level elements:
 
 ```cangjie
 public
 open/abstract
 ```
 
-以下是推荐的实例成员函数或实例成员属性的修饰符排序优先级：
+Here are the recommended modifier precedence rules for instance member functions or instance member properties:
 
 ```cangjie
 public/protected/private
@@ -314,7 +311,7 @@ open
 override
 ```
 
-以下是推荐的静态成员函数的修饰符排序优先级：
+Here are the recommended modifier precedence rules for static member functions:
 
 ```cangjie
 public/protected/private
@@ -322,19 +319,19 @@ static
 redef
 ```
 
-以下是推荐的成员变量的修饰符排序优先级：
+Here are the recommended modifier precedence rules for member variables:
 
 ```cangjie
 public/protected/private
 static
 ```
 
-- 多行注释的格式化行为
+- Formatting behavior for multi-line comments
 
-以 `*` 开头的注释， `*` 会互相对齐， 不以 `*` 开头的注释，则会保持注释原样。若 `*` 后存在多余空格，则会将多余空格删除。
+For comments starting with `*`, the `*` symbols will be aligned with each other. Comments not starting with `*` will retain their original formatting.
 
 ```cangjie
-// 格式化前
+// Before formatting
 /*
       * comment
       */
@@ -343,7 +340,7 @@ static
         comment
         */
 
-// 格式化后
+// After formatting
 /*
  * comment
  */
@@ -353,8 +350,8 @@ static
  */
 ```
 
-## 注意事项
+## Notes
 
-- 仓颉格式化工具暂不支持语法错误的代码的格式化。
+- The Cangjie formatting tool currently does not support formatting code with syntax errors.
 
-- 仓颉格式化工具暂不支持元编程的格式化。
+- The Cangjie formatting tool currently does not support metaprogramming formatting.
