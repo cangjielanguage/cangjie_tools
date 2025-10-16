@@ -1316,7 +1316,7 @@ std::string CompilerCangjieProject::GetModuleSrcPath(const std::string &modulePa
     return FileStore::NormalizePath(moduleManager->moduleInfoMap[modulePath].srcPath);
 }
 
-void CompilerCangjieProject::UpdateBuffCache(const std::string &file)
+void CompilerCangjieProject::UpdateBuffCache(const std::string &file, bool isContentChange)
 {
     auto pkgName = GetFullPkgName(file);
     if (pkgInfoMap.find(pkgName) != pkgInfoMap.end() &&
@@ -1332,6 +1332,11 @@ void CompilerCangjieProject::UpdateBuffCache(const std::string &file)
             std::lock_guard<std::mutex> lock(pkgInfoMapNotInSrc[pkgName]->pkgInfoMutex);
             pkgInfoMapNotInSrc[pkgName]->bufferCache[file] = callback->GetContentsByFile(file);
         }
+    }
+    if (isContentChange) {
+        cjoManager->UpdateStatus({pkgName}, DataStatus::STALE, isContentChange);
+    } else {
+        cjoManager->UpdateStatus({pkgName}, DataStatus::STALE);
     }
     auto downStreamPkgs = graph->FindAllDependents(pkgName);
     cjoManager->UpdateStatus(downStreamPkgs, DataStatus::WEAKSTALE);

@@ -567,8 +567,6 @@
 {"hover":{"testFile":"LSP_Hover_Mutex_001.test","id":"13"}}
 {"hover":{"testFile":"LSP_Hover_CaptureOfVariables_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_AsOperator_001.test","id":"9"}}
-{"hover":{"testFile":"LSP_Hover_Any_001.test","id":"9"}}
-{"hover":{"testFile":"LSP_Hover_Any_002.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Lambda_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Future_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Pipeline_001.test","id":"9"}}
