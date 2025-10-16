@@ -32,6 +32,7 @@ using SerializedT = std::vector<uint8_t>;
 struct CjoData {
     std::optional<SerializedT> data;
     DataStatus status;
+    bool isDocChange;
 };
 
 class CjoManager {
@@ -67,12 +68,16 @@ public:
      *
      * @param packages  Packages that change state
      * @param status  the state needs to be changed
+     * @param isDocChange  the state of pkg files has changed
      */
-    void UpdateStatus(const std::unordered_set<std::string> &packages, DataStatus status)
+    void UpdateStatus(const std::unordered_set<std::string> &packages, DataStatus status, bool isDocChange = false)
     {
         std::unique_lock lock(mutex);
         for (auto &package : packages) {
             if (cjoMap.find(package) != cjoMap.end()) {
+                if (isDocChange) {
+                    cjoMap[package].isDocChange = isDocChange;
+                }
                 if (cjoMap[package].status == DataStatus::STALE && status == DataStatus::WEAKSTALE) {
                     Trace::Log("package status is stale, cann't change to weak stale", package);
                     continue;
@@ -83,6 +88,7 @@ public:
                 } else if (status == DataStatus::WEAKSTALE) {
                     Trace::Log(package + "'s cjo cache is weak stale");
                 } else {
+                    cjoMap[package].isDocChange = false;
                     Trace::Log(package + "'s cjo cache is fresh");
                 }
             }
@@ -107,6 +113,15 @@ public:
             }
         }
         return result;
+    }
+
+    bool IsDocChanged(const std::string& package)
+    {
+        std::shared_lock lock(mutex);
+        if (cjoMap.find(package) != cjoMap.end()) {
+            return cjoMap[package].isDocChange;
+        }
+        return false;
     }
 
     DataStatus GetStatus(const std::string& package)

@@ -836,10 +836,13 @@ void ItemResolverUtil::GetFuncNamedParam(std::string &detail, Cangjie::SourceMan
     const std::string &filePath, const OwnedPtr<Cangjie::AST::FuncParam> &param)
 {
     try {
-        if (param->assignment != nullptr && param->assignment.get() &&
-            !param->assignment.get()->ToString().empty()) {
+        auto assignExpr = param->assignment.get();
+        if (assignExpr && assignExpr->desugarExpr) {
+            assignExpr = assignExpr->desugarExpr;
+        }
+        if (assignExpr && !assignExpr->ToString().empty()) {
             detail += " = ";
-            AddTypeByNodeAndType(detail, filePath, param->assignment.get(), sourceManager);
+            AddTypeByNodeAndType(detail, filePath, assignExpr, sourceManager);
         }
     } catch (NullPointerException &e) {
         Trace::Log("Invoke compiler api catch a NullPointerException");
@@ -1033,18 +1036,21 @@ int ItemResolverUtil::ResolveFuncParamInsert(std::string &detail, const std::str
         detail += (paramName.empty() ? "" : (paramName + ": "));
         detail += "${" + std::to_string(numParm) + ":";
         numParm++;
-        bool flag = param->ty && param->assignment && param->assignment.get()
-                    && !param->assignment.get()->ToString().empty();
+        auto assignExpr = param->assignment.get();
+        if (assignExpr && assignExpr->desugarExpr) {
+            assignExpr = assignExpr->desugarExpr;
+        }
+        bool flag = param->ty && assignExpr && !assignExpr->ToString().empty();
         bool getTypeByNodeAndType = param->type != nullptr &&
                                     (GetString(*param->ty) == "UnknownType" ||
                                     (sourceManager && param->type->astKind == Cangjie::AST::ASTKind::FUNC_TYPE));
         if (getTypeByNodeAndType) {
             ItemResolverUtil::AddTypeByNodeAndType(detail, myFilePath, param->type.get(), sourceManager);
             detail += flag ? " = " : "";
-            ItemResolverUtil::AddTypeByNodeAndType(detail, myFilePath, param->assignment.get(), sourceManager);
+            ItemResolverUtil::AddTypeByNodeAndType(detail, myFilePath, assignExpr, sourceManager);
         } else {
             detail += param->ty ? GetString(*param->ty) : "";
-            detail += flag ? (" = " + param->assignment.get()->ToString()) : "";
+            detail += flag ? (" = " + assignExpr->ToString()) : "";
         }
     } else {
         detail += "${" + std::to_string(numParm) + ":";

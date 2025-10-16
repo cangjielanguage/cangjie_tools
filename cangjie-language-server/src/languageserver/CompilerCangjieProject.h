@@ -96,7 +96,7 @@ public:
         useDB = flag;
     }
     static void InitInstance(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
-    void UpdateBuffCache(const std::string &file);
+    void UpdateBuffCache(const std::string &file, bool isContentsChange = false);
     void GetRealPath(std::string &path);
     std::string GetFilePathByID(const std::string &curFilePath, unsigned int fileID);
     std::string GetFilePathByID(const Node &node, unsigned int fileID);

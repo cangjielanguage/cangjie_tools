@@ -306,9 +306,12 @@ void SignatureHelpImpl::ResolveParameter(std::string &detail, bool &firstParams,
     }
     if (paramPtr->ty != nullptr) {
         parameter += GetString(*paramPtr->ty);
-        if (paramPtr->assignment != nullptr && paramPtr->assignment.get() != nullptr &&
-            !paramPtr->assignment.get()->ToString().empty()) {
-            parameter += " = " + paramPtr->assignment.get()->ToString();
+        auto assignExpr = paramPtr->assignment.get();
+        if (assignExpr && assignExpr->desugarExpr) {
+            assignExpr = assignExpr->desugarExpr;
+        }
+        if (assignExpr && !assignExpr->ToString().empty()) {
+            parameter += " = " + assignExpr->ToString();
         }
         detail += parameter;
         signatures.parameters.push_back(parameter);

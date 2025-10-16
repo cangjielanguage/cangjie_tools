@@ -41,6 +41,8 @@ public:
         const ArkAST &ast, ReferencesResult &result, Ptr<Decl> oldDecl, std::vector<Symbol *> &syms);
 
     static bool IsInvalidRef(const lsp::Ref& ref, Position pos, int curIdx, const ArkAST &ast);
+
+    static void CompileDownStreamPackage(const std::vector<Ptr<Cangjie::AST::Decl>> &decls);
 };
 } // namespace ark
 
