@@ -4,7 +4,7 @@
 
 `cjcov (Cangjie Coverage)` 仓颉覆盖率工具是一款基于仓颉语言编程规范开发的代码覆盖率工具。其整体技术架构如图所示：
 
-![cjcov架构设计图](../figures/cjcov_architecture.png)
+![cjcov架构设计图](../figures/cjcov_architecture.jpg)
 
 ## 目录
 
