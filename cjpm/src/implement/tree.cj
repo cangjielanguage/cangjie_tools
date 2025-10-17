@@ -46,7 +46,7 @@ private func printMultiplatformSourceLocations(packageDepMap: HashMap<String, Re
                 print('\n');
                 first = false
             }
-            println(SourceLocationsPrinter(v.packagePath, project: name))
+            println(SourceLocationsPrinter(v.packagePath, v.features, project: name))
         }
     }
 }

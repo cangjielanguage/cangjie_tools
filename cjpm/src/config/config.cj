@@ -513,7 +513,10 @@ public struct PackageList {
                 let reversed = it.packagePath._sources.clone()
                 reversed.reverse()
                 for (source in reversed) {
-                    if (features.contains(all: source.features)) {
+                    let finalFeatures = if (let Some(deducer) <- it.featureDeducer) {
+                        deducer.addFeature(features).collect()
+                    } else { features }
+                    if (finalFeatures.contains(all: source.features)) {
                         return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
                     }
                 }

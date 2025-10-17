@@ -273,7 +273,7 @@ class ParallelBuilder {
                         execCmdFlag = false
                         errFile.write("Error: failed to compile package `${resolveConfig.fullName}`, return code is ${returnCode}\n".toArray())
                         if (resolveConfig.isMultiplatform) {
-                            errFile.write("${SourceLocationsPrinter(resolveConfig.packagePath, project: resolveConfig.fullName)}".toArray())
+                            errFile.write("${SourceLocationsPrinter(resolveConfig.packagePath, resolveConfig.features, project: resolveConfig.fullName)}".toArray())
                         }
                     }
                 } else {
@@ -372,7 +372,13 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
             resolveConfig.nativePlatform = resolve.nativePlatform
             resolveConfig.superPkgCfg = resolve.superPkgCfg
             resolveConfig.hasTestFiles = resolve.hasTestFiles
-            resolveConfig.features = resolve.features
+            resolveConfig.features = if (let Some(deducer) <- resolve.featureDeducer) {
+                deducer.addFeature(resolve.features)
+                    .collect()
+            } else {
+                resolve.features
+            }
+
             if (buildConfig.isIncremental && resolveConfig.outputType == Static &&
                 buildConfig.indirectRebuilds.contains(resolve.fullName)) {
                 resolveConfig.checkDepCjo = true
