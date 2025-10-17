@@ -115,12 +115,10 @@ class TestCommand <: Handle {
         testConfig.isIncremental = getBoolOption(argMap, "-i", "--incremental")
         testConfig.dryRun = getBoolOption(argMap, "--dry-run")
         testConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")
-        let noFeatureDeduce =  getBoolOption(argMap, "--no-feature-deduce")
+        let noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
 
         if (!state.isExperimental && noFeatureDeduce) {
-            eprintln(
-                "Error: `--no-feature-deduce` is part of experimental Cangjie Multiplatform feature, please enable `experimental = true` in cjpm.toml of this project"
-            )
+            eprintln("Error: `--no-feature-deduce` is part of experimental Cangjie Multiplatform feature, please enable `experimental = true` in cjpm.toml of this project")
             return None
         }
 

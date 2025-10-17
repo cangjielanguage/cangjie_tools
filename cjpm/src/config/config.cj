@@ -507,19 +507,18 @@ public struct PackageList {
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
         packages |> filterMap {
-            it: ResolveItem => 
-                if (!it.isMultiplatform) {
-                    return None<(String, String)>
-                } else {
-                    let reversed = it.packagePath._sources.clone()
-                    reversed.reverse()
-                    for (source in reversed) {
-                        if (features.contains(all: source.features)) {
-                            return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
-                        }
+            it: ResolveItem => if (!it.isMultiplatform) {
+                return None<(String, String)>
+            } else {
+                let reversed = it.packagePath._sources.clone()
+                reversed.reverse()
+                for (source in reversed) {
+                    if (features.contains(all: source.features)) {
+                        return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
                     }
-                    return None<(String, String)>
                 }
+                return None<(String, String)>
+            }
         } |> collectHashMap
     }
 

@@ -427,7 +427,8 @@ public func verifyModuleConfig(cfg: TomlInfo, path: String, rootPath: String, is
 }
 
 // verify cjpm.toml field before resolving
-public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false, resolveMap!: ?ResolveMap = None): Bool {
+public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false,
+    resolveMap!: ?ResolveMap = None): Bool {
     let configFilePath: String = Path(path).join(CONFIG_FILE_NAME).toString()
     let (flag, errInfo) = cfg.isCompatible()
     if (!flag) {

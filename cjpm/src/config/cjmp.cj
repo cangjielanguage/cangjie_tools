@@ -79,7 +79,9 @@ public enum Arch <: ToString & Parsable<Arch> {
         }
     }
 
-    public static func tryParse(value: String): ?Arch { parse(value) }
+    public static func tryParse(value: String): ?Arch {
+        parse(value)
+    }
 }
 
 // Enum of known environments specified in target triple
@@ -137,7 +139,9 @@ public enum OS <: ToString & Parsable<OS> {
         }
     }
 
-    public static func tryParse(os: String): ?OS { parse(os) }
+    public static func tryParse(os: String): ?OS {
+        parse(os)
+    }
 }
 
 // Enum of known environments specified in target triple
@@ -174,7 +178,9 @@ public enum Env <: ToString & Parsable<Env> {
         }
     }
 
-    public static func tryParse(value: String): ?Env { parse(value) }
+    public static func tryParse(value: String): ?Env {
+        parse(value)
+    }
 }
 
 public type ApiVersion = ?UInt8
@@ -295,11 +301,11 @@ public struct Feature <: ToString {
     public static let OS_DARWIN   = builtin("os.darwin")
     public static let OS_WINDOWS  = builtin("os.windows")
 
-    private Feature(
-        let value: QName
-    ) { }
+    private Feature(let value: QName) {}
 
-    public func toString(): String { value.toString() }
+    public func toString(): String {
+        value.toString()
+    }
 
     private static func builtin(value: String): Feature {
         let result = Feature(QName.fromString(value).getOrThrow())
@@ -332,7 +338,9 @@ public struct Feature <: ToString {
         let result = Feature(value)
         if (!result.isBuiltin && !result.isUserDefined) {
             Err(FeatureParseError(loc, value))
-        } else { Ok(result) }
+        } else {
+            Ok(result)
+        }
     }
 
     public static func fromString(value: String): Result<Feature, CJMPError> {
@@ -656,8 +664,12 @@ sealed interface ConfigObject<T> where T <: ConfigObject<T> {
 }
 
 sealed interface ConfigString<T> <: ConfigObject<T> where T <: ConfigString<T> {
-    static func isOptional(): Bool { false }
-    static func typename(): String { "string" }
+    static func isOptional(): Bool {
+        false
+    }
+    static func typename(): String {
+        "string"
+    }
     static func parse(ctx: ParseContext<T>, tv: ?TomlValue): Result<T, Array<CJMPError>> {
         if (let Some(v) <- tv && let Some(tstr) <- (v as TomlString)) {
             parse(ctx, tstr.value)
@@ -669,8 +681,12 @@ sealed interface ConfigString<T> <: ConfigObject<T> where T <: ConfigString<T> {
 }
 
 sealed interface ConfigTable<T> <: ConfigObject<T> where T <: ConfigTable<T> {
-    static func isOptional(): Bool { false }
-    static func typename(): String { "table" }
+    static func isOptional(): Bool {
+        false
+    }
+    static func typename(): String {
+        "table"
+    }
     static func parse(ctx: ParseContext<T>, tv: ?TomlValue): Result<T, Array<CJMPError>> {
         if (let Some(v) <- tv && let Some(tobj) <- (v as TomlObject)) {
             parse(ctx, tobj)
@@ -682,8 +698,12 @@ sealed interface ConfigTable<T> <: ConfigObject<T> where T <: ConfigTable<T> {
 }
 
 extend Int64 <: ConfigObject<Int64> {
-    public static func isOptional(): Bool { false }
-    public static func typename(): String { "number" }
+    public static func isOptional(): Bool {
+        false
+    }
+    public static func typename(): String {
+        "number"
+    }
     public static func parse(ctx: ParseContext<Int64>, tv: ?TomlValue): Result<Int64, Array<CJMPError>> {
         if (let Some(v) <- tv && let Some(tint) <- (v as TomlInteger)) {
             Ok(tint.value)
@@ -694,8 +714,12 @@ extend Int64 <: ConfigObject<Int64> {
 }
 
 extend Bool <: ConfigObject<Bool> {
-    public static func isOptional(): Bool { false }
-    public static func typename(): String { "boolean" }
+    public static func isOptional(): Bool {
+        false
+    }
+    public static func typename(): String {
+        "boolean"
+    }
     public static func parse(ctx: ParseContext<Bool>, tv: ?TomlValue): Result<Bool, Array<CJMPError>> {
         if (let Some(v) <- tv && let Some(tbool) <- (v as TomlBoolean)) {
             Ok(tbool.value)
@@ -706,15 +730,21 @@ extend Bool <: ConfigObject<Bool> {
 }
 
 extend String <: ConfigString<String> {
-    public static func isOptional(): Bool { false }
+    public static func isOptional(): Bool {
+        false
+    }
     public static func parse(_: ParseContext<String>, value: String): Result<String, Array<CJMPError>> {
         Ok(value)
     }
 }
 
 extend Path <: ConfigString<Path> {
-    public static func isOptional(): Bool { false }
-    public static func typename(): String { "path" }
+    public static func isOptional(): Bool {
+        false
+    }
+    public static func typename(): String {
+        "path"
+    }
     public static func parse(_: ParseContext<Path>, value: String): Result<Path, Array<CJMPError>> {
         Ok(Path(value))
     }
@@ -769,32 +799,44 @@ public struct QName <: ToString {
 }
 
 extend QName <: ConfigString<QName> {
-    public static func isOptional(): Bool { false }
-    public static func typename(): String { "qname" }
+    public static func isOptional(): Bool {
+        false
+    }
+    public static func typename(): String {
+        "qname"
+    }
     public static func parse(ctx: ParseContext<QName>, value: String): Result<QName, Array<CJMPError>> {
-        QName.fromString(value).mapErr { err => [ErrorWrapper(ctx.location, err)] }
+        QName.fromString(value).mapErr {err => [ErrorWrapper(ctx.location, err)]}
     }
 }
 
-extend <T> ?T <: ConfigObject<?T> where T <: ConfigObject<T> {
-    public static func isOptional(): Bool { true }
-    public static func typename(): String { "${T.typename()} | nothing" }
+extend<T> ?T <: ConfigObject<?T> where T <: ConfigObject<T> {
+    public static func isOptional(): Bool {
+        true
+    }
+    public static func typename(): String {
+        "${T.typename()} | nothing"
+    }
     public static func parse(ctx: ParseContext<?T>, tv: ?TomlValue): Result<?T, Array<CJMPError>> {
         match (tv) {
             case None => Ok(None)
-            case _ => T.parse(ctx.underlying(), tv).map { it => Some(it) }
+            case _ => T.parse(ctx.underlying(), tv).map {it => Some(it)}
         }
     }
 }
 
 public class Sequence<T> <: ConfigObject<Sequence<T>> & Iterable<Node<T>> where T <: ConfigObject<T> {
-    private Sequence(
-        private let value: Array<Node<T>>
-    ) { }
+    private Sequence(private let value: Array<Node<T>>) {}
 
-    static func empty(): Sequence<T> { Sequence([]) }
-    public static func isOptional() { false }
-    public static func typename(): String { "array[${T.typename()}]" }
+    static func empty(): Sequence<T> {
+        Sequence([])
+    }
+    public static func isOptional() {
+        false
+    }
+    public static func typename(): String {
+        "array[${T.typename()}]"
+    }
     public static func parse(ctx: ParseContext<Sequence<T>>, tv: ?TomlValue): Result<Sequence<T>, Array<CJMPError>> {
         let tarray = if (let Some(v) <- tv && let Some(tarray) <- (v as TomlArray)) {
             tarray
@@ -828,10 +870,9 @@ public struct SourceSetSchema <: ConfigTable<SourceSetSchema> {
         let features = ctx.parseField<Sequence<QName>>(tobj, "features")
         let product = ctx.parseField<?Bool>(tobj, "product")
 
-        [name.unit(), srcDir.unit(), features.unit(), product.unit()]
-            .join().map { _ =>
-                SourceSetSchema(name.getOrThrow(), srcDir.getOrThrow(), features.getOrThrow(), product.getOrThrow())
-            }
+        [name.unit(), srcDir.unit(), features.unit(), product.unit()].join().map {
+            _ => SourceSetSchema(name.getOrThrow(), srcDir.getOrThrow(), features.getOrThrow(), product.getOrThrow())
+        }
     }
 }
 
@@ -957,15 +998,23 @@ private func verifyFeatureDeclarationsPre(packageName: String, features: Sequenc
                 it.apply { it => Feature.create(it, loc: location).arrErr() }
             }
 
-            let featureName = Feature.create(qname, loc: location)
-                .assert({ it => !declared.contains(it)} ) { decl => FeatureDeclDuplicate(location, decl, declared[decl]) }
-                .assert({ it => !it.isBuiltin || !(mappings.ok?.isEmpty() ?? false) }) { decl => FeatureDeclWithBuiltinName(location, decl) }
-                .assert({ it => it.isBuiltin  || (it.isUserDefined && it.value.get(1) == packageName) }) { decl => FeatureDeclNameNotMatchPkgName(location, decl, packageName) }
-                .inspect { d => declared[d] = location }
+
+            let featureName = Feature
+                .create(qname, loc: location)
+                .assert({it => !declared.contains(it)}) {
+                    decl => FeatureDeclDuplicate(location, decl, declared[decl])
+                }
+                .assert({it => !it.isBuiltin || !(mappings.ok?.isEmpty() ?? false)}) {
+                    decl => FeatureDeclWithBuiltinName(location, decl)
+                }
+                .assert({it => it.isBuiltin || (it.isUserDefined && it.value.get(1) == packageName)}) {
+                    decl => FeatureDeclNameNotMatchPkgName(location, decl, packageName)
+                }
+                .inspect {d => declared[d] = location}
                 .arrErr()
 
-            [featureName.unit(), mappings.unit()].join().map { _ => 
-                FeatureDecl(featureName.getOrThrow(), mappings.getOrThrow())
+            [featureName.unit(), mappings.unit()].join().map {
+                _ => FeatureDecl(featureName.getOrThrow(), mappings.getOrThrow())
             }
         }
     }
@@ -1048,6 +1097,7 @@ public class VerifiedModuleInfo {
         public let sourceSets: SourceLocations
     ) { }
 }
+
 public type VerifiedMap = HashMap<String, VerifiedModuleInfo>
 
 public struct FeatureMapping {
@@ -1055,7 +1105,9 @@ public struct FeatureMapping {
         private let graph: HashMap<Feature, Array<Feature>>
     ) { }
 
-    static func builder(): FeatureMappingBuilder { FeatureMappingBuilder() }
+    static func builder(): FeatureMappingBuilder {
+        FeatureMappingBuilder()
+    }
 
     // Looks for features that might be enable from already enabled feature set
     // Updates the same ArrayList

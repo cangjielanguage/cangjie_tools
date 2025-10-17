@@ -11,7 +11,7 @@ import std.collection.ArrayList
 public enum Result<T, E> {
     | Ok(T)
     | Err(E)
- 
+
     public prop isOk: Bool {
         get() {
             match (this) {
@@ -20,13 +20,13 @@ public enum Result<T, E> {
             }
         }
     }
- 
+
     public prop isErr: Bool {
         get() {
             !isOk
         }
     }
- 
+
     public prop ok: Option<T> {
         get() {
             match (this) {
@@ -35,7 +35,7 @@ public enum Result<T, E> {
             }
         }
     }
- 
+
     public prop err: Option<E> {
         get() {
             match (this) {
@@ -44,14 +44,14 @@ public enum Result<T, E> {
             }
         }
     }
- 
+
     public func map<U>(transform: (T) -> U): Result<U, E> {
         match (this) {
             case Ok(t) => Ok(transform(t))
             case Err(e) => Err(e)
         }
     }
- 
+
     public func mapErr<F>(transform: (E) -> F): Result<T, F> {
         match (this) {
             case Ok(t) => Ok(t)
@@ -75,20 +75,24 @@ public enum Result<T, E> {
 
     public func inspect(action: (T) -> Unit): Result<T, E> {
         match (this) {
-            case Ok(t) => action(t); Ok(t)
-            case Err(_) => this 
+            case Ok(t) =>
+                action(t);
+                Ok(t)
+            case Err(_) => this
         }
     }
- 
+
     public func inspectErr(action: (E) -> Unit): Result<T, E> {
         match (this) {
             case Ok(_) => this
-            case Err(e) => action(e); Err(e)
+            case Err(e) =>
+                action(e);
+                Err(e)
         }
     }
 
     public func unit(): Result<Unit, E> {
-        this.map { _ => () }
+        this.map {_ => ()}
     }
 
     public func finish(action: (T) -> Unit): Unit {
@@ -97,14 +101,14 @@ public enum Result<T, E> {
             case Err(_) => ()
         }
     }
- 
+
     public func finishErr(action: (E) -> Unit): Unit {
         match (this) {
             case Ok(_) => ()
             case Err(e) => action(e)
         }
     }
- 
+
     public func getOrDefault(default: () -> T): T {
         this.ok ?? default()
     }
@@ -115,10 +119,9 @@ public enum Result<T, E> {
             case Err(e) => throw err(e)
         }
     }
-
 }
 
-extend <T, E> Result<T, E> where E <: ToString {
+extend<T, E> Result<T, E> where E <: ToString {
     public func getOrThrow(): T {
         match (this) {
             case Ok(t) => t
@@ -128,7 +131,7 @@ extend <T, E> Result<T, E> where E <: ToString {
 }
 
 private class GetResultException <: Exception {
-    public GetResultException(message: String) { 
+    public GetResultException(message: String) {
         super(message)
     }
 }
