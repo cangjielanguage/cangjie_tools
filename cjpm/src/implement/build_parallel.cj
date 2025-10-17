@@ -207,7 +207,7 @@ class ParallelBuilder {
         if (resolveConfig.isMultiplatform) {
             cjcCalls.add(all: getMultiplatformPipeline(resolveConfig, this.buildConfig, isNativeForCross))
         } else {
-            let args = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross, Default)
+            let args = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross, Default, resolveConfig.features)
             args.add(all: getTypeCommand(resolveConfig, this.buildConfig, isNativeForCross))
             cjcCalls.add(args)
         }
@@ -372,12 +372,11 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
             resolveConfig.nativePlatform = resolve.nativePlatform
             resolveConfig.superPkgCfg = resolve.superPkgCfg
             resolveConfig.hasTestFiles = resolve.hasTestFiles
-            resolveConfig.features = if (let Some(deducer) <- resolve.featureDeducer) {
-                deducer.addFeature(resolve.features)
-                    .collect()
-            } else {
-                resolve.features
-            }
+            resolveConfig.features = resolve.featureDeducer
+                .addFeature(resolve.features)
+                .collect()
+
+            resolveConfig.featureDeducer = resolve.featureDeducer.cleanFeatures() // leaving only mapping to apply them to source set features
 
             if (buildConfig.isIncremental && resolveConfig.outputType == Static &&
                 buildConfig.indirectRebuilds.contains(resolve.fullName)) {

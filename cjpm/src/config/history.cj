@@ -191,7 +191,7 @@ public class ResolveItem <: Serializable<ResolveItem> {
     public var hasTestsInProdFiles: Bool = false // It's detected by cjc --scan-dependency mode
     public var superPkgCfg: ?SuperPackageConfig = None
     public var features: HashSet<Feature> = HashSet() // The set of features, which was specified when resolving dependencies
-    public var featureDeducer: ?FeatureDeducer = None
+    public var featureDeducer: FeatureDeducer = FeatureDeducer.empty
 
     public init() {}
 
@@ -258,7 +258,8 @@ func serializeResolve(r: ResolveItem): DataModel {
         .add(field<Bool>("hasProdFiles", r.hasProdFiles))
         .add(field<Bool>("hasTestsInProdFiles", r.hasTestsInProdFiles))
         .add(field<String>("accessLevel", r.accessLevel))
-        .add(field<Array<String>>("features", r.features |> map { it => it.toString() } |> collectArray))
+        .add(field<HashSet<Feature>>("features", r.features))
+        .add(field<FeatureDeducer>("deducer", r.featureDeducer))
     return result
 }
 
@@ -293,6 +294,7 @@ func deserializeResolve(dm: DataModel): ResolveItem {
     result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public"))
     result.features = Array<String>.deserialize((dms.get("features") as DataModelSeq) ?? DataModelSeq())
         .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
+    result.featureDeducer = FeatureDeducer.deserialize((dms.get("deducer") as DataModelStruct) ?? DataModelStruct())
     return result
 }
 

@@ -513,9 +513,7 @@ public struct PackageList {
                 let reversed = it.packagePath._sources.clone()
                 reversed.reverse()
                 for (source in reversed) {
-                    let finalFeatures = if (let Some(deducer) <- it.featureDeducer) {
-                        deducer.addFeature(features).collect()
-                    } else { features }
+                    let finalFeatures = it.featureDeducer.addFeature(features).collect()
                     if (finalFeatures.contains(all: source.features)) {
                         return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
                     }
@@ -927,6 +925,7 @@ public struct ResolveConfig {
     public var superPkgCfg: ?SuperPackageConfig = None
     public var hasTestFiles: Bool = false
     public var features: HashSet<Feature> = HashSet()
+    public var featureDeducer: FeatureDeducer = FeatureDeducer.empty
 
     public prop isMultiplatform: Bool {
         get() {
