@@ -104,9 +104,9 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public"))
         result.timeStamp = Int64.deserialize((dms.get("timeStamp") as DataModelInt) ?? DataModelInt(0))
         result.testUsed = Bool.deserialize((dms.get("testUsed") as DataModelBool) ?? DataModelBool(false))
-        result.features = Array<String>.deserialize(
-            (dms.get("features") as DataModelSeq) ?? DataModelSeq()
-        ).map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
+        result.features = Array<String>
+            .deserialize((dms.get("features") as DataModelSeq) ?? DataModelSeq())
+            .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
         result.mockUsed = Bool.deserialize((dms.get("mockUsed") as DataModelBool) ?? DataModelBool(false))
         let allDependencies = ArrayList<FullName>.deserialize(dms.get(DEPENDENCIES))
         for (dependency in allDependencies) {
@@ -192,7 +192,7 @@ public enum MockSupport <: Equatable<MockSupport> & ToString {
         }
     }
 
-    public operator override func ==(other: MockSupport): Bool {
+    public override operator func ==(other: MockSupport): Bool {
         match ((this, other)) {
             case (On, On) => true
             case (Off, Off) => true
@@ -201,7 +201,7 @@ public enum MockSupport <: Equatable<MockSupport> & ToString {
         }
     }
 
-    public operator override func !=(other: MockSupport): Bool {
+    public override operator func !=(other: MockSupport): Bool {
         !(this == other)
     }
 
