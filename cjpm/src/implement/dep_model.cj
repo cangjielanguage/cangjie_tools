@@ -1416,6 +1416,12 @@ func scanDependency(packagePath: Path, isTest!: Bool = false, compileOptions!: S
 
     try {
         Ok(RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(out))))
+    } catch (e: GetResultException) { // The features, specified in package are incorrect
+        let sb = StringBuilder()
+        sb.append(e.message.trimAscii())
+        sb.append("\n\n")
+        sb.append(out)
+        Err(FailedToParse(cmd, sb.toString()))
     } catch (_: Exception) {
         Err(FailedToParse(cmd, out))
     }

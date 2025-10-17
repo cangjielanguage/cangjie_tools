@@ -130,7 +130,7 @@ extend<T, E> Result<T, E> where E <: ToString {
     }
 }
 
-private class GetResultException <: Exception {
+public class GetResultException <: Exception {
     public GetResultException(message: String) {
         super(message)
     }
