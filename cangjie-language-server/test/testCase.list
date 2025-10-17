@@ -1027,9 +1027,6 @@
 {"breakpoints":{"testFile":"LSP_Breakpoints_SynchronizedExpr.test","id":"9"}}
 {"breakpoints":{"testFile":"LSP_Breakpoints_Init.test","id":"9"}}
 
-{"callHierarchy":{"testFile":"LSP_callHierarchy_crossModule.test","preId":"5","id":"6"}}
-{"callHierarchy":{"testFile":"LSP_callHierarchy_currentPackage.test","preId":"5","id":"6"}}
-{"callHierarchy":{"testFile":"LSP_callHierarchy_crossPackage.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_incomingCall_constructor.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_incomingCall_constructor_01.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_incomingCall_constructor_02.test","preId":"5","id":"6"}}
@@ -1042,7 +1039,6 @@
 {"callHierarchy":{"testFile":"LSP_callHierarchy_2023091903449_01.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_2023091807569_01.test","preId":"5","id":"6","useDB":true}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_invalidUri.test","preId":"5","id":"6"}}
-{"callHierarchy":{"testFile":"LSP_callHierarchy_lambda.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_localFuncDecl.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_suoper.test","preId":"5","id":"6","useDB":true}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_global_lambda.test","preId":"5","id":"6"}}
