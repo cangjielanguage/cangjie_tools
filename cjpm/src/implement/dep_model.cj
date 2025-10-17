@@ -701,8 +701,13 @@ class DepModel {
                     let specifiedFeatures = scans[i].features
                     if (!(specifiedFeatures.contains(all: expectedFeatures)) ||
                         !(expectedFeatures.contains(all: specifiedFeatures))) {
+                            let stringify = { it: Iterable<Feature> => 
+                                if (let str <- (it |> collectString(delimiter: ", ")) && !str.isEmpty()) {
+                                    str
+                                } else { "<none>" }
+                            }
                             errors.add(
-                                "Feature header `${specifiedFeatures |> collectString(delimiter: ", ")}` is different from expected `${expectedFeatures |> collectString(delimiter: ", ")}`"
+                                "Feature header `${stringify(specifiedFeatures)}` of package `${name}` is different from expected `${stringify(expectedFeatures)}`"
                             )
                     }
                 }
