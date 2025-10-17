@@ -164,7 +164,7 @@ public class BinDeps <: Serializable<BinDeps> {
 // generate '.cjpm-history' data item
 public class ResolveItem <: Serializable<ResolveItem> {
     public var rootPkgName: String = ""
-    public var packagePath: CMPSource = CMPSource.empty
+    public var packagePath: CJMPSource = CJMPSource.empty
     public var modulePath: String = ""
     public var fullName: String = ""
     public var outputType: OutputType = Unknown("")
@@ -190,6 +190,7 @@ public class ResolveItem <: Serializable<ResolveItem> {
     public var hasProdFiles: Bool = false
     public var hasTestsInProdFiles: Bool = false // It's detected by cjc --scan-dependency mode
     public var superPkgCfg: ?SuperPackageConfig = None
+    public var features: HashSet<Feature> = HashSet() // The set of features, which was specified when resolving dependencies
 
     public init() {}
 
@@ -239,7 +240,7 @@ func serializeResolve(r: ResolveItem): DataModel {
     result
         .add(field<String>("rootPackageName", r.rootPkgName))
         .add(field<String>("modulePath", r.modulePath))
-        .add(field<CMPSource>("packagePath", r.packagePath))
+        .add(field<CJMPSource>("packagePath", r.packagePath))
         .add(field<String>("fullName", r.fullName))
         .add(field<Bool>("isMacroPackage", r.isMacroPackage))
         .add(field<OutputType>(OUTPUT_TYPE, r.outputType))
@@ -256,6 +257,7 @@ func serializeResolve(r: ResolveItem): DataModel {
         .add(field<Bool>("hasProdFiles", r.hasProdFiles))
         .add(field<Bool>("hasTestsInProdFiles", r.hasTestsInProdFiles))
         .add(field<String>("accessLevel", r.accessLevel))
+        .add(field<Array<String>>("features", r.features |> map { it => it.toString() } |> collectArray))
     return result
 }
 
@@ -265,7 +267,7 @@ func deserializeResolve(dm: DataModel): ResolveItem {
         case _ => throw Exception("this data is not DataModelStruct")
     }
     var result = ResolveItem()
-    result.packagePath = CMPSource.deserialize(dms.get("packagePath"))
+    result.packagePath = CJMPSource.deserialize(dms.get("packagePath"))
     result.modulePath = String.deserialize(dms.get("modulePath"))
     result.fullName = String.deserialize(dms.get("fullName"))
     result.rootPkgName = String.deserialize(dms.get("rootPackageName"))
@@ -288,6 +290,8 @@ func deserializeResolve(dm: DataModel): ResolveItem {
     result.hasTestsInProdFiles = Bool.deserialize(
         (dms.get("hasTestsInProdFiles") as DataModelBool) ?? DataModelBool(false))
     result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public"))
+    result.features = Array<String>.deserialize((dms.get("features") as DataModelSeq) ?? DataModelSeq())
+        .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
     return result
 }
 
@@ -353,7 +357,13 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
     for (v in resolve.resolves) {
         // Set LD_LIBRARY_PATH for each dynamiclib
         if (v.outputType == Dynamic) {
-            ldPath.add(Path(targetDir).join(v.rootPkgName).toString())
+            var pathToAdd = getPath(targetDir, v.rootPkgName)
+            if (v.isMultiplatform) {
+                let source = v.packagePath.product
+                ldPath.add(Path(pathToAdd).join(source.outputSuffix).join(v.rootPkgName).toString())
+            } else {
+                ldPath.add(pathToAdd)
+            }
         }
         for ((_, path) in v.cLibs) {
             ldPath.add(path)

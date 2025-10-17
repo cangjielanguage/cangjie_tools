@@ -38,7 +38,7 @@ public func doTree(treeConfig: TreeConfig): Bool {
     return startTree(treeConfig)
 }
 
-private func printMultiplatformSourceLocations(packageDepMap: HashMap<String, ResolveItem>, features: Iterable<Feature>): Unit {
+private func printMultiplatformSourceLocations(packageDepMap: HashMap<String, ResolveItem>): Unit {
     var first = true
     for ((name, v) in packageDepMap) {
         if (v.isMultiplatform) {
@@ -46,7 +46,7 @@ private func printMultiplatformSourceLocations(packageDepMap: HashMap<String, Re
                 print('\n');
                 first = false
             }
-            println(SourceLocationsPrinter(v.packagePath, features, project: name))
+            println(SourceLocationsPrinter(v.packagePath, project: name))
         }
     }
 }
@@ -70,7 +70,7 @@ func startTree(treeConfig: TreeConfig): Bool {
             return false
         }
         printDependencyTree(treeConfig, treeConfig.defaultPkg, 0)
-        printMultiplatformSourceLocations(dataModel.packageDepMap, treeConfig.globalConfig.features)
+        printMultiplatformSourceLocations(dataModel.packageDepMap)
         return true
     }
 
@@ -80,7 +80,7 @@ func startTree(treeConfig: TreeConfig): Bool {
             return false
         }
         printInvertTree(treeConfig, treeConfig.invertPkg, 0)
-        printMultiplatformSourceLocations(dataModel.packageDepMap, treeConfig.globalConfig.features)
+        printMultiplatformSourceLocations(dataModel.packageDepMap)
         return true
     }
 
@@ -91,7 +91,7 @@ func startTree(treeConfig: TreeConfig): Bool {
         printDependencyTree(treeConfig, name, 0)
     }
 
-    printMultiplatformSourceLocations(dataModel.packageDepMap, treeConfig.globalConfig.features)
+    printMultiplatformSourceLocations(dataModel.packageDepMap)
     return true
 }
 

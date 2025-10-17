@@ -122,11 +122,6 @@ class BuildCommand <: Handle {
         if (this.arguments.size == 0) {
             let buildConfig = BuildConfig()
             buildConfig.globalConfig.resolveType = RESOLVE_BUILD
-            buildConfig.globalConfig.features = FeatureDeducer(buildConfig.globalConfig.features,
-                enabled: !buildConfig.globalConfig.noFeatureDeduce)
-                .deduceTargetFeatures(state.cjcInfo.target)
-                .deduceDependantFeatures()
-                .collect()
             return doBuild(buildConfig)
         }
 
@@ -139,11 +134,10 @@ class BuildCommand <: Handle {
         buildConfig.isLint = getBoolOption(argMap, "-l", "--lint")
         buildConfig.mockSupported = getBoolOption(argMap, "--mock")
         buildConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")
+        buildConfig.globalConfig.enabledFeatures = handleEnableFeaturesOption(argMap)
+            .inspectErr { errs => for (err in errs) { eprintln("Error: ${err}") } }
+            .ok ?? return false
         buildConfig.globalConfig.noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
-
-        var featureDeducer = FeatureDeducer(buildConfig.globalConfig.features,
-            enabled: !buildConfig.globalConfig.noFeatureDeduce)
-
         if (!handleOutputName(argMap, buildConfig)) {
             return false
         }
@@ -154,27 +148,7 @@ class BuildCommand <: Handle {
             return false
         }
 
-        if (let Some(features) <- handleEnableFeaturesOption(argMap)) {
-            featureDeducer = featureDeducer.addFeature(features)
-        }
-
-        if (let Some(val) <- handleCrossTarget(argMap)) {
-            buildConfig.isCrossCompile = val
-            if (buildConfig.isCrossCompile) {
-                match (Triple.fromString(crossCompileTarget)) {
-                    case Ok(triple) => featureDeducer = featureDeducer.deduceTargetFeatures(triple)
-                    case Err(errmsg) => 
-                        eprintln(errmsg)
-                        return false
-                }
-                
-            } else {
-                featureDeducer = featureDeducer
-                    .deduceTargetFeatures(state.cjcInfo.target)
-            }
-        } else {
-            return false
-        }
+        buildConfig.isCrossCompile = handleCrossTarget(argMap) ?? return false
 
         if (!handleParallelSize(argMap)) {
             return false
@@ -195,8 +169,6 @@ class BuildCommand <: Handle {
         buildConfig.globalConfig.isCross = buildConfig.isCrossCompile
         buildConfig.globalConfig.isIncremental = buildConfig.isIncremental
         buildConfig.globalConfig.resolveType = RESOLVE_BUILD
-
-        buildConfig.globalConfig.features = featureDeducer.deduceDependantFeatures().collect()
 
         return doBuild(buildConfig)
     }

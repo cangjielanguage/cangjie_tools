@@ -7,6 +7,8 @@
 package cjpm.config
 
 import std.collection.*
+import std.deriving.*
+
 import stdx.serialization.serialization.*
 
 public class ImportInfo <: Serializable<ImportInfo> {
@@ -29,13 +31,14 @@ public class ImportInfo <: Serializable<ImportInfo> {
     }
 }
 
+@Derive[Hashable, Equatable]
 public struct FullName <: Serializable<FullName> {
     private FullName(
         public let packageName: String,
-        public let isStdlibPackage: Bool,
-        public let orPkgName: String,
-        public let importsList: Array<ImportInfo>
-    ) {}
+        @DeriveExclude public let isStdlibPackage: Bool,
+        @DeriveExclude public let orPkgName: String,
+        @DeriveExclude public let importsList: Array<ImportInfo>
+    ) { }
 
     public func serialize(): DataModel {
         let result = DataModelStruct()
@@ -73,6 +76,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
     public var testUsed: Bool = false
     public var dependencies: ArrayList<FullName> = ArrayList<FullName>()
     public var stdDependencies: ArrayList<FullName> = ArrayList<FullName>()
+    public var features: HashSet<Feature> = HashSet()
     public var timeStamp: Int64 = 0
 
     public func serialize(): DataModel {
@@ -83,6 +87,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.add(field<Int64>("timeStamp", this.timeStamp))
         result.add(field<ArrayList<FullName>>(DEPENDENCIES, this.dependencies))
         result.add(field<ArrayList<FullName>>("std-dependencies", this.stdDependencies))
+        result.add(field("features", features |> map { it => it.toString() } |> collectArray))
         result.add(field<Bool>("testUsed", this.testUsed))
         result.add(field<Bool>("mockUsed", this.mockUsed))
         return result
@@ -99,6 +104,9 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.accessLevel = String.deserialize((dms.get("accessLevel") as DataModelString) ?? DataModelString("public"))
         result.timeStamp = Int64.deserialize((dms.get("timeStamp") as DataModelInt) ?? DataModelInt(0))
         result.testUsed = Bool.deserialize((dms.get("testUsed") as DataModelBool) ?? DataModelBool(false))
+        result.features = Array<String>.deserialize(
+            (dms.get("features") as DataModelSeq) ?? DataModelSeq()
+        ).map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
         result.mockUsed = Bool.deserialize((dms.get("mockUsed") as DataModelBool) ?? DataModelBool(false))
         let allDependencies = ArrayList<FullName>.deserialize(dms.get(DEPENDENCIES))
         for (dependency in allDependencies) {

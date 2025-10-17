@@ -30,6 +30,9 @@ class DepModel {
     public var depRootMap: HashMap<String, String> = HashMap<String, String>()
     public var depPathMap: HashMap<String, String> = HashMap<String, String>()
     public var depTomlMap: HashMap<String, TomlInfo> = HashMap<String, TomlInfo>()
+    public let resolvedModuleMap: ResolveMap = ResolveMap()
+    public let verifiedModuleMap: VerifiedMap = VerifiedMap()
+    public let propagatedFeatures: HashMap<String, HashSet<Feature>> = HashMap<String, HashSet<Feature>>()
     // Replace map
     public var replaceMap: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
     // Locked dep map
@@ -135,7 +138,21 @@ class DepModel {
             return (checkFlag, mockUsed)
         }
 
+        this.globalConfig.verifiedEnabledFeatures = verifyCliEnabledFeatures(this.globalConfig.enabledFeatures, this.resolvedModuleMap)
+            .inspectErr { errs => for (err in errs) { eprintln("Error: ${err}") } }
+            .ok ?? return FAILED_BUILD_CHECK_RESULT
+
         loadDepIncrementalCache()
+
+        for (name in this.depMap.keys()) {
+            verifyMultiplatformPost(this.depPathMap[name], name, resolvedModuleMap)
+                .inspect { v => verifiedModuleMap[name] = v }
+                .inspectErr { errs => 
+                    for (err in errs) { eprintln(err) } 
+                }.ok ?? return FAILED_BUILD_CHECK_RESULT
+        }
+
+        propagateFeatures()
 
         for (name in this.depMap.keys()) {
             this.globalConfig.modulePath = this.depRootMap[name]
@@ -195,7 +212,7 @@ class DepModel {
         }
 
         if (!verifyModuleConfigPre(tomlInfo, curModulePath, this.globalConfig.rootPath,
-            isTest: this.globalConfig.isTest)) {
+            isTest: this.globalConfig.isTest, resolveMap: resolvedModuleMap)) {
             return FAILED_BUILD_CHECK_RESULT
         }
 
@@ -258,8 +275,6 @@ class DepModel {
                 }
             }
         }
-
-        tomlInfo.pkg.actualSources = tomlInfo.pkg.sourceSetTree.selectSourceSets(tomlInfo.pkg.path, this.globalConfig.features)
 
         if (let Some(depInfo) <- requires) {
             if (let Some(outputType) <- depInfo.outputType) {
@@ -361,9 +376,14 @@ class DepModel {
             return FAILED_BUILD_CHECK_RESULT
         }
 
-        tomlInfo.pkg.validPkgMap = getAllPkgs(tomlInfo.pkg.actualSources, tomlInfo.pkg.name)
+        let (actualSource, features) = constructSource(path, tomlInfo.pkg.srcDir.value, verifiedModuleMap[tomlInfo.pkg.name], this.globalConfig.verifiedEnabledFeatures, this.propagatedFeatures[tomlInfo.pkg.name], !this.globalConfig.noFeatureDeduce)
+            .inspectErr { err => eprintln("Error: ${err}") }
+            .ok ?? return FAILED_BUILD_CHECK_RESULT
 
-        let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo)
+        tomlInfo.pkg.actualSources = actualSource
+        tomlInfo.pkg.validPkgMap = getAllPkgs(actualSource, tomlInfo.pkg.name)
+
+        let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo, features)
         if (!processSuccess) {
             return (false, mockUsedInDependentPackages)
         }
@@ -609,6 +629,7 @@ class DepModel {
         }
 
         let arguments = ArrayList<String>(["--scan-dependency", cjoPath])
+
         if (isTest) {
             arguments.add("--test")
         }
@@ -646,11 +667,52 @@ class DepModel {
         return p
     }
 
-    func scanPkgInfo(packagePaths: Array<Path>, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, ScanDependencyError> {
-        if (packagePaths.size != 1) {
-            return scanDependency(packagePaths, isTest: isTest, compileOptions: compileOptions)
+    func scanPkgInfo(pkgSource: CJMPSource, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, Array<ScanDependencyError>> {
+        if (pkgSource.allPaths.size > 1) {
+            let paths = pkgSource.allPaths
+            return paths.iterator().allResult { it => 
+                scanDependency(it, isTest: isTest, compileOptions: compileOptions).mapErr { e => [ e ] }
+            }.flatMap { scans: Array<RequiresPackages> => 
+                let name = scans[0].packageName
+                let isMacro = scans[0].isMacroPackage
+                let errors = ArrayList<String>()
+                let anyDifferent = scans |> any { it => it.packageName != name || it.isMacroPackage != isMacro  }
+                if (anyDifferent) {
+                    errors.add("Multiplatform package contains different package headers.")
+                    for ((i, scan) in scans.iterator().enumerate()) {
+                        errors.add("  `${scan.packageName}` at `${paths[i]}`")
+                    }
+                }
+
+                for ((i, source) in pkgSource._sources.iterator().enumerate()) {
+                    let expectedFeatures = source.features
+                    let specifiedFeatures = scans[i].features
+                    if (!(specifiedFeatures.contains(all: expectedFeatures)) ||
+                        !(expectedFeatures.contains(all: specifiedFeatures))) {
+                            errors.add(
+                                "Feature header `${specifiedFeatures |> collectString(delimiter: ", ")}` is different from expected `${expectedFeatures |> collectString(delimiter: ", ")}`"
+                            )
+                    }
+                }
+
+                if (errors.size != 0) {
+                    return Err<RequiresPackages, Array<ScanDependencyError>>([MultiplatformMergeError(errors |> collectString(delimiter: '\n'))])
+                } else {
+                    let result = RequiresPackages()
+                    result.packageName = name
+                    result.accessLevel = scans[0].accessLevel
+                    result.isMacroPackage = isMacro
+                    result.mockUsed = scans |> any { it => it.mockUsed }
+                    result.testUsed = scans |> any { it => it.testUsed }
+                    result.dependencies = scans |> flatMap { it => it.dependencies.iterator() } |> collectHashSet |> collectArrayList
+                    result.stdDependencies = scans |> flatMap { it => it.stdDependencies.iterator() } |> collectHashSet |> collectArrayList
+                    result.features = HashSet() // Isn't necessary further
+                    result.timeStamp = (scans.map { it => it.timeStamp } |> max) ?? 0
+                    return Ok<RequiresPackages, Array<ScanDependencyError>>(result)
+                }
+            }
         }
-        let pkgPath = packagePaths[0]
+        let pkgPath = pkgSource.allPaths[0]
         let pkgPathString = pkgPath.toString()
         let timeStamp = FileInfo(pkgPath).lastModificationTime.toUnixTimeStamp().toSeconds()
         if (!isTest && this.pkgBuildDepCacheMap.contains(pkgPathString) && (timeStamp == this.pkgBuildDepCacheMap[pkgPathString].timeStamp)) {
@@ -659,20 +721,43 @@ class DepModel {
             return Ok(this.pkgTestDepCacheMap[pkgPathString])
         }
         // update pkgDepCacheMap
-        let depRes = scanDependency(packagePaths, isTest: isTest, compileOptions: compileOptions)
-        var dep = match (depRes) {
-            case Ok(d) => d
-            case _ => return depRes
+        scanDependency(pkgPath, isTest: isTest, compileOptions: compileOptions).inspect { depRes => 
+            var dep = depRes
+            dep.timeStamp = timeStamp
+            synchronized (this.scanPkgMtx) {
+                if (isTest) {
+                    this.pkgTestDepCacheMap.add(pkgPathString, dep)
+                } else {
+                    this.pkgBuildDepCacheMap.add(pkgPathString, dep)
+                }
+            }
+        }.mapErr { e => [ e ] }
+    }
+
+    private func propagateFeatures(): Unit {
+        for (name in this.depMap.keys()) {
+            propagatedFeatures[name] = HashSet()
         }
-        dep.timeStamp = timeStamp
-        synchronized (this.scanPkgMtx) {
-            if (isTest) {
-                this.pkgTestDepCacheMap.add(pkgPathString, dep)
-            } else {
-                this.pkgBuildDepCacheMap.add(pkgPathString, dep)
+
+        let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+        for (name in this.depMap.keys()) {
+            let alwaysEnabledFeatures = verifiedModuleMap[name].alwaysEnabledFeatures
+            let mapping = verifiedModuleMap[name].mapping
+            let features = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
+                .addFeature(this.globalConfig.verifiedEnabledFeatures)
+                .addFeature(alwaysEnabledFeatures)
+                .deduceTargetFeatures(Triple.fromString(target).getOrThrow())
+                .applyFeatureMapping(mapping)
+                .collect() |> collectHashSet
+            
+            propagatedFeatures[name].add(all: features)
+            for (feature in features) {
+                if (
+                    let Some(fname) <- feature.depName && 
+                    let Some(featureset) <- propagatedFeatures.get(fname)
+                ) { featureset.add(feature) }
             }
         }
-        return depRes
     }
 
     // read incremental cache of bin-dependencies and pkg-dependencies
@@ -855,7 +940,7 @@ class DepModel {
     }
 
     // Get valid package by validPackagePath.
-    func processAllPkgs(tomlInfo: TomlInfo): BuildCheckResult {
+    func processAllPkgs(tomlInfo: TomlInfo, features: HashSet<Feature>): BuildCheckResult {
         var packageTasks = ArrayList<Future<(Bool, Bool)>>()
         let defaultSize = 16 // default parallel value
         let actualSize = min(defaultSize, maxParallelSize)
@@ -891,6 +976,7 @@ class DepModel {
                     pkgInfo.packagePath = pkg.sources
                     pkgInfo.hasProdFiles = pkg.hasProdFiles
                     pkgInfo.hasTestFiles = pkg.hasTestFiles
+                    pkgInfo.features = features
                     let (flag, mockUsed) = runPackageTask(pkgInfo, pkg.hashCode, pkg.timeStamp, directDeps)
                     scanDepSem.release()
                     return (flag, mockUsed)
@@ -915,10 +1001,8 @@ class DepModel {
     func runPackageTask(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64,
         directDeps: HashSet<String>): BuildCheckResult {
 
-        let info = match (getPackageInfo(pkgInfo.packagePath.allPaths, pkgInfo.compileOption, pkgInfo.customizedOption)) {
-            case Some(data) => data
-            case _ => return FAILED_BUILD_CHECK_RESULT
-        }
+        let info = getPackageInfo(pkgInfo.packagePath, pkgInfo.compileOption, pkgInfo.customizedOption) ?? 
+            return FAILED_BUILD_CHECK_RESULT
 
         pkgInfo.fullName = info.packageName
         pkgInfo.isMacroPackage = info.isMacroPackage
@@ -1000,21 +1084,20 @@ class DepModel {
 
     // consistency check between package name and path.
     func packageCheck(pkgInfo: ResolveItem): Bool {
-        if (state.isExperimental) {
-            return true
-        } else {
-            let packagePath = cleanCanonicalize(pkgInfo.packagePath.platformPaths[0]).getOrThrow().toString()
-            let canonicalizedPath = cleanCanonicalize(Path(pkgInfo.srcDir)).getOrThrow().toString()
-            let pkgPath: String = packagePath.removePrefix(canonicalizedPath)
-            let actualName: String = getActualName(pkgPath, pkgInfo.rootPkgName)
+        var isValid = true
+        for (source in pkgInfo.packagePath._sources) {
+            let canonicalizedPath = getPath(pkgInfo.modulePath, source.sourceSetDir.toString())
+            let packagePath = source.srcDir.toString()
+            let pkgPath = packagePath.removePrefix(canonicalizedPath)
+            let actualName = getActualName(pkgPath, pkgInfo.rootPkgName)
             if (pkgInfo.fullName != actualName) {
                 synchronized (this.errPrintMtx) {
                     eprintln("Error: the package name in ${packagePath} is wrong, the right name should be '${actualName}'")
                 }
-                return false
+                isValid = false
             }
-            return true
         }
+        return isValid
     }
 
     func appendPkgInfo(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64): Bool {
@@ -1028,9 +1111,9 @@ class DepModel {
         return true
     }
 
-    func getPackageInfo(pkgPaths: Array<Path>, cmdOption: String, customizedMap: HashMap<String, String>): ?RequiresPackages {
+    func getPackageInfo(pkgSource: CJMPSource, cmdOption: String, customizedMap: HashMap<String, String>): ?RequiresPackages {
         let errors = ArrayList<String>()
-        for (path in pkgPaths) {
+        for (path in pkgSource.allPaths) {
             if (!sourcePathCheck(path)) {
                 errors.add("Error: the '${path}' contains illegal characters")
             }
@@ -1054,16 +1137,11 @@ class DepModel {
                 options += " ${customizedMap[customizedKey]}"
             }
         }
-        let scanDepRes = scanPkgInfo(pkgPaths, isTest: this.globalConfig.isTest, compileOptions: options)
 
-        match (scanDepRes) {
-            case Err(e) =>
-                synchronized (this.errPrintMtx) {
-                    eprintln(e)
-                }
-                None
-            case Ok(t) => t
-        }
+        scanPkgInfo(pkgSource, isTest: this.globalConfig.isTest, compileOptions: options)
+            .inspectErr { errs => synchronized (this.errPrintMtx) { 
+                for (e in errs) { eprintln(e) }
+            } }.ok
     }
 
     func collectJsonInformation(tomlInfo: TomlInfo): ArrayList<String> {
@@ -1205,23 +1283,37 @@ func getActualName(pkgPath: String, rootPkgName: String): String {
     return actualName
 }
 
-func getAllPkgs(srcDir: CMPSource, rootPkgName: String): Array<PackageInfo> {
-    var pkgDirQueue = ArrayList<CMPSource>([srcDir])
+func constructSource(modulePath: String, srcDir: String, moduleInfo: VerifiedModuleInfo, enabledFeatures: Array<Feature>, globalFeatures: HashSet<Feature>, deduceFeatures: Bool): Result<(CJMPSource, HashSet<Feature>), String> {
+    let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+    let localFeatures = FeatureDeducer(enabled: deduceFeatures)
+        .addFeature(enabledFeatures)
+        .addFeature(moduleInfo.alwaysEnabledFeatures)
+        .deduceTargetFeatures(Triple.fromString(target).getOrThrow())
+        .applyFeatureMapping(moduleInfo.mapping)
+        .collect() |> collectHashSet
+    assertion { globalFeatures.contains(all: localFeatures) }
+    if (moduleInfo.sourceSets.isEmpty) {
+        return Ok((CJMPSource(modulePath, srcDir), localFeatures))
+    } else { 
+        return moduleInfo.sourceSets.selectSourceSets(modulePath, localFeatures, globalFeatures).map { it => (it, localFeatures) }
+    }
+}
+
+func getAllPkgs(srcDir: CJMPSource, rootPkgName: String): Array<PackageInfo> {
+    var pkgDirQueue = [srcDir]
     var validPkgs = ArrayList<PackageInfo>()
     var pathDepth = 0
     do {
         pathDepth++
-        var temp = ArrayList<CMPSource>().iterator()
+        var temp = Array<CJMPSource>().iterator()
         for (pkgDir in pkgDirQueue) {
-            match (initPackageInfo(pkgDir)) {
-                case Ok(p) =>
-                    validPkgs.add(p)
-                    temp = temp |> concat(pkgDir.dirs())
-                case Err(e) =>
-                    println(e)
-            }
+            let p = initPackageInfo(pkgDir)
+                .inspectErr { e => println(e) }
+                .ok ?? continue
+            validPkgs.add(p)
+            temp = temp |> concat(pkgDir.dirs())
         }
-        pkgDirQueue = temp |> collectArrayList
+        pkgDirQueue = temp |> collectArray
     } while (pkgDirQueue.size != 0)
 
     if (pathDepth > 20) {
@@ -1230,7 +1322,7 @@ func getAllPkgs(srcDir: CMPSource, rootPkgName: String): Array<PackageInfo> {
     return validPkgs.toArray()
 }
 
-func initPackageInfo(pkgDir: CMPSource): Result<PackageInfo, String> {
+func initPackageInfo(pkgDir: CJMPSource): Result<PackageInfo, String> {
     var hasTestFile = false
     var hasProdFile = false
     var fileList = ArrayList<String>()
@@ -1272,6 +1364,7 @@ public func checkGitLocalDep(name: String, curInfo: DepInfo, newInfo: DepInfo,
 enum ScanDependencyError <: ToString {
     | FailedToExecute(String, String)
     | FailedToParse(String, String)
+    | MultiplatformMergeError(String)
 
     public func toString(): String {
         match (this) {
@@ -1287,12 +1380,16 @@ enum ScanDependencyError <: ToString {
                 sb.append("\n")
                 sb.append(out)
                 sb.toString()
+            case MultiplatformMergeError(str) => str
         }
     }
 }
 
-func scanDependency(packagePaths: Array<Path>, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, ScanDependencyError> {
-    let arguments = packagePaths |> flatMap { it: Path => ["-p", it.toString()] } |> concat(["--scan-dependency"]) |> collectArrayList
+func scanDependency(packagePath: Path, isTest!: Bool = false, compileOptions!: String = ""): Result<RequiresPackages, ScanDependencyError> {
+    let arguments = ArrayList<String>()
+    arguments.add(all: ["-p", "${packagePath}"])
+    arguments.add("--scan-dependency")
+
     if (isTest) {
         arguments.add("--test")
     }
@@ -1302,29 +1399,12 @@ func scanDependency(packagePaths: Array<Path>, isTest!: Bool = false, compileOpt
     let (scanFlag, out, error) = execWithOutput(COMPILE_TOOL, arguments)
 
     if (!scanFlag) {
-        return Err(
-            FailedToExecute(
-                cmd,
-                error
-            ))
+        return Err(FailedToExecute(cmd, error))
     }
 
     try {
         Ok(RequiresPackages.deserialize(DataModel.fromJson(JsonValue.fromStr(out))))
     } catch (_: Exception) {
-        Err(
-            FailedToParse(
-                cmd,
-                out
-            ))
+        Err(FailedToParse(cmd, out))
     }
-}
-
-private func cleanCanonicalize(path: Path): Option<Path> {
-    if (!directoryExists(path.toString()) && !fileExists(path.toString())) {
-        return None
-    }
-    let rawCanonicalized = canonicalize(path).toString().removeSuffix(PATH_SPLIT_CHAR)
-    let splitted = rawCanonicalized.split(PATH_SPLIT_CHAR)
-    Path([splitted[0]] |> concat(splitted[1..] |> filter { it => it != "." }) |> collectString(delimiter: PATH_SPLIT_CHAR)).normalize()
 }
