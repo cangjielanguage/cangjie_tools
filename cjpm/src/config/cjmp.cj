@@ -290,7 +290,7 @@ public struct Triple <: ToString {
 }
 
 @Derive[Hashable, Equatable]
-public struct Feature <: ToString {
+public struct Feature <: ToString & Serializable<Feature> {
     private static let builtins = HashSet<Feature>()
 
     public static let OS_ANDROID  = builtin("os.android")
@@ -348,12 +348,89 @@ public struct Feature <: ToString {
             .mapErr{ e => ErrorWrapper(None, e) }
             .flatMap { value => create(value, loc: None) }
     }
+
+    public func serialize(): DataModel {
+        value.toString().serialize()
+    }
+
+    public static func deserialize(dm: DataModel): Feature {
+        let s = String.deserialize((dm as DataModelString) ?? DataModelString(""))
+        fromString(s).getOrThrow()
+    }
 }
 
-public struct FeatureDeducer {
+class FeatureMappingBuilder {
+    private let graph = HashMap<Feature, ArrayList<Feature>>()
+ 
+    init() { }
+ 
+    public func addFeature(feature: Feature, mappedTo: Array<Feature>): Unit {
+        if (!graph.contains(feature)) {
+            graph.add(feature, ArrayList())
+        }
+        graph[feature].add(all: mappedTo)
+    }
+ 
+    public func finish(): FeatureMapping {
+        let newGraph = graph |> 
+            map { it: (Feature, ArrayList<Feature>) => (it[0], it[1] |> collectHashSet |> collectArray) } |> 
+            collectHashMap
+        FeatureMapping(newGraph)
+    }
+}
+
+public struct FeatureMapping <: Serializable<FeatureMapping> {
+    public static let empty = FeatureMapping(HashMap())
+
+    FeatureMapping(
+        private let graph: HashMap<Feature, Array<Feature>>
+    ) { }
+
+    static func builder(): FeatureMappingBuilder {
+        FeatureMappingBuilder()
+    }
+
+    public func serialize(): DataModel {
+        (graph.iterator().map { it => (it[0].toString(), it[1]) } |> collectHashMap).serialize()
+    }
+
+    public static func deserialize(dm: DataModel): FeatureMapping {
+        let graph = HashMap<String, Array<Feature>>.deserialize(dm)
+            .iterator().map { it => (Feature.fromString(it[0]).getOrThrow(), it[1]) } |> collectHashMap
+        FeatureMapping(graph)
+    }
+
+    // Looks for features that might be enable from already enabled feature set
+    // Updates the same ArrayList
+    public func findDependantFeatures(initFeatures: Array<Feature>): HashSet<Feature> {
+        let visited: HashSet<Feature> = HashSet()
+        let features = ArrayList(initFeatures)
+
+        for (s in features) {
+            visited.add(s)
+        }
+
+        var i = 0
+        while (i < features.size) {
+            let curr = features[i]
+            visited.add(curr)
+            if (let Some(front) <- graph.get(curr)) {
+                for (it in front where !visited.contains(it)) {
+                    features.add(it)
+                }
+            }
+            i++
+        }
+        visited
+    }
+}
+
+public struct FeatureDeducer <: Serializable<FeatureDeducer> {
     private let _features: Array<Feature>
     private let _enabled: Bool
     private let _mapping: FeatureMapping
+
+    public static let empty: FeatureDeducer = FeatureDeducer(enabled: false)
 
     public init(enabled!: Bool = true) { 
         _features = []
@@ -398,28 +475,26 @@ public struct FeatureDeducer {
         return FeatureDeducer(this._features, mapping, enabled: this._enabled)
     }
 
+    public func cleanFeatures(): FeatureDeducer {
+        return FeatureDeducer([], this._mapping, enabled: this._enabled)
+    }
+
     public func collect(): HashSet<Feature> {
         _mapping.findDependantFeatures(_features)
     }
-}
 
-class FeatureMappingBuilder {
-    private let graph = HashMap<Feature, ArrayList<Feature>>()
- 
-    init() { }
- 
-    public func addFeature(feature: Feature, mappedTo: Array<Feature>): Unit {
-        if (!graph.contains(feature)) {
-            graph.add(feature, ArrayList())
-        }
-        graph[feature].add(all: mappedTo)
+
+    public func serialize(): DataModel {
+        DataModelStruct()
+            .add(field("features", _features))
+            .add(field("mapping", _mapping))
     }
- 
-    public func finish(): FeatureMapping {
-        let newGraph = graph |> 
-            map { it: (Feature, ArrayList<Feature>) => (it[0], it[1] |> collectHashSet |> collectArray) } |> 
-            collectHashMap
-        FeatureMapping(newGraph)
+
+    public static func deserialize(dm: DataModel): FeatureDeducer {
+        let dms = (dm as DataModelStruct) ?? DataModelStruct()
+        let features = Array<Feature>.deserialize((dms.get("features") as DataModelSeq) ?? DataModelSeq())
+        let mapping = FeatureMapping.deserialize((dms.get("mapping") as DataModelStruct) ?? DataModelStruct())
+        FeatureDeducer(features, mapping, enabled: false)
     }
 }
 
@@ -435,15 +510,21 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
         public let srcDir: Path,
         public let features: HashSet<Feature>,
         public let product: Bool,
-        // Example. Package is defined only in `common`, but `common` isn't marked as product
-        // For users conveniece it will be better to store `*.cjo` and `*.so` in products source sets down the way
-        public let outputSuffix!: Path = sourceSetDir
+        public let outputSuffix!: Path = makeOutputSuffix(sourceSetDir, product: product)
     ) { }
 
+    static func makeOutputSuffix(sourceSetDir: Path, product!: Bool): Path {
+        assertion { sourceSetDir.isRelative() }
+        if (product) {
+            sourceSetDir.join("product")
+        } else { 
+            sourceSetDir.join("nonproduct")
+        }
+    }
+
     // The suffix should be of a product source set
-    func changeOutputSuffix(newOutputSuffix: Path): CJMPPackageInfo {
-        assertion { outputSuffix.isRelative() }
-        CJMPPackageInfo(sourceSetDir, srcDir, features, true, outputSuffix: newOutputSuffix)
+    func changeProduct(newval: Bool): CJMPPackageInfo {
+        CJMPPackageInfo(sourceSetDir, srcDir, features, newval, outputSuffix: makeOutputSuffix(sourceSetDir, product: newval))
     }
 
     public func serialize(): DataModel {
@@ -521,8 +602,7 @@ public struct CJMPSource <: Serializable<CJMPSource> {
             assertion { dirs.size > 0 }
             if (latestSourceSet[dirname] != this._sources.size - 1) {
                 let latest = dirs[dirs.size - 1]
-                let outputSuffix = this.product.outputSuffix
-                dirs[dirs.size - 1] = latest.changeOutputSuffix(outputSuffix)
+                dirs[dirs.size - 1] = latest.changeProduct(true)
             }
             var new = CJMPSource(dirs) 
             new._isMultiplatform = this._isMultiplatform
@@ -1102,42 +1182,6 @@ public class VerifiedModuleInfo {
 }
 
 public type VerifiedMap = HashMap<String, VerifiedModuleInfo>
-
-public struct FeatureMapping {
-    public static let empty = FeatureMapping(HashMap())
-
-    FeatureMapping(
-        private let graph: HashMap<Feature, Array<Feature>>
-    ) { }
-
-    static func builder(): FeatureMappingBuilder {
-        FeatureMappingBuilder()
-    }
-
-    // Looks for features that might be enable from already enabled feature set
-    // Updates the same ArrayList
-    public func findDependantFeatures(initFeatures: Array<Feature>): HashSet<Feature> {
-        let visited: HashSet<Feature> = HashSet()
-        let features = ArrayList(initFeatures)
-
-        for (s in features) {
-            visited.add(s)
-        }
-
-        var i = 0
-        while (i < features.size) {
-            let curr = features[i]
-            visited.add(curr)
-            if (let Some(front) <- graph.get(curr)) {
-                for (it in front where !visited.contains(it)) {
-                    features.add(it)
-                }
-            }
-            i++
-        }
-        visited
-    }
-}
 
 public class SourceLocations {
     SourceLocations(

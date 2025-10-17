@@ -378,10 +378,6 @@ class DepModel {
 
         let cjmpModuleInfo = verifiedModuleMap[tomlInfo.pkg.name]
         var deducer = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
-        let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
-        if (let Some(triple) <- Triple.fromString(target).ok) {
-            deducer = deducer.deduceTargetFeatures(triple)
-        }
         deducer = deducer
             .addFeature(cjmpModuleInfo.alwaysEnabledFeatures)
             .setFeatureMapping(cjmpModuleInfo.mapping)
@@ -1300,10 +1296,15 @@ func getActualName(pkgPath: String, rootPkgName: String): String {
 }
 
 func constructSource(modulePath: String, srcDir: String, sourceSets: SourceLocations, deducer: FeatureDeducer, enabledFeatures: Array<Feature>, _globalFeatures: HashSet<Feature>): Result<(CJMPSource, HashSet<Feature>), String> {
-    let localFeatures = deducer
+    var _deducer = deducer
+    let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+    if (let Some(triple) <- Triple.fromString(target).ok) {
+        _deducer = _deducer.deduceTargetFeatures(triple)
+    }
+    let localFeatures = _deducer
         .addFeature(enabledFeatures)
         .collect()
-    let globalFeatures = deducer
+    let globalFeatures = _deducer
         .addFeature(_globalFeatures)
         .collect()
     assertion { globalFeatures.contains(all: localFeatures) }
