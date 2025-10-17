@@ -12,12 +12,30 @@
 #include "cangjie/AST/Symbol.h"
 
 namespace ark {
+struct RegisterItem{
+    Location definition;
+    Location declaration;
+    std::string registerName;
+    int registerType;
+};
+
+struct ExportIDItem{
+    std::string exportName;
+    std::string containerName;
+};
+
+struct RegisterCrossSymbolsResult {
+    std::list<RegisterItem> registerItems{};
+};
+
 struct CrossSymbolsResult {
     std::set<Location> locations{};
 };
 class CrossLanguangeDefinition {
 public:
     static bool getCrossSymbols(const CrossLanguageJumpParams &params, CrossSymbolsResult &result);
+    static bool GetExportSID(IDArray id, ExportIDItem &exportIdItem);
+    static bool getRegisterCrossSymbols(const CrossLanguageJumpParams &params, RegisterCrossSymbolsResult &result);
 };
 }
 

@@ -316,6 +316,113 @@ void ArkServer::FindFileReferences(const std::string &file, const Callback<Value
     arkScheduler->RunWithAST("FileReferences", file, action);
 }
 
+void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result)
+{
+    if (!decl || !ast.file || !ast.file->curPackage) {
+        return;
+    }
+    auto user = FindDeclUsage(*decl, *ast.file->curPackage);
+    for (const auto &U : user) {
+        if (U->astKind == ASTKind::MEMBER_ACCESS) {
+            continue;
+        }
+        auto range = GetProperRange(U, ast.tokens);
+        Location loc = {URI::URIFromAbsolutePath(U->curFile->filePath).ToString(), range};
+        (void)result.References.emplace(loc);
+    }
+}
+
+void ArkServer::GetExportsName(
+        const std::string &file, const ExportsNameParams &params, const Callback<ValueOrError> &reply) const
+{
+    auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
+        int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (fileId < 0) {
+            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+            reply(value);
+            return;
+        }
+        Cangjie::Position pos =
+                Cangjie::Position{static_cast<unsigned int>(fileId), params.position.line, params.position.column};
+        ReferencesResult result;
+        if (inputAST.ast == nullptr) {
+            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+            reply(value);
+            return;
+        }
+        ArkAST &ast = *(inputAST.ast);
+        Logger &logger = Logger::Instance();
+        logger.LogMessage(MessageType::MSG_LOG, "FindReferencesImpl::FindReferences in.");
+
+        // adjust position from IDE to AST
+        pos = PosFromIDE2Char(pos);
+        PositionIDEToUTF8(ast.tokens, pos, *ast.file);
+
+        if (ast.IsFilterToken(pos)) {
+            return;
+        }
+        // get curFilePath
+        std::string curFilePath = ast.file ? ast.file->filePath : "";
+        pos.fileID = ast.fileID;
+        std::vector<Symbol *> syms;
+        std::vector<Ptr<Cangjie::AST::Decl>> decls;
+        Ptr<Decl> oldDecl = ast.GetDeclByPosition(pos, syms, decls, {true, true});
+        if (oldDecl == nullptr) {
+            return;
+        }
+        if (syms[0] && IsResourcePos(ast, syms[0]->node, pos)) {
+            return;
+        }
+        DealMemberParam(curFilePath, syms, decls, oldDecl);
+        // generic param decl
+        if (oldDecl->astKind == ASTKind::GENERIC_PARAM_DECL) {
+            return;
+        }
+
+        if (!decls.empty()) {
+            // First verify if the downstream package status is stale
+            auto definedPkg = decls[0]->fullPackageName;
+            // Find all downstream packages
+            auto downPackages = CompilerCangjieProject::GetInstance()->GetDependencyGraph()->GetDependents(definedPkg);
+            // Check the status of all downstream packages
+            auto tasks = CompilerCangjieProject::GetInstance()->GetCjoManager()->CheckStatus(downPackages);
+            // Compile all downstream packages before searching for references
+            CompilerCangjieProject::GetInstance()->SubmitTasksToPool(tasks);
+        }
+
+        lsp::SymbolIndex *index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+        if (!index) {
+            return;
+        }
+        int curIdx = ast.GetCurToken(pos, 0, static_cast<int>(ast.tokens.size()) - 1);
+        ExportIDItem exportIdItem;
+        for (auto &decl : decls) {
+            if (decl->astKind == Cangjie::AST::ASTKind::PACKAGE_DECL) {
+                return;
+            }
+            auto id = GetSymbolId(*decl);
+            if (!IsGlobalOrMemberOrItsParam(*decl)) {
+                // For a local variable, maybe a function or a variable
+                GetCurPkgUseAge(decl, ast, result);
+                continue;
+            }
+            if (id == lsp::INVALID_SYMBOL_ID) {
+                continue;
+            }
+            bool ret = CrossLanguangeDefinition::GetExportSID(GetArrayFromID(id), exportIdItem);
+            if (ret) {
+                nlohmann::json jsonValue;
+                jsonValue["exportName"] = exportIdItem.exportName;
+                jsonValue["containerName"] = exportIdItem.containerName;
+                ValueOrError val(ValueOrErrorCheck::VALUE, jsonValue);
+                reply(val);
+            }
+            break;
+        }
+    };
+    arkScheduler->RunWithAST("GetExportsName", file, action);
+}
+
 void ArkServer::ApplyFileRefactor(const std::string &file,
     const std::string &selectedElement,
     const std::string &target,
@@ -447,6 +554,34 @@ void ArkServer::LocateSymbolAt(const std::string &file,
         reply(value);
     };
     arkScheduler->RunWithAST("Definition", file, action);
+}
+
+void ArkServer::LocateRegisterCrossSymbolAt(
+        const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
+{
+    RegisterCrossSymbolsResult result{};
+    bool ret = CrossLanguangeDefinition::getRegisterCrossSymbols(params, result);
+    nlohmann::json jsonValue;
+    if (ret) {
+        for (const auto &item : result.registerItems) {
+            nlohmann::json temp;
+            temp["definition"]["uri"] = item.definition.uri.file;
+            temp["definition"]["range"]["start"]["line"] = item.definition.range.start.line;
+            temp["definition"]["range"]["start"]["character"] = item.definition.range.start.column;
+            temp["definition"]["range"]["end"]["line"] = item.definition.range.end.line;
+            temp["definition"]["range"]["end"]["character"] = item.definition.range.end.column;
+            temp["declaration"]["uri"] = item.declaration.uri.file;
+            temp["declaration"]["range"]["start"]["line"] = item.declaration.range.start.line;
+            temp["declaration"]["range"]["start"]["character"] = item.declaration.range.start.column;
+            temp["declaration"]["range"]["end"]["line"] = item.declaration.range.end.line;
+            temp["declaration"]["range"]["end"]["character"] = item.declaration.range.end.column;
+            temp["registerName"] = item.registerName;
+            temp["registerType"] = item.registerType;
+            jsonValue.push_back(std::move(temp));
+        }
+    }
+    ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
+    reply(value);
 }
 
 void ArkServer::LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const

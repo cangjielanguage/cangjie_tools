@@ -53,6 +53,8 @@ private:
 
     static bool ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targetPkg, std::string moveFile);
 
+    static std::string GetTargetPath(std::string file);
+
     static std::unordered_map<std::string, std::unique_ptr<Cangjie::LSPCompilerInstance>> ciMap;
 
     static std::unordered_map<std::string, std::unique_ptr<ArkAST>> astMap;
@@ -61,9 +63,6 @@ private:
 
     // if moving a folder, store the move dir
     static std::string moveDirPath;
-
-    // if moving a folder, store the all move files
-    static std::vector<std::string> moveFiles;
 
     static std::string targetDir;
 };

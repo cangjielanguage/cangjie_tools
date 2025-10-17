@@ -253,6 +253,7 @@ const std::unordered_set<ASTKind> G_IGNORE_KINDS{ASTKind::MAIN_DECL, ASTKind::MA
                                                  ASTKind::VAR_WITH_PATTERN_DECL,
                                                  ASTKind::PRIMARY_CTOR_DECL, ASTKind::INVALID_DECL};
 
+enum class ElementIndex { NAME = 0, LOCATION = 1, ID = 2, DECLARATION = 3 };
 void SymbolCollector::Preamble(const Package &package)
 {
     for (const auto &file : package.files) {
@@ -579,14 +580,16 @@ void SymbolCollector::DealRegisterModule(const CallExpr &callExpr)
             return;
         }
         for (const auto &item : crossRegisterDecls[targetSymbolId]) {
-            std::string name = remove_quotes(item.first);
+            std::string name = remove_quotes(std::get<static_cast<size_t>(ElementIndex::NAME)>(item));
             if (name.empty()) {
                 continue;
             }
             CrossSymbol sym;
             sym.name = name;
             sym.crossType = CrossType::ARK_TS_WITH_REGISTER;
-            sym.location = item.second;
+            sym.location = std::get<static_cast<size_t>(ElementIndex::LOCATION)>(item);
+            sym.id = std::get<static_cast<size_t>(ElementIndex::ID)>(item);
+            sym.declaration = std::get<static_cast<size_t>(ElementIndex::DECLARATION)>(item);
             (void) crsSymsMap.emplace_back(sym);
         }
     }
@@ -620,13 +623,14 @@ void SymbolCollector::DealRegisterClass(const FuncArg &registerIdentify, const F
             crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
             crossSym.location = {argTarget->GetIdentifierPos(),
                 argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+            crossSym.declaration = {registerIdentify.begin, registerIdentify.end, argTarget->curFile->filePath};
             (void) crsSymsMap.emplace_back(crossSym);
             const auto targetSymbolId = GetDeclSymbolID(*argTarget);
             if (crossRegisterDecls.find(targetSymbolId) == crossRegisterDecls.end()) {
                 return;
             }
             for (const auto &item : crossRegisterDecls[targetSymbolId]) {
-                std::string name = remove_quotes(item.first);
+                std::string name = remove_quotes(std::get<static_cast<size_t>(ElementIndex::NAME)>(item));
                 if (name.empty()) {
                     continue;
                 }
@@ -634,7 +638,9 @@ void SymbolCollector::DealRegisterClass(const FuncArg &registerIdentify, const F
                 sym.name = name;
                 sym.containerName = clazName;
                 sym.crossType = CrossType::ARK_TS_WITH_REGISTER;
-                sym.location = item.second;
+                sym.location = std::get<static_cast<size_t>(ElementIndex::LOCATION)>(item);
+                sym.id = std::get<static_cast<size_t>(ElementIndex::ID)>(item);
+                sym.declaration = std::get<static_cast<size_t>(ElementIndex::DECLARATION)>(item);
                 (void) crsSymsMap.emplace_back(sym);
             }
         }
@@ -683,6 +689,7 @@ void SymbolCollector::DealRegisterFunc(const FuncArg &registerIdentify, const Fu
             crossSym.id = GetDeclSymbolID(*argTarget);
             crossSym.name = remove_quotes(registerIdentify.ToString());
             crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
+            crossSym.declaration = {registerIdentify.begin, registerIdentify.end, argTarget->curFile->filePath};
             crossSym.location = {argTarget->GetIdentifierPos(),
                 argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
             (void) crsSymsMap.emplace_back(crossSym);
@@ -888,6 +895,8 @@ void SymbolCollector::DealFunctionSymbolInRegisterClass(const NameReferenceExpr 
             crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
             crossSym.location = {argTarget->GetIdentifierPos(),
                 argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+            crossSym.declaration = {crossRegisterScopes.back().first->begin, crossRegisterScopes.back().first->end,
+                argTarget->curFile->filePath};
             (void) crsSymsMap.emplace_back(crossSym);
         }
         if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
@@ -932,6 +941,8 @@ void SymbolCollector::DealFunctionSymbolInRegisterModule(const NameReferenceExpr
         crossSym.crossType = CrossType::ARK_TS_WITH_REGISTER;
         crossSym.location = {argTarget->GetIdentifierPos(),
             argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        crossSym.declaration = {crossRegisterScopes.back().first->begin, crossRegisterScopes.back().first->end,
+            argTarget->curFile->filePath};
         (void) crsSymsMap.emplace_back(crossSym);
     }
     if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
@@ -982,10 +993,15 @@ void SymbolCollector::DealFunctionSymbolInFunc(const NameReferenceExpr &function
         }
         SymbolLocation location = {argTarget->GetIdentifierPos(),
             argTarget->GetIdentifierPos() + CountUnicodeCharacters(identifier), argTarget->curFile->filePath};
+        SymbolID registerFuncDeclId = GetDeclSymbolID(*argTarget);
+        SymbolLocation declaration = {crossRegisterScopes.back().first->begin, crossRegisterScopes.back().first->end,
+            argTarget->curFile->filePath};
         if (crossRegisterDecls.find(declId) != crossRegisterDecls.end()) {
-            crossRegisterDecls[declId].emplace_back(std::make_pair(remove_quotes(registerFuncName), location));
+            crossRegisterDecls[declId].emplace_back(
+                std::make_tuple(remove_quotes(registerFuncName), location, registerFuncDeclId, declaration));
         } else {
-            crossRegisterDecls[declId] = {std::make_pair(remove_quotes(registerFuncName), location)};
+            crossRegisterDecls[declId] = {
+                std::make_tuple(remove_quotes(registerFuncName), location, registerFuncDeclId, declaration)};
         }
     }
     if (registerTarget->astKind == ASTKind::LAMBDA_EXPR) {
@@ -994,10 +1010,14 @@ void SymbolCollector::DealFunctionSymbolInFunc(const NameReferenceExpr &function
             return;
         }
         SymbolLocation location = {registerTarget->begin, registerTarget->begin + 1, functionRef.curFile->filePath};
+        SymbolLocation declaration = {crossRegisterScopes.back().first->begin, crossRegisterScopes.back().first->end,
+            functionRef.curFile->filePath};
         if (crossRegisterDecls.find(declId) != crossRegisterDecls.end()) {
-            crossRegisterDecls[declId].emplace_back(std::make_pair(remove_quotes(registerFuncName), location));
+            crossRegisterDecls[declId].emplace_back(std::make_tuple(
+                remove_quotes(registerFuncName), location, 0, declaration));
         } else {
-            crossRegisterDecls[declId] = {std::make_pair(remove_quotes(registerFuncName), location)};
+            crossRegisterDecls[declId] = {std::make_tuple(
+                remove_quotes(registerFuncName), location, 0, declaration)};
         }
     }
 }
@@ -1111,9 +1131,9 @@ void SymbolCollector::DealClassSymbolInFunc(const Decl &decl, const NameReferenc
         }
     }
     if (crossRegisterDecls.find(containerId) != crossRegisterDecls.end()) {
-        crossRegisterDecls[containerId].emplace_back(std::make_pair(name, location));
+        crossRegisterDecls[containerId].emplace_back(std::make_tuple(name, location, 0, location));
     } else {
-        crossRegisterDecls[containerId] = {std::make_pair(name, location)};
+        crossRegisterDecls[containerId] = {std::make_tuple(name, location, 0, location)};
     }
 }
 

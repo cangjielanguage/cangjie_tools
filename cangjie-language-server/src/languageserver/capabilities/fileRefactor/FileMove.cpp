@@ -14,7 +14,6 @@ std::unordered_map<std::string, std::unique_ptr<ArkAST>> FileMove::astMap = {};
 std::unordered_map<std::string, std::unique_ptr<PackageInstance>> FileMove::pkgInstanceMap = {};
 std::string FileMove::moveDirPath;
 std::string FileMove::targetDir;
-std::vector<std::string> FileMove::moveFiles;
 
 void FileMove::FileMoveRefactor(const ArkAST *ast,
     FileRefactorRespParams &result,
@@ -59,7 +58,6 @@ void FileMove::FileMoveRefactor(const ArkAST *ast,
 
     targetDir = target;
     if (isDir) {
-        moveFiles = GetAllFilePathUnderCurrentPath(selectedElement, CONSTANTS::CANGJIE_FILE_EXTENSION, false, false);
         std::string tmpPkg = pkg;
         size_t idx = pkg.find_last_of('.');
         if (idx != std::string::npos) {
@@ -205,7 +203,7 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
             refactor.newPkg = targetPkg;
             refactor.kind = FileRefactorKind::RefactorRefFile;
             refactor.reExportedPkg = "";
-            refactor.targetPath = "";
+            refactor.targetPath = FileMove::GetTargetPath(ref.location.fileUri);
             PackageRelation relation = FileRefactor::GetPackageRelation(
                 FileMove::GetPkgNameAfterMove(ref.location.fileUri, refFullPkg), targetPkg);
             refactor.MatchRefactor(FileRefactorKind::RefactorRefFile, relation, modifier);
@@ -291,7 +289,7 @@ void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const st
             refactor.newPkg = targetPkg;
             refactor.reExportedPkg = std::move(originPkg);
             refactor.kind = FileRefactorKind::RefactorReExport;
-            refactor.targetPath = "";
+            refactor.targetPath = FileMove::GetTargetPath(ref.location.fileUri);
             PackageRelation relation = FileRefactor::GetPackageRelation(
                 FileMove::GetPkgNameAfterMove(ref.location.fileUri, refFullPkg), targetPkg);
             refactor.MatchRefactor(FileRefactorKind::RefactorReExport, relation, modifier);
@@ -461,7 +459,6 @@ void FileMove::Clear()
     pkgInstanceMap.clear();
     astMap.clear();
     moveDirPath = "";
-    moveFiles.clear();
     targetDir = "";
 }
 
@@ -539,6 +536,19 @@ std::string FileMove::GetPkgNameAfterMove(const std::string &pathBeforeMove, std
     }
     std::string pkgNameAfterMove = targetPkg + subPkg;
     return pkgNameAfterMove;
+}
+
+std::string FileMove::GetTargetPath(std::string file)
+{
+    if (moveDirPath.empty()) {
+        return file;
+    }
+    if (!IsUnderPath(moveDirPath, file)) {
+        return file;
+    }
+    std::string relativePath = file.substr(FileUtil::GetDirPath(moveDirPath).length());
+    std::string targetPath = FileUtil::JoinPath(targetDir, relativePath);
+    return targetPath;
 }
 
 File* FileMove::GetFileNode(const ArkAST *ast, std::string filePath)

@@ -659,6 +659,8 @@ SQL(
     FileID INTEGER,
     StartLoc INTEGER,
     EndOffset INTEGER,
+    DeclareStartLoc INTEGER,
+    DeclareEndOffset INTEGER,
 
     PRIMARY KEY(
       CJPackageName,
@@ -666,7 +668,9 @@ SQL(
       CrossType,
       FileID,
       StartLoc,
-      EndOffset
+      EndOffset,
+      DeclareStartLoc,
+      DeclareEndOffset
     )
   ) WITHOUT ROWID;
 
@@ -686,7 +690,11 @@ SQL(
     StartLine,
     StartColumn,
     EndLine,
-    EndColumn
+    EndColumn,
+    DeclareStartLine,
+    DeclareStartColumn,
+    DeclareEndLine,
+    DeclareEndColumn
   )
   AS SELECT
     CJPackageName,
@@ -699,7 +707,11 @@ SQL(
     LINE(StartLoc),
     COLUMN(StartLoc),
     LINE(StartLoc + EndOffset),
-    COLUMN(StartLoc + EndOffset)
+    COLUMN(StartLoc + EndOffset),
+    LINE(DeclareStartLoc),
+    COLUMN(DeclareStartLoc),
+    LINE(DeclareStartLoc + DeclareEndOffset),
+    COLUMN(DeclareStartLoc + DeclareEndOffset)
   FROM _cross_symbols
   INNER JOIN files USING(FileID);
 
@@ -718,7 +730,10 @@ SQL(
       (SELECT FileID FROM files WHERE FileURI = NEW.FileURI),
       LOCATION(NEW.StartLine, NEW.StartColumn),
       LOCATION(NEW.EndLine - NEW.StartLine,
-               NEW.EndColumn - NEW.StartColumn)
+               NEW.EndColumn - NEW.StartColumn),
+      LOCATION(NEW.DeclareStartLine, NEW.DeclareStartColumn),
+      LOCATION(NEW.DeclareEndLine - NEW.DeclareStartLine,
+               NEW.DeclareEndColumn - NEW.DeclareStartColumn)
     );
   END;
 )

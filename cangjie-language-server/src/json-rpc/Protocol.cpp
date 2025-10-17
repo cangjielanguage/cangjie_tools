@@ -85,6 +85,28 @@ bool FromJSON(const nlohmann::json &params, OverrideMethodsParams &reply)
     return true;
 }
 
+bool FromJSON(const nlohmann::json &params, ExportsNameParams &reply)
+{
+    if (!params["textDocument"].is_object() || !params["position"].is_object()) {
+        return false;
+    }
+
+    nlohmann::json textDocument = params["textDocument"];
+    if (textDocument["uri"].is_null()) {
+        return false;
+    }
+    reply.textDocument.uri.file = textDocument.value("uri", "");
+
+    nlohmann::json position = params["position"];
+    if (!position.is_object() || position["line"].is_null() || position["character"].is_null()) {
+        return false;
+    }
+    reply.position.line = position.value("line", -1);
+    reply.position.column = position.value("character", -1);
+    reply.packageName = params["packageName"];
+    return true;
+}
+
 bool FromJSON(const nlohmann::json &params, SignatureHelpContext &reply)
 {
     if (!params.contains("triggerKind") || params["triggerKind"].is_null()) {

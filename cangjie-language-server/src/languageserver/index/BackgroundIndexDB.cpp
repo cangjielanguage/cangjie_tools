@@ -254,6 +254,12 @@ void BackgroundIndexDB::Lookup(const LookupRequest &req,
     }
 }
 
+void BackgroundIndexDB::GetExportSID(IDArray array,
+                                     std::function<void(const CrossSymbol &)> callback) const
+{
+    db.GetCrossSymbolByID(array, callback);
+}
+
 void BackgroundIndexDB::FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const
 {
     db.GetPkgSymbols(req.fullPkgName, [&](Symbol sym) {

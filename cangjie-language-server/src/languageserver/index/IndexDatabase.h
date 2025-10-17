@@ -62,6 +62,8 @@ public:
     
     dberr_no GetSymbolByID(IDArray id, std::function<bool(const Symbol &sym)> callback);
 
+    dberr_no GetCrossSymbolByID(IDArray id, std::function<void(const CrossSymbol &sym)> callback);
+
     dberr_no GetSymbol(std::string filePath, size_t line, size_t col,
                        std::function<bool(const Symbol &sym)> callback);
 

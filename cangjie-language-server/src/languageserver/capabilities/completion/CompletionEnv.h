@@ -221,6 +221,8 @@ private:
 
     void DealCallExpr(Ptr<Node> node, const Position pos);
 
+    void DealBinaryExpr(Ptr<Node> node, const Position pos);
+
     void DealTupleLit(Ptr<Node> node, const Position pos);
 
     void DealSpawnExpr(Ptr<Node> node, const Position pos);

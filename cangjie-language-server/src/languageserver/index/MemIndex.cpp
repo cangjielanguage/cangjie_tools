@@ -75,7 +75,9 @@ void MemIndex::Refs(const RefsRequest &req, std::function<void(const Ref &)> cal
                 if (!static_cast<int>(req.filter & sym.kind)) {
                     continue;
                 }
-                callback(sym);
+                if (!sym.isSuper) {
+                    callback(sym);
+                }
             }
         }
     }
@@ -369,6 +371,8 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
             callback(crs);
         }
     }
+}
+void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const {
 }
 } // namespace lsp
 } // namespace ark

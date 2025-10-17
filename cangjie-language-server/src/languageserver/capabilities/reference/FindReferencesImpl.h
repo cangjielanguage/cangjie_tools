@@ -37,6 +37,8 @@ public:
 
     static void GetCurPkgUesage(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result);
 
+    static std::unordered_set<std::string> GetSelectedUesScopeNames(Ptr<Decl> decl, const ArkAST &ast, Range &range);
+
     static void DealGenericParamDecl(
         const ArkAST &ast, ReferencesResult &result, Ptr<Decl> oldDecl, std::vector<Symbol *> &syms);
 

@@ -106,6 +106,8 @@ public:
 
     virtual void Refs(const RefsRequest &req, std::function<void(const Ref &)> callback) const = 0;
 
+    virtual void GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const = 0;
+
     virtual void FileRefs(const FileRefsRequest &req,
         std::function<void(const Ref &ref, const SymbolID symId)> callback) const = 0;
 
@@ -157,6 +159,8 @@ public:
     void Lookup(const LookupRequest &req, std::function<void(const Symbol &)> callback) const override;
 
     void FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const override;
+
+    void GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const override;
 
     void Refs(const RefsRequest &req, std::function<void(const Ref &)> callback) const override;
 

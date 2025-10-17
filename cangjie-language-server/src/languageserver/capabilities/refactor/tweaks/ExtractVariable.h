@@ -56,6 +56,8 @@ public:
 
     static void MatchModifier(Cangjie::AST::Node &node, std::string &modifier);
 
+    static bool DealIfExpr(IfExpr &ifExpr, Range &range);
+
     static void DealMultStatementOnSameLine(
         const Tweak::Selection &sel, const Range &range, int firstToken4CurLine, Range &insertRange);
 

@@ -31,6 +31,8 @@ public:
     void Lookup(const LookupRequest &req,
         std::function<void(const Symbol &)> callback) const override;
 
+    void GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const override;
+
     void FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const override;
 
     void Refs(const RefsRequest &req,

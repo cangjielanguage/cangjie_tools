@@ -67,6 +67,16 @@ struct OverrideMethodsParams: public TextDocumentPositionParams {
     bool isExtend = false;
 };
 
+struct ExportsNameParams {
+    TextDocumentIdentifier textDocument;
+
+    Cangjie::Position position;
+
+    std::string packageName;
+
+    ~ExportsNameParams() = default;
+};
+
 // TypeHierarchy response
 struct TypeHierarchyItem {
 public:
@@ -129,6 +139,8 @@ bool FromJSON(const nlohmann::json &params, TextDocumentPositionParams &reply);
 bool FromJSON(const nlohmann::json &params, CrossLanguageJumpParams &reply);
 
 bool FromJSON(const nlohmann::json &params, OverrideMethodsParams &reply);
+
+bool FromJSON(const nlohmann::json &params, ExportsNameParams &reply);
 
 bool FromJSON(const nlohmann::json &params, CompletionContext &reply);
 

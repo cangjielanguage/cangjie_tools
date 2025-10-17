@@ -258,6 +258,8 @@ ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environme
     MsgHandler->Bind("textDocument/codeAction", &ArkLanguageServer::OnCodeAction);
     MsgHandler->Bind("workspace/executeCommand", &ArkLanguageServer::OnCommand);
     MsgHandler->Bind("textDocument/findFileReferences", &ArkLanguageServer::OnFileReference);
+    MsgHandler->Bind("textDocument/exportsName", &ArkLanguageServer::OnExportsName);
+    MsgHandler->Bind("textDocument/crossLanguageRegister", &ArkLanguageServer::OnCrossLanguageRegister);
     MsgHandler->Bind("textDocument/fileRefactor", &ArkLanguageServer::OnFileRefactor);
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
         MsgHandler->Bind("textDocument/codeLens", &ArkLanguageServer::OnCodeLens);
@@ -303,6 +305,8 @@ nlohmann::json GetServerCapabilities(int syncKind)
     }
     serverCapabilities["crossLanguageDefinition"] = true;
     serverCapabilities["findFileReferences"] = true;
+    serverCapabilities["exportsName"] = true;
+    serverCapabilities["crossLanguageRegister"] = true;
     std::set<std::string> triggerCharacters = {".", "`"};
     for (const std::string& item : triggerCharacters) {
         (void)serverCapabilities["completionProvider"]["triggerCharacters"].push_back(item);
@@ -844,6 +848,42 @@ void ArkLanguageServer::OnFileReference(const DocumentLinkParams &params, nlohma
         transp.Reply(std::move(id), std::move(result));
     };
     Server->FindFileReferences(file, std::move(reply));
+}
+
+void ArkLanguageServer::OnCrossLanguageRegister(const CrossLanguageJumpParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnCrossLanguageRegister in");
+    auto reply = [id, this](ValueOrError result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), std::move(result));
+    };
+    Server->LocateRegisterCrossSymbolAt(params, std::move(reply));
+}
+
+void ArkLanguageServer::OnExportsName(const ExportsNameParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnExportsName in");
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
+    if (!CheckFileInCangjieProject(file)) {
+        ReplyError(id);
+        return;
+    }
+    DocCache::Doc doc = DocMgr.GetDoc(file);
+    if (doc.version == -1) {
+        std::stringstream log;
+        CleanAndLog(log, "No didopen was received before OnExportsName, file:" + file);
+        Logger::Instance().LogMessage(MessageType::MSG_WARNING, log.str());
+        ReplyError(id);
+        return;
+    }
+    auto reply = [id, this](ValueOrError result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), std::move(result));
+    };
+    Server->GetExportsName(file, params, std::move(reply));
 }
 
 void ArkLanguageServer::OnFileRefactor(const FileRefactorReqParams &params, nlohmann::json id)

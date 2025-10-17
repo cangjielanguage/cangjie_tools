@@ -273,6 +273,69 @@ std::string GetString(const Ty &ty)
     return ty.name.empty() ? ty.String() : ty.name + PrintTypeArgs(ty.typeArgs, isVArray);
 }
 
+std::string ReplaceTuple(const std::string &type)
+{
+    std::string result;
+    std::string searchText = "Tuple<";
+    size_t searchLen = 6;
+    for (size_t i = 0; i < type.length();) {
+        if (i + searchLen <= type.length() && type.substr(i, searchLen) == searchText) {
+            size_t start = i;
+            i += searchLen;
+            int count = 1;
+            size_t innerStart = i;
+            MatchBracket(type, i, count);
+            if (count == 0) {
+                std::string inner = type.substr(innerStart, i - 1 - innerStart);
+                std::string replacedInner = ReplaceTuple(inner);
+                result += "(" + replacedInner + ")";
+            } else {
+                result += type.substr(start, i - start);
+            }
+        } else {
+            result += type[i];
+            i++;
+        }
+    }
+    return result;
+}
+
+void MatchBracket(const std::string &type, size_t &index, int &count)
+{
+    while (index < type.length() && count > 0) {
+        if (type[index] == '<') {
+            count++;
+        } else if (type[index] == '>') {
+            count--;
+        }
+        index++;
+    }
+}
+
+std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager)
+{
+    std::string type;
+    if ((!decl->ty || GetString(*decl->ty) == "UnknownType") && decl->type) {
+        type = sourceManager->GetContentBetween(decl->type->begin, decl->type->end);
+        std::string realType = ReplaceTuple(type);
+        type = realType.empty() ? type : realType;
+        return type;
+    }
+    if (!decl->ty) {
+        return type;
+    }
+    if (decl->ty->kind == TypeKind::TYPE_FUNC) {
+        ItemResolverUtil::GetDetailByTy(decl->ty, type, true);
+        std::string realType = ReplaceTuple(type);
+        type = realType.empty() ? type : realType;
+        return type;
+    }
+    type = GetString(*decl->ty);
+    std::string realType = ReplaceTuple(type);
+    type = realType.empty() ? type : realType;
+    return type;
+}
+
 bool IsZeroPosition(Ptr<const Node> node) { return node && node->end.line == 0 && node->end.column == 0; }
 
 bool ValidExtendIncludeGenericParam(Ptr<const Decl> decl)

@@ -26,8 +26,7 @@ void FileRefactor::AddImport()
     insertRange = TransformFromChar2IDE(insertRange);
     std::string insertContent = CONSTANTS::IMPORT + CONSTANTS::WHITE_SPACE + newPkg
                                 + CONSTANTS::DOT + sym + "\n";
-    std::string uri = kind == FileRefactorKind::RefactorMoveFile ? URI::URIFromAbsolutePath(targetPath).ToString()
-                                                                 : URI::URIFromAbsolutePath(file).ToString();
+    std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
     result.changes[uri].insert({FileRefactorChangeType::ADD, insertRange, insertContent});
 }
 
@@ -36,8 +35,7 @@ void FileRefactor::DeleteImport()
     if (!fileNode || fileNode->imports.empty()) {
         return;
     }
-    std::string uri = kind == FileRefactorKind::RefactorMoveFile ? URI::URIFromAbsolutePath(targetPath).ToString()
-                                                                 : URI::URIFromAbsolutePath(file).ToString();
+    std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
     // collect multi import
     std::vector<Ptr<ImportSpec>> multiImports;
     for (auto &fileImport: fileNode->imports) {
@@ -162,11 +160,11 @@ void FileRefactor::DeleteImport()
 
 void FileRefactor::ChangeImport()
 {
-    if (!fileNode || fileNode->imports.empty()) {
+    if (fileNode->imports.empty()) {
         return;
     }
     Position lastImport = FindLastImportPos(*fileNode);
-    std::string uri = URI::URIFromAbsolutePath(file).ToString();
+    std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
     // collect multi import
     std::vector<Ptr<ImportSpec>> multiImports;
     for (auto &fileImport: fileNode->imports) {
@@ -453,8 +451,7 @@ std::string FileRefactor::GetImportFullSymWithoutAlias(const ImportContent &impo
 bool FileRefactor::GetDeletePosInMultiImport(std::vector<Ptr<ImportSpec>> &multiImports,
         ImportContent &singleImport, Position &beginPos, Position &endPos)
 {
-    std::string uri = kind == FileRefactorKind::RefactorMoveFile ? URI::URIFromAbsolutePath(targetPath).ToString()
-                                                                 : URI::URIFromAbsolutePath(file).ToString();
+    std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
     for (const auto &multiImport: multiImports) {
         if (!(multiImport->begin <= singleImport.begin && multiImport->end >= singleImport.end)) {
             continue;

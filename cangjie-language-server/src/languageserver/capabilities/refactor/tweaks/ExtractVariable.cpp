@@ -248,6 +248,18 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
             }
         }
 
+        if (node->astKind == ASTKind::IF_EXPR && node->begin <= range.start && node->end >= range.end) {
+            auto ifExpr = DynamicCast<Cangjie::AST::IfExpr*>(node.get());
+            if (!ifExpr) {
+                return VisitAction::STOP_NOW;
+            }
+            if (DealIfExpr(*ifExpr, range)) {
+                insertRange = {ifExpr->begin, ifExpr->begin};
+                indent = std::string (ifExpr->begin.column, ' ');
+                return VisitAction::STOP_NOW;
+            }
+        }
+
         return VisitAction::WALK_CHILDREN;
     }).Walk();
 
@@ -308,6 +320,24 @@ void ExtractVariable::GetInsertRange(
                 return;
             }
         }
+    }
+}
+
+bool ExtractVariable::DealIfExpr(IfExpr &ifExpr, Range &range)
+{
+    if (ifExpr.condExpr && ifExpr.condExpr->begin <= range.start
+                && ifExpr.condExpr->end >= range.end) {
+        return true;
+    }
+    if (ifExpr.elseBody && ifExpr.elseBody->astKind == ASTKind::IF_EXPR && ifExpr.elseBody->begin <= range.start
+                && ifExpr.elseBody->end >= range.end) {
+        auto elseIf = DynamicCast<Cangjie::AST::IfExpr>(ifExpr.elseBody.get());
+        if (!elseIf) {
+            return false;
+        }
+        return DealIfExpr(*elseIf, range);
+    } else {
+        return false;
     }
 }
 

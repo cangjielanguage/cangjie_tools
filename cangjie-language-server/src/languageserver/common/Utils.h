@@ -52,6 +52,12 @@ enum class CommentKind {
 
 std::string GetString(const Cangjie::AST::Ty &ty);
 
+std::string ReplaceTuple(const std::string &type);
+
+void MatchBracket(const std::string &type, size_t &index, int &count);
+
+std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager);
+
 std::string PrintTypeArgs(std::vector<Ptr<Cangjie::AST::Ty>> tyArgs, const std::pair<bool, int> isVarray = {false, 0});
 
 CommentKind GetCommentKind(const std::string &comment);

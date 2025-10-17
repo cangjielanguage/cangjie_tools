@@ -58,6 +58,8 @@ struct ExtractedFunction {
     // param list
     std::set<Param> params;
 
+    std::unordered_set<std::string> generics;
+
     // Return type (node) of the function
     std::optional<ReturnValue> returnValue;
 
@@ -127,9 +129,11 @@ private:
     std::string AssignParam2MutVarAndRemove(const Tweak::Selection &sel, ExtractedFunction &function);
 
     void AddMutParamVariable(std::string &mutParams, Cangjie::AST::AssignExpr* assignExpr,
-        ExtractedFunction &function, const Tweak::Selection &sel);
+        ExtractedFunction &function, const Tweak::Selection &sel, std::string &scopeName);
 
     bool ExistSameNameParam(const std::set<ExtractedFunction::Param>& params, const std::string& name);
+
+    void CollectGenerics(Ty &ty, std::unordered_set<std::string> &generics);
 
     TextEdit InsertDeclaration(const Tweak::Selection &sel, ExtractedFunction &function);
 

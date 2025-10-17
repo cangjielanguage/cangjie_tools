@@ -761,24 +761,23 @@ void ExtractFunction::GetParam(ExtractedFunction& function, Cangjie::AST::RefExp
     }
     ExtractedFunction::Param param;
     param.name = refExpr->ref.identifier;
-    if ((!decl->ty || GetString(*decl->ty) == "UnknownType") && decl->type) {
-        param.type = sel.arkAst->sourceManager->GetContentBetween(decl->type->begin, decl->type->end);
-        function.params.emplace(std::move(param));
-        return;
+    if (decl->ty->HasGeneric()) {
+        CollectGenerics(*decl->ty, function.generics);
     }
-    if (!decl->ty) {
-        return;
-    }
-    if (decl->ty->IsGeneric()) {
-        param.isGeneric = true;
-    }
-    if (decl->ty->kind == TypeKind::TYPE_FUNC) {
-        ItemResolverUtil::GetDetailByTy(decl->ty, param.type, true);
-        function.params.emplace(std::move(param));
-        return;
-    }
-    param.type = GetString(*decl->ty);
+    param.type = GetVarDeclType(decl, sel.arkAst->sourceManager);
     function.params.emplace(std::move(param));
+}
+
+void ExtractFunction::CollectGenerics(Ty &ty, std::unordered_set<std::string> &generics)
+{
+    if (ty.IsGeneric()) {
+        generics.insert(ty.name);
+    }
+    for (const auto &typeArg: ty.typeArgs) {
+        if (typeArg && typeArg->HasGeneric()) {
+            CollectGenerics(*typeArg, generics);
+        }
+    }
 }
 
 /**
@@ -948,11 +947,7 @@ void ExtractFunction::GetFunctionModifier(const Tweak::Selection &sel, Extracted
 std::string ExtractedFunction::GetFunctionDeclaration() const
 {
     std::string paramsStr;
-    std::unordered_set<std::string> genericSet;
     for (auto it = this->params.begin(); it != this->params.end(); ++it) {
-        if (it->isGeneric) {
-            genericSet.insert(it->type);
-        }
         bool isLast = (std::next(it) == this->params.end());
         if (it->newName.has_value()) {
             paramsStr += it->newName.value() + ": " + it->type;
@@ -964,10 +959,10 @@ std::string ExtractedFunction::GetFunctionDeclaration() const
         }
     }
     std::string genericDeclaration;
-    if (!genericSet.empty()) {
+    if (!generics.empty()) {
         genericDeclaration += "<";
-        for (auto it = genericSet.begin(); it != genericSet.end(); ++it) {
-            bool isLast = (std::next(it) == genericSet.end());
+        for (auto it = generics.begin(); it != generics.end(); ++it) {
+            bool isLast = (std::next(it) == generics.end());
             genericDeclaration += *it;
             if (!isLast) {
                 genericDeclaration += ", ";
@@ -1009,15 +1004,22 @@ std::string ExtractFunction::AssignParam2MutVarAndRemove(const Tweak::Selection 
         return mutParams;
     }
     auto root = sel.selectionTree.root();
-    SelectionTree::Walk(root, [&function, &mutParams, this, &sel]
+    std::string scopeName;
+    SelectionTree::Walk(root, [&function, &mutParams, this, &sel, &scopeName]
         (const SelectionTree::SelectionTreeNode *treeNode) -> SelectionTree::WalkAction {
             if (!treeNode->node) {
                 return SelectionTree::WalkAction::STOP_NOW;
             }
+
+            if(scopeName.empty() && treeNode->selected == SelectionTree::Selection::Complete) {
+                scopeName = treeNode->node->scopeName;
+                size_t pos = scopeName.find_last_of('_');
+                scopeName = (pos != std::string::npos) ? scopeName.substr(0, pos) : scopeName;
+            }
             if (treeNode->selected == SelectionTree::Selection::Complete &&
                 treeNode->node->astKind == ASTKind::ASSIGN_EXPR) {
                 auto assignExpr = dynamic_cast<AssignExpr*>(treeNode->node.get());
-                AddMutParamVariable(mutParams, assignExpr, function, sel);
+                AddMutParamVariable(mutParams, assignExpr, function, sel, scopeName);
             }
 
             return SelectionTree::WalkAction::WALK_CHILDREN;
@@ -1032,7 +1034,7 @@ bool ExtractFunction::ExistSameNameParam(const std::set<ExtractedFunction::Param
 }
 
 void ExtractFunction::AddMutParamVariable(std::string &mutParams, Cangjie::AST::AssignExpr* assignExpr,
-    ExtractedFunction &function, const Tweak::Selection &sel)
+    ExtractedFunction &function, const Tweak::Selection &sel, std::string &scopeName)
 {
     if (!assignExpr || !assignExpr->leftValue || !assignExpr->leftValue->GetTarget()) {
         return;
@@ -1045,29 +1047,42 @@ void ExtractFunction::AddMutParamVariable(std::string &mutParams, Cangjie::AST::
         return;
     }
 
-    ReferencesResult result;
-    FindReferencesImpl::GetCurPkgUesage(target, *sel.arkAst, result);
-    bool needRemoveParam = true;
-    for (const auto &reference : result.References) {
-        Range refRange = reference.range;
-        refRange.start = PosFromIDE2Char(refRange.start);
-        refRange.end = PosFromIDE2Char(refRange.end);
-        if (refRange.start.fileID != sel.arkAst->fileID) {
-            continue;
-        }
-        bool isReassign = refRange.start >= sel.range.start && refRange.end <= sel.range.end
-                    && (refRange.end < assignExpr->begin || (refRange.start >= assignExpr->rightExpr->begin
-                    && refRange.end <= assignExpr->rightExpr->end));
-        if (isReassign) {
-            needRemoveParam = false;
-            break;
-        }
+    bool needRemoveParam = false;
+    std::string targetName = target->identifier;
+    std::unordered_set<std::string> scopeNames = FindReferencesImpl::GetSelectedUesScopeNames(target, 
+        *sel.arkAst, sel.range);
+    if (function.returnValue.has_value() && targetName == function.returnValue->name) {
+        scopeNames.insert(scopeName);
     }
-    if (COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op)) {
-        needRemoveParam = false;
+    std::string assignExprSC = assignExpr->scopeName;
+    auto notPrefix = std::find_if(scopeNames.begin(), scopeNames.end(),
+        [&assignExprSC](const std::string &sc) {
+        return sc.length() < assignExprSC.length() || sc.compare(0, assignExprSC.length(), assignExprSC) != 0;
+    });
+    if (notPrefix == scopeNames.end()) {
+        needRemoveParam = true;
+        ReferencesResult result;
+        FindReferencesImpl::GetCurPkgUesage(target, *sel.arkAst, result);
+        for (const auto &reference : result.References) {
+            Range refRange = reference.range;
+            refRange.start = PosFromIDE2Char(refRange.start);
+            refRange.end = PosFromIDE2Char(refRange.end);
+            if (refRange.start.fileID != sel.arkAst->fileID) {
+                continue;
+            }
+            bool isReassign = refRange.start >= sel.range.start && refRange.end <= sel.range.end
+                        && (refRange.end < assignExpr->begin || (refRange.start >= assignExpr->rightExpr->begin
+                        && refRange.end <= assignExpr->rightExpr->end));
+            if (isReassign) {
+                needRemoveParam = false;
+                break;
+            }
+        }
+        if (COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op)) {
+            needRemoveParam = false;
+        }
     }
 
-    std::string targetName = target->identifier;
     auto it = std::find_if(function.params.begin(), function.params.end(),
         [&targetName](const ExtractedFunction::Param& p) {
             return p.name == targetName;

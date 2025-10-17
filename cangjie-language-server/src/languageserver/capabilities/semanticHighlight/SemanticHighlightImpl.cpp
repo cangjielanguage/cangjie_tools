@@ -536,13 +536,16 @@ void SemanticHighlightImpl::FindHighlightsTokens(const ArkAST &ast, std::vector<
         }
         Ptr<Node> node = symbol->node;
         if (node->TestAttr(Cangjie::AST::Attribute::MACRO_EXPANDED_NODE)) {
-            if (symbol->astKind != ASTKind::REF_EXPR && symbol->astKind != ASTKind::MEMBER_ACCESS) {
+            if (symbol->astKind != ASTKind::REF_EXPR && symbol->astKind != ASTKind::MEMBER_ACCESS &&
+                symbol->astKind != ASTKind::CALL_EXPR) {
                 continue;
             }
             auto func = highlights.find(symbol->astKind);
             if (!RefTargetEmpty(node) && SpecialTarget(node)) {
                 (func->second)(node, result, ast.tokens, ast.sourceManager);
             } else if (symbol->astKind == ASTKind::MEMBER_ACCESS && NeedHightlight(ast, node)) {
+                (func->second)(node, result, ast.tokens, ast.sourceManager);
+            } else if (symbol->astKind == ASTKind::CALL_EXPR) {
                 (func->second)(node, result, ast.tokens, ast.sourceManager);
             }
             continue;

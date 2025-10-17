@@ -79,6 +79,11 @@ public:
     void LocateSymbolAt(const std::string &file, const TextDocumentPositionParams &params,
                         const Callback<ValueOrError> &reply) const;
 
+    void GetExportsName(const std::string &file, const ExportsNameParams &params,
+                        const Callback<ValueOrError> &reply) const;
+
+    void LocateRegisterCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const;
+
     void LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const;
 
     // Get semantic tokens for the full doc
