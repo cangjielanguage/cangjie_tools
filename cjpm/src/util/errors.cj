@@ -33,13 +33,15 @@ public func assertion(lambda: () -> Bool, errmesg: () -> String): Unit {
     }
 }
 
+@When[debug]
+public func assertion(lambda: () -> Bool): Unit {
+    assertion(lambda) { => "Assertion failed" }
+}
+
 @When[!debug]
 public func assertion(_: () -> Bool, _: () -> String): Unit {
 }
 
-// The following are additional checks util which should be used only inside assertion call
-public func checkAllUnique<T>(it: Iterable<T>): Bool where T <: Hashable & Equatable<T> {
-    let n = it |> count
-    let m = HashSet(it |> collectArray) |> count
-    return n == m
+@When[!debug]
+public func assertion(_: () -> Bool): Unit {
 }

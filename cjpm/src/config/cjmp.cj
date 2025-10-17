@@ -1,0 +1,1505 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
+package cjpm.config
+
+import std.collection.*
+import std.deriving.*
+import std.convert.Parsable
+import std.sort.sort
+import std.fs.*
+import std.regex.Regex
+
+import stdx.serialization.serialization.*
+
+import cjpm.util.*
+import cjpm.toml.*
+
+// Primary types
+
+// Struct which stores information about used 'cjc' binary
+// 
+// Use this structure instead of @When to implement platform depentent functionality
+public struct CjcInfo {
+    private static let versionPrefix = "Cangjie Compiler: "
+    private static let targetPrefix = "Target: "
+
+    private CjcInfo(
+        public let version: String,
+        public let target: Triple
+    ) {}
+
+    // specified in $PATH.
+    // Parser result of 'cjc -v' to figure out:
+    //    - Compiler version
+    //    - Target triple information: {arch}-{vendor}-{os}-{env}
+    static func findCjc(): CjcInfo {
+        let (flag, output, errlog) = execWithOutput(COMPILE_TOOL, ArrayList<String>(["-v"]))
+        if (!flag) {
+            throw CliFailError([errlog, "Error: failed to run 'cjc -v'"])
+        }
+        if (!output.contains(versionPrefix)) {
+            throw CliFailError(["Error: no target info in output of command 'cjc -v':", output])
+        }
+        if (!output.contains(targetPrefix)) {
+            throw CliFailError(["Error: no target info in output of command 'cjc -v':", output])
+        }
+
+        let version = output.split(versionPrefix)[1].trimAscii().split(' ', 1, removeEmpty: true)[0]
+        let targetString = output.split(targetPrefix)[1].trimAscii()
+        let target = Triple.fromString(targetString).getOrThrow { err => CliFailError([err]) }
+        CjcInfo(version, target)
+    }
+}
+
+// Enum of known architectures specified in target triple
+@Derive[Hashable, Equatable]
+public enum Arch <: ToString & Parsable<Arch> {
+    | X64
+    | AARCH64
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case X64        => "x86_64"
+            case AARCH64    => "aarch64"
+            case Unknown(arch) => arch
+        }
+    }
+
+    public static func parse(value: String): Arch {
+        match (value) {
+            case "x86_64"  => X64
+            case "aarch64" => AARCH64
+            case "arm64"   => AARCH64
+            case _         => Unknown(value)
+        }
+    }
+
+    public static func tryParse(value: String): ?Arch { parse(value) }
+}
+
+// Enum of known environments specified in target triple
+@Derive[Hashable, Equatable]
+public enum Vendor <: ToString & Parsable<Vendor> {
+    | APPLE
+    | UNKNOWN
+
+    public func toString(): String {
+        match (this) {
+            case APPLE => "apple"
+            case UNKNOWN => "unknown"
+        }
+    }
+
+    public static func parse(value: String): Vendor {
+        match (value) {
+            case "apple" => APPLE
+            case _       => UNKNOWN
+        }
+    }
+
+    public static func tryParse(value: String): ?Vendor {
+        parse(value)
+    }
+}
+
+// Enum of known operational systems specified in target triple
+@Derive[Hashable, Equatable]
+public enum OS <: ToString & Parsable<OS> {
+    | LINUX
+    | DARWIN
+    | IOS
+    | WINDOWS
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case LINUX      => "linux"
+            case DARWIN     => "darwin"
+            case IOS        => "ios"
+            case WINDOWS    => "w64"
+            case Unknown(os) => os
+        }
+    }
+
+    public static func parse(value: String): OS {
+        match (value) {
+            case "linux"   => LINUX
+            case "darwin"  => DARWIN
+            case "ios"     => IOS
+            case "windows" => WINDOWS
+            case "w64"     => WINDOWS
+            case _         => Unknown(value)
+        }
+    }
+
+    public static func tryParse(os: String): ?OS { parse(os) }
+}
+
+// Enum of known environments specified in target triple
+@Derive[Hashable, Equatable]
+public enum Env <: ToString & Parsable<Env> {
+    | HOS
+    | GNU
+    | ANDROID
+    | MINGW32
+    | OHOS
+    | NOT_AVAILABLE
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case HOS => "hos"
+            case GNU => "gnu"
+            case ANDROID => "android"
+            case MINGW32 => "mingw32"
+            case OHOS => "ohos"
+            case NOT_AVAILABLE => ""
+            case Unknown(s) => s
+        }
+    }
+
+    public static func parse(value: String): Env {
+        match (value) {
+            case "hos" => HOS
+            case "gnu" => GNU
+            case "android" => ANDROID
+            case "mingw32" => MINGW32
+            case "ohos" => OHOS
+            case _ => Unknown(value)
+        }
+    }
+
+    public static func tryParse(value: String): ?Env { parse(value) }
+}
+
+public type ApiVersion = ?UInt8
+
+@Derive[Hashable, Equatable]
+public struct Triple <: ToString {
+    private Triple(
+        @DeriveExclude private let _stringValue: String,
+        public let arch!: Arch,
+        public let vendor!: Vendor = UNKNOWN,
+        public let os!: OS,
+        public let env!: Env,
+        public let apiVersion!: ApiVersion
+    ) {}
+
+    private init(
+        arch!: Arch,
+        vendor!: Vendor = UNKNOWN,
+        os!: OS,
+        env!: Env,
+        apiVersion!: ApiVersion
+    ) {
+        this.arch = arch
+        this.vendor = vendor
+        this.os = os
+        this.env = env
+        this.apiVersion = apiVersion
+        this._stringValue = toStringFromTriple(arch, vendor, os, env, apiVersion)
+    }
+
+    private static func toStringFromTriple(arch: Arch, vendor: Vendor, os: OS, env: Env, apiVersion: ApiVersion): String {
+        let versionStr = apiVersion?.toString() ?? ""
+        let envStr = if (env != Env.NOT_AVAILABLE) {"-${env}"} else {""}
+        if (vendor == Vendor.APPLE) {
+            return "${arch}-${vendor}-${os}${versionStr}${envStr}"
+        } else if (vendor == Vendor.UNKNOWN && os == OS.WINDOWS) {
+            return "${arch}-${os}${envStr}"
+        } else {
+            return "${arch}-${vendor}-${os}${envStr}${versionStr}"
+        }
+    }
+
+    public func toString(): String {
+        _stringValue
+    }
+
+    private static func extractApiVersion(value: String): (String, ApiVersion) {
+        assertion { => Regex("^[a-zA-Z][_a-zA-Z0-9]*$").matches(value) }
+
+        var curr = value.size - 1
+        while (curr > 0) {
+            if (!value[curr].isAsciiNumber()) {
+                curr++
+                break
+            }
+            curr--
+        }
+
+        if (curr == value.size) {
+            return (value, Option<UInt8>.None)
+        } else {
+            let version = UInt8.tryParse(value[curr..]) ?? return (value, Option<UInt8>.None)
+            let prefix  = value[..curr]
+            return (prefix, version)
+        }
+    }
+
+    public static func fromString(triple: String): Result<Triple, String> {
+        let errmesg = Result<Triple, String>.Err(
+            "The target-triple must be of form {ARCH}-{VENDOR}-{SYSTEM}-{ENV} or {ARCH}-{SYSTEM}-{ENV}. Got: ${triple}"
+        )
+        if (!Regex("^[a-zA-Z][-_a-zA-Z0-9]*$").matches(triple)) {
+            return errmesg
+        }
+        let data = triple.split("-")
+        if (data.size != 3 && data.size != 4) {
+            return errmesg
+        }
+
+        if (data[1] == "apple") {
+            // example: arm64-apple-ios11-sim 
+            // example: aarch64-apple-darwin
+            let env = if (data.size == 4) { Env.parse(data[3]) } else { Env.NOT_AVAILABLE } 
+            let (os, version) = extractApiVersion(data[2])
+            return Ok(Triple(
+                arch: Arch.parse(data[0]),
+                vendor: Vendor.parse(data[1]),
+                os: OS.parse(os),
+                env: env,
+                apiVersion: version
+            ))
+        }
+
+        let (env, apiVersion) = if (data[data.size - 1] == "mingw32") { 
+            (data[data.size - 1], Option<UInt8>.None)
+        } else {
+            extractApiVersion(data[data.size - 1])
+        }
+        return Ok(Triple(
+            arch: Arch.parse(data[0]),
+            vendor: Vendor.UNKNOWN,
+            os: OS.parse(data[data.size - 2]),
+            env: Env.parse(env),
+            apiVersion: apiVersion
+        ))
+    }
+}
+
+@Derive[Hashable, Equatable]
+public struct Feature <: ToString {
+    private static let builtins = HashSet<Feature>()
+
+    public static let OS_ANDROID  = builtin("os.android")
+    public static let OS_OHOS     = builtin("os.ohos")
+    public static let OS_HOS      = builtin("os.hos")
+    public static let OS_IOS      = builtin("os.ios")
+    public static let OS_LINUX    = builtin("os.linux")
+    public static let OS_DARWIN   = builtin("os.darwin")
+    public static let OS_WINDOWS  = builtin("os.windows")
+
+    private Feature(
+        let value: QName
+    ) { }
+
+    public func toString(): String { value.toString() }
+
+    private static func builtin(value: String): Feature {
+        let result = Feature(QName.fromString(value).getOrThrow())
+        builtins.add(result)
+        result
+    }
+
+    public prop isBuiltin: Bool {
+        get() {
+            builtins.contains(this)
+        }
+    }
+
+    public prop isUserDefined: Bool {
+        get() {
+            !isBuiltin && value.size >= 3 && value.root == "user"
+        }
+    }
+
+    public prop depName: ?String {
+        get() {
+            assertion { isBuiltin || isUserDefined }
+            if (isBuiltin) {
+                None
+            } else { value.get(1) }
+        }
+    }
+
+    public static func create(value: QName, loc!: ?Location = None): Result<Feature, CJMPError> {
+        let result = Feature(value)
+        if (!result.isBuiltin && !result.isUserDefined) {
+            Err(FeatureParseError(loc, value))
+        } else { Ok(result) }
+    }
+
+    public static func fromString(value: String): Result<Feature, CJMPError> {
+        QName.fromString(value)
+            .mapErr{ e => ErrorWrapper(None, e) }
+            .flatMap { value => create(value, loc: None) }
+    }
+}
+
+public struct FeatureDeducer {
+    private let _features: Array<Feature>
+    private let _enabled: Bool
+
+    public init(enabled!: Bool = true) { 
+        _features = []
+        _enabled = enabled
+    }
+
+    public init(it: Iterable<Feature>, enabled!: Bool = true) {
+        _features = it |> collectArray
+        _enabled = enabled
+    }
+
+    public func deduceTargetFeatures(triple: Triple): FeatureDeducer {
+        if (!this._enabled) {
+            return this
+        }
+
+        let feature = match ((triple.arch, triple.vendor, triple.os, triple.env)) {
+            case (_, _, OS.LINUX, Env.ANDROID) => Feature.OS_ANDROID
+            case (_, _, OS.LINUX, Env.OHOS) => Feature.OS_OHOS
+            case (_, _, OS.LINUX, Env.HOS) => Feature.OS_HOS
+            case (_, Vendor.APPLE, OS.IOS, _) => Feature.OS_IOS
+            case (_, _, OS.LINUX, _) => Feature.OS_LINUX
+            case (_, _, OS.WINDOWS, _) => Feature.OS_WINDOWS
+            case (_, Vendor.APPLE, OS.DARWIN, _) => Feature.OS_DARWIN
+            case _ => return this
+        }
+
+        return FeatureDeducer(this._features |> concat([feature]), enabled: this._enabled)
+    }
+
+    public func addFeature(feature: Feature): FeatureDeducer {
+        return FeatureDeducer(this._features |> concat([feature]), enabled: this._enabled)
+    }
+
+    public func addFeature(features: Iterable<Feature>): FeatureDeducer {
+        return FeatureDeducer(this._features |> concat(features), enabled: this._enabled)
+    }
+
+    public func applyFeatureMapping(mapping: FeatureMapping): FeatureDeducer {
+        return FeatureDeducer(mapping.findDependantFeatures(this._features), enabled: this._enabled)
+    }
+
+    public func collect(): Array<Feature> {
+        (_features |> collectHashSet).toArray()
+    }
+}
+
+class FeatureMappingBuilder {
+    private let graph = HashMap<Feature, ArrayList<Feature>>()
+ 
+    init() { }
+ 
+    public func addFeature(feature: Feature, mappedTo: Array<Feature>): Unit {
+        if (!graph.contains(feature)) {
+            graph.add(feature, ArrayList())
+        }
+        graph[feature].add(all: mappedTo)
+    }
+ 
+    public func finish(): FeatureMapping {
+        let newGraph = graph |> 
+            map { it: (Feature, ArrayList<Feature>) => (it[0], it[1] |> collectHashSet |> collectArray) } |> 
+            collectHashMap
+        FeatureMapping(newGraph)
+    }
+}
+
+public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
+    private static let SOURCE_SET_DIR = "sourceSetDir"
+    private static let SRC_DIR = "srcDir"
+    private static let FEATURES = "features"
+    private static let PRODUCT = "product"
+    private static let OUTPUT_SUFFIX = "outputSuffix"
+
+    public CJMPPackageInfo(
+        public let sourceSetDir: Path,
+        public let srcDir: Path,
+        public let features: HashSet<Feature>,
+        public let product: Bool,
+        // Example. Package is defined only in `common`, but `common` isn't marked as product
+        // For users conveniece it will be better to store `*.cjo` and `*.so` in products source sets down the way
+        public let outputSuffix!: Path = sourceSetDir
+    ) { }
+
+    // The suffix should be of a product source set
+    func changeOutputSuffix(newOutputSuffix: Path): CJMPPackageInfo {
+        assertion { outputSuffix.isRelative() }
+        CJMPPackageInfo(sourceSetDir, srcDir, features, true, outputSuffix: newOutputSuffix)
+    }
+
+    public func serialize(): DataModel {
+        DataModelStruct()
+            .add(field(SOURCE_SET_DIR, sourceSetDir.toString()))
+            .add(field(SRC_DIR, srcDir.toString()))
+            .add(field(FEATURES, features.iterator().map { it => it.toString() } |> collectArray))
+            .add(field(PRODUCT, product))
+            .add(field(OUTPUT_SUFFIX, outputSuffix.toString()))
+    }
+
+    public static func deserialize(dm: DataModel): CJMPPackageInfo {
+        let dms = (dm as DataModelStruct) ?? throw DataModelException("this data is not DataModelStruct")
+
+        let sourceSetDir = Path(String.deserialize(dms.get(SOURCE_SET_DIR)))
+        let srcDir = Path(String.deserialize(dms.get(SRC_DIR)))
+        let features = Array<String>.deserialize(dms.get(FEATURES))
+            .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
+        let product = Bool.deserialize(dms.get(PRODUCT))
+        let outputSuffix = Path(String.deserialize(dms.get(OUTPUT_SUFFIX)))
+
+        CJMPPackageInfo(sourceSetDir, srcDir, features, product, outputSuffix: outputSuffix)
+    }
+}
+
+public struct CJMPSource <: Serializable<CJMPSource> {
+    public static let empty = CJMPSource()
+
+    public let _sources: Array<CJMPPackageInfo>
+    private var _isMultiplatform: Bool
+
+    private init() {
+        this._sources = Array()
+        this._isMultiplatform = false
+    }
+
+    public init(modulePath: String, srcDir: String) {
+        assertion { exists(getPath(modulePath, srcDir)) }
+        this._sources = [CJMPPackageInfo(Path(srcDir), Path(getPath(modulePath, srcDir)), HashSet(), true, outputSuffix: Path("."))]
+        this._isMultiplatform = false
+    }
+
+    // It's expected to be topologically sorted by features
+    init(modulePath: String, sourceSetEntries: Array<SourceSetEntry>) {
+        this._sources = sourceSetEntries.map { it => 
+            assertion { exists(getPath(modulePath, it.srcDir.toString())) }
+            CJMPPackageInfo(it.srcDir, Path(getPath(modulePath, it.srcDir.toString())), it.features, it.product) 
+        }
+        this._isMultiplatform = true
+    }
+
+    private init(info: ArrayList<CJMPPackageInfo>) {
+        this._sources = info.toArray()
+        this._isMultiplatform = false
+    }
+
+    public func dirs(): Iterator<CJMPSource> {
+        let dirMap =  HashMap<String, ArrayList<CJMPPackageInfo>>()
+        let latestSourceSet = HashMap<String, Int64>()
+        for ((i, source) in _sources.iterator().enumerate()) {
+            tryReadDirectory(source.srcDir) |> 
+                filter { info => info.isDirectory() } |> 
+                forEach { it: FileInfo => 
+                    let dirname = it.path.fileName
+                    latestSourceSet[dirname] = i
+                    if (!dirMap.contains(dirname)) {
+                        dirMap[dirname] = ArrayList()
+                    }
+                    dirMap[dirname].add(CJMPPackageInfo(source.sourceSetDir, it.path, source.features, source.product))
+                }
+        }
+
+        dirMap.iterator().map { pair => 
+            let (dirname, dirs) = pair
+            assertion { dirs.size > 0 }
+            if (latestSourceSet[dirname] != this._sources.size - 1) {
+                let latest = dirs[dirs.size - 1]
+                let outputSuffix = this.product.outputSuffix
+                dirs[dirs.size - 1] = latest.changeOutputSuffix(outputSuffix)
+            }
+            var new = CJMPSource(dirs) 
+            new._isMultiplatform = this._isMultiplatform
+            new
+        }
+    }
+
+    // Used only for update timestamps
+    public func files(): Iterator<FileInfo> {
+        _sources.map { it => it.srcDir } |> 
+            flatMap {it: Path => tryReadDirectory(it) |> 
+            filter {info => info.isRegular()}}
+    }
+
+    public prop isMultiplatform: Bool {
+        get() {
+            _isMultiplatform
+        }
+    }
+
+    public prop product: CJMPPackageInfo {
+        get() {
+            assertion { _sources.size > 0 }
+            assertion { _sources[_sources.size - 1].product }
+            _sources[_sources.size - 1]
+        }
+    }
+
+    public prop allPaths: Array<Path> {
+        get() {
+            _sources.map { it => it.srcDir } |> collectArray
+        }
+    }
+
+    public func serialize(): DataModel {
+        DataModelStruct()
+            .add(field("isMultiplatform", _isMultiplatform))
+            .add(field("sources", _sources))
+    }
+
+    public static func deserialize(dm: DataModel): CJMPSource {
+        var dms = match (dm) {
+            case data: DataModelStruct => data
+            case _ => throw Exception("this data is not DataModelStruct")
+        }
+
+        let isMultiplatform = Bool.deserialize(dms.get("isMultiplatform"))
+        let sources = ArrayList<CJMPPackageInfo>.deserialize(dms.get("sources"))
+        var new = CJMPSource(sources)
+        new._isMultiplatform = isMultiplatform
+        new
+    }
+}
+
+// Parsing multiplatform configuration from `cjpm.toml`
+public struct Node<T> {
+    Node(
+        public let value: T,
+        public let loc: Location
+    ) { }
+
+    public func map<G>(transform: (T) -> G): Node<G> {
+        Node(transform(value), loc)
+    }
+
+    public func apply<G, E>(transform: (T) -> Result<G, E>): Result<Node<G>, E> {
+        match (transform(value)) {
+            case Ok(v) => Ok(Node(v, loc))
+            case Err(e) => Err(e)
+        }
+    }
+}
+
+public struct Location <: ToString {
+    private let _string: String
+    Location(
+        private let filename: String,
+        private let field: Array<String>
+    ) { 
+        _string = "${filename}:${field |> collectString(delimiter: ".")}"
+    }
+
+    func enter(name: String): Location {
+        Location(filename, field |> concat([name]) |> collectArray)
+    }
+
+    public func toString(): String {
+        _string
+    }
+}
+
+public struct ParseContext<T> where T <: ConfigObject<T> {
+    ParseContext(
+        let location: Location
+    ) { }
+
+    func getContext<U>(name: String): ParseContext<U> where U <: ConfigObject<U> {
+        ParseContext<U>(location.enter(name))
+    }
+}
+
+extend <T> ParseContext<?T> where T <: ConfigObject<T> {
+    public func underlying(): ParseContext<T> {
+        ParseContext<T>(location)
+    }
+}
+
+extend <T> ParseContext<T> where T <: ConfigTable<T> {
+
+    private static func checkNotEmpty<U>(ctx: ParseContext<U>, tv: ?TomlValue): Result<?TomlValue, Array<CJMPError>> where U <: ConfigObject<U> {
+        let typename = U.typename()
+        match (tv) {
+            case None where !U.isOptional() => Err([MissingFieldError(ctx.location, typename)])
+            case _ => Ok(tv)
+        }
+    }
+
+    public func parseFieldOrDefault<U>(tobj: TomlObject, name: String, default: () -> U): Result<Node<U>, Array<CJMPError>> where U <: ConfigObject<U> {
+        let tv = tobj.get(name)
+        let ctx = getContext<U>(name)
+        let res: Result<U, Array<CJMPError>> = match (tv) {
+            case None => Ok(default())
+            case _ => U.parse(ctx, tv)
+        }
+        res.map { it => Node(it, ctx.location) }
+    }
+
+    public func parseField<U>(tobj: TomlObject, name: String): Result<Node<U>, Array<CJMPError>> where U <: ConfigObject<U> {
+        let tv = tobj.get(name)
+        let ctx = getContext<U>(name)
+        checkNotEmpty(ctx, tv).flatMap { tv => 
+            U.parse(ctx, tv).map { it => Node(it, ctx.location) }
+        }
+    }
+
+}
+
+sealed interface ConfigObject<T> where T <: ConfigObject<T> {
+    static func isOptional(): Bool
+    static func typename(): String
+    static func parse(ctx: ParseContext<T>, tv: ?TomlValue): Result<T, Array<CJMPError>>
+}
+
+sealed interface ConfigString<T> <: ConfigObject<T> where T <: ConfigString<T> {
+    static func isOptional(): Bool { false }
+    static func typename(): String { "string" }
+    static func parse(ctx: ParseContext<T>, tv: ?TomlValue): Result<T, Array<CJMPError>> {
+        if (let Some(v) <- tv && let Some(tstr) <- (v as TomlString)) {
+            parse(ctx, tstr.value)
+        } else {
+            Err([TypeError(ctx.location, T.typename())])
+        }
+    }
+    static func parse(_: ParseContext<T>, value: String): Result<T, Array<CJMPError>>
+}
+
+sealed interface ConfigTable<T> <: ConfigObject<T> where T <: ConfigTable<T> {
+    static func isOptional(): Bool { false }
+    static func typename(): String { "table" }
+    static func parse(ctx: ParseContext<T>, tv: ?TomlValue): Result<T, Array<CJMPError>> {
+        if (let Some(v) <- tv && let Some(tobj) <- (v as TomlObject)) {
+            parse(ctx, tobj)
+        } else {
+            Err([TypeError(ctx.location, T.typename())])
+        }
+    }
+    static func parse(ctx: ParseContext<T>, tobj: TomlObject): Result<T, Array<CJMPError>>
+}
+
+extend Int64 <: ConfigObject<Int64> {
+    public static func isOptional(): Bool { false }
+    public static func typename(): String { "number" }
+    public static func parse(ctx: ParseContext<Int64>, tv: ?TomlValue): Result<Int64, Array<CJMPError>> {
+        if (let Some(v) <- tv && let Some(tint) <- (v as TomlInteger)) {
+            Ok(tint.value)
+        } else {
+            Err([TypeError(ctx.location, Int64.typename())])
+        }
+    }
+}
+
+extend Bool <: ConfigObject<Bool> {
+    public static func isOptional(): Bool { false }
+    public static func typename(): String { "boolean" }
+    public static func parse(ctx: ParseContext<Bool>, tv: ?TomlValue): Result<Bool, Array<CJMPError>> {
+        if (let Some(v) <- tv && let Some(tbool) <- (v as TomlBoolean)) {
+            Ok(tbool.value)
+        } else {
+            Err([TypeError(ctx.location, Bool.typename())])
+        }
+    }
+}
+
+extend String <: ConfigString<String> {
+    public static func isOptional(): Bool { false }
+    public static func parse(_: ParseContext<String>, value: String): Result<String, Array<CJMPError>> {
+        Ok(value)
+    }
+}
+
+extend Path <: ConfigString<Path> {
+    public static func isOptional(): Bool { false }
+    public static func typename(): String { "path" }
+    public static func parse(_: ParseContext<Path>, value: String): Result<Path, Array<CJMPError>> {
+        Ok(Path(value))
+    }
+}
+
+@Derive[Hashable, Equatable]
+public struct QName <: ToString {
+    @DeriveExclude private let _splitted: Array<String>
+    private QName(
+        public let value: String
+    ) { 
+        _splitted = value.split(".")
+    }
+
+    public func toString(): String {
+        value
+    }
+
+    public prop size: Int64 {
+        get() {
+            _splitted.size
+        }
+    }
+
+    public prop root: String {
+        get() {
+            assertion { _splitted.size > 0 }
+            _splitted[0]
+        }
+    }
+
+    public func get(index: Int64): ?String {
+        _splitted.get(index)
+    }
+
+    public static func fromString(s: String): Result<QName, String> {
+        let value = s.trimAscii()
+        // ASCII letters, digits, and underscores. First character can't be digit
+        let single = "[a-zA-Z_][a-zA-Z0-9_]*"
+        // - May be separated by dots
+        // - Cannot start with a dot
+        // - Cannot end with dot
+        // - Cannot have consecutive dots
+        // - Can have spaces before and after dot
+        let regex = Regex("^${single}(?:[ ]*\\.[ ]*${single})*$")
+        if (regex.matches(value)) {
+            return Ok(QName(value.replace(" ", "")))
+        } else {
+            return Err("value `${value}` should be dot-separated qname, where each part matches regex `${single}`")
+        }
+    }
+}
+
+extend QName <: ConfigString<QName> {
+    public static func isOptional(): Bool { false }
+    public static func typename(): String { "qname" }
+    public static func parse(ctx: ParseContext<QName>, value: String): Result<QName, Array<CJMPError>> {
+        QName.fromString(value).mapErr { err => [ErrorWrapper(ctx.location, err)] }
+    }
+}
+
+extend <T> ?T <: ConfigObject<?T> where T <: ConfigObject<T> {
+    public static func isOptional(): Bool { true }
+    public static func typename(): String { "${T.typename()} | nothing" }
+    public static func parse(ctx: ParseContext<?T>, tv: ?TomlValue): Result<?T, Array<CJMPError>> {
+        match (tv) {
+            case None => Ok(None)
+            case _ => T.parse(ctx.underlying(), tv).map { it => Some(it) }
+        }
+    }
+}
+
+public class Sequence<T> <: ConfigObject<Sequence<T>> & Iterable<Node<T>> where T <: ConfigObject<T> {
+    private Sequence(
+        private let value: Array<Node<T>>
+    ) { }
+
+    static func empty(): Sequence<T> { Sequence([]) }
+    public static func isOptional() { false }
+    public static func typename(): String { "array[${T.typename()}]" }
+    public static func parse(ctx: ParseContext<Sequence<T>>, tv: ?TomlValue): Result<Sequence<T>, Array<CJMPError>> {
+        let tarray = if (let Some(v) <- tv && let Some(tarray) <- (v as TomlArray)) {
+            tarray
+        } else {
+            return Err([TypeError(ctx.location, typename())])
+        }
+
+        tarray.value.iterator().enumerate().allResult { pair: (Int64, TomlValue) =>
+            let (i, dm) = pair
+            let ctx = ctx.getContext<T>(i.toString())
+            T.parse(ctx, dm).map { it => Node(it, ctx.location) }
+        }.map { it => Sequence(it) }
+    }
+
+    public func iterator(): Iterator<Node<T>> {
+        value.iterator()
+    }
+}
+
+public struct SourceSetSchema <: ConfigTable<SourceSetSchema> {
+    private SourceSetSchema(
+        public let name: Node<?String>,
+        public let srcDir: Node<Path>,
+        public let features: Node<Sequence<QName>>,
+        public let product: Node<?Bool>
+    ) { }
+
+    public static func parse(ctx: ParseContext<SourceSetSchema>, tobj: TomlObject): Result<SourceSetSchema, Array<CJMPError>> {
+        let name = ctx.parseField<?String>(tobj, "name")
+        let srcDir = ctx.parseField<Path>(tobj, "src-dir")
+        let features = ctx.parseField<Sequence<QName>>(tobj, "features")
+        let product = ctx.parseField<?Bool>(tobj, "product")
+
+        [name.unit(), srcDir.unit(), features.unit(), product.unit()]
+            .join().map { _ =>
+                SourceSetSchema(name.getOrThrow(), srcDir.getOrThrow(), features.getOrThrow(), product.getOrThrow())
+            }
+    }
+}
+
+public enum FeatureSchema <: ConfigTable<FeatureSchema> {
+    | Single(Node<QName>, Node<Sequence<QName>>)
+    | Multiple(Node<Sequence<QName>>)
+
+    public static func parse(ctx: ParseContext<FeatureSchema>, tobj: TomlObject): Result<FeatureSchema, Array<CJMPError>> {
+        tryParseSingle(ctx, tobj).flatMapErr { errs1 => 
+        tryParseMultiple(ctx, tobj).mapErr { errs2: Array<CJMPError> =>
+            [MultipleAlternativesError(ctx.location, [errs1, errs2])]
+        }}
+    }
+
+    private static func tryParseSingle(ctx: ParseContext<FeatureSchema>, tobj: TomlObject): Result<FeatureSchema, Array<CJMPError>> {
+        let name = ctx.parseField<QName>(tobj, "name")
+        let mapping = ctx.parseFieldOrDefault<Sequence<QName>>(tobj, "mapping") { Sequence<QName>.empty() }
+
+        [name.unit(), mapping.unit()].join().map { _ => 
+            Single(name.getOrThrow(), mapping.getOrThrow()) 
+        }
+    }
+
+    private static func tryParseMultiple(ctx: ParseContext<FeatureSchema>, tobj: TomlObject): Result<FeatureSchema, Array<CJMPError>> {
+        ctx.parseField<Sequence<QName>>(tobj, "names").map { names => Multiple(names) }
+    }
+}
+
+public class PackageSchema <: ConfigTable<PackageSchema> {
+    public static let empty: PackageSchema = PackageSchema(Node(Sequence<QName>.empty(), Location("unknown", [])))
+    private PackageSchema(
+        public let alwaysEnabledFeatures: Node<Sequence<QName>>
+    ) { }
+
+    public static func parse(ctx: ParseContext<PackageSchema>, tobj: TomlObject): Result<PackageSchema, Array<CJMPError>> {
+        let alwaysEnabledFeatures = ctx.parseFieldOrDefault<Sequence<QName>>(tobj, "always-enabled-features") { Sequence<QName>.empty() }
+
+        alwaysEnabledFeatures.map { it => PackageSchema(it) }
+    }
+}
+
+public class CJMPConfigSchema <: ConfigTable<CJMPConfigSchema> {
+    private CJMPConfigSchema(
+        public let pkg: Node<PackageSchema>,
+        public let feature: Node<Sequence<FeatureSchema>>,
+        public let sourceSet: Node<Sequence<SourceSetSchema>>
+    ) { }
+
+    public static func parse(ctx: ParseContext<CJMPConfigSchema>, tobj: TomlObject): Result<CJMPConfigSchema, Array<CJMPError>> {
+        let pkg = ctx.parseFieldOrDefault<PackageSchema>(tobj, "package") { PackageSchema.empty }
+        let feature = ctx.parseFieldOrDefault<Sequence<FeatureSchema>>(tobj, "feature") { Sequence<FeatureSchema>.empty() }
+        let sourceSet = ctx.parseFieldOrDefault<Sequence<SourceSetSchema>>(tobj, "source-set") { Sequence<SourceSetSchema>.empty() }
+
+        [pkg.unit(), feature.unit(), sourceSet.unit()].join()
+            .map { _ => CJMPConfigSchema(pkg.getOrThrow(), feature.getOrThrow(), sourceSet.getOrThrow()) }
+    }
+}
+
+public func parseCJMPConfigSchema(tv: TomlValue): Result<CJMPConfigSchema, Array<CJMPError>> {
+    let ctx = ParseContext<CJMPConfigSchema>(Location("cjpm.toml", []))
+    CJMPConfigSchema.parse(ctx, tv)
+}
+
+// Verification of individual module configurations
+public class ModuleSchemaResolved {
+    public static let empty = ModuleSchemaResolved([], [])
+    public ModuleSchemaResolved(
+        let alwaysEnabledFeatures: Array<Node<Feature>>,
+        let featureDecls: Array<Node<FeatureDecl>>,
+        let sourceSetDecls: Array<Node<SourceSetDecl>>
+    ) { }
+}
+
+public type ResolveMap = HashMap<String, ModuleSchemaResolved>
+
+public class FeatureDecl {
+    FeatureDecl(
+        let name: Feature,
+        let mapping: Array<Node<Feature>>
+    ) { }
+}
+
+public class SourceSetDecl {
+    SourceSetDecl(
+        let name: ?String,
+        let srcDir: Path,
+        let features: Array<Node<Feature>>,
+        let product: ?Bool
+    ) { }
+}
+
+public func verifyMultiplatformPre(packageName: String, _cjmpConfig: ?CJMPConfigSchema): Result<ModuleSchemaResolved, Array<CJMPError>> {
+    let config = _cjmpConfig ?? return Ok(ModuleSchemaResolved.empty)
+
+    let alwaysEnabledFeatures = verifyAlwaysEnabledFeaturesPre(config.pkg.value.alwaysEnabledFeatures.value)
+    let featureDecls = verifyFeatureDeclarationsPre(packageName, config.feature.value)
+    let sourceSetDecls = verifySourceSetsPre(config.sourceSet.value)
+    [alwaysEnabledFeatures.unit(), featureDecls.unit(), sourceSetDecls.unit()].join().map { _ => 
+        ModuleSchemaResolved(alwaysEnabledFeatures.getOrThrow(), featureDecls.getOrThrow(), sourceSetDecls.getOrThrow())
+    }
+}
+
+private func verifyAlwaysEnabledFeaturesPre(aef: Sequence<QName>): Result<Array<Node<Feature>>, Array<CJMPError>> {
+    verifyFeatureArrayPre(aef)
+}
+
+private func verifyFeatureDeclarationsPre(packageName: String, features: Sequence<FeatureSchema>): Result<Array<Node<FeatureDecl>>, Array<CJMPError>> {
+    let desugaredFeatures: Iterator<Node<(QName, Sequence<QName>)>> = features.iterator().flatMap { node =>
+        match (node.value) {
+            case Single(name, mapping) => [node.map { _ => (name.value, mapping.value) }].iterator()
+            case Multiple(names) => names.value.iterator().map { node => node.map { it => (it, Sequence<QName>.empty()) } }
+        }
+    }
+
+    let declared = HashMap<Feature, Location>()
+
+    let checkFeature: (Node<(QName, Sequence<QName>)>) -> Result<Node<FeatureDecl>, Array<CJMPError>> = { it =>
+        let location = it.loc
+        it.apply { value: (QName, Sequence<QName>) => 
+            let (qname, mapping) = value
+            let mappings = mapping.iterator().allResult { it: Node<QName> => 
+                let location = it.loc
+                it.apply { it => Feature.create(it, loc: location).arrErr() }
+            }
+
+            let featureName = Feature.create(qname, loc: location)
+                .assert({ it => !declared.contains(it)} ) { decl => FeatureDeclDuplicate(location, decl, declared[decl]) }
+                .assert({ it => !it.isBuiltin || !(mappings.ok?.isEmpty() ?? false) }) { decl => FeatureDeclWithBuiltinName(location, decl) }
+                .assert({ it => it.isBuiltin  || (it.isUserDefined && it.value.get(1) == packageName) }) { decl => FeatureDeclNameNotMatchPkgName(location, decl, packageName) }
+                .inspect { d => declared[d] = location }
+                .arrErr()
+
+            [featureName.unit(), mappings.unit()].join().map { _ => 
+                FeatureDecl(featureName.getOrThrow(), mappings.getOrThrow())
+            }
+        }
+    }
+
+    desugaredFeatures.iterator().allResult(checkFeature)
+}
+
+private func verifySourceSetsPre(sourceSets: Sequence<SourceSetSchema>): Result<Array<Node<SourceSetDecl>>, Array<CJMPError>> { 
+    func unorderedHash(array: Array<Node<Feature>>) {
+        let withoutDuplicates = array.map { it => it.value } |> collectHashSet
+        let hashes = withoutDuplicates.iterator().map { it => it.hashCode() } |> collectArray
+        sort(hashes)       
+        var hashser = DefaultHasher()
+        hashser.write(hashes.size)
+        for (hash in hashes) {
+            hashser.write(hash)
+        }
+        hashser.finish()
+    }
+
+    let declaredFeatures = HashMap<Int64, (Location, String)>()
+    let declaredName = HashMap<String, Location>()
+    let declaredPath = HashMap<String, (Location, ?String)>()
+
+    let checkSourceSet: (Node<SourceSetSchema>) -> Result<Node<SourceSetDecl>, Array<CJMPError>> = { it => 
+        let location = it.loc
+        it.apply { it: SourceSetSchema =>
+            let name = it.name.value
+            let namecheck = if (let Some(name) <- name) {
+                if (declaredName.contains(name)) {
+                    Err<Unit, CJMPError>(SourceSetDeclNameDuplicate(location, name, declaredName[name]))
+                } else {
+                    declaredName[name] = location
+                    Ok<Unit, CJMPError>(())
+                }
+            } else { 
+                Ok<Unit, CJMPError>(())
+            }.mapErr { e => [ e ]}
+
+            let path = it.srcDir.value.toString()
+            let pathcheck = if (declaredPath.contains(path)) {
+                let (oldLoc, name) = declaredPath[path]
+                Err<Unit, CJMPError>(SourceSetSrcDirDuplicate(location, name, path, oldLoc))
+            } else {
+                declaredPath[path] = (location, it.name.value)
+                Ok<Unit, CJMPError>(())
+            }.arrErr()
+
+            let featurecheck = verifyFeatureArrayPre(it.features.value)
+                .assert({ it => !declaredFeatures.contains(unorderedHash(it)) }) { v => 
+                    let (oldLoc, name) = declaredFeatures[unorderedHash(v)]
+                    [ SourceSetFeaturesDuplicate(location, name, oldLoc) ]
+                }
+                .inspect { new => 
+                    let name = it.name.value.map { it => "`${it}`" } ?? it.srcDir.value.toString()
+                    declaredFeatures[unorderedHash(new)] = (location, name) 
+                }
+        
+            [namecheck, pathcheck, featurecheck.unit()].join().map { _ =>
+                SourceSetDecl(it.name.value, it.srcDir.value, featurecheck.getOrThrow(), it.product.value)
+            }
+        }
+    }
+
+    sourceSets.iterator().allResult(checkSourceSet)
+}
+
+private func verifyFeatureArrayPre(seq: Sequence<QName>): Result<Array<Node<Feature>>, Array<CJMPError>> {
+    seq.iterator().allResult { it => 
+        let location = it.loc
+        it.apply { it => Feature.create(it, loc: location).arrErr() }
+    }
+}
+
+// Verifying of module configurations together with dependencies
+public class VerifiedModuleInfo {
+    VerifiedModuleInfo(
+        public let alwaysEnabledFeatures: Array<Feature>,
+        public let mapping: FeatureMapping,
+        public let sourceSets: SourceLocations
+    ) { }
+}
+public type VerifiedMap = HashMap<String, VerifiedModuleInfo>
+
+public struct FeatureMapping {
+    FeatureMapping(
+        private let graph: HashMap<Feature, Array<Feature>>
+    ) { }
+
+    static func builder(): FeatureMappingBuilder { FeatureMappingBuilder() }
+
+    // Looks for features that might be enable from already enabled feature set
+    // Updates the same ArrayList
+    public func findDependantFeatures(initFeatures: Array<Feature>): Array<Feature> {
+        let visited: HashSet<Feature> = HashSet()
+        let features = ArrayList(initFeatures)
+
+        for (s in features) {
+            visited.add(s)
+        }
+
+        var i = 0
+        while (i < features.size) {
+            let curr = features[i]
+            visited.add(curr)
+            if (let Some(front) <- graph.get(curr)) {
+                for (it in front where !visited.contains(it)) {
+                    features.add(it)
+                }
+            }
+            i++
+        }
+        visited.toArray()
+    }
+}
+
+public class SourceLocations {
+    SourceLocations(
+        private let graph: HashMap<String, HashSet<String>>,
+        private let mapping: HashMap<String, SourceSetEntry>,
+        private let toposort: Array<SourceSetEntry>
+    ) { }
+
+    public prop isEmpty: Bool {
+        get() {
+            toposort.size == 0
+        }
+    }
+
+    public func selectSourceSets(modulePath: String, localFeatures: HashSet<Feature>, globalFeatures: HashSet<Feature>): Result<CJMPSource, String> {
+        assertion { globalFeatures.contains(all: localFeatures) }
+        let globalSourceSet = toposort |> filter { it => globalFeatures.contains(all: it.features)} |> collectArray
+        let sourceSets = toposort |> filter { it => localFeatures.contains(all: it.features)} |> collectArray
+        let result = CJMPSource(modulePath, globalSourceSet)
+
+        let products = globalSourceSet |> filter { it => it.product } |> collectArray
+        if (products.size > 1) {
+            return Err("Cannot compile multiple product source sets\n${SourceLocationsPrinter(result)}")
+        }
+        if (globalSourceSet.size > 2) {
+            return Err("Multiple stage multiplatform build is not yet supported\n${SourceLocationsPrinter(result)}")
+        }
+        if (sourceSets.size == 0) {
+            return Err("No source set was selected\n${SourceLocationsPrinter(result)}")
+        }
+        if (products.size == 0) {
+            return Err("Prodived feature set doesn't specify product to compile\n${SourceLocationsPrinter(result)}")
+        } 
+
+        return Ok(result)
+    }
+}
+
+public struct SourceSetEntry {
+    SourceSetEntry(
+        public let name: String,
+        public let srcDir: Path,
+        public let features: HashSet<Feature>,
+        public let product: Bool
+    ) { }
+}
+
+public func verifyMultiplatformPost(modulePath: String, name: String, resolveMap: ResolveMap): Result<VerifiedModuleInfo, Array<CJMPError>> { 
+    let moduleConf = resolveMap[name]
+    let aef = verifyAlwaysEnabledFeaturesPost(moduleConf.alwaysEnabledFeatures, resolveMap)
+    let mappings = verifyFeatureDeclsPost(moduleConf.featureDecls, resolveMap)
+    let sourceSets = verifySourceSetsPost(modulePath, moduleConf.sourceSetDecls, resolveMap)
+
+    [aef.unit(), mappings.unit(), sourceSets.unit()].join()
+        .map { _: Array<Unit> => VerifiedModuleInfo(aef.getOrThrow(), mappings.getOrThrow(), sourceSets.getOrThrow()) }
+}
+
+private func verifyAlwaysEnabledFeaturesPost(aef: Array<Node<Feature>>, resolveMap: ResolveMap): Result<Array<Feature>, Array<CJMPError>> {
+    verifyFeatureArrayPost(aef, resolveMap)
+} 
+
+private func verifyFeatureDeclsPost(featureDecls: Array<Node<FeatureDecl>>, resolveMap: ResolveMap): Result<FeatureMapping, Array<CJMPError>> {
+    let checkFeatureDecl: (FeatureDecl) -> Result<(Feature, Array<Feature>), Array<CJMPError>> = { it =>
+        let name = it.name
+        verifyFeatureArrayPost(it.mapping, resolveMap).map { it => (name, it) }
+    }
+    featureDecls.map { it => it.value }.allResult(checkFeatureDecl)
+        .map { features => 
+            let builder = FeatureMapping.builder()
+            for (it in features) {
+                builder.addFeature(it[0], it[1])
+            }
+            builder.finish()
+        }
+}
+
+private type SourceSetTuple = (?String, Path, HashSet<Feature>, ?Bool)
+private func verifySourceSetsPost(modulePath: String, sourceSetDecls: Array<Node<SourceSetDecl>>, resolveMap: ResolveMap): Result<SourceLocations, Array<CJMPError>> {
+    let resolvedPaths = HashMap<String, Location>()
+    let checkIndividualSourceSet: (Node<SourceSetDecl>) -> Result<Node<SourceSetTuple>, Array<CJMPError>> = { it => 
+            let location = it.loc; it.apply { it: SourceSetDecl =>
+            let features = verifyFeatureArrayPost(it.features, resolveMap).map { it => it |> collectHashSet }
+            let envreplaced = replaceEnvVars(it.srcDir.toString())
+            let srcdircheck = Ok<String, String>(envreplaced)
+                .flatMap { it => safeCheckResult(it) }
+                .assert({ it => directoryExists(getPath(modulePath, it)) }) { it => 
+                    "directory '${getPath(modulePath, it)}' does not exist or path is too long"
+                }
+                .assert({ it => checkParentDir(modulePath, Path(modulePath).join(it).toString()) }) { _ => 
+                    "source set cannot be declared outside of module path `${canonicalize(Path(modulePath))}`"
+                }
+                .inspect { newPath => resolvedPaths[newPath.toString()] = location }
+                .map { path => Path(path) }
+                .mapErr { err => [ErrorWrapper(location, err)] }
+            let name = it.name.apply { it => safeCheckResult(it) }.mapErr { err => [ ErrorWrapper(location, err) ] }
+            let product = it.product
+            [name.unit(), features.unit(), srcdircheck.unit()].join().map { _ =>
+                (name.getOrThrow(), srcdircheck.getOrThrow(), features.getOrThrow(), product)
+            }
+        }
+    }
+    
+    sourceSetDecls.allResult(checkIndividualSourceSet)
+        .flatMap { it => checkNoOverlappingSourceSets(resolvedPaths, it) }
+        .flatMap(constructSourceLocations)
+}
+
+private func verifyFeatureArrayPost(array: Array<Node<Feature>>, resolveMap: ResolveMap): Result<Array<Feature>, Array<CJMPError>> {
+    let checkFeature: (Node<Feature>) -> Result<Feature, CJMPError> = { it: Node<Feature> => 
+        let location = it.loc
+        let value = it.value
+        assertion { value.isUserDefined || value.isBuiltin }
+
+        let depName = value.depName ?? return Ok(value)
+        if (let Some(module) <- resolveMap.get(depName)) {
+            let declaredFeatures = module.featureDecls |> map { it => it.value.name } |> collectHashSet
+            if (!declaredFeatures.contains(value)) {
+                return Err(FeatureIsNotDeclared(location, value, depName))
+            } else { 
+                return Ok(value)
+            }
+        } else { return Ok(value) }
+    }
+
+    array.iterator().allResult { it => checkFeature(it).arrErr() }
+}
+
+
+private func checkNoOverlappingSourceSets(paths: HashMap<String, Location>, decls: Array<Node<SourceSetTuple>>): Result<Array<Node<SourceSetTuple>>, Array<CJMPError>> {
+    let errors = ArrayList<CJMPError>()
+    for ((parent, parentLoc) in paths) {
+        for ((child, childLoc) in paths where parent != child) {
+            if (checkParentDir(parent, child)) {
+                errors.add(ErrorWrapper(childLoc, "source set is declared inside of another source set `${parentLoc}`"))
+            }
+        }
+    }
+
+    if (errors.size != 0) {
+        return Err(errors.toArray())
+    } else { return Ok((decls)) }
+}
+
+private func constructSourceLocations(sourceSets: Array<Node<SourceSetTuple>>): Result<SourceLocations, Array<CJMPError>> { 
+    let sourceSetsMap = HashMap<String, Node<SourceSetTuple>>()
+
+    let graph = HashMap<String, HashSet<String>>()
+    let indegree = HashMap<String, Int64>()
+    let outdegree = HashMap<String, Int64>()
+
+    for (sourceSet in sourceSets) {
+        let srcDir = sourceSet.value[1].toString()
+        sourceSetsMap[srcDir] = sourceSet
+        graph[srcDir] = HashSet()
+        indegree[srcDir] = 0
+        outdegree[srcDir] = 0
+    }
+
+    for (from in sourceSetsMap.keys()) {
+        for (to in sourceSetsMap.keys() where from != to) {
+            let fromFeatures = sourceSetsMap[from].value[2]
+            let toFeatures = sourceSetsMap[to].value[2]
+            // from less specific to more specific
+            if (toFeatures.contains(all: fromFeatures)) {
+                graph[from].add(to)
+                indegree[to] = indegree[to] + 1
+                outdegree[from] = outdegree[from] + 1
+            }
+        }
+    }
+
+    // Transitive reduction
+    for (i in graph.keys()) {
+        for (j in graph.keys()) {
+            if (graph[i].contains(j)) {
+                for (k in graph.keys() where k != i && k != j) {
+                    if (graph[i].contains(k) && graph[k].contains(j)) {
+                        graph[i].remove(j)
+                    }
+                }
+            }
+        }
+    }
+
+    let starts = indegree.iterator() |> filterMap { it => 
+        if (it[1] == 0) {         
+            let node = sourceSetsMap[it[0]]
+            let name = node.value[0] ?? node.value[1].toString()
+            (node.loc, name)
+        } else { None<(Location, String)> }
+    } |> collectArray
+
+    if (starts.size > 1) {
+        return Err([ MultipleEntrySourceSets(starts) ])
+    }
+
+    let toposort = ArrayList<String>()
+    let queue = ArrayDeque<String>()
+    for (from in graph.keys() where indegree[from] == 0) {
+        queue.addLast(from)
+    }
+    while (let Some(from) <- queue.removeFirst()) {
+        toposort.add(from)
+        for (to in graph[from]) {
+            indegree[to]--
+            if (indegree[to] == 0) {
+                queue.addLast(to)
+            } 
+        }
+    }
+
+    assertion { toposort.size == graph.size } // No cyclic source set should occur
+
+    let mapping = HashMap<String, SourceSetEntry>()
+    let sourceSetEntries = toposort.iterator().map { it => 
+        let (name, srcDir, features, product) = sourceSetsMap[it].value
+        let isProduct = if (outdegree[it] == 0) {
+            true
+        } else { product ?? false }
+        let result = SourceSetEntry(name ?? srcDir.toString(), srcDir, features, isProduct)
+        mapping[it] = result
+        result
+    } |> collectArray
+
+    return Ok(SourceLocations(graph, mapping, sourceSetEntries))
+}
+
+// Verifying command-line passed options
+public func verifyCliEnabledFeatures(array: Array<Feature>, resolveMap: ResolveMap): Result<Array<Feature>, Array<CJMPError>> {
+    let checkFeature: (Feature) -> Result<Feature, CJMPError> = { value: Feature =>
+            assertion { value.isUserDefined || value.isBuiltin }
+            let depName = value.depName ?? return Ok(value)
+            if (let Some(module) <- resolveMap.get(depName)) {
+                let declaredFeatures = module.featureDecls |> map { it => it.value.name } |> collectHashSet
+                if (!declaredFeatures.contains(value)) {
+                    return Err(FeatureIsNotDeclared(None, value, depName))
+                } else { 
+                    return Ok(value)
+                }
+            } else { return Ok(value) }
+        }
+
+    array.iterator().allResult({ it => checkFeature(it).arrErr() })
+}
+
+// Error handling, pretty-printing and utils
+public enum CJMPError <: ToString {
+    | TypeError(Location, String)
+    | MissingFieldError(Location, String)
+    | MultipleAlternativesError(Location, Array<Array<CJMPError>>)
+    | FeatureDeclDuplicate(Location, Feature, Location)
+    | FeatureDeclWithBuiltinName(Location, Feature)
+    | FeatureDeclNameNotMatchPkgName(Location, Feature, String)
+    | SourceSetDeclNameDuplicate(Location, String, Location)
+    | SourceSetSrcDirDuplicate(Location, ?String, String, Location)
+    | SourceSetFeaturesDuplicate(Location, String, Location)
+    | FeatureIsNotDeclared(?Location, Feature, String)
+    | MultipleEntrySourceSets(Array<(Location, String)>)
+    | FeatureParseError(?Location, QName)
+    | ErrorWrapper(?Location, String)
+
+    public func toString(): String {
+        match (this) {
+            case TypeError(loc, expectedType) => 
+                PrettyPrinter.printInternal(loc, "field type error. Expected type is `${expectedType}`")
+            case MissingFieldError(loc, expectedType) => 
+                PrettyPrinter.printInternal(loc, "field not found. Expected type is `${expectedType}`")
+            case MultipleAlternativesError(loc, alternatives) => 
+                let sb = StringBuilder()
+                sb.append("failed to parse `${loc}`:\n")
+                for ((alt, errs) in alternatives.iterator().enumerate()) {
+                    sb.append("  alternative ${alt + 1}:\n")
+                    for (err in errs) {
+                        sb.append("    ${err}\n")
+                    }
+                }
+                sb.toString()
+            case FeatureDeclDuplicate(loc, decl, origLoc) => 
+                PrettyPrinter.printInternal(loc, "feature `${decl}` was already declared at `${origLoc}`")
+            case FeatureDeclWithBuiltinName(loc, decl) =>
+                PrettyPrinter.printInternal(loc, "cannot declare feature with the name of a builtin `${decl}` without specifying mapping")
+            case FeatureDeclNameNotMatchPkgName(loc, decl, packageName) =>
+                PrettyPrinter.printInternal(loc, "The name of feature declaration `${decl}` should start with `user.${packageName}.`" )
+            case SourceSetDeclNameDuplicate(loc, name, origLoc) =>
+                PrettyPrinter.printInternal(loc, "source set with the same name `${name}` is declared at `${origLoc}`")
+            case SourceSetSrcDirDuplicate(loc, maybeName, path, origLoc) =>
+                let name = if (let Some(name) <- maybeName) { " `${name}`"} else { "" }
+                PrettyPrinter.printInternal(loc, "source set${name} with the same src-dir `${path}` is declared at `${origLoc}`")
+            case SourceSetFeaturesDuplicate(loc, name, origLoc) =>
+                PrettyPrinter.printInternal(loc, "source set ${name} with the same features is declared at `${origLoc}`")
+            case FeatureIsNotDeclared(loc, feature, depName) => PrettyPrinter.printInternal(loc, "feature `${feature}` is not declared by dependency `${depName}`")
+            case MultipleEntrySourceSets(locations) => 
+                let sb = StringBuilder()
+                sb.append("Error: multiple entry source sets, only one is allowed.\n")
+                for ((loc, name) in locations) {
+                    sb.append("    `${loc}`: ${name}\n")
+                }
+                sb.toString()
+            case FeatureParseError(loc, qname) =>
+                PrettyPrinter.printInternal(loc, "feature `${qname}` should be either builtin (like `${Feature.OS_LINUX}`) or start with `user.packageName.`") 
+            case ErrorWrapper(loc, message) => PrettyPrinter.printInternal(loc, message)
+        }
+    }
+}
+
+public struct SourceLocationsPrinter <: ToString {
+    private SourceLocationsPrinter(
+        private let sourceLocations: Array<CJMPPackageInfo>,
+        private let project!: ?String = None
+    ) {}
+
+    public init(source: CJMPSource, project!: ?String = None) {
+        this.sourceLocations = source._sources
+        this.project = project
+    }
+
+    public func toString() {
+        let sb = StringBuilder()
+        if (let Some(projectName) <- project) {
+            sb.append("Source code locations for the multiplatform dependency `${projectName}`:")
+        } else {
+            sb.append("Source code locations for the current multiplatform project:")
+        }
+        sb.append('\n')
+        sb.append('\n')
+        let iterator = sourceLocations.iterator()
+        var curr = iterator.next() ?? return sb.toString()
+        while (let Some(next) <- iterator.next()) {
+            sb.append("${SourcesPrinter(curr)}");
+            curr = next
+        }
+        sb.append("${SourcesPrinter(curr)}");
+        sb.toString()
+    }
+}
+
+private struct SourcesPrinter <: ToString {
+    SourcesPrinter(private let source: CJMPPackageInfo) {}
+
+    public func toString(): String {
+        let productStr = if (source.product) { "; product" } else { "" }
+        let featuresStr = if (source.features.size == 0) { "features: <none>" } else { "features: ${source.features |> collectString(delimiter: ", ")}" }
+        "  ${source.srcDir}  [${featuresStr}${productStr}]\n"
+    }
+}
+
+private struct EnabledFeaturesPrinter <: ToString {
+    EnabledFeaturesPrinter(let features: Array<Feature>) {}
+
+    public func toString() {
+        "Enabled features: ${features |> collectString(delimiter: ", ")}"
+    }
+}
+
+private struct NoSourceSetWasSelectedError <: ToString {
+    NoSourceSetWasSelectedError(
+        let features: Array<Feature>,
+        let path: String
+    ) {}
+
+    public func toString() {
+        let sb = StringBuilder()
+        sb.append(EnabledFeaturesPrinter(features).toString());
+        sb.append('\n')
+        sb.append("No source set specified in ${Path(path).join(CONFIG_FILE_NAME).toString()} was selected");
+        sb.append('\n')
+        sb.toString()
+    }
+}
+
+private func tryReadDirectory(path: Path) {
+    if (!directoryExists(path.toString())) {
+        throw CliFailError("Error: directory '${path}' does not exist or path is too long")
+    }
+    Directory.readFrom(path)
+}
+
+public class PrettyPrinter {
+    public static func print<T>(node: Node<T>, message: () -> String): String {
+        PrettyPrinter.printInternal(node.loc, message())
+    }
+
+    public static func print<T>(node: Node<T>, message: String): String {
+        PrettyPrinter.printInternal(node.loc, message)
+    }
+
+    static func printInternal(location: ?Location, message: String): String {
+        if (let Some(loc) <- location) {
+            "Error at `${loc}`: ${message}"
+        } else {
+            message
+        }
+    }
+}
+
+extend <T, E> Array<Result<T, Array<E>>> {
+    public func join(): Result<Array<T>, Array<E>> {
+        this.allResult { it => it }
+    }
+}
+
+extend <T, E> Result<T, E> {
+    func assert(condition: (T) -> Bool, err: (T) -> E): Result<T, E> {
+        match (this) {
+            case Ok(t) => if (!condition(t)) { Err(err(t)) } else { Ok(t) }
+            case Err(e) => Err(e)
+        }
+    }
+
+    func arrErr(): Result<T, Array<E>> {
+        mapErr { e => [ e ]}
+    }
+}
+
+extend <T> Option<T> {
+    func apply<U, E>(transform: (T) -> Result<U, E>): Result<Option<U>, E> {
+        match (this) {
+            case Some(v) => transform(v).map { it => Some(it) }
+            case None => Ok(None)
+        }
+    }
+}

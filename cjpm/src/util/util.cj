@@ -33,11 +33,6 @@ public func isSubpackage(fqname: String): Bool {
     return false
 }
 
-public enum Result<T, E> {
-    | Ok(T)
-    | Err(E)
-}
-
 // Structure which represents full-qualified package name parsed from the String literal
 // 
 // If struct is tried to be constructed from incorrect one (missing backticks '`' when necessary)
@@ -155,4 +150,13 @@ public struct WithDefault<T> {
 private enum OptionDefault<T> {
     | Set(T)
     | Default(T)
+}
+
+
+public func tryResult<T>(comp: () -> T): Result<T, String> {
+    try {
+        return Ok(comp())
+    } catch(e: Exception) {
+        return Err(e.message)
+    }
 }

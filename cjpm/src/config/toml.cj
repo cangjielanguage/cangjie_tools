@@ -36,6 +36,7 @@ public class TomlInfo <: Serializable<TomlInfo> {
     public var targetConfigMap: HashMap<String, TargetConfig> = HashMap<String, TargetConfig>()
     public var isPkgConfig: Bool = true
     public var isWorkSpaceConfig: Bool = false
+    public var multiplatformConfig: ?CJMPConfigSchema = None
 
     public init() {}
 
@@ -86,9 +87,7 @@ public class TomlInfo <: Serializable<TomlInfo> {
 
         match (dms.get(PACKAGE) as DataModelStruct) {
             case Some(val) =>
-                let sourceSetCfgParser = ConfigParserVisitor()
                 result.pkg = Package.deserialize(val)
-                result.pkg.sourceSetTree = sourceSetCfgParser.visitRoot(dms)
             case None => result.isPkgConfig = false
         }
         match (dms.get("workspace") as DataModelStruct) {
@@ -399,6 +398,9 @@ public func loadModuleFile(path: String): Option<TomlInfo> {
         let de = DecoderToml(file)
         let to = de.decode()
         tomlInfo = TomlInfo.deserialize(DataModel.fromToml(to))
+        tomlInfo.multiplatformConfig = parseCJMPConfigSchema(to).getOrThrow { errs =>
+            Exception(errs |> collectString(delimiter: "\n"))
+        }
         file.close()
     } catch (e: Exception) {
         eprintln("${e.message}\nError: parse the '${tomlFile}' file failed")
@@ -425,7 +427,7 @@ public func verifyModuleConfig(cfg: TomlInfo, path: String, rootPath: String, is
 }
 
 // verify cjpm.toml field before resolving
-public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false): Bool {
+public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false, resolveMap!: ?ResolveMap = None): Bool {
     let configFilePath: String = Path(path).join(CONFIG_FILE_NAME).toString()
     let (flag, errInfo) = cfg.isCompatible()
     if (!flag) {
@@ -464,6 +466,14 @@ public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String,
         return false
     }
 
+    let resolved = verifyMultiplatformPre(cfg.pkg.name, cfg.multiplatformConfig)
+        .inspectErr { errs => for (err in errs) { eprintln(err) } }
+        .ok ?? return false
+
+    if (let Some(resolveMap) <- resolveMap) {
+        resolveMap[cfg.pkg.name] = resolved
+    }
+
     if (cfg.isPkgConfig) {
         cfg.pkg.compileOption = fixCompileOption(cfg.pkg.compileOption, configFilePath)
         cfg.pkg.overrideCompileOption = fixCompileOption(cfg.pkg.overrideCompileOption, configFilePath)
@@ -479,17 +489,11 @@ public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String,
 public func verifyModuleConfigPost(cfg: TomlInfo, path: String, isTest!: Bool = false): Bool {
     let configFilePath: String = Path(path).join(CONFIG_FILE_NAME).toString()
 
-    if (!verifyCLibConfig(cfg.ffi.cLibs, path, configFilePath)) {
-        return false
-    }
-    if (!verifyCLibConfig(cfg.crossFfi.cLibs, path, configFilePath)) {
-        return false
-    }
-    if (!verifyTargetConfig(cfg.targetConfigMap, path, configFilePath, isTest: isTest)) {
-        return false
-    }
-
-    return true
+    var isValid = true
+    isValid = verifyCLibConfig(cfg.ffi.cLibs, path, configFilePath) && isValid
+    isValid = verifyCLibConfig(cfg.crossFfi.cLibs, path, configFilePath) && isValid
+    isValid = verifyTargetConfig(cfg.targetConfigMap, path, configFilePath, isTest: isTest) && isValid
+    return isValid
 }
 
 func verifyLinkOption(option: String, configFilePath: String): Bool {

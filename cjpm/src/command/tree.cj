@@ -78,18 +78,7 @@ class TreeCommand <: Handle {
             return false
         }
 
-        var featureDeducer = FeatureDeducer(treeConfig.globalConfig.features,
-            enabled: !treeConfig.globalConfig.noFeatureDeduce)
-
-        match (handleCrossTarget(argMap)) {
-            case None => return false
-            case Some(true) => 
-                match (Triple.fromString(crossCompileTarget)) {
-                    case Ok(triple) => featureDeducer = featureDeducer.deduceTargetFeatures(triple)
-                    case Err(errmesg) => eprintln(errmesg); return false
-                }
-            case Some(false) => featureDeducer = featureDeducer.deduceTargetFeatures(state.cjcInfo.target)
-        }
+        let _ = handleCrossTarget(argMap) ?? return false
 
         if (unparseArgs.size != 0) {
             for (val in TREE_VALUE_OPTIONS) {
@@ -102,10 +91,9 @@ class TreeCommand <: Handle {
             return false
         }
 
-        if (let Some(features) <- handleEnableFeaturesOption(argMap)) {
-            featureDeducer = featureDeducer.addFeature(features)
-        }
-        treeConfig.globalConfig.features = featureDeducer.deduceDependantFeatures().collect()
+        treeConfig.globalConfig.enabledFeatures = handleEnableFeaturesOption(argMap)
+            .inspectErr { errs => for (err in errs) { eprintln("Error: ${err}") } }
+            .ok ?? return false
 
         return doTree(treeConfig)
     }

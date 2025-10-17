@@ -16,8 +16,28 @@ public func doRun(runConfig: RunConfig): Bool {
         return false
     }
 
-    let binPath = Path(runConfig.targetPath).join(BIN).toString()
+    let historyFile = Path(runConfig.originTargetPath).join(HISTORY_FILE_NAME).toString()
+
+    let binPath = if (fileExists(historyFile)) {
+        let resInfo: ModuleResolve = loadHistoryFile(historyFile) ?? return false
+
+        let maybeResolveItem = resInfo.resolves.iterator()
+            .filter { it => it.fullName == runConfig.rootPkgName} |> 
+            first<ResolveItem> 
+
+        if (let Some(resolveItem) <- maybeResolveItem && resolveItem.isMultiplatform) {
+            let outputSuffix = resolveItem.packagePath.product.outputSuffix.toString()
+            getPath(runConfig.targetPath, BIN, outputSuffix)
+        } else { 
+            Path(runConfig.targetPath).join(BIN).toString()
+        }
+
+    } else {
+        Path(runConfig.targetPath).join(BIN).toString()
+    }
+
     runConfig.filePath = Path(binPath).join(makeExeName(runConfig.name)).toString()
+
     if (!fileExists(runConfig.filePath)) {
         eprintln("Error: can not find the '${runConfig.filePath}' file")
         return false
