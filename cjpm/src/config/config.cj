@@ -832,6 +832,7 @@ public class GlobalConfig {
     public var isIncremental: Bool = false
     public var isForScript: Bool = false
     public var isSkipScript: Bool = false
+    public var isProjectCombine: Bool = false
     public var isAnalysisCompilePerformance: Bool = false
     public var rootName: String = WORKSPACE_NAME
     public var resolveType: String = RESOLVE_CHECK
@@ -868,6 +869,7 @@ public class GlobalConfig {
         this.isIncremental = globalConfig.isIncremental
         this.isForScript = globalConfig.isForScript
         this.isSkipScript = globalConfig.isSkipScript
+        this.isProjectCombine = globalConfig.isProjectCombine
         this.resolveType = globalConfig.resolveType
         this.rootName = globalConfig.rootName
         this.rootPath = globalConfig.rootPath
@@ -916,7 +918,6 @@ public struct ResolveConfig {
     public var features: ArrayList<Feature> = ArrayList()
 }
 
-@When[os == "Linux"]
 public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
     let res = ArrayList<String>()
     let ltoFile = Path(libPath).join(makeLtoName(libName)).toString()
@@ -936,18 +937,6 @@ public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayLis
         res.add(ltoFile)
     }
 
-    return res
-}
-
-@When[os == "Windows" || os == "macOS"]
-public func linkPackage(libName: String, libPath: String, _: Bool): ArrayList<String> {
-    var res = ArrayList<String>()
-    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(libName)).toString()) || fileExists(
-        Path(libPath).join("lib${libName}.so").toString()) || fileExists(
-        Path(libPath).join("lib${libName}.dll").toString()) || fileExists(
-        Path(libPath).join("lib${libName}.dylib").toString())) {
-        res.add(all: ["-L", libPath, "-l${libName}"])
-    }
     return res
 }
 

@@ -52,6 +52,11 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
         return (dm, false, mockUsed)
     }
 
+    if (globalConfig.isProjectCombine) {
+        dm.readyPkgs.removeIf {v => v == globalConfig.rootName}
+        dm.readyPkgs.add(globalConfig.rootName)
+    }
+
     // Check parent-child package accessLevel.
     if (!checkAccessLevel(dm)) {
         return (dm, false, mockUsed)

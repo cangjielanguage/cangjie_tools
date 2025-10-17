@@ -202,6 +202,28 @@ class DepModel {
         return (true, false)
     }
 
+    func isProjectCombineCheck(tomlInfo: TomlInfo): Bool {
+        if (tomlInfo.pkg.packageConfiguration.contains(this.globalConfig.rootName) &&
+            tomlInfo.pkg.packageConfiguration[this.globalConfig.rootName].combineAllDeps) {
+            if (tomlInfo.profile.build.combined.isEmpty()) {
+                eprintln("Error: field" +
+                    "'package.package-configuration.${this.globalConfig.rootName}.combine-all-deps = true' " +
+                    "is invalid when field 'profile.build.combine' is empty")
+                return false
+            }
+            if (this.globalConfig.isForScript) {
+                println("Warning: module '${tomlInfo.pkg.name}' will not be compiled as " +
+                    "combine-all-deps module when depended by build.cj")
+            } else if (this.globalConfig.isTest) {
+                println("Warning: module '${tomlInfo.pkg.name}' will not be compiled as " +
+                    "combine-all-deps module for test")
+            } else {
+                this.globalConfig.isProjectCombine = true
+            }
+        }
+        return true
+    }
+
     func depCheck(path: String, preName: String, prePath: String, requires: ?DepInfo): BuildCheckResult {
         // Check the path exists.
         if (!directoryExists(path)) {
@@ -217,15 +239,19 @@ class DepModel {
         }
         if (!COMMON_INFO.inWorkspace && (this.globalConfig.rootName == tomlInfo.pkg.name)) {
             this.replaceMap = tomlInfo.replaceDeps
+            if (!isProjectCombineCheck(tomlInfo)) {
+                return FAILED_BUILD_CHECK_RESULT
+            }
             let (flag, _) = this.processDependencyModule(this.lockedMap, "", true)
             if (!flag) {
                 return FAILED_BUILD_CHECK_RESULT
             }
         }
 
-        if (!tomlInfo.profile.build.combined.isEmpty()) {
+        if (!tomlInfo.profile.build.combined.isEmpty() && !this.globalConfig.isProjectCombine) {
             if (this.globalConfig.isForScript) {
-                println("Warning: module '${tomlInfo.pkg.name}' will not be compiled as combined module when depended by build.cj")
+                println("Warning: module '${tomlInfo.pkg.name}' will not be compiled as " +
+                    "combined module when depended by build.cj")
             } else {
                 for ((pkgName, outputType) in tomlInfo.profile.build.combined) {
                     this.superPkgMap[pkgName] = SuperPackageConfig(pkgName, outputType)
@@ -655,23 +681,23 @@ class DepModel {
         if (!fileExists(depCachePath)) {
             return
         }
- 
+
         var buf = String.fromUtf8(File.readFrom(depCachePath))
         var dm = DataModel.fromJson(JsonValue.fromStr(buf))
- 
+
         match (dm) {
-            case data: DataModelStruct => 
+            case data: DataModelStruct =>
                 this.binDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("bin"))
                 this.pkgBuildDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-build"))
                 this.pkgTestDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-test"))
-            
-            case _ => 
+
+            case _ =>
                 throw Exception("this data is not DataModelStruct")
                 eprintln("Warning: load ${depCachePath} failed\n")
                 return
         }
     }
- 
+
     // update incremental cache of bin-dependencies and pkg-dependencies
     func updateDepIncrementalCache(): Unit {
         let binCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
@@ -1107,12 +1133,30 @@ class DepModel {
                 continue
             }
             let checkedPkgSet: HashSet<String> = HashSet<String>()
+            let extraSuperPkgDep: HashSet<String> = HashSet<String>()
             for (subPkg in superPkgCfg.subPkgSet) {
+                extraSuperPkgDep.clear()
                 let extraSuperPkgDep: HashSet<String> = HashSet<String>()
                 getDepBetweenSuperPkg(subPkg, extraSuperPkgDep, checkedPkgSet)
                 this.packageDepMap[superPkgName].requires.add(all: extraSuperPkgDep)
             }
+
+            // add combine deps of all sub-pkg deps of super package from combined modules
+            // and clear all these sub-pkg deps
+            extraSuperPkgDep.clear()
+            checkedPkgSet.remove(superPkgName)
+            getDepBetweenSuperPkg(superPkgName, extraSuperPkgDep, checkedPkgSet)
+            this.packageDepMap[superPkgName].requires.add(all: extraSuperPkgDep)
             this.packageDepMap[superPkgName].requires.remove(superPkgName)
+
+            let dupSubPkgDep: HashSet<String> = HashSet<String>()
+            for (dep in this.packageDepMap[superPkgName].requires) {
+                if ((dep.split(".").size > 1) && (dep.split(".")[0] != superPkgName) &&
+                    this.superPkgMap.contains(dep.split(".")[0])) {
+                    dupSubPkgDep.add(dep)
+                }
+            }
+            this.packageDepMap[superPkgName].requires.remove(all: dupSubPkgDep)
 
             // add force-linked sub-packages into requires, and record them
             // after toposort, remove them from requires
@@ -1131,10 +1175,11 @@ class DepModel {
         if (!this.packageDepMap.contains(pkgName)) {
             return
         }
+        let srcSuperPkgName = pkgName.split(".")[0]
         for (dep in this.packageDepMap[pkgName].requires) {
-            let superPkgName = dep.split(".")[0]
-            if (this.superPkgMap.contains(superPkgName)) {
-                extraSuperPkgDep.add(superPkgName)
+            let dstSuperPkgName = dep.split(".")[0]
+            if (srcSuperPkgName != dstSuperPkgName && this.superPkgMap.contains(dstSuperPkgName)) {
+                extraSuperPkgDep.add(dstSuperPkgName)
             }
             getDepBetweenSuperPkg(dep, extraSuperPkgDep, checkedPkgSet)
         }
