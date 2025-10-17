@@ -353,14 +353,17 @@ public struct Feature <: ToString {
 public struct FeatureDeducer {
     private let _features: Array<Feature>
     private let _enabled: Bool
+    private let _mapping: FeatureMapping
 
     public init(enabled!: Bool = true) { 
         _features = []
         _enabled = enabled
+        _mapping = FeatureMapping.empty
     }
 
-    public init(it: Iterable<Feature>, enabled!: Bool = true) {
+    private init(it: Iterable<Feature>, mapping: FeatureMapping, enabled!: Bool = true) {
         _features = it |> collectArray
+        _mapping = mapping
         _enabled = enabled
     }
 
@@ -380,23 +383,23 @@ public struct FeatureDeducer {
             case _ => return this
         }
 
-        return FeatureDeducer(this._features |> concat([feature]), enabled: this._enabled)
+        return FeatureDeducer(this._features |> concat([feature]), this._mapping, enabled: this._enabled)
     }
 
     public func addFeature(feature: Feature): FeatureDeducer {
-        return FeatureDeducer(this._features |> concat([feature]), enabled: this._enabled)
+        return FeatureDeducer(this._features |> concat([feature]), this._mapping, enabled: this._enabled)
     }
 
     public func addFeature(features: Iterable<Feature>): FeatureDeducer {
-        return FeatureDeducer(this._features |> concat(features), enabled: this._enabled)
+        return FeatureDeducer(this._features |> concat(features), this._mapping, enabled: this._enabled)
     }
 
-    public func applyFeatureMapping(mapping: FeatureMapping): FeatureDeducer {
-        return FeatureDeducer(mapping.findDependantFeatures(this._features), enabled: this._enabled)
+    public func setFeatureMapping(mapping: FeatureMapping): FeatureDeducer {
+        return FeatureDeducer(this._features, mapping, enabled: this._enabled)
     }
 
-    public func collect(): Array<Feature> {
-        (_features |> collectHashSet).toArray()
+    public func collect(): HashSet<Feature> {
+        _mapping.findDependantFeatures(_features)
     }
 }
 
@@ -1101,6 +1104,8 @@ public class VerifiedModuleInfo {
 public type VerifiedMap = HashMap<String, VerifiedModuleInfo>
 
 public struct FeatureMapping {
+    public static let empty = FeatureMapping(HashMap())
+
     FeatureMapping(
         private let graph: HashMap<Feature, Array<Feature>>
     ) { }
@@ -1111,7 +1116,7 @@ public struct FeatureMapping {
 
     // Looks for features that might be enable from already enabled feature set
     // Updates the same ArrayList
-    public func findDependantFeatures(initFeatures: Array<Feature>): Array<Feature> {
+    public func findDependantFeatures(initFeatures: Array<Feature>): HashSet<Feature> {
         let visited: HashSet<Feature> = HashSet()
         let features = ArrayList(initFeatures)
 
@@ -1130,7 +1135,7 @@ public struct FeatureMapping {
             }
             i++
         }
-        visited.toArray()
+        visited
     }
 }
 
@@ -1155,16 +1160,16 @@ public class SourceLocations {
 
         let products = globalSourceSet |> filter { it => it.product } |> collectArray
         if (products.size > 1) {
-            return Err("Cannot compile multiple product source sets\n${SourceLocationsPrinter(result)}")
+            return Err("Cannot compile multiple product source sets\n${SourceLocationsPrinter(result, globalFeatures)}")
         }
         if (globalSourceSet.size > 2) {
-            return Err("Multiple stage multiplatform build is not yet supported\n${SourceLocationsPrinter(result)}")
+            return Err("Multiple stage multiplatform build is not yet supported\n${SourceLocationsPrinter(result, globalFeatures)}")
         }
         if (sourceSets.size == 0) {
-            return Err("No source set was selected\n${SourceLocationsPrinter(result)}")
+            return Err("No source set was selected\n${SourceLocationsPrinter(result, globalFeatures)}")
         }
         if (products.size == 0) {
-            return Err("Prodived feature set doesn't specify product to compile\n${SourceLocationsPrinter(result)}")
+            return Err("Provided feature set doesn't specify product to compile\n${SourceLocationsPrinter(result, globalFeatures)}")
         } 
 
         return Ok(result)
@@ -1441,16 +1446,23 @@ public enum CJMPError <: ToString {
 public struct SourceLocationsPrinter <: ToString {
     private SourceLocationsPrinter(
         private let sourceLocations: Array<CJMPPackageInfo>,
+        private let features: Iterable<Feature>,
         private let project!: ?String = None
     ) {}
 
-    public init(source: CJMPSource, project!: ?String = None) {
+    public init(source: CJMPSource, features: Iterable<Feature>, project!: ?String = None) {
         this.sourceLocations = source._sources
+        this.features = features
         this.project = project
     }
 
     public func toString() {
         let sb = StringBuilder()
+
+        if (let res <- (features |> collectString(delimiter: ", ")) && !res.isEmpty()) {
+            sb.append("Enabled features: { ${res} }\n")
+        } else { sb.append("Enabled features: { }\n")}
+
         if (let Some(projectName) <- project) {
             sb.append("Source code locations for the multiplatform dependency `${projectName}`:")
         } else {

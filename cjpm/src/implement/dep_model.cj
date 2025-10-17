@@ -376,14 +376,24 @@ class DepModel {
             return FAILED_BUILD_CHECK_RESULT
         }
 
-        let (actualSource, features) = constructSource(path, tomlInfo.pkg.srcDir.value, verifiedModuleMap[tomlInfo.pkg.name], this.globalConfig.verifiedEnabledFeatures, this.propagatedFeatures[tomlInfo.pkg.name], !this.globalConfig.noFeatureDeduce)
+        let cjmpModuleInfo = verifiedModuleMap[tomlInfo.pkg.name]
+        var deducer = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
+        let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+        if (let Some(triple) <- Triple.fromString(target).ok) {
+            deducer = deducer.deduceTargetFeatures(triple)
+        }
+        deducer = deducer
+            .addFeature(cjmpModuleInfo.alwaysEnabledFeatures)
+            .setFeatureMapping(cjmpModuleInfo.mapping)
+
+        let (actualSource, features) = constructSource(path, tomlInfo.pkg.srcDir.value, cjmpModuleInfo.sourceSets, deducer, this.globalConfig.verifiedEnabledFeatures, this.propagatedFeatures[tomlInfo.pkg.name])
             .inspectErr { err => eprintln("Error: ${err}") }
             .ok ?? return FAILED_BUILD_CHECK_RESULT
 
         tomlInfo.pkg.actualSources = actualSource
         tomlInfo.pkg.validPkgMap = getAllPkgs(actualSource, tomlInfo.pkg.name)
 
-        let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo, features)
+        let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo, features, deducer)
         if (!processSuccess) {
             return (false, mockUsedInDependentPackages)
         }
@@ -747,8 +757,8 @@ class DepModel {
                 .addFeature(this.globalConfig.verifiedEnabledFeatures)
                 .addFeature(alwaysEnabledFeatures)
                 .deduceTargetFeatures(Triple.fromString(target).getOrThrow())
-                .applyFeatureMapping(mapping)
-                .collect() |> collectHashSet
+                .setFeatureMapping(mapping)
+                .collect()
             
             propagatedFeatures[name].add(all: features)
             for (feature in features) {
@@ -940,7 +950,7 @@ class DepModel {
     }
 
     // Get valid package by validPackagePath.
-    func processAllPkgs(tomlInfo: TomlInfo, features: HashSet<Feature>): BuildCheckResult {
+    func processAllPkgs(tomlInfo: TomlInfo, features: HashSet<Feature>, deducer: FeatureDeducer): BuildCheckResult {
         var packageTasks = ArrayList<Future<(Bool, Bool)>>()
         let defaultSize = 16 // default parallel value
         let actualSize = min(defaultSize, maxParallelSize)
@@ -977,6 +987,7 @@ class DepModel {
                     pkgInfo.hasProdFiles = pkg.hasProdFiles
                     pkgInfo.hasTestFiles = pkg.hasTestFiles
                     pkgInfo.features = features
+                    pkgInfo.featureDeducer = deducer
                     let (flag, mockUsed) = runPackageTask(pkgInfo, pkg.hashCode, pkg.timeStamp, directDeps)
                     scanDepSem.release()
                     return (flag, mockUsed)
@@ -1283,19 +1294,18 @@ func getActualName(pkgPath: String, rootPkgName: String): String {
     return actualName
 }
 
-func constructSource(modulePath: String, srcDir: String, moduleInfo: VerifiedModuleInfo, enabledFeatures: Array<Feature>, globalFeatures: HashSet<Feature>, deduceFeatures: Bool): Result<(CJMPSource, HashSet<Feature>), String> {
-    let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
-    let localFeatures = FeatureDeducer(enabled: deduceFeatures)
+func constructSource(modulePath: String, srcDir: String, sourceSets: SourceLocations, deducer: FeatureDeducer, enabledFeatures: Array<Feature>, _globalFeatures: HashSet<Feature>): Result<(CJMPSource, HashSet<Feature>), String> {
+    let localFeatures = deducer
         .addFeature(enabledFeatures)
-        .addFeature(moduleInfo.alwaysEnabledFeatures)
-        .deduceTargetFeatures(Triple.fromString(target).getOrThrow())
-        .applyFeatureMapping(moduleInfo.mapping)
-        .collect() |> collectHashSet
+        .collect()
+    let globalFeatures = deducer
+        .addFeature(_globalFeatures)
+        .collect()
     assertion { globalFeatures.contains(all: localFeatures) }
-    if (moduleInfo.sourceSets.isEmpty) {
+    if (sourceSets.isEmpty) {
         return Ok((CJMPSource(modulePath, srcDir), localFeatures))
     } else { 
-        return moduleInfo.sourceSets.selectSourceSets(modulePath, localFeatures, globalFeatures).map { it => (it, localFeatures) }
+        return sourceSets.selectSourceSets(modulePath, localFeatures, globalFeatures).map { it => (it, localFeatures) }
     }
 }
 

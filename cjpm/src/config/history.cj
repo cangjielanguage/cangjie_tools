@@ -191,6 +191,7 @@ public class ResolveItem <: Serializable<ResolveItem> {
     public var hasTestsInProdFiles: Bool = false // It's detected by cjc --scan-dependency mode
     public var superPkgCfg: ?SuperPackageConfig = None
     public var features: HashSet<Feature> = HashSet() // The set of features, which was specified when resolving dependencies
+    public var featureDeducer: ?FeatureDeducer = None
 
     public init() {}
 
