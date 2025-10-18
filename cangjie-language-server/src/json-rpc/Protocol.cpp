@@ -825,10 +825,12 @@ bool FromJSON(const nlohmann::json &params, CodeActionContext &reply)
         FromJSON(item, diag);
         reply.diagnostics.push_back(std::move(diag));
     }
-    nlohmann::json only = params["only"];
-    if (!only.is_null() && only.is_array()) {
-        for (const auto &item : only) {
-            reply.only->push_back(item);
+    if (params.contains("only")) {
+        nlohmann::json only = params["only"];
+        if (!only.is_null() && only.is_array()) {
+            for (const auto &item : only) {
+                reply.only->push_back(item);
+            }
         }
     }
     return true;
