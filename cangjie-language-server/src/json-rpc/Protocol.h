@@ -626,6 +626,57 @@ struct ApplyWorkspaceEditParams {
 
 bool ToJSON(const ApplyWorkspaceEditParams &item, nlohmann::json &reply);
 
+struct FileRefactorReqParams {
+    TextDocumentIdentifier file;
+
+    TextDocumentIdentifier targetPath;
+
+    TextDocumentIdentifier selectedElement;
+};
+
+bool FromJSON(const nlohmann::json &params, FileRefactorReqParams &reply);
+
+enum class FileRefactorChangeType {
+    // add import.
+    ADD = 1,
+    // change import.
+    CHANGED = 2,
+    // delete import.
+    DELETED = 3,
+};
+
+struct FileRefactorChange {
+    FileRefactorChangeType type;
+
+    Range range;
+
+    std::string content;
+
+    bool operator<(const FileRefactorChange &rhs) const
+    {
+        if (type != rhs.type) {
+            return static_cast<int>(type) < static_cast<int>(rhs.type);
+        }
+
+        if (range != rhs.range) {
+            return range < rhs.range;
+        }
+        return content < rhs.content;
+    }
+
+    bool operator==(const FileRefactorChange &rhs) const
+    {
+        return type == rhs.type && range == rhs.range && content == rhs.content;
+    }
+
+};
+
+struct FileRefactorRespParams {
+    std::map<std::string, std::set<FileRefactorChange>> changes;
+};
+
+bool ToJSON(const FileRefactorRespParams &item, nlohmann::json &reply);
+
 class MessageHeaderEndOfLine {
 public:
     static std::string& GetEol()

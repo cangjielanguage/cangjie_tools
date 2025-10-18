@@ -16,6 +16,7 @@ enum class RefKind : uint8_t {
     DECLARATION = 1 << 0,
     DEFINITION = 1 << 1,
     REFERENCE = 1 << 2,
+    IMPORT = 1 << 3,
     ALL = DEFINITION | REFERENCE | DECLARATION
 };
 

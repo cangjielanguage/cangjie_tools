@@ -39,8 +39,6 @@ Range TransformFromChar2IDE(Range range);
 
 Range TransformFromIDE2Char(Range range);
 
-std::vector<std::string> Split(const std::string &str, const std::string &pattern = "\n");
-
 bool PositionInCurToken(int line, int column, const Cangjie::Token &token);
 
 int LineOfCommentEnd(const Cangjie::Token &token, std::string &lastString);

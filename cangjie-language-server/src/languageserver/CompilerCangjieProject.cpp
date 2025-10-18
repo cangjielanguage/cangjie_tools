@@ -207,6 +207,38 @@ std::string CompilerCangjieProject::GetFullPkgName(const std::string &filePath) 
     return pathToFullPkgName.at(dirPath);
 }
 
+std::string CompilerCangjieProject::GetFullPkgByDir(const std::string &dirPath) const
+{
+    std::string normalizePath = Normalize(dirPath);
+    if (pathToFullPkgName.find(normalizePath) != pathToFullPkgName.end()) {
+        return pathToFullPkgName.at(normalizePath);
+    }
+    auto IsInModules = [this](const std::string &path) {
+        if (!moduleManager) {
+            return false;
+        }
+        for (const auto &moduleInfo : moduleManager->moduleInfoMap) {
+            if (path.length() >= moduleInfo.first.length()
+                && path.substr(0, moduleInfo.first.length()) == moduleInfo.first) {
+                return true;
+            }
+        }
+        return false;
+    };
+    std::string dirName = FileUtil::GetDirName(dirPath);
+    std::string parentPath = Normalize(FileUtil::GetDirPath(dirPath));
+    while (IsInModules(parentPath)) {
+        if (pathToFullPkgName.find(parentPath) != pathToFullPkgName.end()) {
+            std::stringstream ss;
+            ss << pathToFullPkgName.at(parentPath) << CONSTANTS::DOT << dirName;
+            return ss.str();
+        }
+        dirName = FileUtil::GetDirName(parentPath).append(CONSTANTS::DOT).append(dirName);
+        parentPath = Normalize(FileUtil::GetDirPath(parentPath));
+    }
+    return "";
+}
+
 void CompilerCangjieProject::IncrementCompile(const std::string &filePath, const std::string &contents, bool isDelete)
 {
     // Create new compiler instance and set some required options.
@@ -245,6 +277,10 @@ void CompilerCangjieProject::IncrementCompile(const std::string &filePath, const
     // Updates the status of the downstream package cjo cache.
     if (changed) {
         cjoManager->UpdateDownstreamPackages(fullPkgName, graph);
+    }
+
+    if (CompilerCangjieProject::GetInstance() && CompilerCangjieProject::GetInstance()->GetBgIndexDB()) {
+        CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({filePath});
     }
 
     // 4. build symbol index
@@ -672,6 +708,24 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete
     return newCI;
 }
 
+std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForFileRefactor(const std::string &filePath)
+{
+    Logger::Instance().LogMessage(MessageType::MSG_LOG, "FileRefactor: Start compilation for package: " + filePath);
+    std::string package = GetFullPkgName(filePath);
+    if (!pkgInfoMap.count(package)) {
+        return nullptr;
+    }
+    auto &invocation = pkgInfoMap[package]->compilerInvocation;
+    auto &diag = pkgInfoMap[package]->diag;
+    auto ci = std::make_unique<LSPCompilerInstance>(callback, *invocation, *diag, package, moduleManager);
+    ci->cangjieHome = modulesHome;
+    ci->loadSrcFilesFromCache = true;
+    ci->bufferCache = pkgInfoMap[package]->bufferCache;
+    ci->PreCompileProcess();
+
+    return ci;
+}
+
 void CompilerCangjieProject::IncrementCompileForCompleteNotInSrc(
     const std::string &name, const std::string &filePath, const std::string &contents)
 {
@@ -740,10 +794,10 @@ void CompilerCangjieProject::InitParseCache(const std::unique_ptr<LSPCompilerIns
     }
 }
 
-std::pair<CangjieFileKind, std::string> CompilerCangjieProject::GetCangjieFileKind(const std::string &filePath) const
+std::pair<CangjieFileKind, std::string> CompilerCangjieProject::GetCangjieFileKind(const std::string &filePath, bool isPkg) const
 {
     std::string normalizeFilePath = Normalize(filePath);
-    std::string dirPath = GetDirPath(normalizeFilePath);
+    std::string dirPath = isPkg ? normalizeFilePath : GetDirPath(normalizeFilePath);
     if (pathToFullPkgName.find(dirPath) != pathToFullPkgName.end()) {
         return {CangjieFileKind::IN_OLD_PACKAGE, pkgInfoMap.at(pathToFullPkgName.at(dirPath))->modulePath};
     }

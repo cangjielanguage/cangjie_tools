@@ -143,24 +143,6 @@ Range TransformFromIDE2Char(Range range)
     return range;
 }
 
-std::vector<std::string> Split(const std::string &str, const std::string &pattern)
-{
-    std::vector<std::string> result;
-    if (str.empty())
-        return result;
-    std::string strs = str + pattern;
-    size_t pos = strs.find(pattern);
-
-    while (pos != std::string::npos) {
-        std::string temp = strs.substr(0, pos);
-        result.push_back(temp);
-        strs = strs.substr(pos + 1, strs.size());
-        pos = strs.find(pattern);
-    }
-
-    return result;
-}
-
 bool PositionInCurToken(int line, int column, const Cangjie::Token &token)
 {
     std::string lastString;

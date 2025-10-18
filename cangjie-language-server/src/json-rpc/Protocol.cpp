@@ -885,4 +885,39 @@ bool ToJSON(const ApplyWorkspaceEditParams &params, nlohmann::json &reply)
     }
     return true;
 }
+
+bool FromJSON(const nlohmann::json &params, FileRefactorReqParams &reply)
+{
+    if (!FromJSON(params["file"], reply.file)) {
+        return false;
+    }
+    if (!FromJSON(params["targetPath"], reply.targetPath)) {
+        return true;
+    }
+    if (!FromJSON(params["selectedElement"], reply.selectedElement)) {
+        return false;
+    }
+    return true;
+}
+
+bool ToJSON(const FileRefactorRespParams &item, nlohmann::json &reply)
+{
+    for (const auto &change : item.changes) {
+        const std::string &uri = change.first;
+        const std::set<FileRefactorChange> &refactors = change.second;
+        nlohmann::json items;
+        for (const auto &refactor : refactors) {
+            nlohmann::json temp;
+            temp["type"] = static_cast<int>(refactor.type);
+            temp["range"]["start"]["line"] = refactor.range.start.line;
+            temp["range"]["start"]["character"] = refactor.range.start.column;
+            temp["range"]["end"]["line"] = refactor.range.end.line;
+            temp["range"]["end"]["character"] = refactor.range.end.column;
+            temp["content"] = refactor.content;
+            items.push_back(temp);
+        }
+        reply["changes"][uri] = items;
+    }
+    return true;
+}
 } // namespace ark

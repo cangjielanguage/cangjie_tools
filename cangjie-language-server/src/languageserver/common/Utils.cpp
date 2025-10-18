@@ -1426,4 +1426,58 @@ TokenKind FindPreFirstValidTokenKind(const ark::ArkAST &input, int index)
     }
     return TokenKind::INIT;
 }
+
+Position FindLastImportPos(const File &file)
+{
+    int lastImportLine = 0;
+    for(const auto &import : file.imports) {
+        if (!import) 
+        {
+            continue;
+        }
+        lastImportLine = std::max(import->content.rightCurlPos.line, std::max(import->importPos.line, lastImportLine));
+    }
+    Position pkgPos = file.package->packagePos;
+    if (lastImportLine == 0 && pkgPos.line > 0) {
+        lastImportLine = pkgPos.line;
+    }
+    return {pkgPos.fileID, lastImportLine + 1, 1};
+}
+
+std::vector<std::string> Split(const std::string &str, const std::string &pattern)
+{
+    std::vector<std::string> result;
+    if (str.empty())
+        return result;
+    std::string strs = str + pattern;
+    size_t pos = strs.find(pattern);
+
+    while (pos != std::string::npos) {
+        std::string temp = strs.substr(0, pos);
+        result.push_back(temp);
+        strs = strs.substr(pos + 1, strs.size());
+        pos = strs.find(pattern);
+    }
+    return result;
+}
+
+std::vector<std::string> GetAllFilePathUnderCurrentPath(const std::string& path, const std::string& extension,
+    bool shouldSkipTestFiles, bool shouldSkipRegularFiles)
+{
+    std::vector<std::string> allFiles;
+    auto files = FileUtil::GetAllFilesUnderCurrentPath(path, extension,
+        shouldSkipTestFiles, shouldSkipRegularFiles);
+    std::for_each(files.begin(), files.end(), [&allFiles, &path](const std::string &fileName) {
+        allFiles.emplace_back(NormalizePath(FileUtil::JoinPath(path, fileName)));
+    });
+    auto dirs = FileUtil::GetAllDirsUnderCurrentPath(path);
+    std::for_each(dirs.begin(), dirs.end(), [&](const std::string &dir) {
+        auto files = FileUtil::GetAllFilesUnderCurrentPath(dir, extension,
+            shouldSkipTestFiles, shouldSkipRegularFiles);
+        std::for_each(files.begin(), files.end(), [&allFiles, &dir](const std::string &fileName) {
+            allFiles.emplace_back(NormalizePath(FileUtil::JoinPath(dir, fileName)));
+        });
+    });
+    return allFiles;
+}
 } // namespace ark

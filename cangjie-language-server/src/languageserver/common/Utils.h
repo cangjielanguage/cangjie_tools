@@ -348,5 +348,13 @@ std::optional<std::string> GetSysCap(const Expr& e);
 std::string GetSysCapFromDecl(const Decl &decl);
 
 TokenKind FindPreFirstValidTokenKind(const ark::ArkAST &input, int index);
+
+Position FindLastImportPos(const File &file);
+
+std::vector<std::string> Split(const std::string &str, const std::string &pattern = "\n");
+
+std::vector<std::string> GetAllFilePathUnderCurrentPath(
+    const std::string& path, const std::string& extension,
+    bool shouldSkipTestFiles = false, bool shouldSkipRegularFiles = false);
 }
 #endif // LSPSERVER_UTILS_H

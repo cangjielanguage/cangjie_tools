@@ -200,6 +200,8 @@ public:
 
     std::string GetFullPkgName(const std::string &filePath) const;
 
+    std::string GetFullPkgByDir(const std::string &dirPath) const;
+
     Ptr<Package> GetSourcePackagesByPkg(const std::string &fullPkgName);
 
     std::string GetModuleSrcPath(const std::string &modulePath);
@@ -328,7 +330,7 @@ public:
     void IncrementForFileDelete(const std::string &fileName);
 
     // after workspace init, can use it. pair::second = ModulePath
-    std::pair<CangjieFileKind, std::string> GetCangjieFileKind(const std::string &filePath) const;
+    std::pair<CangjieFileKind, std::string> GetCangjieFileKind(const std::string &filePath, bool isPkg = false) const;
 
     int GetFileID(const std::string &fileName);
 
@@ -468,6 +470,9 @@ public:
 
     std::unique_ptr<LSPCompilerInstance> GetCIForDotComplete(const std::string &filePath, Position pos,
                                                              std::string &contents);
+
+    std::unique_ptr<LSPCompilerInstance> GetCIForFileRefactor(const std::string &filePath);
+
     void StoreAllPackagesCache();
 
 private:

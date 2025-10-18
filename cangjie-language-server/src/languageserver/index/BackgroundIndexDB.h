@@ -31,11 +31,16 @@ public:
     void Lookup(const LookupRequest &req,
         std::function<void(const Symbol &)> callback) const override;
 
+    void FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const override;
+
     void Refs(const RefsRequest &req,
         std::function<void(const Ref &)> callback) const override;
 
     void RefsFindReference(const RefsRequest &req, Ref &definition,
         std::function<void(const Ref &)> callback) const override;
+
+    void FileRefs(const FileRefsRequest &req,
+        std::function<void(const Ref &ref, const SymbolID symId)> callback) const override;
 
     void Relations(const RelationsRequest &req,
         std::function<void(const Relation &)>callback) const override;

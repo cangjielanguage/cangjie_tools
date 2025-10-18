@@ -209,6 +209,10 @@ SQL(SelectSymbolsByLocation,
   )
 );
 
+SQL(SelectSymbolsByPkgName,
+  SELECT * FROM symbols WHERE Scope = :Scope OR Scope LIKE :ScopePrefix || '%'
+);
+
 SQL(InsertCompletion,
   INSERT OR IGNORE INTO completions VALUES(
     :SymbolID,
@@ -288,6 +292,10 @@ SQL(MultiInsertReferencesValue,
 
 SQL(SelectReference,
   SELECT * FROM refs WHERE SymbolID = :SymbolID AND Kind & :Kind
+);
+
+SQL(SelectFileReference,
+  SELECT * FROM refs WHERE FileURI = :FileURI AND Kind & :Kind
 );
 
 SQL(SelectReferred,

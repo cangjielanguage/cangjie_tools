@@ -25,8 +25,6 @@ public:
 
     static bool CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode);
 
-    static Position FindLastImportPos(const File &file);
-
     static Range FindGlobalInsertPos(const File &file, Range &range);
 private:
     static Ptr<Block> GetSatisfiedBlock(const ASTContext &ctx, Range &range, const std::string &scopeName,

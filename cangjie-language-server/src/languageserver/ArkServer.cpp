@@ -316,6 +316,31 @@ void ArkServer::FindFileReferences(const std::string &file, const Callback<Value
     arkScheduler->RunWithAST("FileReferences", file, action);
 }
 
+void ArkServer::ApplyFileRefactor(const std::string &file,
+    const std::string &selectedElement,
+    const std::string &target,
+    bool &isTest,
+    const Callback<ValueOrError> &reply) const
+{
+    auto action = [file, target, selectedElement, isTest, reply = reply](const InputsAndAST &inputAST) {
+        if (inputAST.ast == nullptr) {
+            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+            reply(value);
+            return;
+        }
+        FileRefactorRespParams result;
+        FileMove::FileMoveRefactor(inputAST.ast, result, file, selectedElement, target);
+        nlohmann::json jsonValue;
+        if (!isTest) {
+            ToJSON(result, jsonValue);
+        }
+        ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
+        reply(value);
+    };
+
+    arkScheduler->RunWithAST("FileRefactor", file, action);
+}
+
 void ArkServer::FindWorkspaceSymbols(const std::string &query, const Callback<ValueOrError> &reply) const
 {
     auto action = [query, reply = std::move(reply)](const InputsAndAST &) {
@@ -736,18 +761,22 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
 {
     auto action = [this, file, type, docMgr](const InputsAndAST &input) {
         if (type == FileChangeType::CHANGED) {
-            Logger::Instance().LogMessage(MessageType::MSG_WARNING, "enter the scenario not supported ");
-            if (docMgr->GetDoc(file).version == -1) {
-                Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
-                const std::string &contents = GetFileContents(file);
-                int64_t version = docMgr->AddDoc(file, 0, contents);
-                AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
+            Logger::Instance().LogMessage(MessageType::MSG_INFO, "change the file:  " + file);
+            const std::string &contents = GetFileContents(file);
+            if (std::hash<std::string>{}(contents) == std::hash<std::string>{}(docMgr->GetDoc(file).contents)) {
+                Logger::Instance().LogMessage(MessageType::MSG_INFO, "recieve file change, but contens are same.");
+                return;
             }
+            int64_t version = docMgr->AddDoc(file, 0, contents);
+            AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;
         }
         if (type == FileChangeType::CREATED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
-            const std::string &contents = GetFileContents(file);
+            std::string contents = docMgr->GetDoc(file).contents;
+            if (docMgr->GetDoc(file).version == -1) {
+                contents = GetFileContents(file);
+            }
             int64_t version = docMgr->AddDoc(file, 0, contents);
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;

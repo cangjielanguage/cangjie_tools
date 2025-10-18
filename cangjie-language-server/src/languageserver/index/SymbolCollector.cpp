@@ -341,6 +341,9 @@ void SymbolCollector::Build(const Package &package)
                 return VisitAction::WALK_CHILDREN;
             }).Walk();
         }
+        if (!CjdIndexer::GetInstance() || !CjdIndexer::GetInstance()->GetRunningState()) {
+           CreateImportRef(*file); 
+        }
     }
     scopes.pop_back();
     CollectRelations(inheritableDecls);
@@ -1313,6 +1316,52 @@ void SymbolCollector::CreateTypeRef(const Type &type, const std::string &filePat
     }
     UpdatePos(refInfo.location, type, filePath);
     (void)symbolRefMap[GetDeclSymbolID(*target)].emplace_back(refInfo);
+}
+
+void SymbolCollector::CreateImportRef(const File &fileNode)
+{
+    if (!fileNode.curFile || !fileNode.curPackage) {
+        return;
+    }
+    auto filePath = fileNode.curFile->filePath;
+    auto GetPackagePrefixWithPaths = [](const std::vector<std::string> &prefixPaths)-> std::string {
+        std::stringstream ss;
+        for (const auto &prefix : prefixPaths) {
+            ss << prefix << ".";
+        }
+        return ss.str().substr(0, ss.str().size() - 1);
+    };
+    auto ProcImport = [&fileNode, &GetPackagePrefixWithPaths, &filePath, this](
+                            ImportSpec &importSpec, ImportContent &importContent, bool isAllImport) {
+        const auto srcPkgName = fileNode.curPackage->fullPackageName;
+        std::string packagePrefix = GetPackagePrefixWithPaths(importContent.prefixPaths);
+        const auto targetPkg = this->importMgr.GetPackageDecl(packagePrefix);
+        if (!targetPkg) {
+            return;
+        }
+        const auto members = this->importMgr.GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
+        for (const auto &memberDecl : members) {
+            if (const auto declPtr = dynamic_cast<const Decl *>(memberDecl.get());
+                declPtr == nullptr || (!isAllImport && declPtr->identifier != importContent.identifier)) {
+                    continue;
+                }
+            SymbolLocation loc{importSpec.begin, importSpec.end, filePath};
+            Ref refInfo{.location = loc, .kind = RefKind::IMPORT};
+            UpdatePos(refInfo.location, importSpec, filePath);
+            (void)symbolRefMap[GetDeclSymbolID(*memberDecl)].emplace_back(refInfo);
+        }
+    };
+
+    for (const auto &importSpec : fileNode.imports) {
+        if (!importSpec || importSpec->IsImportMulti() || importSpec->end.IsZero()) {
+            continue;
+        }
+        auto importContent = importSpec.get()->content;
+        if (importContent.end.IsZero()) {
+            continue;
+        }
+        ProcImport(*importSpec, importContent, importSpec->IsImportAll());
+    }
 }
 
 void SymbolCollector::CreateMacroRef(const Node &node, const MacroInvocation &invocation)

@@ -247,22 +247,6 @@ bool TweakUtils::CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode
     return isValid;
 }
 
-Position TweakUtils::FindLastImportPos(const File &file)
-{
-    int lastImportLine = 0;
-    for (const auto &import : file.imports) {
-        if (!import) {
-            continue;
-        }
-        lastImportLine = std::max(import->content.rightCurlPos.line, std::max(import->importPos.line, lastImportLine));
-    }
-    Position pkgPos = file.package->packagePos;
-    if (lastImportLine == 0 && pkgPos.line > 0) {
-        lastImportLine = pkgPos.line;
-    }
-    return {pkgPos.fileID, lastImportLine + 1, 1};
-}
-
 Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
 {
     Range insertRange;
@@ -272,7 +256,7 @@ Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
             continue;
         }
         if (i == 0 && TweakUtils::Contain(*decl, range)) {
-            Position pos = TweakUtils::FindLastImportPos(file);
+            Position pos = FindLastImportPos(file);
             insertRange = {pos, pos};
             break;
         }
@@ -283,7 +267,7 @@ Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
         }
     }
     if (insertRange.end.IsZero()) {
-        Position pos = TweakUtils::FindLastImportPos(file);
+        Position pos = FindLastImportPos(file);
         insertRange = {pos, pos};
     }
     return insertRange;

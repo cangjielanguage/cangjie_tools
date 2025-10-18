@@ -100,8 +100,6 @@ struct ArkAST {
 
     int GetCurTokenSkipSpace(const Cangjie::Position &pos, int start, int end, int lastEnd) const;
 
-    void PostProcessGetToken(const Cangjie::Position &pos, Cangjie::Token &curToken, int index) const;
-
     bool IsFilterToken(const Position &pos) const;
 
     bool IsFilterTokenInHighlight(const Position &pos) const;

@@ -131,6 +131,8 @@ private:
 
     void CreateNamedArgRef(const CallExpr& ce);
 
+    void CreateImportRef(const File &fileNode);
+
     void CreateExtend(const Decl& decl, const std::string& filePath);
 
     void CreateCrossSymbolByInterop(const Decl &decl);

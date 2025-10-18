@@ -465,6 +465,23 @@ dberr_no IndexDatabase::GetSymbolByID(IDArray id, std::function<bool(const Symbo
     return true;
 }
 
+dberr_no IndexDatabase::GetPkgSymbols(std::string pkgName, std::function<bool(const Symbol &sym)> callback)
+{
+    try {
+        std::string scopePrefix = pkgName + ":";
+        Use(sql::SelectSymbolsByPkgName).execute(sqldb::with(pkgName, scopePrefix),
+            [&](sqldb::Result Row) {
+            Symbol resSym;
+            PopulateSymbol(Row, resSym);
+            callback(resSym);
+            return true;
+        });
+    } catch(std::exception &ex) {
+        std::cerr << "getsymbol fail due to " << ex.what() << "\n";
+    }
+    return true;
+}
+
 dberr_no IndexDatabase::GetSymbolsAndCompletions(const std::string &prefix,
     std::function<void(const Symbol &sym, const CompletionItem &completion)> callback)
 {
@@ -614,6 +631,20 @@ dberr_no IndexDatabase::GetReferences(const SymbolID &id, RefKind kind,
             SymbolID symId;
             PopulateRef(row, ref, symId);
             callback(ref);
+            return true;
+        });
+    return true;
+}
+
+dberr_no IndexDatabase::GetFileReferences(const std::string &fileUri, RefKind kind,
+    std::function<bool(const Ref &ref, const SymbolID symId)> callback) 
+{
+    Use(sql::SelectFileReference)
+        .execute(sqldb::with(fileUri, kind), [&](sqldb::Result row) {
+            Ref ref;
+            SymbolID symId;
+            PopulateRef(row, ref, symId);
+            callback(ref, symId);
             return true;
         });
     return true;

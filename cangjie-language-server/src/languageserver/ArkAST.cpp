@@ -259,22 +259,6 @@ int ArkAST::GetCurTokenByPos(const Position &pos, int start, int end, bool isFor
     }
 }
 
-void ArkAST::PostProcessGetToken(const Cangjie::Position &pos, Cangjie::Token &curToken, int index) const
-{
-    if (pos < curToken.Begin() && index - 1 >= 0) {
-        auto preToken = tokens[static_cast<size_t>(index - 1)];
-        if (preToken.Begin() <= pos && preToken.End() >= pos) {
-            curToken = preToken;
-        }
-    }
-    if (pos > curToken.End() && static_cast<size_t>(index + 1) < tokens.size()) {
-        auto nextToken = tokens[static_cast<size_t>(index + 1)];
-        if (nextToken.Begin() <= pos && nextToken.End() >= pos) {
-            curToken = nextToken;
-        }
-    }
-}
-
 bool ArkAST::IsFilterToken(const Position &pos) const
 {
     int idx = GetCurTokenByPos(pos, 0, static_cast<int>(tokens.size()) - 1);

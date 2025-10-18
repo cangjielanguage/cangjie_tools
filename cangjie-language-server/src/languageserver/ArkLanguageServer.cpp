@@ -258,6 +258,7 @@ ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environme
     MsgHandler->Bind("textDocument/codeAction", &ArkLanguageServer::OnCodeAction);
     MsgHandler->Bind("workspace/executeCommand", &ArkLanguageServer::OnCommand);
     MsgHandler->Bind("textDocument/findFileReferences", &ArkLanguageServer::OnFileReference);
+    MsgHandler->Bind("textDocument/fileRefactor", &ArkLanguageServer::OnFileRefactor);
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
         MsgHandler->Bind("textDocument/codeLens", &ArkLanguageServer::OnCodeLens);
     }
@@ -325,6 +326,7 @@ nlohmann::json GetServerCapabilities(int syncKind)
         serverCapabilities["codeActionProvider"] = true;
         serverCapabilities["executeCommandProvider"]["commands"] = { Command::APPLY_EDIT_COMMAND };
     }
+    serverCapabilities["findFileRefactor"] = true;
 
     return serverCapabilities;
 }
@@ -755,6 +757,11 @@ bool ArkLanguageServer::CheckFileInCangjieProject(const std::string &filePath, b
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(filePath).first != CangjieFileKind::MISSING;
 }
 
+bool ArkLanguageServer::CheckPkgInCangjieProject(const std::string &pkgPath) const
+{
+    return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(pkgPath, true).first != CangjieFileKind::MISSING;
+}
+
 void ArkLanguageServer::RemoveDocByFile(const std::string &file)
 {
     DocMgr.RemoveDoc(file);
@@ -838,6 +845,37 @@ void ArkLanguageServer::OnFileReference(const DocumentLinkParams &params, nlohma
     };
     Server->FindFileReferences(file, std::move(reply));
 }
+
+void ArkLanguageServer::OnFileRefactor(const FileRefactorReqParams &params, nlohmann::json id)
+{
+    Logger& logger = Logger::Instance();
+    logger.LogMessage(MessageType::MSG_LOG, "ArkLanguageServer::OnFileRefactor in");
+
+    std::string file = FileStore::NormalizePath(URI::Resolve(params.file.uri.file));
+    if (FileUtil::GetFileExtension(file) != CONSTANTS::CANGJIE_FILE_EXTENSION) {
+        ReplyError(id);
+        return;
+    }
+    std::string selectedElement = FileStore::NormalizePath(URI::Resolve(params.selectedElement.uri.file));
+    bool fileInCjProject = FileUtil::IsDir(selectedElement) ? CheckPkgInCangjieProject(selectedElement)
+                                                            : CheckFileInCangjieProject(selectedElement);
+    std::string target = FileStore::NormalizePath(URI::Resolve(params.targetPath.uri.file));
+    target = FileUtil::IsDir(target) ? target :FileUtil::GetDirPath(target);
+    bool targetInCjProject = CheckPkgInCangjieProject(target);
+    if (!fileInCjProject || !targetInCjProject) {
+        ReplyError(id);
+        return;
+    }
+
+    auto reply = [id, this](const ValueOrError &result) mutable {
+        std::lock_guard<std::mutex> lock(transp.transpWriter);
+        transp.Reply(std::move(id), result);
+    };
+
+    bool isTest = false;
+    Server->ApplyFileRefactor(file, selectedElement, target, isTest, std::move(reply));
+}
+
 
 void ArkLanguageServer::OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id)
 {
@@ -1127,7 +1165,7 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
         }
     }
     if (arkAst && arkAst->file) {
-        AddAllImportCodeAction(diagnostics, URI::URIFromAbsolutePath(arkAst->file->filePath).ToString());
+        AddAllImportCodeAction(diagnostics, URI::URIFromAbsolutePath(file).ToString());
     }
 
     notification.diagnostics = std::move(diagnostics);
