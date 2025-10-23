@@ -220,7 +220,7 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
 
     if (buildConfig.globalConfig.isProjectCombine &&
         buildConfig.packageList.macros.contains(buildConfig.globalConfig.rootName)) {
-        eprintln("Error: field" +
+        eprintln("Error: field " +
             "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
             "is not support for macro root package '${buildConfig.globalConfig.rootName}'")
         return Option<ModuleResolve>.None
@@ -232,12 +232,12 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
     }
 
     if (supportLto() && buildConfig.globalConfig.isProjectCombine && buildConfig.ltoValue.isEmpty()) {
-        eprintln("Error: field" +
+        eprintln("Error: field " +
             "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
             "is invalid when field 'profile.build.lto' is empty")
         return Option<ModuleResolve>.None
     } else if (!supportLto() && buildConfig.globalConfig.isProjectCombine) {
-        eprintln("Error: field" +
+        eprintln("Error: field " +
             "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
             "only supports compilation to Linux/OHOS")
         return Option<ModuleResolve>.None

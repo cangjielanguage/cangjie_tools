@@ -206,9 +206,9 @@ class DepModel {
         if (tomlInfo.pkg.packageConfiguration.contains(this.globalConfig.rootName) &&
             tomlInfo.pkg.packageConfiguration[this.globalConfig.rootName].combineAllDeps) {
             if (tomlInfo.profile.build.combined.isEmpty()) {
-                eprintln("Error: field" +
+                eprintln("Error: field " +
                     "'package.package-configuration.${this.globalConfig.rootName}.combine-all-deps = true' " +
-                    "is invalid when field 'profile.build.combine' is empty")
+                    "is invalid when field 'profile.build.combined' is empty")
                 return false
             }
             if (this.globalConfig.isForScript) {
