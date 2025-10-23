@@ -18,6 +18,8 @@ import stdx.encoding.json.*
 import std.process.*
 import hle.tool.*
 import hle.entry.*
+import std.fs.{exists, remove}
+import std.regex.*
 
 const OS_WINDOWS = "Windows"
 const OS_OTHERS = "Others"
@@ -41,6 +43,7 @@ Options:
   -o <directory>        The directory to save the binding code (optional, defaults to the current directory)
   -j <file>             The absolute path of the d.ts or d.ets file analyzer (optional)
   --module-name <name>  Customize the generated Cangjie package name (optional)
+  --arkui               Generate bindings for arkui (optional)
   --lib                 Generate bindings for third-party library (optional)
   --help                Display this help information
 
@@ -62,6 +65,7 @@ main(args: Array<String>) {
 
     let argSpecs = [
         Long("module-name", RequiredValue),
+        Long("arkui", NoValue),
         Long("lib", NoValue),
         Long("help", NoValue),
         Short(r'r', RequiredValue),
@@ -107,8 +111,10 @@ main(args: Array<String>) {
     }
 
     // Parse multiple files under a directory
-    if (!cla.directoryPath.isEmpty() && !parseMultipleFiles(moduleNameTemp)) {
-        return 1
+    if (!cla.directoryPath.isEmpty()) {
+        if (!parseMultipleFiles(moduleNameTemp)) {
+            return 1
+        }
     }
 
     let end = MonoTime.now()
@@ -219,14 +225,12 @@ func parseFilesSpawn(f: FileInfo, dir: Path, name: String, gconfigList: Concurre
 func getTypeDeclFile(file: FileInfo): String {
     let packageJsonFile = "oh-package.json5"
     if (let Some(dir) <- file.parentDirectory) {
-        if (File.exists(dir.path.toString() + "/" + packageJsonFile)) {
-            let fileContent = File.readFrom(dir.path.toString() + "/" + packageJsonFile)
-            let jsonObj = JsonValue.fromStr(String.fromUtf8(fileContent)).asObject()
-            if (let Some(v) <- jsonObj.get("types")) {
-                return v.toString().replace("\"", "") // Strip the double quotes
-            }
-            if (let Some(v) <- jsonObj.get("typings")) {
-                return v.toString().replace("\"", "") // Strip the double quotes
+        if (exists(dir.path.toString() + "/" + packageJsonFile)) {
+            let fileContent = String.fromUtf8(File.readFrom(dir.path.toString() + "/" + packageJsonFile))
+            let fileName = Regex(##"["']?\s*[types|typings]\s*["']?\s*:\s*["']?(\w+).d.ts\s*"##,
+                    [MultiLine]).find(fileContent, group: true)
+            if (let Some(v) <- fileName) {
+                return v.matchString(1)+ ".d.ts"
             }
         }
     }
@@ -235,53 +239,15 @@ func getTypeDeclFile(file: FileInfo): String {
 
 func createDir(dir: String) {
     mtx.lock()
-    if (!Directory.exists(dir)) {
+    if (!exists(dir)) {
         Directory.create(dir, recursive: true)
     }
     mtx.unlock()
 }
 
-func getModuleName(thirdpartyName: ?String, module: String) {
-    match (thirdpartyName) {
-        case Some(v) => v
-        case None =>
-            if (module.startsWith("@ohos")) {
-                module.replace("@ohos.", "")
-            } else if (module.startsWith("@hms")) {
-                module.replace("@hms.", "")
-            } else {
-                module
-            }
-    }
-}
-
-func getArkTSModuleName(gconfig: GlobalConfig, moduleName: String, moduleFullName: String): String {
-    var arkTSModuleName = ""
-    if (!cla.directoryPath.isEmpty()) {
-        if (!cla.directoryPath.endsWith("/")) {
-            cla.directoryPath += "/"
-        }
-        let dir = cla.directoryPath.split("/")
-        if (dir.size >= 2) {
-            arkTSModuleName = dir[dir.size - 2]
-        }
-    } else {
-        let dir = cla.arkpath.split("/")
-        if (dir.size >= 2) {
-            arkTSModuleName = dir[dir.size - 2]
-        }
-    }
-    arkTSModuleName = if (gconfig.is3rd && moduleFullName != gconfig.typeDeclFile) {
-        arkTSModuleName + "_" + removeTsSuffix(moduleName)
-    } else {
-        arkTSModuleName
-    }
-    arkTSModuleName
-}
-
 func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: GlobalConfig,
     moduleNameTemp!: String = "", thirdpartyName!: ?String = None, relativePathName!: String = "", tsPath!: String = "") {
-    let isInvalid = !File.exists(arkpath) || !arkpath.endsWith(".d.ts") && !arkpath.endsWith(".d.ets")
+    let isInvalid = !exists(arkpath) || !arkpath.endsWith(".d.ts") && !arkpath.endsWith(".d.ets")
     if (isInvalid) {
         throw IllegalArgumentException("Invalid arkts input: ${arkpath}")
     }
@@ -296,15 +262,26 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
     let module = arkFileName.split("/")[0]
     let moduleFullName = module
 
-    var moduleName = getModuleName(thirdpartyName, module)
+    var moduleName = match (thirdpartyName) {
+        case Some(v) => v
+        case None =>
+            if (module.startsWith("@ohos")) {
+                module.replace("@ohos.", "")
+            } else if (module.startsWith("@hms")) {
+                module.replace("@hms.", "")
+            } else {
+                module
+            }
+    }
 
     let jsonDir = outDir + "json/arkts/"
     createDir(jsonDir)
 
     // Avoid duplicate filename in different directories, append prefix to filename
-    var prefix = ""
-    if (relativePathName != "") {
-        prefix = relativePathName.replace("/", "_") + "_"
+    let prefix = if (relativePathName != "") {
+        relativePathName.replace("/", "_") + "_"
+    } else {
+        ""
     }
 
     println("========Analyzing ${arkFileName} Begins!========")
@@ -317,7 +294,7 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
         arkJson = jsonDir + prefix + arkFileName.replace("d.ets", "json")
     }
 
-    if (!File.exists(arkJson)) {
+    if (!exists(arkJson)) {
         println("Warning: ${arkJson} generation failed! ${arkFileName} is skipped.\n")
         return
     }
@@ -343,8 +320,26 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
         moduleNameTemp
     }
 
-    var arkTSModuleName = getArkTSModuleName(gconfig, moduleName, moduleFullName)
-
+    var arkTSModuleName = ""
+    if (!cla.directoryPath.isEmpty()) {
+        if (!cla.directoryPath.endsWith("/")) {
+            cla.directoryPath += "/"
+        }
+        let dir = cla.directoryPath.split("/")
+        if (dir.size >= 2) {
+            arkTSModuleName = dir[dir.size - 2]
+        }
+    } else {
+        let dir = cla.arkpath.split("/")
+        if (dir.size >= 2) {
+            arkTSModuleName = dir[dir.size - 2]
+        }
+    }
+    arkTSModuleName = if (gconfig.is3rd && moduleFullName != gconfig.typeDeclFile) {
+        arkTSModuleName + "_" + removeTsSuffix(moduleName)
+    } else {
+        arkTSModuleName
+    }
     gconfig.load(transform, prefix + moduleName, name, arkTSModuleName, outCJPath)
     gconfig.showConfig()
 }
@@ -359,7 +354,7 @@ func getFiles(fileInfos: ArrayList<FileInfo>, dir: Path): Unit {
         if (f.isSymbolicLink()) {
         } else if (f.isDirectory()) {
             getFiles(fileInfos, f.path)
-        } else if (f.isFile()) {
+        } else if (f.isRegular()) {
             let fileName = f.path.fileName
             if (fileName.endsWith(".d.ts") || fileName.endsWith(".d.ets")) {
                 fileInfos.add(f)

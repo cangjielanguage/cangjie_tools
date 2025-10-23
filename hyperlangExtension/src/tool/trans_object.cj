@@ -179,6 +179,10 @@ public class TransObject {
         var isPublicType = false
         for (i in 0..arkMethods.size) {
             let arkMethod = arkMethods[i]
+            if (arkMethod.name == "") {
+                isPublicType = true
+                continue
+            }
             var params = splitUnionParams(arkMethod.parameters)
             for (param in params) {
                 arkMethod.parameters = param
@@ -189,10 +193,6 @@ public class TransObject {
                     methodToken.append(tm.generateFunc())
                 } else {
                     methodToken.append(tm.generateMemberFunc())
-                }
-                if (arkMethod.name == "") {
-                    isPublicType = true
-                    paramToken.append(tm.getParamToken())
                 }
             }
         }
@@ -261,7 +261,7 @@ public class TransObject {
         let methodToken = Tokens()
         let constructorToken = Tokens()
         let paramToken = Tokens()
-        var isPublicType = genMethodOfClass(property, constructorToken, methodToken, paramToken, templateClassNameToken)
+        genMethodOfClass(property, constructorToken, methodToken, paramToken, templateClassNameToken)
 
         let eventManager = if (hasEventAPI(arkMethods)) {
             declareCallbackManager()
@@ -269,32 +269,28 @@ public class TransObject {
             quote()
         }
 
-        if (isPublicType) {
-            tokens.append(quote($(modifiersTokens) type $(templateClassNameToken) = ($(paramToken)) -> Unit))
-        } else {
-            let template1 = quote(
+        let template1 = quote(
                 $(modifiersTokens) class $(templateClassNameToken)$(parent)$(classConstraintsToken) {
                     $(eventManager)
                     protected $(classNameToken)($(property)))
-            let brackets = if (propertyOnly && arkParentsProperties.size > 0) {
-                Token(TokenKind.IDENTIFIER, generateSuper())
-            } else {
-                Token(TokenKind.IDENTIFIER,
-                    if (arkParents.size > 0 && (arkParentsCategories[0] == "class" || arkParentsMethods.size > 0)) {
-                        "{ super(arkts_object) }"
-                    } else {
-                        "{}"
-                    })
-            }
-            let template2 = quote(
+        let brackets = if (propertyOnly && arkParentsProperties.size > 0) {
+            Token(TokenKind.IDENTIFIER, generateSuper())
+        } else {
+            Token(TokenKind.IDENTIFIER,
+                if (arkParents.size > 0 && (arkParentsCategories[0] == "class" || arkParentsMethods.size > 0)) {
+                    "{ super(arkts_object) }"
+                } else {
+                    "{}"
+                })
+        }
+        let template2 = quote(
                     $(constructorToken)
                     $(propertyMethod)
                     $(methodToken)
                 })
-            tokens.append(template1)
-            tokens.append(brackets)
-            tokens.append(template2)
-        }
+        tokens.append(template1)
+        tokens.append(brackets)
+        tokens.append(template2)
     }
 
     public func generate(): Tokens {

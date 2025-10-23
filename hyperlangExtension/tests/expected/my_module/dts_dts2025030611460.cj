@@ -9,13 +9,13 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
-/***********IMPORT***********/
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*common*/
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*ohos.buffer*/
+public type TB230 = (arg: JSValue/* FIXME: `V` */) -> JSValue/* FIXME: `W` *//* FIXME: `<V, W extends "abc" | "def">(arg: V) => W` */
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*g/h*/
+
+public type TB300 = JSValue/* FIXME: `Promise<number>` */
+
+
+public type TB310 = Array<JSValue/* FIXME: `Promise<boolean>` */>
+
 

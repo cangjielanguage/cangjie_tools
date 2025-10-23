@@ -463,8 +463,13 @@ class ASTVisitor {
             rjson[rjson.length - 1].info.comment = comment;
 
             rjson[rjson.length - 1].info.name = declaration.name.escapedText;
-            rjson[rjson.length - 1].info.value = !declaration.initializer || !declaration.initializer.getText() ?
-                fixme : declaration.initializer.getText();
+            if (!declaration.initializer || !declaration.initializer.getText()) {
+                rjson[rjson.length - 1].info.comment = '/*\n' + comment;
+                rjson[rjson.length - 1].info.value = fixme + '\n*/';
+            } else {
+                rjson[rjson.length - 1].info.comment = comment;
+                rjson[rjson.length - 1].info.value = declaration.initializer.getText();
+            }
 
             rjson[rjson.length - 1].info.typeNode = declaration.type ?
                 this.serializeType(declaration.type) : this.guessType(rjson[rjson.length - 1].info.value);

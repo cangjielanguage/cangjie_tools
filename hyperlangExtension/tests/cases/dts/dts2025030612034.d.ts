@@ -1,0 +1,1 @@
+type MyUnion8 = (string | number)[] | { key: string };

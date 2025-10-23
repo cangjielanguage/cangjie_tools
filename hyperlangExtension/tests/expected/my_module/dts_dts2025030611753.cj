@@ -9,13 +9,8 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
-/***********IMPORT***********/
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*common*/
+import std.collection.{ HashMap }
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*ohos.buffer*/
+public type TB700 = Option<HashMap<String, JSValue/* FIXME: `string | number` */>>
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*g/h*/
 

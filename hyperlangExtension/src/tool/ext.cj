@@ -8,7 +8,6 @@ package hle.tool
 
 import std.collection.ArrayList
 import std.collection.HashSet
-import std.fs.{exists as fs_exists, remove as fs_remove, File, Directory, FileInfo}
 
 extend<T> Array<T> {
     public func map<R>(mapper: (e: T, i: Int64) -> R): Array<R> {
@@ -17,38 +16,5 @@ extend<T> Array<T> {
             list.add(mapper(this[i], i))
         }
         return list.toArray()
-    }
-}
-
-public interface FileObjectFunc {
-    static func exists(path: String): Bool
-    static func delete(path: String, recursive!: Bool): Unit
-}
-
-extend File <: FileObjectFunc {
-    public static func exists(path: String): Bool {
-        return fs_exists(path)
-    }
-    public static func delete(path: String, recursive!: Bool = false): Unit {
-        return fs_remove(path, recursive: recursive)
-    }
-}
-
-extend Directory <: FileObjectFunc {
-    public static func exists(path: String): Bool {
-        return fs_exists(path)
-    }
-    public static func delete(path: String, recursive!: Bool = false): Unit {
-        return fs_remove(path, recursive: recursive)
-    }
-}
-
-public interface FileInfoFunc {
-    func isFile(): Bool
-}
-
-extend FileInfo <: FileInfoFunc {
-    public func isFile(): Bool {
-        return this.isRegular()
     }
 }

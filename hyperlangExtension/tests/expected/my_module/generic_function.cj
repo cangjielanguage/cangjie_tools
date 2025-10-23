@@ -13,7 +13,7 @@ import ohos.base.*
 /**
 	 * @brief testGeneric(t: T): T
 	 */
-public func testGeneric < T >(t: T): T {
+public func testGeneric < T >(t: T): T where T <: JSInteropType<T> {
     hmsGlobalApiCall < T >( "my_module_genericFunction", "testGeneric", { ctx =>[t.toJSValue(ctx)] }) {
         ctx, info => T.fromJSValue(ctx, info)
     }
@@ -22,7 +22,7 @@ public func testGeneric < T >(t: T): T {
 /**
 	 * @brief testMultiGenericT(t: T, m: M): T
 	 */
-public func testMultiGenericT < T, M >(t: T, m: M): T {
+public func testMultiGenericT < T, M >(t: T, m: M): T where T <: JSInteropType<T>, M <: JSInteropType<M> {
     hmsGlobalApiCall < T >( "my_module_genericFunction", "testMultiGenericT", { ctx =>[t.toJSValue(ctx), m.toJSValue(ctx)] }) {
         ctx, info => T.fromJSValue(ctx, info)
     }
@@ -31,7 +31,7 @@ public func testMultiGenericT < T, M >(t: T, m: M): T {
 /**
 	 * @brief testMultiGenericM(t: T, m: M): M
 	 */
-public func testMultiGenericM < T, M >(t: T, m: M): M {
+public func testMultiGenericM < T, M >(t: T, m: M): M where T <: JSInteropType<T>, M <: JSInteropType<M> {
     hmsGlobalApiCall < M >( "my_module_genericFunction", "testMultiGenericM", { ctx =>[t.toJSValue(ctx), m.toJSValue(ctx)] }) {
         ctx, info => M.fromJSValue(ctx, info)
     }

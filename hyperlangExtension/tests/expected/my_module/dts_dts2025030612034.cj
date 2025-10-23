@@ -9,13 +9,17 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
-/***********IMPORT***********/
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*common*/
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*ohos.buffer*/
+public enum MyUnion8 {
+    | _STRING_NUMBER___(JSValue/* FIXME: `(string | number)[]` */)
+    | _KEY_STRING_(JSValue/* FIXME: `{ key: string }` */)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case _STRING_NUMBER___(x) => x
+            case _KEY_STRING_(x) => x
+        }
+    }
+}
 
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*g/h*/
 

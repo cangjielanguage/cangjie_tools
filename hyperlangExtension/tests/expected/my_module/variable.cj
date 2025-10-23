@@ -9,8 +9,10 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+/*
 
 public const aesEncText = 0/* FIXME: Initialization is required */
+*/
 
 public const c1 = 1.2
 
@@ -21,10 +23,14 @@ public const c3 = 0x2
 public const c4 = "str"
 
 public const c5 = "123"
+/*
 
 public const c6 = 0/* FIXME: Initialization is required */
+*/
+/*
 
 public const c7 = 0/* FIXME: Initialization is required */
+*/
 
 public const c8 = "1"
 

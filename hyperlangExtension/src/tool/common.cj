@@ -43,7 +43,9 @@ public let stropToken: Token = Token(TokenKind.IDENTIFIER, "?String")
 public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
-public let cangjieKeyword: Array<String> = ["type", "in"]
+public let cangjieKeyword = ["type", "in", "func", "enum", "package", "import", "class", "interface", "let", "var",
+    "const", "init", "this", "super", "if", "else", "case", "try", "catch", "finally", "for", "do", "while", "throw",
+    "return", "continue", "break", "is", "as", "match", "where", "extend", "spawn", "macro", "quote"]
 public let ViewBase: Array<String> = ["AlphabetIndexer", "Blank", "Button", "Checkbox", "CheckboxGroup", "DataPanel",
     "Datepicker", "Divider", "Gauge", "Image", "ImageSpan", "LoadingProgress", "Menu", "MenuItem", "MenuItemGroup",
     "Progress", "QRCode", "Radio", "Rating", "RichEditor", "RichText", "ScrollBar", "Search", "Select", "Slider", "Span",

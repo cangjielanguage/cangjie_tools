@@ -1115,7 +1115,7 @@ public func logClass(target: Any): Unit {
 	 * @brief getFavoriteNumber(t: T): T
 	 */
 	// 泛型
-public func getFavoriteNumber < T >(t: T): T {
+public func getFavoriteNumber < T >(t: T): T where T <: JSInteropType<T> {
     hmsGlobalApiCall < T >( "my_module_methods", "getFavoriteNumber", { ctx =>[t.toJSValue(ctx)] }) {
         ctx, info => T.fromJSValue(ctx, info)
     }

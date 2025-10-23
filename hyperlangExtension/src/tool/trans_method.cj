@@ -154,91 +154,6 @@ public class TransMethod {
         generateAsyncFunc()
     }
 
-    public func processSyncFunc(funcName: Token, paramToken: Tokens, prefix: ArrayList<Modifier>,
-        transparamToken: Tokens): Tokens {
-        let moduleName = gconfig.requireModuleName
-        let modulePrefix = gconfig.requireModulePrefixToken
-        let retValueToken = getSyncRetToken(this.cjRetType)
-        let retTypeToken = Token(TokenKind.IDENTIFIER, this.cjRetType)
-        let call = if (transparamToken.size == 0) {
-            quote(jsModule.callMethod($(getArkTSFuncName())))
-        } else {
-            quote(jsModule.callMethod($(getArkTSFuncName()), $(transparamToken)))
-        }
-        quote(jsModule.callMethod($(getArkTSFuncName()), $(transparamToken)))
-        let template: Tokens = quote(
-                $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
-                    basicJsSkeleton<$(retTypeToken)> {
-                        ret, exception, sync =>
-                        let ctx = getGlobalContext()
-                        let jsModule = getJSModule($(moduleName), $(modulePrefix))
-                        let jsRet = $(call)
-                        $(retValueToken)
-                        sync.dec()
-                    }
-                }
-            )
-        template
-    }
-
-    public func processAsyncFunc(funcName: Token, paramToken: Tokens, prefix: ArrayList<Modifier>,
-        transparamToken: Tokens): Tokens {
-        let moduleName = gconfig.requireModuleName
-        let retTypeToken = Token(TokenKind.IDENTIFIER, this.cjRetType)
-        let third_param = Tokens()
-        if (this.methodType.params.size == 0) {
-            third_param.append(quote(noArg))
-        } else {
-            third_param.append(quote({=> [$(transparamToken)]}))
-        }
-        let forth_param = getAsyncRetToken(this.cjRetType, retTypeToken, sync: true)
-
-        let apiToken = if (gconfig.isOhos) {
-            Token(TokenKind.IDENTIFIER, "ohosGlobalApiCallAsync")
-        } else {
-            Token(TokenKind.IDENTIFIER, "hmsGlobalApiCallAsync")
-        }
-
-        let staticConstructor = if (this.isStatic) {
-            Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${moduleName}\", \"${this.memberClassName}\"),")
-        } else {
-            Token(TokenKind.IDENTIFIER, "")
-        }
-
-        let template: Tokens = quote(
-                $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
-                    let ctx = getGlobalContext()
-                    $(apiToken)<$(retTypeToken)>($(staticConstructor) $(moduleName), $(getArkTSFuncName()),$(third_param))$(forth_param)
-                }
-            )
-        template
-    }
-
-    // @deprecated
-    public func generateSyncFunc(): Tokens {
-        let result = Tokens()
-        result.append(mergeCommentToken(comment, origFuncSignature))
-        let funcName: Token = Token(TokenKind.IDENTIFIER, checkCangjieKeyword(cjName))
-        let prefix: ArrayList<Modifier> = cjModifiers |> map {mdf => Modifier(Token(TokenKind.IDENTIFIER, mdf))} |>
-            collectArrayList
-
-        let paramToken = getParamToken()
-        let transparamToken = getTransParamToken()
-
-        if (isSync(this.origFuncSignature)) {
-            result.append(processSyncFunc(funcName, paramToken, prefix, transparamToken))
-        } else {
-            let template: Tokens = processAsyncFunc(funcName, paramToken, prefix, transparamToken)
-            if (this.origFuncSignature.contains("AsyncCallback")) {
-                result.append(addComment(template.toString(), reason: "AsyncCallback is not included"))
-            } else {
-                result.append(template)
-            }
-        }
-
-        checkAPIAndCommentOut(result, comment)
-    }
-
     public func generateAsyncFunc(): Tokens {
         let result = Tokens()
         if (isPromise && !promiseNeedGen) {
@@ -280,14 +195,16 @@ public class TransMethod {
             Token(TokenKind.IDENTIFIER, "hmsGlobalApiCall")
         }
 
-        var staticConstructor = Token(TokenKind.IDENTIFIER, "")
-        if (this.isStatic) {
-            staticConstructor = Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${moduleName}\", \"${this.memberClassName}\"), ")
+        let staticConstructor = if (this.isStatic) {
+            Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${moduleName}\", \"${this.memberClassName}\"), ")
+        } else {
+            Token(TokenKind.IDENTIFIER, "")
         }
 
-        var cbToken = quote()
-        if (hasAsyncCallback) {
-            cbToken = handleAsyncCallBack() + nl
+        let cbToken = if (hasAsyncCallback) {
+            handleAsyncCallBack() + nl
+        } else {
+            quote()
         }
 
         let template: Tokens = quote(
@@ -303,64 +220,6 @@ public class TransMethod {
     //生成成员函数
     public func generateMemberFunc(): Tokens {
         generateAsyncMemberFunc()
-    }
-
-    // @deprecated
-    public func generateSyncMemberFunc(): Tokens {
-        let result = Tokens()
-        result.append(mergeCommentToken(comment, origFuncSignature))
-        let funcName: Token = Token(TokenKind.IDENTIFIER, checkCangjieKeyword(cjName))
-        let prefix: ArrayList<Modifier> = cjModifiers |> map {mdf => Modifier(Token(TokenKind.IDENTIFIER, mdf))} |>
-            collectArrayList
-
-        let paramToken = getParamToken()
-        let transparamToken = getTransParamToken()
-        let typeParameters = getTypeParametersToken()
-
-        let retTypeToken = Token(TokenKind.IDENTIFIER, this.cjRetType)
-
-        if (isSync(this.origFuncSignature)) {
-            let retValueToken = getSyncRetToken(this.cjRetType)
-            let call = if (transparamToken.size == 0) {
-                quote(arkts_object.callMethod($(getArkTSFuncName())))
-            } else {
-                quote(arkts_object.callMethod($(getArkTSFuncName()), $(transparamToken)))
-            }
-            let template: Tokens = quote(
-                $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
-                    basicJsSkeleton<$(retTypeToken)> {
-                        ret, exception, sync =>
-                        let ctx = getGlobalContext()
-                        let jsRet = $(call)
-                        $(retValueToken)
-                        sync.dec()
-                    }
-                }
-            )
-            result.append(template)
-        } else {
-            let third_param = Tokens()
-            if (this.methodType.params.size == 0) {
-                third_param.append(quote(noArg))
-            } else {
-                third_param.append(quote({=> [$(transparamToken)]}))
-            }
-
-            let forth_param = getAsyncRetToken(this.cjRetType, retTypeToken, sync: true)
-
-            let template: Tokens = quote(
-                $(prefix) func $(funcName)$(typeParameters)($(paramToken)):$(retTypeToken) {
-                    let ctx = getGlobalContext()
-                    arktsObjApiCallAsync<$(retTypeToken)>(arkts_object, $(getArkTSFuncName()), $(third_param)) $(forth_param)
-                }
-            )
-            if (this.origFuncSignature.contains("AsyncCallback")) {
-                result.append(addComment(template.toString(), reason: "AsyncCallback is not included"))
-            } else {
-                result.append(template)
-            }
-        }
-        checkAPIAndCommentOut(result, comment)
     }
 
     public func generateAsyncMemberFunc(): Tokens {
@@ -397,11 +256,11 @@ public class TransMethod {
 
         let forth_param = getAsyncRetToken(this.cjRetType, retTypeToken)
 
-        var cbToken = quote()
-        if (hasAsyncCallback) {
-            cbToken = handleAsyncCallBack() + nl
+        let cbToken = if (hasAsyncCallback) {
+            handleAsyncCallBack() + nl
+        } else {
+            quote()
         }
-
         let staticConstructor = if (this.isStatic) {
             Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${moduleName}\", \"${this.memberClassName}\"),")
         } else {
@@ -422,15 +281,6 @@ public class TransMethod {
         result.append(template)
 
         checkAPIAndCommentOut(result, comment)
-    }
-
-    public func isSync(sign: String): Bool {
-        for (keyword in syncKeyword) {
-            if (sign.contains(keyword)) {
-                return false
-            }
-        }
-        return true
     }
 
     public func paramListToCJ(): Tokens {
@@ -543,9 +393,10 @@ public class TransMethod {
         var paraName = arkP[0] //arkts参数名
 
         // If js does not have type, we used "any" before type check implemented
-        var paraType = arkP[1]
-        if (arkP.size < 2) {
-            paraType = "any"
+        let paraType = if (arkP.size < 2) {
+            "any"
+        } else {
+            arkP[1]
         }
 
         var optional = false
@@ -605,11 +456,6 @@ public class TransMethod {
             }
     }
 
-    // @deprecated
-    public func getTransParamToken(): Tokens {
-        paramListToJS(this.methodType.params, gconfig)
-    }
-
     // 暂不考虑二维数组
     // @deprecated
     static func getInnerTypeToken(innerType: String, gconfig: GlobalConfig): Tokens {
@@ -618,34 +464,6 @@ public class TransMethod {
         } else {
             quote(item.toJSValue(ctx))
         }
-    }
-
-    // @deprecated
-    func getSyncRetToken(retType: String): Tokens {
-        let retValueToken = Tokens()
-        let cjType = TypeMap.typeMap(retType)
-        let retToken = Token(TokenKind.IDENTIFIER, cjType)
-        if (cjType == unit) {
-            retValueToken.append(quote(ret.value = ))
-            retValueToken.append(Token(TokenKind.IDENTIFIER, "()"))
-            return retValueToken
-        } else if (gconfig.isEnum(cjType)) {
-            retValueToken.append(quote(ret.value = ))
-            retValueToken.append(quote($(retToken).parse(Int32.fromJSValue(ctx, jsRet))))
-        } else if (isArray(cjType)) {
-            let innerType = getArrayInnerType(cjType)
-            let innerToken = Token(TokenKind.IDENTIFIER, innerType)
-            retValueToken.append(
-                quote(let jsArr = jsRet.asArray()
-            ret.value = Array<$(innerToken)>(jsArr.size) {
-                index =>
-                    $(innerToken).fromJSValue(ctx, jsArr[index])
-            }))
-        } else {
-            retValueToken.append(quote(ret.value = ))
-            retValueToken.append(quote($(retToken).fromJSValue(ctx, jsRet)))
-        }
-        retValueToken
     }
 
     func getAsyncRetToken(retType: String, retTypeToken: Token, sync!: Bool = false): Tokens {
@@ -747,28 +565,32 @@ public class TransMethod {
             paramToken.append(commaToken)
         }
         paramToken.append(getParamToken())
+        let ctxToken = quote(ctx)
 
-        let transparamToken = (parametersToJS(quote(ctx)) |> reduce {l, r => l + commaToken + r}).getOrDefault {
+        let transparamToken = (parametersToJS(ctxToken) |> reduce {l, r => l + commaToken + r}).getOrDefault {
             => quote()
         }
 
-        var transParam = quote({ctx => [$(transparamToken)]})
-        if (this.methodType.params.size == 0) {
-            transParam = quote(emptyArg)
+        let transParam = if (this.methodType.params.size == 0) {
+            quote(emptyArg)
+        } else {
+            quote({$(ctxToken) => [$(transparamToken)]})
         }
 
-        var apiToken = Token(TokenKind.IDENTIFIER, "hmsGlobalApiCallPromise")
-        if (gconfig.isOhos) {
-            apiToken = Token(TokenKind.IDENTIFIER, "ohosGlobalApiCallPromise")
+        let apiToken = if (gconfig.isOhos) {
+            Token(TokenKind.IDENTIFIER, "ohosGlobalApiCallPromise")
+        } else {
+            Token(TokenKind.IDENTIFIER, "hmsGlobalApiCallPromise")
         }
 
         let resolveRetToken = getAsyncRetToken(this.cjRetType, innerType)
+        let moduleName = gconfig.requireModuleName
 
-        var staticConstructor = Token(TokenKind.IDENTIFIER, "")
-        if (this.isStatic) {
-            staticConstructor = Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${gconfig.requireModuleName}\", \"${this.memberClassName}\"),")
+        let staticConstructor = if (this.isStatic) {
+            Token(TokenKind.IDENTIFIER, "getClassConstructorObj(\"${moduleName}\", \"${this.memberClassName}\"),")
+        } else {
+            Token(TokenKind.IDENTIFIER, "")
         }
-
         let template = if (isMember) {
             if (this.isStatic) {
                 quote(
@@ -786,7 +608,7 @@ public class TransMethod {
         } else {
             quote(
                 $(prefix) func $(funcName)($(paramToken)): Unit {
-                    $(apiToken)<$(innerType)>($(staticConstructor) $(gconfig.requireModuleName), $(getArkTSFuncName()), callback, $(transParam)) $(resolveRetToken)
+                    $(apiToken)<$(innerType)>($(staticConstructor) $(moduleName), $(getArkTSFuncName()), callback, $(transParam)) $(resolveRetToken)
                 }
             )
         }
@@ -994,7 +816,7 @@ public class TransMethod {
                 $(prefix) init($(paramToken)) {
                     arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
                         __ctx =>
-                            let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).asClass(__ctx)
+                            let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass(__ctx)
                             clazz.new($(args)).asObject()
                     }
                 })
@@ -1004,7 +826,7 @@ public class TransMethod {
                     arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
                         __ctx =>
                             let module = getJSModule(__ctx, $(moduleName), $(modulePrefix))
-                            let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).asClass(__ctx)
+                            let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass(__ctx)
                             clazz.new($(args)).asObject()
                     }
                 })
@@ -1022,137 +844,10 @@ public class TransMethod {
             public init() {
                 arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
                     __ctx =>
-                        let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).asClass(__ctx)
+                        let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass(__ctx)
                         clazz.new().asObject()
                 }
             }))
         result
-    }
-
-    public func getParamNameToken(params!: ArrayList<String> = this.methodType.params): Tokens {
-        // todo 是否可以改用cjParaName
-        let paramToken = Tokens()
-
-        for (i in 0..params.size) {
-            if (params[i].isEmpty()) {
-                continue
-            }
-            let arkP = params[i].replace(" ", "").split(":")
-            var paraName = arkP[0] //arkts参数名
-            if (paraName.contains("?")) {
-                paraName = paraName.replace("?", "")
-                paraName = checkCangjieKeyword(paraName)
-            }
-            paramToken.append(Token(TokenKind.IDENTIFIER, paraName + ".toJSValue(ctx)"))
-            if (i < params.size - 1) {
-                paramToken.append(commaToken)
-            }
-        }
-        return paramToken
-    }
-
-    public func generateComponentConstructor(className: String, isContainedBase!: Bool = false): Tokens {
-        let result = Tokens()
-        let prefix: ArrayList<Modifier> = cjModifiers |> map {mdf => Modifier(Token(TokenKind.IDENTIFIER, mdf))} |>
-            collectArrayList
-
-        var paramToken = getParamToken()
-        if (isContainedBase) {
-            if (paramToken.toString().isEmpty()) {
-                paramToken.append(quote(child: () -> Unit))
-            } else {
-                if (paramToken.toString().contains("!:")) {
-                    paramToken = quote(child: () -> Unit, ).concat(paramToken)
-                } else {
-                    paramToken.append(quote(, child: () -> Unit))
-                }
-            }
-        }
-        let paramNameTokens = getParamNameToken()
-        let call = Tokens()
-        if (this.methodType.params.size == 0) {
-            call.append(getTokenWithoutNL("jsObjApiCall(jsObj.getOrThrow(), \"create\")"))
-        } else {
-            call.append(
-                getTokenWithoutNL("jsObjApiCall(jsObj.getOrThrow(), \"create\", { ctx => [${paramNameTokens}]})"))
-        }
-        if (isContainedBase) {
-            call.append(nl)
-            call.append(quote(mychild = child))
-        }
-
-        result.append(
-            quote(
-            $(prefix) init($(paramToken)) {
-                jsObj = getGlobalObject($(className))
-                $(call)
-            }
-            ))
-        result
-    }
-
-    public func convertOptionalArgs(params!: ArrayList<String> = this.methodType.params): (Tokens, ArrayList<String>) {
-        let transparamToken = Tokens()
-        let args = ArrayList<String>()
-        for (i in 0..params.size) {
-            let param = params[i]
-            if (param.isEmpty()) {
-                continue
-            }
-            let arkP = param.replace(" ", "").split(":")
-            var paraName = arkP[0] //arkts参数名
-            if (paraName.contains("?")) {
-                paraName = paraName.replace("?", "")
-                transparamToken.append(
-                    Token(TokenKind.IDENTIFIER,
-                        "let " + paraName + "Arg = if (let Some(v) <- " + checkCangjieKeyword(paraName) +
-                            ") { v } else { getCtx().object() }"))
-                paraName += "Arg"
-            }
-            args.add(paraName)
-        }
-        return (transparamToken, args)
-    }
-
-    public func getTypeFromPromise(uiRetType: String): String {
-        if (uiRetType == "") {
-            return ""
-        }
-        let left_regex = Regex("^.*?<")
-        let right_regex = Regex(">[^>]*$")
-        var res = left_regex.replace(uiRetType, "")
-        res = right_regex.replace(res, "")
-        return res
-    }
-
-    public func getArgsToken(argNames: ArrayList<String>, ctxName!: String = "ctx"): Tokens {
-        let argToken = Tokens()
-        for (i in 0..argNames.size) {
-            argToken.append(Token(TokenKind.IDENTIFIER, argNames[i] + ".toJSValue(" + ctxName + ")"))
-            if (i < argNames.size - 1) {
-                argToken.append(commaToken)
-            }
-        }
-        argToken
-    }
-
-    public func getParameters(params!: ArrayList<String> = this.methodType.params): String {
-        let args = ArrayList<String>()
-        for (i in 0..params.size) {
-            let param = params[i]
-            if (param.isEmpty()) {
-                continue
-            }
-            let arkP = param.replace(" ", "").split(":")
-            var paraName = arkP[0] //arkts参数名
-            let paraType = TypeMap.typeMap(arkP[1]) //参数分类
-            var optionalSymbol = ": "
-            if (paraName.contains("?")) {
-                paraName = paraName.replace("?", "")
-                optionalSymbol = "!: ?"
-            }
-            args.add(", " + checkCangjieKeyword(paraName) + optionalSymbol + paraType)
-        }
-        "callback: (" + getTypeFromPromise(this.cjRetType) + ") -> Unit" + (args |> collectString<String>())
     }
 }
