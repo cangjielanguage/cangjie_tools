@@ -86,9 +86,16 @@ func startRun(runConfig: RunConfig): Bool {
     let envBuilder = EnvironmentBuilder.fromEnvConfig(runConfig.envConfig)
     addLibEnvConfig(envBuilder, runConfig.targetPath, runConfig.globalConfig.nativeDir, runConfig.originTargetPath)
 
-    let (exeTool, args) = getExecPair(runConfig.filePath, runConfig.targetPath, runConfig.originTargetPath)
-    if (!runConfig.runArgs.isEmpty()) {
+    let exeTool = runConfig.filePath
+    let args = ArrayList<String>()
+    if (runConfig.runArgs.isEmpty() && !runConfig.newRunArgs.isEmpty()) {
+        println("Warning: option '--run-args' will be removed in the future, prefer to use '--' instead")
         args.add(all: extractOptionByString(runConfig.runArgs))
+    } else if (!runConfig.runArgs.isEmpty() && !runConfig.newRunArgs.isEmpty()) {
+        println("Warning: option '--run-args' will be ignored while using '--' at the same time")
+        args.add(all: runConfig.newRunArgs)
+    } else {
+        args.add(all: runConfig.newRunArgs)
     }
 
     let env = getVariables()
