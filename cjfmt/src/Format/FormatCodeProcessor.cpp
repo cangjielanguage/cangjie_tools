@@ -323,6 +323,10 @@ public:
         }
 
         Parser parser(inputTokens, diag, sm);
+        GlobalOptions globalOptions;
+        globalOptions.outputMode = GlobalOptions::OutputMode::CHIR;
+        globalOptions.commonPartCjo = "hasValue";
+        parser.SetCompileOptions(globalOptions);
         auto file = parser.ParseTopLevel();
         diag.EmitCategoryGroup();
         if (parser.GetDiagnosticEngine().GetErrorCount() > 0) {

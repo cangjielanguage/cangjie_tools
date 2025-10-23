@@ -15,6 +15,7 @@
 #include "cangjie/AST/Node.h"
 #include "cangjie/Basic/Utils.h"
 #include "cangjie/Parse/Parser.h"
+#include "cangjie/Option/Option.h"
 
 #include <limits>
 #include <optional>
