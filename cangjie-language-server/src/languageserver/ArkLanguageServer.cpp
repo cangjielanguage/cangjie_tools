@@ -487,7 +487,9 @@ void ArkLanguageServer::OnDocumentDidChange(const DidChangeTextDocumentParams &p
         logger.LogMessage(MessageType::MSG_WARNING, "file:" + file + " not exist");
         return;
     }
-    CompilerCangjieProject::GetInstance()->UpdateBuffCache(file, true);
+    if (!params.contentChanges.empty()) {
+        CompilerCangjieProject::GetInstance()->UpdateBuffCache(file, true);
+    }
 }
 
 void ArkLanguageServer::OnTrackCompletion(const TrackCompletionParams &params)
