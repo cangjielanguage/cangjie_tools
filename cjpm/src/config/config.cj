@@ -254,7 +254,7 @@ public let LD_PATH: String = "LD_LIBRARY_PATH"
 
 @When[os == "Linux"]
 public func makeDylibName(file: String): String {
-    return "lib" + file + ".so"
+    return "lib" + file.replace("::", "@") + ".so"
 }
 
 @When[os == "Linux"]
@@ -295,7 +295,7 @@ public let LD_PATH: String = "DYLD_LIBRARY_PATH"
 
 @When[os == "macOS"]
 public func makeDylibName(file: String): String {
-    return "lib" + file + ".dylib"
+    return "lib" + file.replace("::", "@") + ".dylib"
 }
 
 @When[os == "macOS"]
@@ -354,7 +354,7 @@ public let LD_PATH: String = "Path"
 
 @When[os == "Windows"]
 public func makeDylibName(file: String): String {
-    return "lib" + file + ".dll"
+    return "lib" + file.replace("::", "@") + ".dll"
 }
 
 @When[os == "Windows"]
@@ -936,8 +936,9 @@ public struct ResolveConfig {
 }
 
 public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+    var processdLibName = libName.replace("::", "@")
     let res = ArrayList<String>()
-    let ltoFile = Path(libPath).join(makeLtoName(libName)).toString()
+    let ltoFile = Path(libPath).join(makeLtoName(processdLibName)).toString()
     if (isLto) {
         if (fileExists(ltoFile)) {
             res.add(ltoFile)
@@ -945,11 +946,11 @@ public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayLis
         }
     }
 
-    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(libName)).toString()) || fileExists(
-        Path(libPath).join("lib${libName}.so").toString()) || fileExists(
-        Path(libPath).join("lib${libName}.dll").toString()) || fileExists(
-        Path(libPath).join("lib${libName}.dylib").toString())) {
-        res.add(all: ["-L", libPath, "-l${libName}"])
+    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(processdLibName)).toString()) || fileExists(
+        Path(libPath).join("lib${processdLibName}.so").toString()) || fileExists(
+        Path(libPath).join("lib${processdLibName}.dll").toString()) || fileExists(
+        Path(libPath).join("lib${processdLibName}.dylib").toString())) {
+        res.add(all: ["-L", libPath, "-l${processdLibName}"])
     } else if (fileExists(ltoFile)) {
         res.add(ltoFile)
     }
@@ -977,10 +978,11 @@ public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): Ar
 
 @When[os == "Windows"]
 public func isPackageExist(fileName: String, filePath: String, logFlag: Bool, path: String, _: Bool): Bool {
-    let dylib: String = Path(filePath).join("lib${fileName}.so").toString()
-    let staticlib: String = Path(filePath).join("lib${fileName}.a").toString()
-    let winDylib: String = Path(filePath).join("lib${fileName}.dll").toString()
-    let macDylib: String = Path(filePath).join("lib${fileName}.dylib").toString()
+    var processdFileName = fileName.replace("::", "@")
+    let dylib: String = Path(filePath).join("lib${processdFileName}.so").toString()
+    let staticlib: String = Path(filePath).join("lib${processdFileName}.a").toString()
+    let winDylib: String = Path(filePath).join("lib${processdFileName}.dll").toString()
+    let macDylib: String = Path(filePath).join("lib${processdFileName}.dylib").toString()
     if (fileExists(dylib) || fileExists(staticlib) || fileExists(winDylib) || fileExists(macDylib)) {
         return true
     }
@@ -993,11 +995,12 @@ public func isPackageExist(fileName: String, filePath: String, logFlag: Bool, pa
 
 @When[os == "Linux" || os == "macOS"]
 public func isPackageExist(fileName: String, filePath: String, logFlag: Bool, path: String, _: Bool): Bool {
-    let ltoFile: String = Path(filePath).join("${fileName}.bc").toString()
-    let dylib: String = Path(filePath).join("lib${fileName}.so").toString()
-    let staticlib: String = Path(filePath).join("lib${fileName}.a").toString()
-    let winDylib: String = Path(filePath).join("lib${fileName}.dll").toString()
-    let macDylib: String = Path(filePath).join("lib${fileName}.dylib").toString()
+    var processdFileName = fileName.replace("::", "@")
+    let ltoFile: String = Path(filePath).join("${processdFileName}.bc").toString()
+    let dylib: String = Path(filePath).join("lib${processdFileName}.so").toString()
+    let staticlib: String = Path(filePath).join("lib${processdFileName}.a").toString()
+    let winDylib: String = Path(filePath).join("lib${processdFileName}.dll").toString()
+    let macDylib: String = Path(filePath).join("lib${processdFileName}.dylib").toString()
     if (fileExists(dylib) || fileExists(staticlib) || fileExists(winDylib) || fileExists(ltoFile) || fileExists(
         macDylib)) {
         return true
@@ -1021,15 +1024,16 @@ public let DYLIB_POSTFIX: String = ".dll"
 public let DYLIB_POSTFIX: String = ".dylib"
 
 public func isDyLibExist(pkgName: String, path: String, isCrossBin: Bool): Bool {
+    var processedPkgName = pkgName.replace("::", "@")
     if (!isCrossBin) {
-        return fileExists(Path(path).join("lib${pkgName}${DYLIB_POSTFIX}").toString())
+        return fileExists(Path(path).join("lib${processedPkgName}${DYLIB_POSTFIX}").toString())
     }
     if (crossCompileTarget.contains("darwin") || crossCompileTarget.contains("apple")) {
-        return fileExists(Path(path).join("lib${pkgName}.dylib").toString())
+        return fileExists(Path(path).join("lib${processedPkgName}.dylib").toString())
     } else if (crossCompileTarget.contains("windows") || crossCompileTarget.contains("w64")) {
-        return fileExists(Path(path).join("lib${pkgName}.dll").toString())
+        return fileExists(Path(path).join("lib${processedPkgName}.dll").toString())
     } else {
-        return fileExists(Path(path).join("lib${pkgName}.so").toString())
+        return fileExists(Path(path).join("lib${processedPkgName}.so").toString())
     }
 }
 

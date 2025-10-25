@@ -34,10 +34,17 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
     }
     var moduleName: String = WORKSPACE_NAME
     if (tomlInfo.isPkgConfig) {
-        if (!nameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
-            return Option.None
+        if (tomlInfo.pkg.name.contains("::")) {
+            if (!organizationNameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
+                return Option.None
+            }
+            moduleName = tomlInfo.pkg.name.split("::")[1]
+        } else {
+            if (!nameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
+                return Option.None
+            }
+            moduleName = tomlInfo.pkg.name
         }
-        moduleName = tomlInfo.pkg.name
     }
 
     var scriptConfig: ScriptConfig = ScriptConfig()

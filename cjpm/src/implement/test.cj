@@ -540,7 +540,7 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
         if (r.isPureTestPkg()) {
             continue
         }
-        let libPath = Path(testConfig.globalConfig.targetDir).join(r.rootPkgName).toString()
+        let libPath = Path(testConfig.globalConfig.targetDir).join(r.rootPkgName.replace("::", "@")).toString()
         validCommand.add(all: linkPackage(r.fullName, libPath, testConfig.isLto), at: 0)
     }
 
@@ -612,12 +612,12 @@ func getDependencyMap(res: ModuleResolve, testConfig: TestConfig): HashMap<Strin
 }
 
 public func getOutput(targetDir: String, fullName: String, isCross: Bool): String {
-    let output = Path(targetDir).join(UNITTEST_BIN).join(fullName).toString()
+    let output = Path(targetDir).join(UNITTEST_BIN).join(fullName.replace("::", "@")).toString()
     return getUnittestOutput(output, isCross)
 }
 
 func getRootPackageDir(pkgInfo: PkgTestInfo, targetDir: String) {
-    let pkgRootName = pkgInfo.fqname.value.split(".")[0]
+    let pkgRootName = pkgInfo.fqname.value.split(".")[0].replace("::", "@")
     if (pkgInfo.packagePath.isMultiplatform) {
         let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
         return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix, pkgRootName)
@@ -629,9 +629,9 @@ func getRootPackageDir(pkgInfo: PkgTestInfo, targetDir: String) {
 func addOptionsForSeparateCompilation(pkgInfo: PkgTestInfo, testConfig: TestConfig) {
     let rootProdPkgDir = getRootPackageDir(pkgInfo, testConfig.globalConfig.targetDir)
     if (testConfig.isLto) {
-        pkgInfo.linkOptions = ["${rootProdPkgDir}${PATH_SPLIT_CHAR}${pkgInfo.fqname}.bc"].concat(pkgInfo.linkOptions)
+        pkgInfo.linkOptions = ["${rootProdPkgDir}${PATH_SPLIT_CHAR}${pkgInfo.fqname.value.replace("::", "@")}.bc"].concat(pkgInfo.linkOptions)
     } else {
-        pkgInfo.linkOptions = ["-L", rootProdPkgDir, "-l${pkgInfo.fqname}"].concat(pkgInfo.linkOptions)
+        pkgInfo.linkOptions = ["-L", rootProdPkgDir, "-l${pkgInfo.fqname.value.replace("::", "@")}"].concat(pkgInfo.linkOptions)
     }
 }
 

@@ -174,11 +174,11 @@ public class RequiresPackagesInfo <: Serializable<RequiresPackagesInfo> {
 }
 
 public func makeCangjieStaticlibName(file: String): String {
-    return "lib" + file + ".a"
+    return "lib" + file.replace("::", "@") + ".a"
 }
 
 public func makeLtoName(file: String): String {
-    return file + ".bc"
+    return file.replace("::", "@") + ".bc"
 }
 
 public enum MockSupport <: Equatable<MockSupport> & ToString {

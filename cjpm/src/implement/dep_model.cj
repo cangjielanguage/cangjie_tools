@@ -250,6 +250,9 @@ class DepModel {
 
         let (tomlInfo, curModulePath) = this.getTomlAndPath(path, preName, requires) ??
             return FAILED_BUILD_CHECK_RESULT
+        if (!tomlInfo.pkg.organization.isEmpty()) {
+            tomlInfo.pkg.name = tomlInfo.pkg.organization + "::" + tomlInfo.pkg.name
+        }
         let (flag, _) = this.verifyToml(tomlInfo, path, curModulePath)
         if (!flag) {
             return FAILED_BUILD_CHECK_RESULT
@@ -338,7 +341,11 @@ class DepModel {
                 return Option.None
             }
             COMMON_INFO.moduleVersionMap.add(tomlInfo.pkg.name, tomlInfo.pkg.version)
-            this.globalConfig.rootName = tomlInfo.pkg.name
+            if (tomlInfo.pkg.organization.isEmpty()) {
+                this.globalConfig.rootName = tomlInfo.pkg.name
+            } else {
+                this.globalConfig.rootName = tomlInfo.pkg.organization + "::" + tomlInfo.pkg.name
+            }
         }
         return (tomlInfo, curModulePath)
     }
@@ -657,7 +664,7 @@ class DepModel {
         }
 
         // CANGJIE_PATH check.
-        let rootPkgName: String = getRootPkgName(p.packageName)
+        let rootPkgName: String = getRootPkgName(p.packageName).replace("::", "@")
         let (_, rootPath) = makePackagePath(cjoPath)
         if (!Path(rootPath).normalize().toString().endsWith(Path(rootPkgName).normalize().toString())) {
             eprintln("Error: the file '${cjoPath}' must be placed in the '${rootPkgName}' folder")

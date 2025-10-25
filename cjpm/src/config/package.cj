@@ -13,6 +13,7 @@ import cjpm.util.WithDefault
 
 const FILE_VERSION = "cjc-version"
 const PACKAGE_NAME = "name"
+const ORGANIZATION_NAME = "organization"
 const DESCRIPTION = "description"
 const VERSION = "version"
 const COMPILE_OPTION = "compile-option"
@@ -26,6 +27,7 @@ const PACKAGE_CONFIGURATION = "package-configuration"
 public class Package <: Serializable<Package> {
     public var cjcVersion: String = ""
     public var name: String = ""
+    public var organization = ""
     public var description: String = "nothing here"
     public var version: String = "1.0.0"
     public var outputType: OutputType = Unknown("")
@@ -54,6 +56,7 @@ func serializePackage(pkg: Package): DataModel {
     let dms = DataModelStruct()
         .add(field<String>(FILE_VERSION, pkg.cjcVersion))
         .add(field<String>(PACKAGE_NAME, pkg.name))
+        .add(field<String>(ORGANIZATION_NAME, pkg.organization))
         .add(field<String>(DESCRIPTION, pkg.description))
         .add(field<String>(VERSION, pkg.version))
         .add(field<String>(TARGET_DIR, pkg.targetDir))
@@ -77,6 +80,7 @@ func deserializePackage(dm: DataModel): Package {
     var result = Package()
     result.cjcVersion = String.deserialize((dms.get(FILE_VERSION) as DataModelString) ?? DataModelString(""))
     result.name = String.deserialize((dms.get(PACKAGE_NAME) as DataModelString) ?? DataModelString(""))
+    result.organization = String.deserialize((dms.get(ORGANIZATION_NAME) as DataModelString) ?? DataModelString(""))
     result.description = String.deserialize((dms.get(DESCRIPTION) as DataModelString) ?? DataModelString(""))
     result.version = String.deserialize((dms.get(VERSION) as DataModelString) ?? DataModelString(""))
     result.targetDir = String.deserialize((dms.get(TARGET_DIR) as DataModelString) ?? DataModelString(""))
@@ -130,8 +134,9 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         }
     }
 
+    let tomlNameArr = cfg.pkg.name.split(":")
     let checkList: Array<((String, String) -> Bool, ?String)> = [
-        (nameCheck, cfg.pkg.name),
+        (nameCheck, tomlNameArr[tomlNameArr.size - 1]),
         (cjcVersionCheck, cfg.pkg.cjcVersion),
         (versionCheck, cfg.pkg.version),
         (safeCheck, cfg.pkg.compileOption),
