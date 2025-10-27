@@ -24,7 +24,7 @@ public:
     void DoAnalysis(CJLintCompilerInstance* instance) override;
 
 protected:
-    using AnalysisWrapper = CHIR::AnalysisWrapper<CHIR::ConstAnalysis, CHIR::ConstDomain>;
+    using AnalysisWrapper = CHIR::AnalysisWrapper<CHIR::ConstAnalysis<CHIR::ConstStatePool>, CHIR::ConstDomain>;
     AnalysisWrapper* analysisWrapper{nullptr};
     virtual void CheckBasedOnCHIR(CHIR::Package& package) = 0;
 };
