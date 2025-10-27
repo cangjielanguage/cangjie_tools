@@ -360,10 +360,10 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
     for (v in resolve.resolves) {
         // Set LD_LIBRARY_PATH for each dynamiclib
         if (v.outputType == Dynamic) {
-            var pathToAdd = getPath(targetDir, v.rootPkgName.replace("::", "@"))
+            var pathToAdd = getPath(targetDir, swapOrgName(v.rootPkgName))
             if (v.isMultiplatform) {
                 let source = v.packagePath.product
-                ldPath.add(Path(pathToAdd).join(source.outputSuffix).join(v.rootPkgName.replace("::", "@")).toString())
+                ldPath.add(Path(pathToAdd).join(source.outputSuffix).join(swapOrgName(v.rootPkgName)).toString())
             } else {
                 ldPath.add(pathToAdd)
             }
@@ -376,7 +376,7 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
         }
         // Set LD_LIBRARY_PATH for native dynamic deps of macro packages
         if (!crossCompileTarget.isEmpty() && macroDep.contains(v.fullName) && v.outputType == Dynamic) {
-            var path: Path = Path(nativeDir).join(v.rootPkgName.replace("::", "@"))
+            var path: Path = Path(nativeDir).join(swapOrgName(v.rootPkgName))
             ldPath.add(path.toString())
         }
     }

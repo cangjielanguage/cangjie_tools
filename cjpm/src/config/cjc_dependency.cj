@@ -173,12 +173,22 @@ public class RequiresPackagesInfo <: Serializable<RequiresPackagesInfo> {
     }
 }
 
+public func swapOrgName(file: String): String {
+    if (!file.contains("::")) {
+        return file
+    }
+    var fileArr = file.split("::")
+    let index = fileArr.size
+    fileArr.swap(0, index - 1)
+    return fileArr[0] + "@" + fileArr[index - 1]
+}
+
 public func makeCangjieStaticlibName(file: String): String {
-    return "lib" + file.replace("::", "@") + ".a"
+    return "lib" + swapOrgName(file) + ".a"
 }
 
 public func makeLtoName(file: String): String {
-    return file.replace("::", "@") + ".bc"
+    return swapOrgName(file) + ".bc"
 }
 
 public enum MockSupport <: Equatable<MockSupport> & ToString {

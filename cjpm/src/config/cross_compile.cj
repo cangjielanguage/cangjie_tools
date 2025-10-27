@@ -14,7 +14,7 @@ public func replaceNativeInfo(oriInfo: TargetInfo, newInfo: TargetInfo): Unit {
 }
 
 public func makeTargetDylibName(fileName: String): String {
-    var processedFileName = fileName.replace("::",  "@")
+    var processedFileName = swapOrgName(fileName)
     if (crossCompileTarget.contains("mingw32") || crossCompileTarget.contains("windows-gnu")) {
         return "lib${processedFileName}.dll"
     } else if (crossCompileTarget.contains("apple-ios") || crossCompileTarget.contains("darwin")) {

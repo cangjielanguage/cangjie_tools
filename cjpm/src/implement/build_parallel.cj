@@ -469,9 +469,9 @@ func getFinalPath(targetDir: String, nativeDir: String, outputType: OutputType, 
         }
     } else {
         if (isTargetPlatform) {
-            res = Path(targetDir).join(name.replace("::", "@")).toString()
+            res = Path(targetDir).join(swapOrgName(name)).toString()
         } else {
-            res = Path(nativeDir).join(name.replace("::", "@")).toString()
+            res = Path(nativeDir).join(swapOrgName(name)).toString()
         }
     }
     return res
@@ -480,9 +480,9 @@ func getFinalPath(targetDir: String, nativeDir: String, outputType: OutputType, 
 func getLogPath(targetDir: String, nativeDir: String, isTargetPlatform: Bool, rootPkgName: String): String {
     var res = ""
     if (isTargetPlatform) {
-        res = Path(targetDir).join(".build-logs").join(rootPkgName.replace("::", "@")).toString()
+        res = Path(targetDir).join(".build-logs").join(swapOrgName(rootPkgName)).toString()
     } else {
-        res = Path(nativeDir).join(".build-logs").join(rootPkgName.replace("::", "@")).toString()
+        res = Path(nativeDir).join(".build-logs").join(swapOrgName(rootPkgName)).toString()
     }
     return res
 }

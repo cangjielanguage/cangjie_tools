@@ -664,7 +664,7 @@ class DepModel {
         }
 
         // CANGJIE_PATH check.
-        let rootPkgName: String = getRootPkgName(p.packageName).replace("::", "@")
+        let rootPkgName: String = swapOrgName(getRootPkgName(p.packageName))
         let (_, rootPath) = makePackagePath(cjoPath)
         if (!Path(rootPath).normalize().toString().endsWith(Path(rootPkgName).normalize().toString())) {
             eprintln("Error: the file '${cjoPath}' must be placed in the '${rootPkgName}' folder")
