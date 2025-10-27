@@ -88,7 +88,7 @@ func startRun(runConfig: RunConfig): Bool {
 
     let exeTool = runConfig.filePath
     let args = ArrayList<String>()
-    if (runConfig.runArgs.isEmpty() && !runConfig.newRunArgs.isEmpty()) {
+    if (!runConfig.runArgs.isEmpty() && runConfig.newRunArgs.isEmpty()) {
         println("Warning: option '--run-args' will be removed in the future, prefer to use '--' instead")
         args.add(all: extractOptionByString(runConfig.runArgs))
     } else if (!runConfig.runArgs.isEmpty() && !runConfig.newRunArgs.isEmpty()) {
