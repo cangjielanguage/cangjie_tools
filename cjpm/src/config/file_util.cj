@@ -119,6 +119,10 @@ public func getPath(prePath: String, curPath: String): String {
     return path
 }
 
+public func getPath(paths: Array<String>): String {
+    paths.iterator().reduce { pre, cur => getPath(pre, cur) } ?? return "."
+}
+
 public func getAbsolutePath(path: String): (String, Bool) {
     if (path.size <= 0) {
         return ("", false)

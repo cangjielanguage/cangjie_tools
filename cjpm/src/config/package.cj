@@ -39,8 +39,7 @@ public class Package <: Serializable<Package> {
     public var targetDir: String = ""
     public var srcDir: WithDefault<String> = WithDefault(DIR_SRC)
     public var validPkgMap: Array<PackageInfo> = Array<PackageInfo>()
-    public var actualSources: CMPSource = CMPSource.empty
-    public var sourceSetTree: SourceSetsConfiguration = SourceSetsConfiguration()
+    public var actualSources: CJMPSource = CJMPSource.empty
 
     public func serialize(): DataModel {
         return serializePackage(this)
@@ -129,7 +128,6 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         if (!srcDirCheck(cfg.pkg.srcDir.value, path, configFilePath)) {
             return false
         }
-        cfg.pkg.srcDir.modify(getPath(path, cfg.pkg.srcDir.value))
     }
 
     let checkList: Array<((String, String) -> Bool, ?String)> = [
