@@ -1217,7 +1217,7 @@ func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibN
 func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>,
     isNativeForCross: Bool): ArrayList<String> {
     var binOptions = ArrayList<String>()
-    if (crossCompileTarget.contains("ohos")) {
+    if (crossCompileTarget.contains("linux") && !crossCompileTarget.contains("android")) {
         binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, buildConfig.isLto), at: 0)
         binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, buildConfig.isLto), at: 0)
         appendCLibLinkStr(buildConfig, cLibNameList, binOptions, buildConfig.isCrossCompile && !isNativeForCross)

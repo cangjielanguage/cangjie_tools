@@ -1171,7 +1171,7 @@ demo = "dynamic"
 > - 目前 `profile.build.combined` 配置项为实验特性，暂不稳定，开发者若想启用该配置，需要注意如下限制：
 >     - 如果配置了该字段的模块直接或间接依赖了其他源码模块，那么这些依赖模块也需要配置该字段；
 >     - 构建脚本依赖的源码模块中，若配置了 `profile.build.combined`，不会生效；
->     - 编译产物目标平台为 `macOS` 时，暂不支持 `profile.build.combined` 选项。
+>     - `profile.build.combined` 选项仅支持 `Linux/OpenHarmonyOS/Windows` 平台。
 
 #### "profile.test"
 
