@@ -518,7 +518,9 @@ func appendLinkOption(option: String): Array<String> {
 func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>,
     testConfig: TestConfig): ArrayList<String> {
     let cLibNameList = HashSet<String>()
-    let result = ArrayList<String>()
+    let validCommand = ArrayList<String>()
+
+    validCommand.add(all: appendBinOptionForTest(res, requires, testConfig.isLto))
 
     for (r in res.resolves) {
         if (!requires.contains(r.fullName) && r.fullName != fullName) {
@@ -529,56 +531,49 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
         }
         cLibNameList.add(r.rootPkgName)
         if (r.fullName == fullName) {
-            result.add(all: getTestConditionOption(testConfig.customizedOption, r.customizedOption))
+            validCommand.add(all: getTestConditionOption(testConfig.customizedOption, r.customizedOption))
             if (!r.compileOption.isEmpty()) {
-                result.add(all: extractOptionByString(r.compileOption))
+                validCommand.add(all: extractOptionByString(r.compileOption))
             }
             if (!testConfig.globalConfig.overrideCompileOption.isEmpty()) {
-                result.add(all: extractOptionByString(testConfig.globalConfig.overrideCompileOption))
+                validCommand.add(all: extractOptionByString(testConfig.globalConfig.overrideCompileOption))
             }
-            result.add(all: appendLinkOption(r.linkOption))
-            result.add(all: extractOptionByString(testConfig.profile.compileOption))
+            validCommand.add(all: extractOptionByString(testConfig.profile.compileOption))
+            validCommand.add(all: appendLinkOption(r.linkOption))
             break
         }
         if (r.isPureTestPkg()) {
             continue
         }
         let libPath = Path(testConfig.globalConfig.targetDir).join(r.rootPkgName).toString()
-        result.add(all: linkPackage(r.fullName, libPath, testConfig.isLto), at: 0)
+        validCommand.add(all: linkPackage(r.fullName, libPath, testConfig.isLto), at: 0)
     }
 
-    let linkSort = ArrayList<String>()
-    linkSort.add(all: appendBinOptionForTest(res, requires, testConfig.isLto))
     for (k in cLibNameList) {
         if (testConfig.globalConfig.cLibLinkMap.contains(k)) {
-            linkSort.add(all: testConfig.globalConfig.cLibLinkMap[k])
-        }
-        if (testConfig.globalConfig.crossCLibLinkMap.contains(k)) {
-            linkSort.add(all: testConfig.globalConfig.crossCLibLinkMap[k])
+            validCommand.add(all: testConfig.globalConfig.cLibLinkMap[k])
         }
     }
 
+    let reduced = ArrayList<String>()
 
     var index: Int64 = 0
     let libPathSet = HashSet<String>()
-    let libPathNameSet = HashSet<String>()
-    while (index < linkSort.size) {
-        if (linkSort[index] == "-L") {
-            if (!libPathSet.contains(linkSort[index + 1])) {
-                result.add(linkSort[index])
-                result.add(linkSort[index + 1])
-                libPathSet.add(linkSort[index + 1])
+    // Cleanup to remove redundant LIBRARY_PATH locations
+    while (index < validCommand.size) {
+        if (validCommand[index] == "-L") {
+            if (!libPathSet.contains(validCommand[index + 1])) {
+                reduced.add(validCommand[index])
+                reduced.add(validCommand[index + 1])
+                libPathSet.add(validCommand[index + 1])
             }
             index += 2
         } else {
-            if (!libPathNameSet.contains(linkSort[index])) {
-                result.add(linkSort[index])
-                libPathNameSet.add(linkSort[index])
-            }
+            reduced.add(validCommand[index])
             index += 1
         }
     }
-    return result
+    return reduced
 }
 
 func getTestConditionOption(cmdOption: HashSet<String>, conditionMap: HashMap<String, String>): Array<String> {
