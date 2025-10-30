@@ -70,7 +70,21 @@ public open class Point {
 /*interface Callback1 {
     (data: string): void
     }*/
-public open type Callback1 =(data: String) -> Unit
+
+public open class Callback1 {
+    
+    protected Callback1(public var arkts_object: JSObject) {}
+    
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    static func fromJSValue(context: JSContext, input: JSValue): Callback1 {
+        Callback1(input.asObject())
+    }
+}
 // 成员函数
 // person.d.ts
 /*interface Person {
@@ -116,7 +130,21 @@ public open class Person {
 /*interface Dictionary {
     (key: string): string
     }*/
-public open type Dictionary =(key: String) -> Unit
+
+public open class Dictionary {
+    
+    protected Dictionary(public var arkts_object: JSObject) {}
+    
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    static func fromJSValue(context: JSContext, input: JSValue): Dictionary {
+        Dictionary(input.asObject())
+    }
+}
 // 函数重载
 /*interface Calculator {
     add(x: number, y: number): number
@@ -153,7 +181,21 @@ public open class Calculator {
 /*interface Config {
     (key: string): string | number
     }*/
-public open type Config =(key: String) -> Unit
+
+public open class Config {
+    
+    protected Config(public var arkts_object: JSObject) {}
+    
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    static func fromJSValue(context: JSContext, input: JSValue): Config {
+        Config(input.asObject())
+    }
+}
 // 嵌套对象
 /*interface UserProfile {
     id: number;
@@ -433,14 +475,14 @@ public open class BasePlugin {
     public init(d12: JSValue/* FIXME: `Biz_Type` */) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass(__ctx)
             clazz.new(d12.toJSValue(__ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
@@ -595,7 +637,7 @@ public class DefaultPluginContainer <: PluginContainer {
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "DefaultPluginContainer").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_interface", "DefaultPluginContainer").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
