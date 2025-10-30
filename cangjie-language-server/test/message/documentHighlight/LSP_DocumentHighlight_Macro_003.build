@@ -1,0 +1,8 @@
+cd ${caseProPath}
+mkdir macroBin
+cd macroBin
+mkdir default
+cd ${caseProPath}
+echo "cjc build start"
+cjc --import-path=./macroBin/default --no-sub-pkg --output-dir=./macroBin/default -p ./src/define --compile-macro
+echo "cjc build end"
