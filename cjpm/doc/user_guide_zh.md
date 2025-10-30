@@ -692,6 +692,7 @@ cjpm install --git url              # 从 git 对应地址安装
   output-type = "executable" # 编译输出产物类型，必需
   src-dir = "" # 指定源码存放路径，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
   package-configuration = {} # 单包配置选项，非必需
 
 [workspace] # 工作空间管理字段，与 package 字段不能同时存在
@@ -702,6 +703,7 @@ cjpm install --git url              # 从 git 对应地址安装
   override-compile-option = "" # 应用于所有工作空间成员模块的额外全局编译命令选项，非必需
   link-option = "" # 应用于所有工作空间成员模块的链接器透传选项，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
 
 [dependencies] # 源码依赖配置项，非必需
   coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
@@ -835,6 +837,14 @@ link-option = "-z noexecstack -z relro -z now --strip-all"
 target-dir = "temp"
 ```
 
+### "script-dir"
+
+该字段可以指定构建脚本产物的存放路径，不指定时默认为 `build-script-cache` 文件夹。若该字段不为空，执行 `cjpm clean` 时会删除该字段所指向的文件夹，开发者需自身保证清理该目录行为的安全性。
+
+```text
+script-dir = "temp"
+```
+
 ### "package-configuration"
 
 每个模块的单包可配置项。该选项是个 `map` 结构，需要配置的包名作为 `key`，单包配置信息作为 `value`。当前可配置的信息包含：
@@ -927,6 +937,7 @@ src
 - `override-compile-option = ""`：工作空间的公共全局编译选项，非必需
 - `link-option = ""`：工作空间的公共链接选项，非必需
 - `target-dir = ""`：工作空间的产物存放路径，非必需，默认为 `target`
+- `script-dir = ""`：工作空间的构建脚本产物存放路径，非必需，默认为 `build-script-cache`
 
 工作空间内的公共配置项，对所有成员模块生效。例如：配置了 `[dependencies] xoo = { path = "path_xoo" }` 的源码依赖，则所有成员模块可以直接使用 `xoo` 模块，无需在每个子模块的 `cjpm.toml` 中再配置。
 
@@ -1498,6 +1509,7 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
     - 全局编译选项 `override-compile-option`
     - 链接选项 `link-option`
     - 编译产物存放路径 `target-dir`
+    - 构建脚本产物存放路径 `script-dir`
 - 构建依赖列表 `dependencies` 中本地依赖项的 `path` 字段
 - 测试依赖列表 `test-dependencies` 中本地依赖项的 `path` 字段
 - 构建脚本依赖列表 `script-dependencies` 中本地依赖项的 `path` 字段
@@ -1692,9 +1704,9 @@ main(): Int64 {
 构建脚本的使用说明如下：
 
 - 功能函数的返回值需要满足一定要求：当功能函数执行成功时，需要返回 `0`；执行失败时返回除 `0` 以外的任意 `Int64` 类型变量。
-- `build.cj` 中的所有输出都将被重定向到项目目录下，路径为 `build-script-cache/[target|release]/[module-name]/bin/script-log`。开发者如果在功能函数中添加了一些输出内容，可在该文件中查看。
+- `build.cj` 中的所有输出都将被重定向到项目目录下，默认路径为 `build-script-cache/[target|release]/[module-name]/bin/script-log`，通过 `script-dir = "PATH"` 选项可以自定义构建脚本产物的基础路径（如指定 `script-dir = "temp"`，则完整路径为 `temp/build-script-cache/[target|release]/[module-name]/bin/script-log`）。开发者如果在功能函数中添加了一些输出内容，可在该文件中查看。
 - 若项目根目录下不存在 `build.cj`，则 `cjpm` 将按正常流程执行；若存在 `build.cj` 并定义了某一命令的前后行为，则在 `build.cj` 编译失败或者功能函数返回值不为 `0` 时，即使该命令本身能够顺利执行，命令也将异常中止。
-- 多模块场景下，被依赖模块的 `build.cj` 构建脚本会在编译和单元测试流程中生效。被依赖模块构建脚本中的输出同样重定向到 `build-script-cache/[target|release]` 下对应模块名目录中的日志文件。
+- 多模块场景下，被依赖模块的 `build.cj` 构建脚本会在编译和单元测试流程中生效。被依赖模块构建脚本中的输出同样默认重定向到 `build-script-cache/[target|release]` 下对应模块名目录中的日志文件,通过 `script-dir = "PATH"` 选项可以自定义构建脚本产物的基础路径（如指定 `script-dir = "temp"`，则完整路径为 `temp/build-script-cache/[target|release]/[module-name]/bin/script-log`）。
 
 例如，下面的构建脚本 `build.cj` 定义了 `build` 前后的行为：
 

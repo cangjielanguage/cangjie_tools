@@ -143,6 +143,44 @@ public func replaceEnvforTargetDir(tomlInfo: TomlInfo, path: String): Bool {
     return true
 }
 
+public func getOriginScriptDirectory(oriScriptDir: String, rootPath: String, configFileDir: String): Option<String> {
+    var scriptDir: String = oriScriptDir
+    
+    if (!configFileDir.isEmpty()) {
+            scriptDir = configFileDir
+    }
+    
+
+    if (!safeCheck(getCanonicalPath(rootPath), "current path") ||
+        !safeCheck(scriptDir, Path(rootPath).join(CONFIG_FILE_NAME).toString())) {
+        return Option.None
+    }
+    scriptDir = getPath(rootPath,scriptDir)
+    if (!createDirectory(scriptDir)) {
+        return Option.None
+    }
+
+    if (directoryExists(scriptDir)) {
+        scriptDir = getCanonicalPath(scriptDir)
+    }
+
+    return scriptDir
+}
+
+public func replaceEnvforScriptDir(tomlInfo: TomlInfo, path: String): Bool {
+    if (tomlInfo.isPkgConfig) {
+        if (!tomlInfo.pkg.scriptDir.isEmpty() && !checkEnvVars(tomlInfo.pkg.scriptDir, path)) {
+            return false
+        }
+        tomlInfo.pkg.scriptDir = replaceEnvVars(tomlInfo.pkg.scriptDir)
+    } else {
+        if (!tomlInfo.workspace.scriptDir.isEmpty() && !checkEnvVars(tomlInfo.workspace.scriptDir, path)) {
+            return false
+        }
+        tomlInfo.workspace.scriptDir = replaceEnvVars(tomlInfo.workspace.scriptDir)
+    }
+    return true
+}
 // extract options from string, such as: ( -a  --ab="a bc" -g --bc "c d" ) -> [-a,--ab,"a bc",-g,--bc,"c d"]
 public func extractOptionByString(input: String): ArrayList<String> {
     if (input.isEmpty()) {

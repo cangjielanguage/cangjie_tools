@@ -21,6 +21,7 @@ const LINK_OPTION = "link-option"
 const OUTPUT_TYPE = "output-type"
 const SRC_DIR = "src-dir"
 const TARGET_DIR = "target-dir"
+const SCRIPT_DIR = "script-dir"
 const PACKAGE_CONFIGURATION = "package-configuration"
 
 public class Package <: Serializable<Package> {
@@ -37,6 +38,7 @@ public class Package <: Serializable<Package> {
     public var path: String = ""
     public var packageConfiguration: HashMap<String, PackageConfiguration> = HashMap<String, PackageConfiguration>()
     public var targetDir: String = ""
+    public var scriptDir: String = ""
     public var srcDir: WithDefault<String> = WithDefault(DIR_SRC)
     public var validPkgMap: Array<PackageInfo> = Array<PackageInfo>()
     public var actualSources: CJMPSource = CJMPSource.empty
@@ -57,6 +59,7 @@ func serializePackage(pkg: Package): DataModel {
         .add(field<String>(DESCRIPTION, pkg.description))
         .add(field<String>(VERSION, pkg.version))
         .add(field<String>(TARGET_DIR, pkg.targetDir))
+        .add(field<String>(SCRIPT_DIR, pkg.scriptDir))
         .add(field<OutputType>(OUTPUT_TYPE, pkg.outputType))
         .add(field<String>(COMPILE_OPTION, pkg.compileOption))
         .add(field<String>(OVERRIDE_COMPILE_OPTION, pkg.overrideCompileOption))
@@ -80,6 +83,7 @@ func deserializePackage(dm: DataModel): Package {
     result.description = String.deserialize((dms.get(DESCRIPTION) as DataModelString) ?? DataModelString(""))
     result.version = String.deserialize((dms.get(VERSION) as DataModelString) ?? DataModelString(""))
     result.targetDir = String.deserialize((dms.get(TARGET_DIR) as DataModelString) ?? DataModelString(""))
+    result.scriptDir = String.deserialize((dms.get(SCRIPT_DIR) as DataModelString) ?? DataModelString(""))
     if (let Some(dmstr) <- (dms.get(SRC_DIR) as DataModelString) && !dmstr.getValue().isEmpty()) {
         result.srcDir.modify(dmstr.getValue())
     }
@@ -138,6 +142,7 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         (safeCheck, cfg.pkg.overrideCompileOption),
         (outputTypeCheck, cfg.pkg.outputType.toString()),
         (safeCheck, cfg.pkg.targetDir),
+        (safeCheck, cfg.pkg.scriptDir),
         (verifyLinkOption, cfg.pkg.linkOption)
     ]
     if (!verifyAll(configFilePath, checkList)) {
