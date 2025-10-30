@@ -171,7 +171,6 @@
 {"completion":{"testFile":"LSP_Completion_2024061500465.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_2024070602622.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_2024071400325.test","id":"6"}}
-{"completion":{"testFile":"LSP_Completion_2024071615729.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_2024072903495.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_2024082125929.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_2024080617649.test","id":"6"}}
