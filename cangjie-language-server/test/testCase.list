@@ -583,8 +583,6 @@
 {"hover":{"testFile":"LSP_Hover_2021111115435_002.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_2022022212539.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_2022022212539_multiString.test","id":"9"}}
-{"hover":{"testFile":"LSP_Hover_Macro_001.test","id":"11"}}
-{"hover":{"testFile":"LSP_Hover_Macro_002.test","id":"11"}}
 {"hover":{"testFile":"LSP_Hover_multi_module_01_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_2022110302267_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_2022110302267_002.test","id":"9"}}
