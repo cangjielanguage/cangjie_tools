@@ -1547,7 +1547,9 @@ void CompilerCangjieProject::CheckPackageNameByAbsName(const File &needCheckedFi
         actualPkgName += prefix + CONSTANTS::DOT;
     }
     actualPkgName += needCheckedFile.package->packageName;
-
+    if (needCheckedFile.package->hasDoubleColon) {
+        actualPkgName = needCheckedFile.package->GetPackageName();
+    }
     if (actualPkgName != expectedPkgName) {
         auto errPos = getPackageNameErrPos(needCheckedFile);
         pkgInfoMap[fullPackageName]->diag->DiagnoseRefactor(DiagKindRefactor::package_name_not_identical_lsp,
