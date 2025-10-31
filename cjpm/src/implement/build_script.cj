@@ -319,11 +319,16 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
 
     var resolveConfig: ResolveConfig = ResolveConfig()
     resolveConfig.fullName = "build-script"
+    resolveConfig.targetDir = buildConfig.globalConfig.targetDir
+    resolveConfig.isCrossCompile = buildConfig.isCrossCompile
+    resolveConfig.target = if (resolveConfig.isCrossCompile) {
+        targetConfigName
+    } else { crossCompileTarget }
     resolveConfig.outputType = Exe
     resolveConfig.requirePkgs = requires
     resolveConfig.stdRequirePkgs = stdRequires
     buildConfig.requiresMap.add(resolveConfig.fullName, requires)
-    return getDepLinkCommand(resolveConfig, buildConfig, false)
+    return getDepLinkCommand(resolveConfig, buildConfig)
 }
 
 func getEnvMap(ldPath: HashSet<String>): HashMap<String, String> {

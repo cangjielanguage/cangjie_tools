@@ -13,6 +13,7 @@ import std.env.*
 import std.deriving.Derive
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
+
 import cjpm.util.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
@@ -478,6 +479,21 @@ public open class CommandConfig {
     public var memberModule: String = ""
 }
 
+@Derive[Hashable, Equatable]
+public struct TaskIdentifier {
+    public TaskIdentifier(
+        public let fullName: String,
+        public let target: String
+    ) { }
+
+    public static func fromResolveConfig(resolveConfig: ResolveConfig): TaskIdentifier {
+        TaskIdentifier(
+            resolveConfig.fullName,
+            resolveConfig.target
+        )
+    }
+}
+
 public struct PackageList {
     private let packages: Array<ResolveItem>
 
@@ -493,6 +509,17 @@ public struct PackageList {
         get() {
             packages |> map {
                 it: ResolveItem => it.fullName
+            } |> collectArray
+        }
+    }
+
+    public prop allIds: Array<TaskIdentifier> {
+        get() {
+            packages |> flatMap { it: ResolveItem =>
+                let result = ArrayList<TaskIdentifier>()
+                result.add(TaskIdentifier(it.fullName, targetConfigName))
+                result.add(TaskIdentifier(it.fullName, crossCompileTarget))
+                result.iterator()
             } |> collectArray
         }
     }
@@ -908,27 +935,26 @@ public class GlobalConfig {
 }
 
 public struct ResolveConfig {
+    public var targetDir: String = ""
     public var targetPath: String = ""
     public var packagePath: CJMPSource = CJMPSource.empty
     public var rootPkgName: String = ""
     public var fullName: String = ""
     public var outputType: OutputType = Unknown("")
+    public var target: String = ""
+    public var isCrossCompile: Bool = false
     public var compileOption: String = ""
+    public var overrideOption: String = ""
     public var linkOption: String = ""
-    public var nativeCompileOption: String = ""
-    public var nativeLinkOption: String = ""
     public var customizedOption: HashMap<String, String> = HashMap<String, String>()
     public var requirePkgs: HashSet<String> = HashSet<String>()
     public var stdRequirePkgs: HashSet<String> = HashSet<String>()
     public var outLogFile: String = ""
     public var errLogFile: String = ""
-    public var nativePath: String = ""
-    public var nativeOutLog: String = ""
-    public var nativeErrLog: String = ""
-    public var targetPlatform: Bool = true
-    public var nativePlatform: Bool = false
     public var checkDepCjo: Bool = false
-    public var superPkgCfg: ?SuperPackageConfig = None
+    public var subPkgSet: HashSet<String> = HashSet()
+    public var isCombined: Bool = false
+    public var isProjectCombined: Bool = false
     public var hasTestFiles: Bool = false
     public var features: HashSet<Feature> = HashSet()
     public var featureDeducer: FeatureDeducer = FeatureDeducer.empty

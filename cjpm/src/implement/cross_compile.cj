@@ -17,18 +17,18 @@ func appendNativeData(buildConfig: BuildConfig, data: ModuleResolve): Unit {
     }
 
     for (item in data.resolves) {
-        if (!buildConfig.packageList.macros.contains(item.fullName) &&
-            buildConfig.pkgRequireByMacro.contains(item.fullName)) {
-            item.nativePlatform = true
-            continue
-        }
+        // macro packages are executeed on native platform
         if (buildConfig.packageList.macros.contains(item.fullName)) {
             item.nativePlatform = true
+            // if user didn't explicitly asked to cross compile macro package
+            // via `compile-macros-for-target`, we don't do it
             if (!buildConfig.targetMacroMods.contains(item.rootPkgName) &&
                 !buildConfig.targetMacroPkgs.contains(item.fullName)) {
                 item.targetPlatform = false
-                continue
             }
+        // regular `package` is used by `macro package`
+        } else if (buildConfig.pkgRequireByMacro.contains(item.fullName)) {
+            item.nativePlatform = true
         }
     }
     return

@@ -13,20 +13,25 @@ import std.fs.*
 import std.regex.*
 import std.time.*
 import std.env.getVariables
+import std.deriving.*
+
 import cjpm.config.*
+import cjpm.util.*
+
+type TaskMap = HashMap<TaskIdentifier, ResolveConfig>
 
 class ParallelBuilder {
     var buildConfig = BuildConfig()
-    var taskMap = HashMap<String, ResolveConfig>()
+    var taskMap = TaskMap()
     let buildMutex = Mutex()
-    var successPkgs = ArrayList<String>()
-    let queue = LinkedBlockingQueue<(Option<String>, Option<String>, Option<String>, Option<String>, Bool)>()
+    let successPkgs = HashMap<String, Bool>()
+    let queue = LinkedBlockingQueue<(Option<String>, Option<String>, Bool)>()
 
     init(buildConfig: BuildConfig) {
         this.buildConfig = buildConfig
     }
 
-    func checkDepFuture(dep: String, task: ResolveConfig, futTasks: HashMap<String, Future<Bool>>,
+    func checkDepFuture(dep: TaskIdentifier, task: ResolveConfig, futTasks: HashMap<TaskIdentifier, Future<Bool>>,
         sem: Semaphore): Bool {
         var fut: Future<Bool>
         synchronized(this.buildMutex) {
@@ -35,12 +40,7 @@ class ParallelBuilder {
             }
             fut = futTasks[dep]
         }
-        if (!fut.get()) {
-            sem.release()
-            this.queue.add((task.outLogFile, task.errLogFile, None, None, false))
-            return false
-        }
-        return true
+        return fut.get()
     }
 
     func checkNoChange(depPkg: String): Bool {
@@ -58,19 +58,19 @@ class ParallelBuilder {
 
     func build(): Bool {
         let sem = Semaphore(maxParallelSize)
-        let futTasks = HashMap<String, Future<Bool>>()
+        let futTasks = HashMap<TaskIdentifier, Future<Bool>>()
 
         let logFuture = spawn {
             =>
             var count: Int64 = this.taskMap.size
             var logFlag: Bool = true
             while (count > 0) {
-                let (outLogFile, errLogFile, nativeOutLog, nativeErrLog, isNewLog) = this.queue.remove()
+                let (outLogFile, errLogFile, isNewLog) = this.queue.remove()
                 count--
                 if (!isNewLog) {
                     continue
                 }
-                if (!printAllLogs(outLogFile, errLogFile, nativeOutLog, nativeErrLog)) {
+                if (!printAllLogs(outLogFile, errLogFile)) {
                     logFlag = false
                 }
             }
@@ -78,33 +78,38 @@ class ParallelBuilder {
         }
 
         // Guaranteed valid order follows 'buildConfig.packageList.all'
-        for (pkgName in this.buildConfig.packageList.all) {
-            if (!this.taskMap.contains(pkgName)) {
+        for (taskId in this.buildConfig.packageList.allIds) {
+            if (!this.taskMap.contains(taskId)) {
                 continue
             }
 
             sem.acquire()
-            let task = this.taskMap[pkgName]
-            let future = spawn {
-                =>
-                if (this.buildConfig.globalConfig.isProjectCombine && pkgName == buildConfig.globalConfig.rootName) {
-                    for ((k,_) in this.taskMap) {
-                        if (k != pkgName && !this.checkDepFuture(k, task, futTasks, sem)) {
+            let task = this.taskMap[taskId]
+            let future = spawn { =>
+                if (this.buildConfig.globalConfig.isProjectCombine && taskId.fullName == buildConfig.globalConfig.rootName) {
+                    for ((k,_) in this.taskMap where k != taskId) {
+                        if (!this.checkDepFuture(k, task, futTasks, sem)) {
+                            sem.release()
+                            this.queue.add((task.outLogFile, task.errLogFile, false))
                             return false
                         }
                     }
                 } else {
                     for (dep in task.requirePkgs) {
-                        if (!this.checkDepFuture(dep, task, futTasks, sem)) {
+                        let depId = TaskIdentifier(dep, task.target)
+                        if (!this.checkDepFuture(depId, task, futTasks, sem)) {
+                            sem.release()
+                            this.queue.add((task.outLogFile, task.errLogFile, false))
                             return false
                         }
                     }
 
-                    if (let Some(superPkgCfg) <- task.superPkgCfg) {
-                        for (dep in superPkgCfg.subPkgSet) {
-                            if (!this.checkDepFuture(dep, task, futTasks, sem)) {
-                                return false
-                            }
+                    for (dep in task.subPkgSet) {
+                        let depId = TaskIdentifier(dep, task.target)
+                        if (!this.checkDepFuture(depId, task, futTasks, sem)) {
+                            sem.release()
+                            this.queue.add((task.outLogFile, task.errLogFile, false))
+                            return false
                         }
                     }
                 }
@@ -117,56 +122,48 @@ class ParallelBuilder {
                             break
                         }
                     }
-                    let subPkgSet = task.superPkgCfg?.subPkgSet ?? HashSet<String>()
-                    for (subPkg in subPkgSet) {
+
+                    for (subPkg in task.subPkgSet) {
                         if (!checkNoChange(subPkg)) {
                             nochange = false
                             break
                         }
                     }
+
                     if (nochange) {
                         sem.release()
-                        this.queue.add((None, None, None, None, false))
+                        this.queue.add((None, None, false))
                         return true
                     }
                 }
 
                 if (!deleteLog(task)) {
                     sem.release()
-                    this.queue.add((task.outLogFile, task.errLogFile, None, None, false))
+                    this.queue.add((task.outLogFile, task.errLogFile, false))
                     return false
                 }
 
                 var flag: Bool = true
-                if (task.targetPlatform && !runTask(task, this.buildConfig.globalConfig.ldPath)) {
-                    flag = false
-                }
-                if (task.nativePlatform && !runTask(task, this.buildConfig.globalConfig.ldPath,
-                    isNativeForCross: true)) {
+                if (!runTask(task, this.buildConfig.globalConfig.ldPath)) {
                     flag = false
                 }
                 sem.release()
-                if (task.targetPlatform && task.nativePlatform) {
-                    this.queue.add((task.outLogFile, task.errLogFile, task.nativeOutLog, task.nativeErrLog, true))
-                } else if (task.targetPlatform) {
-                    this.queue.add((task.outLogFile, task.errLogFile, None, None, true))
-                } else if (task.nativePlatform) {
-                    this.queue.add((None, None, task.nativeOutLog, task.nativeErrLog, true))
-                }
+                this.queue.add((task.outLogFile, task.errLogFile, true))
                 return flag
             }
 
             synchronized(this.buildMutex) {
-                futTasks.add(pkgName, future)
+                futTasks.add(taskId, future)
             }
         }
 
         var isBuilt: Bool = true
-        for ((pkgName, task) in futTasks) {
+        for ((id, task) in futTasks) {
             if (!task.get()) {
                 isBuilt = false
-            } else {
-                successPkgs.add(pkgName)
+                successPkgs.add(id.fullName, false)
+            } else if (!successPkgs.contains(id.fullName)) {
+                successPkgs.add(id.fullName, true)
             }
         }
 
@@ -179,36 +176,25 @@ class ParallelBuilder {
 
     func deleteLog(task: ResolveConfig): Bool {
         var delLog: Bool = true
-        if (task.targetPlatform) {
-            if (!deleteFile(task.outLogFile)) {
-                delLog = false
-            }
-            if (!deleteFile(task.errLogFile)) {
-                delLog = false
-            }
+        if (!deleteFile(task.outLogFile)) {
+            delLog = false
         }
-
-        if (task.nativePlatform) {
-            if (!deleteFile(task.nativeOutLog)) {
-                delLog = false
-            }
-            if (!deleteFile(task.nativeErrLog)) {
-                delLog = false
-            }
+        if (!deleteFile(task.errLogFile)) {
+            delLog = false
         }
         return delLog
     }
 
-    func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>, isNativeForCross!: Bool = false): Bool {
+    func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>): Bool {
         let envBuilder = EnvironmentBuilder()
         envBuilder.prepend(LD_PATH, ldPath)
 
         let cjcCalls = ArrayList<ArrayList<String>>()
         if (resolveConfig.isMultiplatform) {
-            cjcCalls.add(all: getMultiplatformPipeline(resolveConfig, this.buildConfig, isNativeForCross))
+            cjcCalls.add(all: getMultiplatformPipeline(resolveConfig, this.buildConfig))
         } else {
-            let args = getCommandArgs(resolveConfig, this.buildConfig, isNativeForCross, Default, resolveConfig.features)
-            args.add(all: getTypeCommand(resolveConfig, this.buildConfig, isNativeForCross))
+            let args = getCommandArgs(resolveConfig, this.buildConfig, Default, resolveConfig.features)
+            args.add(all: getTypeCommand(resolveConfig, this.buildConfig))
             cjcCalls.add(args)
         }
 
@@ -227,14 +213,8 @@ class ParallelBuilder {
             let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
             if (this.buildConfig.isVerbose) {
                 let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
-                if (!isNativeForCross) {
-                    if (!createAndWriteFile(resolveConfig.outLogFile, verbose, mode: Append)) {
-                        return false
-                    }
-                } else {
-                    if (!createAndWriteFile(resolveConfig.nativeOutLog, verbose, mode: Append)) {
-                        return false
-                    }
+                if (!createAndWriteFile(resolveConfig.outLogFile, verbose, mode: Append)) {
+                    return false
                 }
             }
 
@@ -246,17 +226,10 @@ class ParallelBuilder {
             var outFilePath: String = String()
             var errFilePath: String = String()
             try {
-                if (!isNativeForCross) {
-                    outFilePath = resolveConfig.outLogFile
-                    errFilePath = resolveConfig.errLogFile
-                    outFile = File(resolveConfig.outLogFile, OpenMode.Append)
-                    errFile = File(resolveConfig.errLogFile, OpenMode.Append)
-                } else {
-                    outFilePath = resolveConfig.nativeOutLog
-                    errFilePath = resolveConfig.nativeErrLog
-                    outFile = File(resolveConfig.nativeOutLog, OpenMode.Append)
-                    errFile = File(resolveConfig.nativeErrLog, OpenMode.Append)
-                }
+                outFilePath = resolveConfig.outLogFile
+                errFilePath = resolveConfig.errLogFile
+                outFile = File(resolveConfig.outLogFile, OpenMode.Append)
+                errFile = File(resolveConfig.errLogFile, OpenMode.Append)
             } catch (e: Exception) {
                 eprintln(e.message)
                 eprintln("Error: create '${outFilePath}' failed")
@@ -325,83 +298,120 @@ func addEndTime(fullName: String): Unit {
     return
 }
 
+func fromResolveItem(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<ResolveConfig> {
+    func createResolveConfig(isNativeForCross!: Bool = false): ?ResolveConfig {
+        let targetDir = if (isNativeForCross) { 
+            buildConfig.globalConfig.nativeDir 
+        } else { buildConfig.globalConfig.targetDir }
+        let logPath = Path(targetDir).join(".build-logs").join(swapOrgName(r.rootPkgName)).toString()
+        let outLogFile = Path(logPath).join("${swapOrgName(r.fullName)}.outlog").toString()
+        let errLogFile = Path(logPath).join("${swapOrgName(r.fullName)}.errlog").toString()
+        let targetPath = if (r.outputType == Exe && !buildConfig.requiredForTests) {
+                Path(targetDir).join(BIN).toString()
+            } else {
+                Path(targetDir).join(swapOrgName(r.rootPkgName)).toString()
+            }
+        if (!createDirectory(targetPath) || !createDirectory(logPath)) {
+            return None
+        }
+
+        if (r.isMultiplatform) {
+            for (source in r.packagePath._sources) {
+                let targetSpecificPath = Path(targetPath).join(source.outputSuffix).toString()
+                if (!createDirectory(targetSpecificPath)) {
+                    return None
+                }
+            }
+        }
+
+        let isCrossCompile = buildConfig.isCrossCompile && !isNativeForCross
+
+        let target = if (isCrossCompile) {
+            crossCompileTarget
+        } else { targetConfigName }
+
+        let compileOption = if (isNativeForCross) {
+            r.nativeCompileOption
+        } else { r.compileOption }
+
+        let overrideOption = if (isNativeForCross) {
+            buildConfig.globalConfig.nativeOverrideOption
+        } else { buildConfig.globalConfig.overrideCompileOption }
+
+        let linkOption = if (isNativeForCross) {
+            r.nativeLinkOption
+        } else { r.linkOption }
+
+        let checkDepCjo = buildConfig.isIncremental && 
+            r.outputType == Static &&
+            buildConfig.indirectRebuilds.contains(r.fullName)
+
+        let isCombined = r.superPkgCfg.isSome() && !isNativeForCross
+        let isProjectCombined =
+            buildConfig.globalConfig.isProjectCombine &&
+            r.fullName == buildConfig.globalConfig.rootName &&
+            !isNativeForCross
+
+        var result = ResolveConfig()
+        result.targetDir = targetDir
+        result.targetPath = targetPath
+        result.packagePath = r.packagePath
+        result.rootPkgName = r.rootPkgName
+        result.fullName = r.fullName
+        result.outputType = r.outputType
+        result.isCrossCompile = isCrossCompile
+        result.target = target
+        result.compileOption = compileOption
+        result.overrideOption = overrideOption
+        result.linkOption = linkOption
+        result.customizedOption = r.customizedOption
+        result.requirePkgs = r.requires
+        result.outLogFile = outLogFile
+        result.errLogFile = errLogFile
+        result.checkDepCjo = checkDepCjo
+        result.subPkgSet = r.superPkgCfg?.subPkgSet ?? HashSet<String>()
+        result.isCombined = isCombined
+        result.isProjectCombined = isProjectCombined
+        result.hasTestFiles = r.hasTestFiles
+        result.features = r.featureDeducer
+            .addFeature(r.features)
+            .collect()
+        result.featureDeducer = r.featureDeducer
+            .cleanFeatures() // leaving only mapping to apply them to source set features
+
+        return result
+    }
+
+    let result = ArrayList<ResolveConfig>()
+
+    assertion { r.targetPlatform || r.nativePlatform }
+    if (r.targetPlatform) {
+        result.add(createResolveConfig(isNativeForCross: false) ?? return None)
+    }
+    if (r.nativePlatform) {
+        result.add(createResolveConfig(isNativeForCross: true) ?? return None)
+    }
+
+    return result
+}
+
 func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
     let parallel = ParallelBuilder(buildConfig)
-    res.forEachPkg(
-        {
-            resolve: ResolveItem =>
-            if (buildConfig.isIncremental && !buildConfig.rebuildList.contains(resolve.fullName)) {
-                return true
-            }
 
-            if (!resolve.hasProdFiles) { // No files to compile, avoid useless cjc invocations
-                buildConfig.rebuildList.remove(resolve.fullName)
-                return true
-            }
-
-            var finalPath = getFinalPath(buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir,
-                resolve.outputType, true, resolve.rootPkgName, buildConfig.requiredForTests)
-            var finalLogPath = getLogPath(buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir, true,
-                resolve.rootPkgName)
-            if (!createDirectory(finalPath) || !createDirectory(finalLogPath)) {
-                return false
-            }
-
-            if (resolve.isMultiplatform) {
-                for (source in resolve.packagePath._sources) {
-                    let finalSpecificPath = Path(finalPath).join(source.outputSuffix).toString()
-                    if (!createDirectory(finalSpecificPath)) {
-                        return false
-                    }
-                }
-            }
-
-            var resolveConfig = ResolveConfig()
-            resolveConfig.targetPath = finalPath
-            resolveConfig.packagePath = resolve.packagePath
-            resolveConfig.fullName = resolve.fullName
-            resolveConfig.rootPkgName = resolve.rootPkgName
-            resolveConfig.outputType = resolve.outputType
-            resolveConfig.compileOption = resolve.compileOption
-            resolveConfig.linkOption = resolve.linkOption
-            resolveConfig.nativeCompileOption = resolve.nativeCompileOption
-            resolveConfig.nativeLinkOption = resolve.nativeLinkOption
-            resolveConfig.customizedOption = resolve.customizedOption
-            resolveConfig.requirePkgs = resolve.requires
-            resolveConfig.targetPlatform = resolve.targetPlatform
-            resolveConfig.nativePlatform = resolve.nativePlatform
-            resolveConfig.superPkgCfg = resolve.superPkgCfg
-            resolveConfig.hasTestFiles = resolve.hasTestFiles
-            resolveConfig.features = resolve.featureDeducer
-                .addFeature(resolve.features)
-                .collect()
-
-            resolveConfig.featureDeducer = resolve.featureDeducer.cleanFeatures() // leaving only mapping to apply them to source set features
-
-            if (buildConfig.isIncremental && resolveConfig.outputType == Static &&
-                buildConfig.indirectRebuilds.contains(resolve.fullName)) {
-                resolveConfig.checkDepCjo = true
-            }
-            resolveConfig.outLogFile = Path(finalLogPath).join("${swapOrgName(resolveConfig.fullName)}.outlog").toString()
-            resolveConfig.errLogFile = Path(finalLogPath).join("${swapOrgName(resolveConfig.fullName)}.errlog").toString()
-
-            if (resolve.nativePlatform) {
-                resolveConfig.nativePath = getFinalPath(buildConfig.globalConfig.targetDir,
-                    buildConfig.globalConfig.nativeDir, resolve.outputType, false, resolve.rootPkgName,
-                    buildConfig.requiredForTests)
-                let nativeLogPath = getLogPath(buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir,
-                    false, resolve.rootPkgName)
-                resolveConfig.nativeOutLog = Path(nativeLogPath).join("${swapOrgName(resolveConfig.fullName)}.outlog").toString()
-                resolveConfig.nativeErrLog = Path(nativeLogPath).join("${swapOrgName(resolveConfig.fullName)}.errlog").toString()
-                if (!createDirectory(resolveConfig.nativePath) || !createDirectory(nativeLogPath)) {
-                    return false
-                }
-            }
-
-            parallel.taskMap.add(resolve.fullName, resolveConfig)
+    res.forEachPkg { r: ResolveItem =>
+        if (buildConfig.isIncremental && !buildConfig.rebuildList.contains(r.fullName)) {
             return true
         }
-    )
+        if (!r.hasProdFiles) {
+            buildConfig.rebuildList.remove(r.fullName)
+            return true
+        }
+        let resolveConfigs = fromResolveItem(r, buildConfig) ?? return false
+        for (config in resolveConfigs) {
+            parallel.taskMap.add(TaskIdentifier.fromResolveConfig(config), config)
+        }
+        return true
+    }
 
     if (!parallel.taskMap.isEmpty()) {
         buildConfig.isRebuild = true
@@ -410,7 +420,7 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
     let parallelResult: Bool = parallel.build()
 
     for (r in res.resolves) {
-        if (parallel.successPkgs.contains(r.fullName)) {
+        if (let Some(true) <- parallel.successPkgs.get(r.fullName)) {
             r.buildFlag = true
         }
     }
@@ -418,29 +428,17 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
     return parallelResult
 }
 
-func printAllLogs(outLogFile: Option<String>, errLogFile: Option<String>, nativeOutLog: Option<String>,
-    nativeErrLog: Option<String>): Bool {
+func printAllLogs(outLogFile: Option<String>, errLogFile: Option<String>): Bool {
     var logFlag: Bool = true
-    if (let Some(outLogFile) <- outLogFile) {
-        if (fileExists(outLogFile) && !loadLogAndPrint(outLogFile, false)) {
-            logFlag = false
+    func printLog(logFile: ?String, isStderr: Bool): Unit {
+        if (let Some(logFile) <- logFile) {
+            if (fileExists(logFile) && !loadLogAndPrint(logFile, isStderr)) {
+                logFlag = false
+            }
         }
     }
-    if (let Some(errLogFile) <- errLogFile) {
-        if (fileExists(errLogFile) && !loadLogAndPrint(errLogFile, true)) {
-            logFlag = false
-        }
-    }
-    if (let Some(nativeOutLog) <- nativeOutLog) {
-        if (fileExists(nativeOutLog) && !loadLogAndPrint(nativeOutLog, false)) {
-            logFlag = false
-        }
-    }
-    if (let Some(nativeErrLog) <- nativeErrLog) {
-        if (fileExists(nativeErrLog) && !loadLogAndPrint(nativeErrLog, true)) {
-            logFlag = false
-        }
-    }
+    printLog(outLogFile, false)
+    printLog(errLogFile, true)
     return logFlag
 }
 
@@ -456,35 +454,6 @@ func loadLogAndPrint(file: String, isStderr: Bool): Bool {
         print(logStr)
     }
     return true
-}
-
-func getFinalPath(targetDir: String, nativeDir: String, outputType: OutputType, isTargetPlatform: Bool, name: String,
-    requiredForTests: Bool): String {
-    var res = ""
-    if (outputType == Exe && !requiredForTests) {
-        if (isTargetPlatform) {
-            res = Path(targetDir).join(BIN).toString()
-        } else {
-            res = Path(nativeDir).join(BIN).toString()
-        }
-    } else {
-        if (isTargetPlatform) {
-            res = Path(targetDir).join(swapOrgName(name)).toString()
-        } else {
-            res = Path(nativeDir).join(swapOrgName(name)).toString()
-        }
-    }
-    return res
-}
-
-func getLogPath(targetDir: String, nativeDir: String, isTargetPlatform: Bool, rootPkgName: String): String {
-    var res = ""
-    if (isTargetPlatform) {
-        res = Path(targetDir).join(".build-logs").join(swapOrgName(rootPkgName)).toString()
-    } else {
-        res = Path(nativeDir).join(".build-logs").join(swapOrgName(rootPkgName)).toString()
-    }
-    return res
 }
 
 func calculateParallel(currentParalla: Int64, args: ArrayList<String>): Unit {
