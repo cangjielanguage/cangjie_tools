@@ -10,6 +10,10 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 import std.collection.{ HashMap }
+/***********IMPORT***********/
+/*FIXME: Import details need to be verified and rewritten by user.*/
+/*import { Callback } from '@ohos.base';*/
+
 
 /*class ExportKeyword DeclareKeyword PushReporter {
     getTags(t12: Callback<Record<string, any>>): void

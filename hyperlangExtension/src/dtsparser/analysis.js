@@ -540,13 +540,8 @@ class ASTVisitor {
 
         rjson.push(newjson());
         rjson[rjson.length - 1].info = newImportJson();
-        let importFile = node.moduleSpecifier.getText(this.sourceFile);
-        importFile = importFile.replace(/['"]/g, '');
-        const index = importFile.indexOf('/');
-        importFile = importFile.substring(index + 1);
-        importFile = importFile.replace('@', '');
 
-        rjson[rjson.length - 1].info.name = importFile;
+        rjson[rjson.length - 1].info.name = node.getText(this.sourceFile);
 
         // console.log(importFile)
 
