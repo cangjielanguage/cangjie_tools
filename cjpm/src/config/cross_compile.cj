@@ -14,12 +14,13 @@ public func replaceNativeInfo(oriInfo: TargetInfo, newInfo: TargetInfo): Unit {
 }
 
 public func makeTargetDylibName(fileName: String): String {
+    var processedFileName = swapOrgName(fileName)
     if (crossCompileTarget.contains("mingw32") || crossCompileTarget.contains("windows-gnu")) {
-        return "lib${fileName}.dll"
+        return "lib${processedFileName}.dll"
     } else if (crossCompileTarget.contains("apple-ios") || crossCompileTarget.contains("darwin")) {
-        return "lib${fileName}.dylib"
+        return "lib${processedFileName}.dylib"
     } else {
-        return "lib${fileName}.so"
+        return "lib${processedFileName}.so"
     }
 }
 

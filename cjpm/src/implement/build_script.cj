@@ -33,11 +33,22 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
         return Option.None
     }
     var moduleName: String = WORKSPACE_NAME
+    if (!tomlInfo.pkg.organization.isEmpty() && !tomlInfo.pkg.name.contains("::")) {
+        tomlInfo.pkg.name = tomlInfo.pkg.organization + "::" + tomlInfo.pkg.name
+    }
+
     if (tomlInfo.isPkgConfig) {
-        if (!nameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
-            return Option.None
+        if (tomlInfo.pkg.name.contains("::")) {
+            if (!organizationNameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
+                return Option.None
+            }
+            moduleName = tomlInfo.pkg.name.split("::")[1]
+        } else {
+            if (!nameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
+                return Option.None
+            }
+            moduleName = tomlInfo.pkg.name
         }
-        moduleName = tomlInfo.pkg.name
     }
 
     var scriptConfig: ScriptConfig = ScriptConfig()
@@ -71,7 +82,11 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
         targetPath = targetPath.join("release")
     }
     scriptConfig.scriptDep = tomlInfo.getBuildDependencies(modulePath, targetName, debug) ?? return Option.None
-    scriptConfig.scriptTargetDir = targetPath.join(moduleName).toString()
+    if (!tomlInfo.isPkgConfig) {
+        scriptConfig.scriptTargetDir = targetPath.join(moduleName).toString()
+    } else {
+        scriptConfig.scriptTargetDir = targetPath.join(swapOrgName(tomlInfo.pkg.name)).toString()
+    }
 
     scriptConfig.scriptExe = Path(scriptConfig.scriptTargetDir).join("bin").join(BUILD_SCRIPT_OUTPUT).toString()
     scriptConfig.scriptHash = Path(scriptConfig.scriptTargetDir).join("bin").join(BUILD_SCRIPT_CACHE).toString()

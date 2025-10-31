@@ -49,6 +49,24 @@ public func nameCheck(text: String, path: String): Bool {
     return false
 }
 
+// Check root package organization name in cjpm.toml
+public func organizationNameCheck(text: String, path: String): Bool {
+    let organizationNameArr = text.split("::")
+    if (organizationNameArr.size != 2) {
+        eprintln("Error: the 'name' file in ${path} is invalid")
+        return false
+    }
+    
+    var matched = Regex(REGEXP_CONDITON_VALUE)
+    if (matched.find(organizationNameArr[0]).isSome() && matched.find(organizationNameArr[organizationNameArr.size - 1]).isSome()) {
+        return true
+    } else {
+        eprintln("Error: the 'name' field '${text}' in ${path} is wrong, " +
+            "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}'")
+        return false
+    }
+}
+
 // Check initial root package name.
 public func nameCheck(text: String): Bool {
     if (text.size == 0) {
