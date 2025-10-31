@@ -35,7 +35,7 @@ public class TDDiagBuilder {
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_class", "TDDiagBuilder").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_class", "TDDiagBuilder").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }

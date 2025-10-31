@@ -23,14 +23,14 @@ public class Greeter {
     public init(greeting : String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").toJSValue().asClass(__ctx)
             clazz.new(greeting.toJSValue(__ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }

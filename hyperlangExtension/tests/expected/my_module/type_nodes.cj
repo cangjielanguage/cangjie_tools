@@ -38,7 +38,7 @@ public open class BasicTypes {
     public var symbolKeyword: JSValue/* FIXME: `symbol` */,
     public var voidKeyword: Unit,
     public var undefinedKeyword: JSValue/* FIXME: `undefined` */,
-    public var anyKeyword: Any,
+    public var anyKeyword: JSValue/* FIXME: `any` */,
     public var unknownKeyword: JSValue/* FIXME: `unknown` */,
     public var neverKeyword: JSValue/* FIXME: `never` */) {}
     
@@ -53,7 +53,7 @@ public open class BasicTypes {
         obj["symbolKeyword"] = symbolKeyword
         obj["voidKeyword"] = voidKeyword.toJSValue(context)
         obj["undefinedKeyword"] = undefinedKeyword
-        obj["anyKeyword"] = anyKeyword.toJSValue(context)
+        obj["anyKeyword"] = anyKeyword
         obj["unknownKeyword"] = unknownKeyword
         obj["neverKeyword"] = neverKeyword
         obj.toJSValue()
@@ -70,7 +70,7 @@ public open class BasicTypes {
         obj["symbolKeyword"],
         Unit.fromJSValue(context, obj["voidKeyword"]),
         obj["undefinedKeyword"],
-        Any.fromJSValue(context, obj["anyKeyword"]),
+        obj["anyKeyword"],
         obj["unknownKeyword"],
         obj["neverKeyword"]
         )
@@ -214,7 +214,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
     public var arrayType2: Array<U>,
     public var unionType: JSValue/* FIXME: `number | U` */,
     public var intersectionType: JSValue/* FIXME: `object & HashMap<U, T>` */,
-    public var parenthesizedType1: Any,
+    public var parenthesizedType1: JSValue/* FIXME: `any` */,
     public var parenthesizedType2: Array<JSValue/* FIXME: `U | number` */>,
     public var tupleType: (Float64, Float64, String),
     public var typeLiteral10: JSValue/* FIXME: `{ x: number; y: U }` */,
@@ -240,7 +240,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["arrayType2"] = toJSArray < U >(context, arrayType2, { ctx: JSContext, val: U => val.toJSValue(ctx) })
         obj["unionType"] = unionType
         obj["intersectionType"] = intersectionType
-        obj["parenthesizedType1"] = parenthesizedType1.toJSValue(context)
+        obj["parenthesizedType1"] = parenthesizedType1
         obj["parenthesizedType2"] = toJSArray < JSValue/* FIXME: `U | number` */ >(context, parenthesizedType2, { ctx: JSContext, val: JSValue/* FIXME: `U | number` */ => val })
         obj["tupleType"] = tupleType.toJSValue(context)
         obj["typeLiteral10"] = typeLiteral10
@@ -268,7 +268,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         fromJSArray < U >(context, obj["arrayType2"], { ctx: JSContext, val: JSValue => U.fromJSValue(ctx, val) }),
         obj["unionType"],
         obj["intersectionType"],
-        Any.fromJSValue(context, obj["parenthesizedType1"]),
+        obj["parenthesizedType1"],
         fromJSArray < JSValue/* FIXME: `U | number` */ >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => val }),
         (Float64.fromJSValue(context, obj["tupleType"].asObject()[0]), Float64.fromJSValue(context, obj["tupleType"].asObject()[1]), String.fromJSValue(context, obj["tupleType"].asObject()[2])),
         obj["typeLiteral10"],
@@ -546,9 +546,9 @@ public class ArrayTypesC {
 /**
 	 * @brief returnType10(): any
 	 */
-public func returnType10(): Any {
-    hmsGlobalApiCall < Any >( "my_module_typeNodes", "returnType10", emptyArg) {
-        ctx, info => Any.fromJSValue(ctx, info)
+public func returnType10(): JSValue/* FIXME: `any` */ {
+    hmsGlobalApiCall < JSValue/* FIXME: `any` */ >( "my_module_typeNodes", "returnType10", emptyArg) {
+        ctx, info => info
     }
 }
 

@@ -11,10 +11,6 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 import std.math.numeric.*
 import std.collection.{ HashMap }
-/***********IMPORT***********/
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*exportAlias*/
-
 /***********OBJECT***********/
 
 /*interface I1 {

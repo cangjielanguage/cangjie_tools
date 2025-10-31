@@ -10,10 +10,6 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 import std.collection.{ HashMap }
-/***********IMPORT***********/
-/*FIXME: Import details need to be verified and rewritten by user.*/
-/*ohos.base*/
-
 
 /*class ExportKeyword DeclareKeyword PushReporter {
     getTags(t12: Callback<Record<string, any>>): void
@@ -27,7 +23,7 @@ public class PushReporter {
     /**
 	 * @brief getTags(t12: Callback<Record<string, any>>): void
 	 */
-    public static func getTags(t12: Callback<HashMap<String, Any>>): Unit {
+    public static func getTags(t12: Callback<HashMap<String, JSValue/* FIXME: `any` */>>): Unit {
         jsObjApiCall < Unit >(getClassConstructorObj("my_module_test", "PushReporter"),  "getTags", { ctx =>[t12.toJSValue(ctx)] })
     }
     

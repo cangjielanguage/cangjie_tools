@@ -36,7 +36,7 @@ public type TA70 = Unit
 public type TA80 = JSValue/* FIXME: `undefined` */
 
 
-public type TA90 = Any
+public type TA90 = JSValue/* FIXME: `any` */
 
 
 public type TA100 = JSValue/* FIXME: `unknown` */

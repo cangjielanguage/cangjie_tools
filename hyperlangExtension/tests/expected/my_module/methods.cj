@@ -460,14 +460,14 @@ public class TE {
     public init(callback: AsyncCallback<String>, param1!:?Array<UInt8> = None, param2!:?Array<String> = None) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "TE").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
             clazz.new(jsCallback,(param1?.toJSValue(__ctx)) ?? __ctx.undefined().toJSValue(), toJSArray < String >(__ctx, param2, { __ctx, item => item.toJSValue(ctx) })).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "TE").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
@@ -513,14 +513,14 @@ public class Greeter {
     public init(greeting: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Greeter").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
             clazz.new(greeting.toJSValue(__ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Greeter").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
@@ -752,14 +752,14 @@ public open class Animal {
     public init(name: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Animal").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
             clazz.new(name.toJSValue(__ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Animal").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
@@ -847,9 +847,9 @@ public class Calculator {
 	 * @brief add(x: any, y: any): any
 	 */
 	// 实现
-    public func add(x: Any, y: Any): Any {
-        jsObjApiCall < Any >( arkts_object, "add", { ctx =>[x.toJSValue(ctx), y.toJSValue(ctx)] }) {
-            ctx, info => Any.fromJSValue(ctx, info)
+    public func add(x: JSValue/* FIXME: `any` */, y: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "add", { ctx =>[x, y] }) {
+            ctx, info => info
         }
     }
     
@@ -876,14 +876,14 @@ public class MyClass {
     public init(name: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "MyClass").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass(__ctx)
             clazz.new(name.toJSValue(__ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "MyClass").asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass(__ctx)
             clazz.new().asObject()
         }
     }
@@ -1107,15 +1107,15 @@ public func onEnumCb(p1: Bool, p2: String): String {
 	 * @brief logClass(target: any): void
 	 */
 	// 带装饰器的类
-public func logClass(target: Any): Unit {
-    hmsGlobalApiCall < Unit >( "my_module_methods", "logClass", { ctx =>[target.toJSValue(ctx)] })
+public func logClass(target: JSValue/* FIXME: `any` */): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_methods", "logClass", { ctx =>[target] })
 }
 
 /**
 	 * @brief getFavoriteNumber(t: T): T
 	 */
 	// 泛型
-public func getFavoriteNumber < T >(t: T): T where T <: JSInteropType<T> {
+public func getFavoriteNumber < T >(t: T): T {
     hmsGlobalApiCall < T >( "my_module_methods", "getFavoriteNumber", { ctx =>[t.toJSValue(ctx)] }) {
         ctx, info => T.fromJSValue(ctx, info)
     }
