@@ -297,22 +297,22 @@ cjpm build success
 
 ```text
 输入: cjpm run
-输出: cjpm run success
+输出: cjpm run finished
 ```
 
 ```text
 输入: cjpm run -g // 此时会默认执行 cjpm build -i -g 命令
-输出: cjpm run success
+输出: cjpm run finished
 ```
 
 ```text
 输入: cjpm run --build-args="-s -j16" --run-args="a b c"
-输出: cjpm run success
+输出: cjpm run finished
 ```
 
 ```text
 输入: cjpm run --build-args="-s -j16" -- a b "c d"
-输出: cjpm run success
+输出: cjpm run finished
 ```
 
 > **注意：**
