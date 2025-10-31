@@ -1,0 +1,6 @@
+[repository.local]
+    path = ""
+
+[repository.home]
+    registry = ""
+    token = ""

@@ -14,8 +14,8 @@ import stdx.serialization.serialization.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
 
+public let REPO_CONFIG_FILE_NAME = "cjpm-config.toml"
 
-// used for central repository
 public class RepositoryInfo <: Serializable<RepositoryInfo> {
     public RepositoryInfo(
         public var path!: String = "",
@@ -44,7 +44,6 @@ public class RepositoryInfo <: Serializable<RepositoryInfo> {
     }
 }
 
-// used for central repository
 public class SettingsConfig <: Serializable<SettingsConfig> {
     public var repository: HashMap<String, RepositoryInfo> = HashMap<String, RepositoryInfo>()
     public var isValid: Bool = true
@@ -77,7 +76,6 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
     }
 }
 
-// used for central repository
 public func readConfigToml(file: Path): SettingsConfig {
     var res = SettingsConfig()
     try {
@@ -113,21 +111,20 @@ public func readConfigToml(file: Path): SettingsConfig {
     return res
 }
 
-// used for central repository
 public func loadConfigInfo(): SettingsConfig {
     // Read the configuration file based on priority.
-    if (fileExists(Path(DIR_CURRENT).join("cjpm-config.toml"))) {
-        return readConfigToml(Path(DIR_CURRENT).join("cjpm-config.toml"))
+    if (fileExists(Path(DIR_CURRENT).join(REPO_CONFIG_FILE_NAME))) {
+        return readConfigToml(Path(DIR_CURRENT).join(REPO_CONFIG_FILE_NAME))
     }
 
-    if (fileExists(Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").join("cjpm-config.toml"))) {
-        return readConfigToml(Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").join("cjpm-config.toml"))
+    if (fileExists(Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").join(REPO_CONFIG_FILE_NAME))) {
+        return readConfigToml(Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").join(REPO_CONFIG_FILE_NAME))
     }
 
     var res = SettingsConfig()
     let cj_home: String = getVariable("CANGJIE_HOME") ?? return res
-    if (fileExists(Path(cj_home).join("tools").join("config").join("cjpm-config.toml"))) {
-        res = readConfigToml(Path(cj_home).join("tools").join("config").join("cjpm-config.toml"))
+    if (fileExists(Path(cj_home).join("tools").join("config").join(REPO_CONFIG_FILE_NAME))) {
+        res = readConfigToml(Path(cj_home).join("tools").join("config").join(REPO_CONFIG_FILE_NAME))
         let globalCjpmConfig = getVariable("CJPM_CONFIG") ?? return res
         println("Warning: the functionality of 'CJPM_CONFIG' will be deprecated, " +
             "please unset 'CJPM_CONFIG' and use cjpm-config.toml to set the repository local path")
@@ -143,7 +140,6 @@ public func loadConfigInfo(): SettingsConfig {
     return res
 }
 
-// used for central repository, Compare two verified version
 func versionCompare(v1: String, v2: String): Bool {
     let vArr1: Array<String> = v1.split(".")
     let vArr2: Array<String> = v2.split(".")
@@ -153,9 +149,32 @@ func versionCompare(v1: String, v2: String): Bool {
         vArrList1.add(Int64.parse(vArr1[index]))
         vArrList2.add(Int64.parse(vArr2[index]))
     }
-    if (vArrList2[0] > vArrList1[0] || (vArrList2[0] == vArrList1[0] && vArrList2[1] > vArrList1[1]) || (vArrList2[0] ==
-        vArrList1[0] && vArrList2[1] == vArrList1[1] && vArrList2[2] > vArrList1[2])) {
+    if (vArrList2[0] > vArrList1[0] || (vArrList2[0] == vArrList1[0] && vArrList2[1] > vArrList1[1]) ||
+        (vArrList2[0] == vArrList1[0] && vArrList2[1] == vArrList1[1] && vArrList2[2] > vArrList1[2])) {
         return true
     }
     return false
+}
+
+public func verifyDependencyField(dep: DepInfo, name: String, path: String): Bool {
+    let isPathDep = dep.path.isSome()
+    let isGitDep = dep.git.isSome()
+    let isRepoDep = dep.version.isSome()
+
+    if (!isPathDep && !isGitDep && !isRepoDep) {
+        eprintln("Error: one of 'git' or 'path' or 'version' fields must exist " +
+            "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
+        return false
+    }
+    if ((isPathDep && isGitDep) || (isPathDep && isRepoDep) || (isGitDep && isRepoDep)) {
+        eprintln("Error: only one of 'git' or 'path' or 'version' fields can exist " +
+            "in dependency ${name} in ${Path(path).join(CONFIG_FILE_NAME).toString()}")
+        return false
+    }
+
+    if (let Some(version) <- dep.version) {
+        return centralVersionCheck(name, version, Path(path).join(CONFIG_FILE_NAME).toString())
+    }
+
+    return true
 }

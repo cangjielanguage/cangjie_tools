@@ -25,6 +25,8 @@ public class CommandFactory {
             case "tree" => TreeCommand(args)
             case "install" => InstallCommand(args)
             case "uninstall" => UninstallCommand(args)
+            case "bundle" => BundleCommand(args)
+            case "publish" => PublishCommand(args)
             case _ => CpmCommand(args)
         }
         return handle

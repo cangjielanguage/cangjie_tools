@@ -6,7 +6,7 @@
 
 ## 使用说明
 
-执行 `cjpm -h` 命令，查阅包管理工具的使用说明，如下所示。
+执行 `cjpm -h` 命令，查阅项目管理工具的使用说明，如下所示。
 
 ```text
 Cangjie Package Manager
@@ -24,6 +24,8 @@ Available subcommands:
   test             Unittest a local package or module
   bench            Run benchmarks in a local package or module
   clean            Clean up the target directory
+  bundle           Make distributable tarball of current module
+  publish          Publish a module to central repository
   install          Install a cangjie binary
   uninstall        Uninstall a cangjie binary
 
@@ -58,10 +60,13 @@ Available options:
   -g                            enable compile debug version target
   --coverage                    enable coverage
   --cfg                         enable the customized option 'cfg'
+  --enable-features <value>     explicitly specify comma-separated list of features to be enabled
+  --no-feature-deduce           disables auto-enabling of features, deduced from other options, machine properties, etc.
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
   --target-dir <value>          specify target directory
   -o, --output <value>          specify product name when compiling an executable file
+  -l, --lint                    enable cjlint code check
   --mock                        enable support of mocking classes in tests
   --skip-script                 disable script 'build.cj'.
 ```
@@ -78,6 +83,7 @@ Available options:
 - `--name <value>` 指定新建模块的 `root` 包名，不指定时默认为上一级子文件夹名称
 - `--path <value>` 指定新建模块的路径，不指定时默认为当前文件夹
 - `--type=<executable|static|dynamic>` 指定新建模块的产物类型，缺省时默认为 `executable`
+- `--experimental` 初始化仓颉多平台项目
 
 例如：
 
@@ -137,7 +143,7 @@ Error: can not find the following dependencies
 
 ### update
 
-`update` 用于将 `cjpm.toml` 里的内容更新到 `cjpm.lock`。当 `cjpm.lock` 不存在时，将会生成该文件。`cjpm.lock` 文件记录着 `git` 依赖的版本号等元信息，用于下次构建使用。
+`update` 用于将 `cjpm.toml` 里的内容更新到 `cjpm.lock`。当 `cjpm.lock` 不存在时，将会生成该文件。`cjpm.lock` 文件记录着 `git` 依赖和中心仓依赖的版本号等元信息，用于下次构建使用。
 
 `update` 有以下可配置项：
 
@@ -242,11 +248,14 @@ cjpm tree success
 - `-V, --verbose` 用于展示编译日志
 - `-g` 用于生成 `debug` 版本的输出产物
 - `--coverage` 用于生成覆盖率信息，默认情况下不开启覆盖率功能
-- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考  `profile.customized-option` 章节
+- `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考 [profile.customized-option](#profilecustomized-option) 章节
+- `--enable-features <value>` 显式指定要启用的功能，可用逗号分隔
+- `no-feature-deduce` 禁用功能的自动启用，支持从其他选项或机器的相关属性推断等
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口
-- `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
+- `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](#target) 章节
 - `--target-dir <value>` 用于指定输出产物的存放路径
 - `-o, --output <value>` 用于指定输出可执行文件的名称，默认名称为 `main`（`Windows` 系统下则默认为 `main.exe`）。注意，当前不支持编译名称为 `cjc` 的可执行文件
+- `-l, --lint` 用于在编译时调用仓颉语言静态检查工具进行代码检查
 - `--mock` 带有此选项的构建版本中的类可用于在测试中进行 `mock` 测试
 - `--skip-script` 配置后，将会跳过构建脚本的编译运行
 
@@ -256,6 +265,7 @@ cjpm tree success
 > - `-i, --incremental` 选项目前仅支持基于源码的增量分析。如果导入的库内容有变更，需要开发者重新使用全量方式构建。
 
 编译生成的中间文件默认会存放在 `target` 文件夹，而可执行文件会根据编译模式存放到 `target/release/bin` 或 `target/debug/bin` 文件夹。运行可执行文件的方式可参考 `run`。
+
 为了提供可复制的构建，此命令会创建 `cjpm.lock` 文件，该文件包含所有可传递依赖项的确切版本，这些依赖项将用于所有后续构建，需要更新该文件时请使用 `update` 命令。如果有必要保证每个项目参与者都有可复制的构建，那么此文件应提交到版本控制系统中。
 
 例如：
@@ -275,7 +285,45 @@ cjpm build success
 
 > **注意：**
 >
-> 根据仓颉包管理规格，只有符合要求的有效源码包才能被正确纳入编译范围。如果编译时出现 `no '.cj' file` 相关的告警，很可能是因为对应包不符合规范导致源码文件不被编译。如果出现这种情况，请参考[仓颉包管理规格说明](./user_guide.md#仓颉包管理规格说明)修改代码目录结构。
+> 根据仓颉包管理规格，只有符合要求的有效源码包才能被正确纳入编译范围。如果编译时出现 `no '.cj' file` 相关的告警，很可能是因为对应包不符合规范导致源码文件不被编译。如果出现这种情况，请参考[仓颉包管理规格说明](#仓颉包管理规格说明)修改代码目录结构。
+
+在执行 `cjpm build` 之前，`cjpm` 会对当前模块或工作空间进行包依赖关系检查。若发现包之间存在相互导入关系形成依赖闭环，构建将被中止并返回错误信息，提示循环依赖路径。
+
+例如，模块 `demo` 的源代码目录结构如下：
+
+```text
+src
+├── main.cj
+├── aoo
+│   └── a.cj
+├── boo
+│   └── b.cj
+├── coo
+│   └── c.cj
+└── cjpm.toml
+```
+
+依赖关系为：包 `demo.aoo` 导入包 `demo.boo`，包 `demo.boo` 导入包 `demo.coo`，包 `demo.coo` 导入包 `demo.aoo`，三个包之间的依赖导入形成闭环，导致循环依赖：
+
+```text
+输入: cjpm build
+输出:
+cyclic dependency:
+demo.boo -> demo.coo
+demo.coo -> demo.aoo
+demo.aoo -> demo.boo
+
+Error: cjpm build failed
+```
+
+出现循环依赖后，开发者可以基于报错信息进行依赖关系排查。上例中，导入关系为 `demo.aoo -> demo.boo -> demo.coo -> demo.aoo`，开发者可依次从各包对应的目录下找到导入点并分析是否可以删除导入，从而解决循环依赖。例如，开发者可先从 `demo.aoo` 开始分析，在该包对应的代码目录中，查询哪些源码文件存在 `demo.boo` 包的导入，若这些文件实际上并没有功能依赖 `demo.boo`，则可以删除对应的导入。用同样的方法依次排查 `demo.boo` 和 `demo.coo`，删除冗余导入，从而尝试解决循环依赖问题。
+
+若经过上述排查，发现确实存在功能上的循环依赖情况，可以尝试下面的几个解决方法：
+
+- 重构导入顺序：尽量让依赖关系保持单向，避免回环，例如上例中 `demo.coo` 中依赖 `demo.aoo` 的部分可独立实现，即可拆解闭环；
+- 拆分模块：将相互引用的代码拆分到独立包，例如上例中可将三个子包合成一个包。
+
+在涉及到包依赖关系解析的其他命令中（例如 `tree`），若存在循环依赖，也会有相同的报错出现，也可以基于上述处理方式解决。
 
 ### run
 
@@ -455,7 +503,7 @@ cjpm build success
 - `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项
 - `--module <value>` 用于指定目标测试模块，指定的模块需要被当前模块直接或间接依赖（或者是该模块本身），也可以通过 `--module "module1 module2"` 的方式指定多个符合要求的模块。不指定时默认只测试当前模块
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定测试单个模块
-- `--target <value>` 指定后，可交叉编译生成目标平台的单元测试结果，`cjpm.toml` 中的配置可参考 [target](./user_guide.md#target) 章节
+- `--target <value>` 指定后，可交叉编译生成目标平台的单元测试结果，`cjpm.toml` 中的配置可参考 [target](#target) 章节
 - `--target-dir <value>` 用于指定单元测试产物的存放路径
 - `--dry-run` 配置后，将不执行用例，仅打印
 - `--filter <value>` 用于过滤测试的子集，`value` 的形式如下所示：
@@ -481,6 +529,7 @@ cjpm build success
     - `nCores` 指定了并行的测试进程个数应该等于可用的 CPU 核数
     - `NUMBER` 指定了并行的测试进程个数值。该数值应该为正整数
     - `NUMBERnCores` 指定了并行的测试进程个数值为可用的 CPU 核数的指定数值倍。该数值应该为正数（支持浮点数或整数）
+- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
 - `--show-all-output` 启用测试输出打印，包括通过的测试用例
 - `--no-capture-output` 禁用测试输出捕获，输出将在测试执行期间立即打印
 - `--report-path <value>` 指定测试执行后的报告生成路径
@@ -497,8 +546,9 @@ cjpm build success
 ```text
 输入：
 cjpm test src --coverage
+cjcov --root=./ --html-details -o html_output
 输出：cjpm test success
-覆盖率数据生成：在 cov_output 目录下对应模块的目录中，会生成 gcno 和 gcda 文件
+覆盖率生成：在 html_output 目录下会生成 html 文件，总的覆盖率报告文件名固定为 index.html
 ```
 
 ```text
@@ -574,6 +624,7 @@ Summary: TOTAL: 1
     - `--exclude-tags=Unittest+Smoke+JiraTask3271` 运行所有未被标记为 `@Tag[Unittest, Smoke, JiraTask3271]` 同时都有的测试
     - `--include-tags=Unittest --exclude-tags=Smoke` 运行所有被标记为 `@Tag[Unittest]` 且不带有 `@Tag[Smoke]` 的测试
 - `--no-color` 关闭控制台颜色显示
+- `--show-tags` 用于在测试报告中显示测试用例中 `@Tag` 的信息。在 `--dry-run` 模式下，并且测试报告为 `xml` 格式时，将始终包含 `Tag` 信息
 - `--random-seed <N>` 用来指定随机种子的值
 - `--report-path <value>` 指定执行后生成报告的路径。与 `test` 子命令不同，它具有默认值 `bench_report`
 - `--report-format <value>` 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
@@ -621,9 +672,79 @@ Summary: TOTAL: 1
 >
 > 在 `Windows` 平台上，在子进程执行完成后立即清理子进程的可执行文件或父目录可能会失败。如果遇到该问题，可以在一小段延迟后重新尝试 `clean` 命令。
 
+### bundle
+
+`bundle` 用于将当前仓颉项目打包成符合仓颉中心仓格式的制品源码包。
+
+`bundle` 有多个可配置项：
+
+- `-V, --verbose` 用于展示安装日志。
+- `--skip-test` 用于跳过单元测试阶段。
+- `--skip-lint` 用于跳过静态检查阶段。
+
+`bundle` 打包流程如下：
+
+1. 模块检查
+
+    一个可以被成功打包的 `cjpm` 模块，需要满足以下条件：
+
+    - 模块名、组织名满足规格要求：
+        - 长度范围为 [3, 64]，且符合模块名和组织名规格；
+        - 不能为任何仓颉语法中的关键字（大小写不敏感）；
+        - 组织名不能为 `default`
+    - `cjpm.toml` 中包含模块说明 `description`；
+    - 根目录下包含中文文档 `README_zh.md` 或英文文档 `README.md`；
+    - 模块的依赖项均为中心仓形式。
+
+    若模块不满足上述条件，则打包失败。
+
+2. 编译检查：进行编译检查，确保模块能够编译通过；如果未配置 `--skip-test`，则会运行单元测试。编译和测试失败均会导致打包失败。
+3. 代码静态检查：如果未配置 `--skip-lint`，则会调用 `cjlint` 进行代码静态检查，出现 `error` 级别的错误则会导致打包失败。
+4. 打包：基于用户配置，将当前模块打包成 `tar.gz` 格式的制品源码包，参考 [`include/exclude` 字段](#include-exclude)。制品源码包位于编译产物目录中，文件名为 `模块名-版本号.cjp`。同时，生成制品包对应的元数据文件，也位于编译产物目录中，文件名为 `meta-data.json`。
+
+例如，有以下的待打包模块 `demo`，`cjpm.toml` 中配置的版本号 `version = "1.0.0"`：
+
+```text
+demo
+├── src
+│    ├── demo.cj
+│    ├── demo-config.txt
+│    └── aoo
+│         ├── aoo.cj
+│         └── aoo-config.txt
+├── test
+│    ├── test.cj
+│    └── test-config.txt
+├── README.md
+└── cjpm.toml
+```
+
+由于未配置编译产物目录，因此默认目录为 `target`。执行 `cjpm bundle` 后，`target` 目录中会有如下内容：
+
+```text
+target
+├── demo-1.0.0.cjp  # 制品源码包
+├── meta-data.json  # 制品元数据
+└── 其他编译产物
+```
+
+使用 `tar` 命令以 `tar.gz` 格式解压 `demo-1.0.0.cjp`，会得到与上例中 `demo` 目录相同的内容。
+
+### publish
+
+`publish` 用于将制品源码包上传到中心仓。
+
+执行 `publish` 命令时，`cjpm` 会检查编译产物目录中是否有名为 `模块名-版本号.cjp` 的制品源码包和元数据文件 `meta-data.json`，若任意一个文件不存在，或者元数据中的制品包校验码与制品包不匹配，则重新执行默认 `bundle` 流程。然后，`cjpm` 会将制品源码包和元数据上传到中心仓。
+
+> **注意：**
+>
+> 使用 `publish` 功能需要正确进行中心仓配置，参考[项目管理配置文件说明](#项目管理配置文件说明)。
+
 ### install
 
 `install` 用于安装仓颉项目，执行该命令前会先进行编译，然后将编译产物安装到指定路径，安装产物以仓颉项目名命名（`Windows` 系统上会有 `.exe` 后缀）。`install` 安装的项目产物类型需要是 `executable`。
+
+`install` 有可选参数 `[org::]name-version`，当存在该参数时，`cjpm` 将会从中心仓下载 `org` 组织（若不配置则为无组织）下的名为 `name`，版本号为 `version` 的源码包并编译安装；若存在多个该配置，则会依次安装。
 
 `install` 有多个可配置项：
 
@@ -646,7 +767,7 @@ Summary: TOTAL: 1
 
 `install` 功能有如下注意事项：
 
-- `install` 共有两种安装方式：安装本地项目（通过 `--path` 配置项目路径）和安装 `git` 项目（通过 `--git` 配置项目 `url`）。这两种安装方式至多只能配置一种，否则 `install` 将报错。任意一种均未配置时，默认安装当前目录下的本地项目。
+- `install` 共有三种安装方式：安装本地项目（通过 `--path` 配置项目路径），安装 `git` 项目（通过 `--git` 配置项目 `url`）和安装中心仓项目（通过 `[org::]name-version` 配置组织名、模块名和版本号）。这三种安装方式至多只能配置一种，否则 `install` 将报错。任意一种均未配置时，默认安装当前目录下的本地项目。
 - `install` 编译项目时，默认开启增量编译。
 - `git` 相关配置仅在配置 `--git` 后生效，否则会被忽略，包括 `--branch`, `--tag` 和 `--commit`。当配置多个 `git` 相关配置时，仅会生效优先级更高的配置，优先级排序为 `--commit` > `--branch` > `--tag`。
 - 若已存在同名可执行文件被安装，则原来的文件将被替换。
@@ -662,6 +783,8 @@ Summary: TOTAL: 1
 ```text
 cjpm install --path path/to/project # 从本地路径 path/to/project 中安装
 cjpm install --git url              # 从 git 对应地址安装
+cjpm install aoo-1.0.0              # 从中心仓安装名为 aoo 的，版本号为 1.0.0 的项目
+cjpm install org::boo-2.0.0         # 从中心仓安装 org 组织下名为 boo 的，版本号为 2.0.0 的项目
 ```
 
 ### uninstall
@@ -684,6 +807,7 @@ cjpm install --git url              # 从 git 对应地址安装
 [package] # 单模块配置字段，与 workspace 字段不能同时存在
   cjc-version = "1.0.0" # 所需 `cjc` 的最低版本要求，必需
   name = "demo" # 模块名及模块 root 包名，必需
+  organization = "" # 组织名, 非必需
   description = "nothing here" # 描述信息，非必需
   version = "1.0.0" # 模块版本信息，必需
   compile-option = "" # 额外编译命令选项，非必需
@@ -694,6 +818,17 @@ cjpm install --git url              # 从 git 对应地址安装
   target-dir = "" # 指定产物存放路径，非必需
   script-dir = "" # 指定构建脚本产物存放路径，非必需
   package-configuration = {} # 单包配置选项，非必需
+  include = ["src"] # 指定打包范围，非必需
+  exclude = ["*.txt"] # 指定打包排除范围，非必需
+
+  # 中心仓制品展示相关字段
+  authors = ["Tom", "Joan"] # 作者 ID 列表，非必需
+  repository = "" # 制品仓代码 url，非必需
+  homepage = "" # 制品主页 url，非必需
+  documentation = "" # 制品文档页 url，非必需
+  tag = [] # 制品标签，非必需
+  category = [] # 制品分类，非必需
+  license = [] # 协议列表，非必需
 
 [workspace] # 工作空间管理字段，与 package 字段不能同时存在
   members = [] # 工作空间成员模块列表，必需
@@ -755,11 +890,78 @@ cjpm install --git url              # 从 git 对应地址安装
 
 当前仓颉模块名称，同时也是模块 `root` 包名。
 
-一个合法的仓颉模块名称必须是一个合法的标识符。标识符可由字母、数字、下划线组成，标识符的开头必须是字母，例如 `cjDemo` 或者 `cj_demo_1`。
+一个合法的仓颉模块名称必须是一个合法的标识符。标识符可由字母、数字、下划线组成，标识符的开头必须是字母或若干下划线加字母的组合，例如 `cjDemo`，`_cj_demo_1` 或者 `__cj_demo_1`。
 
 > **注意：**
 >
 > 当前仓颉模块名暂不支持使用 Unicode 字符，仓颉模块名必须是一个仅含 ASCII 字符的合法的标识符。
+
+### "organization"
+
+当前仓颉模块组织名。若不配置该字段，则当前仓颉模块为无组织模块。
+
+一个合法的仓颉组织名名称必须是一个合法的标识符，标准与 `name` 相同。
+
+`organization` 配置后，模块代码中包声明及包导入需以 `组织名 + ::` 为前缀的型式带上组织名，模块代码的相关产物名、目录名将以 `@ + 组织名` 为后缀的型式带上组织名，例子如下：
+
+```toml
+# cjpm.toml
+[package]
+  name = "demo"
+  organization = "org"      # 配置组织名
+```
+
+```text
+# demo 模块结构
+|-- src
+    |-- demo.cj
+    |-- xoo
+        |-- xoo.cj
+    |-- yoo
+        |-- yoo.cj
+```
+
+```cangjie
+# xoo.cj
+package org::demo.xoo       # 带有组织名的包声明
+
+public let x: Int64 = 0
+```
+
+```cangjie
+# yoo.cj
+package org::demo.yoo       # 带有组织名的包声明
+
+public let y: Int64 = 0
+```
+
+```cangjie
+# demo.cj
+package org::demo           # 带有组织名的包声明
+
+import org::demo.xoo.*      # 带有组织名的包导入
+import org::demo.yoo.*      # 带有组织名的包导入
+
+main(): Int64 {
+    println(x)
+    println(y)
+    println("hello world")
+    return 0
+}
+```
+
+```text
+# 模块产物目录及产物
+|-- target
+   |-- release
+        |-- demo@org                  # 目录带上组织名
+            |-- libdemo@org.so        # 产物带上组织名
+            |-- libdemo.xoo@org.so
+            |-- libdemo.yoo@org.so
+            |-- demo@org.cjo
+            |-- demo.xoo@org.cjo
+            |-- demo.yoo@org.cjo
+```
 
 ### "description"
 
@@ -767,7 +969,7 @@ cjpm install --git url              # 从 git 对应地址安装
 
 ### "version"
 
-当前仓颉模块版本号，由模块所有者管理，主要供模块校验使用。模块版本号的格式同 `cjc-version`。
+当前仓颉模块版本号。模块版本号的格式同 `cjc-version`。
 
 ### "compile-option"
 
@@ -926,6 +1128,96 @@ src
 - 除该模块 `root` 包以外的所有包（该模块下的所有子包，以及该模块直接、间接依赖的其他模块的包含 `root` 包的所有包），会以 `LTO` 优化编译模式编译成 `.bc` 文件；
 - 该模块的 `root` 包会被编译成动态库，并且链入上述所有 `.bc` 文件，无论对应的包是否被该 `root` 包导入。
 
+### "include", "exclude"
+
+这两个字段用于 `bundle` 命令，可以指定打包时的文件范围。`include` 和 `exclude` 均为字符串数组形式，每个字符串代表一条匹配规则，匹配规则格式符合 `gitignore` 屏蔽格式。
+
+`bundle` 命令仅会检查并打包当前项目目录下的文件。基于开发者配置的 `include` 和 `exclude` 字段，最终 `bundle` 命令的打包范围确定规则如下：
+
+- 无关配置，一定会被打包的文件：项目根目录下的 `cjpm.toml`, `README.md` 和 `README_zh.md`
+- 无关配置，一定不会被打包的文件：
+    - 项目根目录下的 `cjpm.lock` 和 `cjpm-config.toml`
+    - 编译产物目录和构建脚本产物目录
+    - 所有二进制文件
+- 除了上述文件范围，其他的文件遵循以下规则：
+    - 若文件匹配任意 `include` 规则，且不匹配任意 `exclude` 规则，则该文件会被打包
+    - 若 `include` 中没有配置，则会打包当前目录下所有不匹配任意 `exclude` 规则的文件
+
+例如，有以下的待打包模块 `demo`：
+
+```text
+demo
+├── src
+│    ├── demo.cj
+│    ├── demo-config.txt
+│    └── aoo
+│         ├── aoo.cj
+│         └── aoo-config.txt
+├── test
+│    ├── test.cj
+│    └── test-config.txt
+├── README.md
+└── cjpm.toml
+```
+
+则基于不同的配置，打包范围示例如下：
+
+```toml
+[package]
+  include = []
+  exclude = []
+# 结果：打包上述文件列表中的所有文件
+```
+
+```toml
+[package]
+  include = ["src"]
+  exclude = []
+# 结果：打包 cjpm.toml, README.md 和 src 目录
+```
+
+```toml
+[package]
+  include = []
+  exclude = ["*.txt"]
+# 结果：排除所有 txt 文件，打包其余文件
+```
+
+```toml
+[package]
+  include = ["src"]
+  exclude = ["*.txt"]
+# 结果：打包 cjpm.toml, README.md 和 src 目录中除了 .txt 文件以外的其他文件
+```
+
+### "authors"
+
+该字段用于配置模块作者 ID 列表，以在中心仓页面展示。
+
+### "repository"
+
+若源码模块同时上传到某个在线代码仓库，可在此配置对应 url，以在中心仓页面展示。
+
+### "homepage"
+
+若开发者为源码模块定制了主页，可在此配置对应 url，以在中心仓页面展示。
+
+### "documentation"
+
+若开发者为源码模块定制了文档网页，可在此配置对应 url，以在中心仓页面展示。
+
+### "tag"
+
+该字段用于为源码模块指定制品标签，上限 5 个。
+
+### "category"
+
+该字段用于为源码模块指定制品分类，上限 5 个。
+
+### "license"
+
+该字段用于指定源码模块满足的协议列表。
+
 ### "workspace"
 
 该字段可管理多个模块作为一个工作空间，支持以下配置项：
@@ -980,7 +1272,7 @@ abc = { path = "libs" }
 
 ### "dependencies"
 
-该字段通过源码方式导入依赖的其它仓颉模块，里面配置了当前构建所需要的其它模块的信息。目前，该字段支持本地路径依赖和远程 `git` 依赖。
+该字段通过源码方式导入依赖的其它仓颉模块，里面配置了当前构建所需要的其它模块的信息。目前，该字段支持本地路径依赖，远程 `git` 依赖和中心仓依赖。
 
 要指定本地依赖项，请使用 `path` 字段，并且它必须包含有效的本地路径。例如，下面的两个子模块 `pro0` 和 `pro1` 和主模块的代码结构如下：
 
@@ -1026,6 +1318,22 @@ abc = { path = "libs" }
 
 通常需要一些身份验证才能访问 `git` 存储库。 `cjpm` 不要求提供所需的凭据，因此应使用现有的 `git` 身份验证支持。如果用于 `git` 的协议是 `https` ，则需要使用一些现有的 git 凭据帮助程序。在 `Windows` 上，可在安装 `git` 时一起安装凭据帮助程序，默认使用。在 `Linux/macOS` 上，请参见 `git` 官方文档中 `git-config` 的配置说明，了解有关设置凭据帮助程序的详细信息。如果协议是 `ssh` 或 `git` ，则应使用基于密钥的身份验证。如果密钥受密码短语保护，则开发者应确保 `ssh-agent` 正在运行，并且在使用 `cjpm` 之前通过 `ssh-add` 添加密钥。
 
+要指定中心仓依赖项，请使用 `version` 字段。例如，下面的配置可用于导入中心仓的源码模块：
+
+```toml
+[dependencies]
+  aoo = { version = "1.0.0" }         # 导入模块名为 aoo，版本号为 1.0.0 的中心仓模块
+  "org::boo" = { version = "2.0.0" }  # 导入 org 组织下名为 boo，版本号为 2.0.0 的中心仓模块
+```
+
+同时，`cjpm.toml` 提供了简化的中心仓依赖配置方式，下面的配置方式等价于上述配置：
+
+```toml
+[dependencies]
+  aoo = "1.0.0"
+  "org::boo" = "2.0.0"
+```
+
 `dependencies` 字段可以通过 `output-type` 属性指定编译产物类型，指定的类型可以与源码依赖自身的编译产物类型不一致，且仅能为 `static` 或者 `dynamic`， 如下所示：
 
 ```text
@@ -1044,7 +1352,7 @@ abc = { path = "libs" }
 
 ### "script-dependencies"
 
-具有与 `dependencies` 字段相同的格式。它用于指定仅在编译构建脚本中使用的依赖项，而不是构建主项目所需的依赖项。构建脚本相关功能将在[其他-构建脚本](./user_guide.md#构建脚本)章节中详述。
+具有与 `dependencies` 字段相同的格式。它用于指定仅在编译构建脚本中使用的依赖项，而不是构建主项目所需的依赖项。构建脚本相关功能将在[其他-构建脚本](#构建脚本)章节中详述。
 
 ### "replace"
 
@@ -1096,7 +1404,11 @@ abc = { path = "libs" }
 hello = { path = "./src/" }
 ```
 
-若需要指定不同平台可使用的 `c` 库配置，请参见 [target](./user_guide.md#target)。
+若需要指定不同平台可使用的 `c` 库配置，请参见 [target](#target)。
+
+> **注意：**
+>
+> 在 `Windows` 系统的多模块场景下，若多个模块配置了同名 `c` 库，由于 `Windows` 特殊的库读取策略，会最优先读取运行目录下的库文件，因此最终实际使用的库文件可能与其他系统不一致。
 
 ### "profile"
 
@@ -1184,6 +1496,11 @@ demo = "dynamic"
 >     - 构建脚本依赖的源码模块中，若配置了 `profile.build.combined`，不会生效；
 >     - `profile.build.combined` 选项仅支持 `Linux/OpenHarmonyOS/Windows` 平台。
 
+若启用了 `combined` 配置，可能会出现无法通过导入关系识别的循环依赖，导致出现 `cyclic dependency` 循环依赖报错，解决方式如下：
+
+- 若报错信息中包含形如 `because of combined module 'demo'` 的报错，说明模块 `demo` 被配置成了 `combined` 模块，并且存在 `demo` 的子包直接或间接依赖 `demo` 包的情况，开发者可以查找并删去该模块子包中存在的对 `root` 包的导入，或者直接去除 `combined` 配置，从而解决此类循环依赖；
+- 若报错信息中包含形如 `between combined modules` 的报错，说明该条目中两个 `root` 包对应模块都被配置成了 `combined` 模块，且存在模块间（包括子包之间）的相互依赖，开发者可以查找并删去其中一个 `combined` 模块对另一个 `combined` 模块的包导入，或者直接去除两个模块的 `combined` 配置，从而解决此类循环依赖。
+
 #### "profile.test"
 
 ```text
@@ -1209,7 +1526,7 @@ PATH = { value = "/usr/bin", splice-type = "prepend" }
 
 测试配置支持指定编译和运行测试用例时的选项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.test` 项才会生效。选项列表与 `cjpm test` 提供的控制台执行选项一致。如果选项在配置文件和控制台中同时被配置，则控制台中的选项优先级高于配置文件中的选项。`profile.test` 支持的运行时选项：
 
-- `filter` 指定用例过滤器，参数值类型为字符串，格式与 [test 命令说明](./user_guide.md#test)中 `--filter` 的值格式一致
+- `filter` 指定用例过滤器，参数值类型为字符串，格式与 [test 命令说明](#test)中 `--filter` 的值格式一致
 - `timeout-each <value>` 中 `value` 的格式为 `%d[millis|s|m|h]`，为每个测试用例指定默认的超时时间
 - `parallel` 指定测试用例并行执行的方案，`value` 的形式如下所示：
     - `<BOOL>` 值为 `true` 或 `false`，指定为 `true` 时，测试类可被并行运行，并行进程个数将受运行系统上的 CPU 核数控制
@@ -1309,7 +1626,7 @@ cfg3 = "-O2"
     "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
     "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
     "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-  [target.x86_64-unknown-linux-gnu.ffi.c] # C 二进制库依赖
+  [target.x86_64-unknown-linux-gnu.ffi.c] # C 语言二进制库依赖
     "ctest" = "./test/c"
 
 [target.x86_64-unknown-linux-gnu.debug] # Linux 系统的 debug 配置项
@@ -1524,9 +1841,42 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
     - 构建脚本依赖列表 `script-dependencies` 中本地依赖项的 `path` 字段
     - 二进制依赖字段 `bin-dependencies` 中的 `path-option` 和 `package-option` 字段
 
+## 项目管理配置文件说明
+
+项目管理配置文件 `cjpm-config.toml` 用来配置中心仓地址、本地仓路径等内容，`cjpm` 主要通过此文件对接中心仓，管理从中心仓下载的依赖模块。
+
+`cjpm-config.toml` 可配置在三个位置，执行 `cjpm` 命令时，会按照从上到下的优先级读取：
+
+- 执行命令的当前 `cjpm` 模块目录下，与 `cjpm.toml` 同级的 `cjpm-config.toml`；
+- 用户空间目录下 `.cjpm` 目录内的 `cjpm-config.toml`，`Linux/macOS` 中为 `$HOME/.cjpm`，`Windows` 中为 `%USERPROFILE%/.cjpm`；
+- 仓颉 sdk 目录下的 `tools/config/cjpm-config.toml`。
+
+读取到一个有效的 `cjpm-config.toml` 后，`cjpm` 会使用该文件作为本次命令执行的配置，并忽略更低优先级的配置文件。
+
+配置文件格式如下所示：
+
+```toml
+[repository.local]
+  path = "/path/to/local/repository"
+
+[repository.home]
+  registry = "central/repo/url"
+  token = "user-token"
+```
+
+配置内容说明如下：
+
+- `repository.home` 用于配置中心仓 url 和用户的个人 token，`cjpm` 会与 `registry` 字段中的中心仓地址进行交互，交互请求中会附带用户 token 信息。
+- `repository.local` 用于配置存放从中心仓和 git 下载的源码模块的本地路径，不配置时默认为用户空间目录下的 `.cjpm` 目录。确定本地路径后，git 源码模块会下载到该路径的 `git` 目录下，中心仓源码模块会下载到 `repository/source` 目录下。
+
 ## 配置和缓存文件夹
 
-`cjpm` 通过 `git` 下载文件的存储路径可以通过 `CJPM_CONFIG` 环境变量指定。如果未指定，则 `Linux/macOS` 上的默认位置为 `$HOME/.cjpm`，`Windows` 上的默认位置为 `%USERPROFILE%/.cjpm` 。
+`cjpm` 通过 `git` 和中心仓下载文件的存储路径可以通过 `CJPM_CONFIG` 环境变量指定。如果未指定，则 `Linux/macOS` 上的默认位置为 `$HOME/.cjpm`，`Windows` 上的默认位置为 `%USERPROFILE%/.cjpm` 。
+
+> **注意：**
+>
+> - 该配置功能等同于 `cjpm-config.toml` 中的 `repository.local`。该配置仅在无有效 `cjpm-config.toml` 配置或是有效配置为仓颉 `sdk` 中的 `tools/config/cjpm-config.toml` 时才会生效。
+> - 该配置会在未来被废弃，请使用 `cjpm-config.toml` 代替。
 
 ## 仓颉包管理规格说明
 
@@ -1775,7 +2125,7 @@ main(): Int64 {
 
 ## 使用示例
 
-以下面仓颉项目的目录结构为例，介绍 `cjpm` 的使用方法，该目录下对应的源码文件示例可见[源代码](./user_guide.md#示例的源代码)。该仓颉项目的模块名为 `test`。
+以下面仓颉项目的目录结构为例，介绍 `cjpm` 的使用方法，该目录下对应的源码文件示例可见[源代码](#示例的源代码)。该仓颉项目的模块名为 `test`。
 
 ```text
 cj_project
@@ -1800,11 +2150,12 @@ cj_project
 - 新建仓颉项目并编写源码 `xxx.cj` 文件，如示例结构所示的 `koo` 包和 `main.cj` 文件。
 
     ```shell
-    cjpm init --name test --path .../cj_project
-    mkdir koo
+    cjpm init --name test --path ./cj_project
+    cd cj_project
+    mkdir src/koo
     ```
 
-    此时，会自动生成 `src` 文件夹和默认的 `cjpm.toml` 配置文件。
+    此时，会在当前执行命令的目录下创建 `cj_project` 目录，并在该目录中自动生成 `src` 文件夹和默认的 `cjpm.toml` 配置文件。开发者可以自行在源码目录 `src` 中新建子包（如 `src/koo`），或是自行在各包中新增源码文件和测试文件。
 
 - 当前模块需要依赖外部的 `pro0` 模块时，可以新建 `pro0` 模块及该模块的配置文件，接下来编写该模块的源码文件，需要自行在 `pro0` 下新建 `src` 文件夹，在 `src` 下新建 `pro0` 的 root 包 `pro0.cj`，并将编写的仓颉包放置在 `src` 下，如示例结构所示的 `zoo` 包。
 
@@ -1964,4 +2315,221 @@ description = "nothing here"
 version = "1.0.0"
 name = "pro0"
 output-type = "static"
+```
+
+## 附录
+
+### 交叉编译使用说明
+
+`cjpm` 支持在部分平台之间交叉编译并运行。例如，假设目标平台为 `arch-sys-abi`，编译步骤如下：
+
+1. 配置目标平台所需的工具链。
+
+2. 在入口模块的 `cjpm.toml` 中，添加目标平台需要的编译选项配置：
+
+    ```text
+    [target.arch-sys-abi]
+      override-compile-option = "value"
+    ```
+
+   此配置会应用于所有依赖的模块。单模块编译模式下，可以替换成 `compile-option`。
+
+3. 若项目存在二进制依赖，则需要进行如下配置：
+
+    ```text
+    [target.arch-sys-abi.bin-dependencies]
+      path-option = [...]
+    [target.arch-sys-abi.bin-dependencies.package-option]
+      "..." = "..."
+    ```
+
+4. 使用如下命令进行编译构建或测试代码构建：
+
+    ```shell
+    cjpm build --target=arch-sys-abi  # 交叉编译目标平台的产物
+    cjpm test --target=arch-sys-abi   # 交叉编译目标平台的可执行测试文件
+    ```
+
+5. 将二进制产物导入到目标平台，即可正常运行。
+
+> **注意：**
+>
+> - 编译产物位于用户配置的 `target-dir` 目录下以目标平台 `target` 命名的目录。
+> - 若存在动态库依赖，则需要将动态库配置于运行环境的环境变量 `LD_LIBRARY_PATH`中。
+
+### 多平台构建使用说明
+
+为了支持多平台项目构建，在 `cjpm` 中引入了新的实体，例如 `features` 和 `source-sets`，以使多平台项目的开发更加高效。此功能为实验特性，需要在 `[profile]` 字段中指定 `experimental = true`。
+
+#### feature
+
+feature 是一个命名的标志，用于指定需要编译的源代码。以下是 `cjpm` 中内置支持的 feature 列表：
+
+```bash
+"os.android"
+"os.ohos"
+"os.hos"
+"os.ios"
+"os.linux"
+"os.windows"
+"os.darwin"
+```
+
+开发者可以在 `cjpm` 的 `build`、`run` 和 `test` 命令中使用 `--enable-features` 选项，并在选项中提供以逗号分隔的 feature 值。
+例如：
+
+```bash
+cjpm build --enable-features=os.linux,user.dep.wayland
+```
+
+#### 自定义 feature 与配对规则
+
+除了内置的 feature 值，cjpm 也支持通过 `[[feature]]` 在 toml 文件中定义一组 feature 值和配对规则。例如：
+
+```toml
+[profile]
+experimental = true
+
+[package]
+# ...
+name = "cjmpterm"
+output-type = "executable"
+# ...
+
+[[feature]]
+name = "user.cjmpterm.nightly"
+mapping = [] # 空值为默认值，可省略此行。
+
+[[feature]]
+name = [ "user.cjmpterm.wayland", "user.cjmpterm.x11" ]
+
+# 此条仅为内置 feature 配置 mapping 信息，非新加 feature。
+[[feature]]
+name = "os.linux"
+mapping = [ "user.cjmpterm.wayland", "user.cjmpterm.x11" ]
+```
+
+其中，对于自定义 feature 名称的规则为：
+
+- 至少由三个部分组成，每个部分以点分隔。
+- 第一部分为 `user`，第二部分为包名。
+- 第三部分为自定义名称，需满足此正则规则 `[a-zA-Z_][a-zA-Z0-9_]*`。
+
+通过 `mapping` 指定的匹配规则，配对规则为，当 a 匹配了 b/c 时，则当本包的配置文件中指定 a 时，将同时指定 b/c。
+
+#### feature 推导
+
+内置支持的 feature 值可以从正在使用的 `cjc` 或 `cjpm` 的其他编译选项（如 `--target` ）中推断出来，因此通常不必显式指定，具体推导规则如下：
+
+```bash
+if OS.LINUX && Env.ANDROID   => os.android
+if OS.LINUX && Env.OHOS      => os.ohos
+if OS.LINUX && Env.HOS       => os.hos
+if Vendor.APPLE && OS.IOS    => os.ios
+if OS.LINUX                  => os.linux
+if OS.WINDOWS                => os.windows
+if Vendor.APPLE && OS.DARWIN => os.darwin
+```
+
+可使用选项 `--no-feature-deduce` 来禁用上述推导能力，并通过 `--enable-features` 指定 feature 值：
+
+```bash
+# 将出现 "No source set was selected" 的错误信息
+cjpm build --target=aarch64-linux-android --no-feature-deduce
+# 可选择合适的 feature 值进行指定:
+cjpm build --no-feature-deduce --target=aarch64-linux-android --enable-features=os.android
+```
+
+#### 源码集
+
+源码集表示特定 feature 下指定编译的源码目录，可通过配置文件指定其目录地址，例如:
+
+```toml
+[[source-set]]
+name = "common" # 可选配置项，仅用于调试报错。
+src-dir = "./common"
+features = []
+
+[[source-set]]
+src-dir = "./xorg"
+features = [ "user.cjmpterm.x11" ]
+product = true
+
+[[source-set]]
+src-dir = "./wayland"
+features = [ "user.cjmpterm.wayland" ]
+product = true
+
+[[source-set]]
+src-dir = "./linux"
+features = [ "user.cjmpterm.x11", "user.cjmpterm.wayland" ]
+
+[[source-set]]
+src-dir = "./windows"
+features = [ "os.windows" ]
+```
+
+> **注意：**
+>
+> 对于在 source-set 中的源码文件，必须在源码文件头中，通过 `feature` 关键字显式声明其对应的 feature 名称。例如：
+>
+> `features user.cjmpterm.wayland, user.cjmpterm.x11`
+
+源码集是与 feature 对应的一组源码文件。在一个项目中，代码可以按包和按源码集分。一个项目的源码集可以创建一个有向无环图，该图可仅包含单个节点。图中节点的源码集的 feature 列表必须为传入节点源码集 feature 列表的超集。
+
+对于源码集合并所有传入节点源码集后可编译为二进制文件源码集称为“产品源码集”。所有没有传出节点的源码集都是产品源码集。有传出节点的源码集可以显式配置为产品源码集。
+
+当源码集没有指定 feature 时，表示其为公共源码集，所有产品源码集编译时将均包含该源码集。
+
+源码集中的声明对其传入节点的源码集不可见。在有导入的多包依赖场景，满足被导入类型所在源码集的 feature 列表为本源码集的子集。
+
+##### name
+
+name 是一个可选的配置项，指定源码集的名称。在所在包中，必须唯一。
+
+##### src-dir
+
+表示源码集对应的源代码文件夹位置。
+
+##### features
+
+指定本源码集对应的一个或多个 feature，以便编译相应的代码。
+
+##### product
+
+product 是一个可选的配置项，通过 product 指定其为产品源码集。即 product 存在时，其值仅可为 `true`。
+
+#### 依赖
+
+当启用 `dependency` 依赖项时，则需指定所依赖项的有且仅有一个产品源码包的对应 feature 值。例如：
+
+```toml
+[dependencies]
+  linuxgui = { path = "./linuxgui" }
+
+[[feature]]
+name = "user.cjmpterm.wayland"
+mapping = [ "user.linuxgui.wayland" ]
+
+[[feature]]
+name = "user.cjmpterm.x11"
+mapping = [ "user.linuxgui.x11" ]
+```
+
+当本包依赖 linuxgui 包时，名为 `user.cjmpterm.wayland` 的 feature 在 `linuxgui` 中不存在时，则可增加配对规则，使其对应 `user.linuxgui.wayland`, 该 feature 指定了在 linuxgui 中一个且仅有一个的产品源码包。
+
+#### always-enable-features
+
+在配置文件中提供 `always-enable-features` 项，使能 feature 值，等同于在编译时通过 `--enable-feature` 指定需要启用的 feature 值。
+
+```toml
+[dependencies]
+  linuxgui = { ... }
+
+[package]
+  # ...
+  name = "cjmpterm"
+  output-type = "executable"
+  # ...
+  always-enabled-features = [ "user.linuxgui.nightly" ]
 ```

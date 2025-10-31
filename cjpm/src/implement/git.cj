@@ -82,25 +82,12 @@ public class GitCli {
     }
 }
 
-func checkRemoteUrl(url: String): Bool {
-    let trimmedUrl: String = url.trimAscii()
-    let isLegal: Bool = trimmedUrl.startsWith("/") || trimmedUrl.startsWith("\\\\") ||
-        trimmedUrl.startsWith("file:") || trimmedUrl.startsWith("git:") || trimmedUrl.startsWith("git@") ||
-        trimmedUrl.startsWith("http:") || trimmedUrl.startsWith("https:") || trimmedUrl.startsWith("ssh:") ||
-        Regex(WINDOWS_LOCAL_FILE_REGEX).matches(trimmedUrl)
-    let isUnsafe: Bool = trimmedUrl.startsWith("-") || trimmedUrl.contains("`") ||
-        trimmedUrl.contains("--upload-pack=") || Regex(URL_WITH_SPACE).matches(trimmedUrl)
-    if (!isLegal && isUnsafe) {
-        eprintln("Error: invalid remote url: '${url}'")
-        return false
-    }
-    return true
+func getGitStoragePath(): Path {
+    return Path(FINAL_CJPM_CONFIG_INFO.repository["local"].path).join("git")
 }
 
 public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
-    let cjpmGlobalDir = getGlobalFolderPath()
-    let gitStoragePath = cjpmGlobalDir.join("git")
-
+    let gitStoragePath = getGitStoragePath()
     let git = GitCli()
 
     if (!git.isAvailable()) {
@@ -109,20 +96,19 @@ public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
     }
 
     let url = v.git ?? return None
-    if (!checkRemoteUrl(url)) {
+    if (!checkSafeUrl(url)) {
+        eprintln("Error: invalid remote url: '${url}'")
         return None
     }
     let targetCommit = v.commitId ?? git.getCommitHashFromName(url, v.branch ?? v.tag) ?? return None
-
     let dependencyPath = gitStoragePath.join(name).join(targetCommit).toString()
-
     if (directoryExists(dependencyPath)) {
         return (dependencyPath, targetCommit, false)
     } else {
         try {
             Directory.create(dependencyPath, recursive: true)
         } catch (e: FSException) {
-            eprintln("Error while working with cjpm shared directory(`${cjpmGlobalDir}`): ${e.message}")
+            eprintln("Error while working with cjpm shared directory(`${gitStoragePath}`): ${e.message}")
         }
 
         let result = git.clone(url, dependencyPath, targetCommit)

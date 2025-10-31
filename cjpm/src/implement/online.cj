@@ -11,7 +11,6 @@ import cjpm.config.*
 
 func getOnlineDepPath(modulePath: String, depName: String, depInfo: DepInfo): Option<String> {
     var depPath = ""
-    // used for central repository
     if (depInfo.isCenterRepoDep()) {
         let (loadFlag, sourcePath) = processRepoDependencyModule(depName, depInfo.version.getOrThrow(), modulePath)
         if (!loadFlag) {
@@ -46,7 +45,6 @@ func freshGitPathDep(depInfo: DepInfo, globalConfig: GlobalConfig): Unit {
 func getDepPath(name: String, depInfo: DepInfo, prePath: String, globalConfig: GlobalConfig): (Bool, Bool, String) {
     var depPath: String = ""
     var isOnlineDep: Bool = false
-    // used for central repository
     if (depInfo.isCenterRepoDep()) {
         let (loadFlag, sourcePath) = processRepoDependencyModule(name, depInfo.version.getOrThrow(), prePath)
         if (!loadFlag) {
@@ -89,7 +87,7 @@ func checkGitWorkspace(url: String, dependencyPath: String, targetCommit: String
         }
         deleteDirectory(dependencyPath)
         if (dependencyPath.contains(".git-install-temp")) {
-            deleteDirectory(getGlobalFolderPath().join("git").join(".git-install-temp").toString())
+            deleteDirectory(getGitStoragePath().join("git").join(".git-install-temp").toString())
         }
         return (workspaceGitPath, targetCommit, true)
     }
@@ -130,7 +128,7 @@ func setGitRoot(installConfig: InstallConfig): Bool {
             eprintln("Error: failed to move ${path}")
             return false
         }
-        if (!deleteDirectory(getGlobalFolderPath().join("git").join(".git-install-temp").toString())) {
+        if (!deleteDirectory(getGitStoragePath().join("git").join(".git-install-temp").toString())) {
             return false
         }
         installConfig.globalConfig.rootPath = getCanonicalPath(newPath)
