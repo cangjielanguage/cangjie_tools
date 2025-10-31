@@ -41,6 +41,11 @@ void StructuralRuleGENU01::DuplicateNameFinderHelper(Ptr<Node> node)
  */
 void StructuralRuleGENU01::DiagnosticsFunc(const Decl &decl)
 {
+    for (auto modifier : decl.modifiers) {
+        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            return;
+        }
+    }
     if (!enumSet.empty()) {
         for (auto &item : enumSet) {
             if (item.first == decl.identifier) {
