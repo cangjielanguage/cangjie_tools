@@ -40,7 +40,23 @@ public func doClean(rootPath: String, cmdDir: String, isDebug: Bool): Bool {
     if (!deleteDirectory(cleanDir)) {
         return false
     }
-    if (!deleteDirectory(BUILD_SCRIPT_DIR)) {
+    let (dirScriptFlag, configScriptFileDir) = getConfigScriptFileDir(rootPath, tomlInfo)
+    if (!dirFlag) {
+        return false
+    }
+    var scriptDir = getOriginScriptDirectory(BUILD_SCRIPT_DIR, rootPath, configScriptFileDir) ?? return false
+
+    if (checkParentDir(getCanonicalPath(scriptDir), getCanonicalPath(rootPath))) {
+        eprintln("Error: cannot clean script directory which contains current directory, " +
+            "please check related configuration")
+        return false
+    }
+
+    var cleanScriptDir: String = scriptDir
+    if (isDebug) {
+        cleanScriptDir = Path(cleanScriptDir).join(DEBUG).toString()
+    }
+    if (!deleteDirectory(cleanScriptDir)) {
         return false
     }
 
@@ -61,6 +77,19 @@ func getConfigFileDir(rootPath: String, tomlInfo: TomlInfo): (Bool, String) {
     }
 }
 
+func getConfigScriptFileDir(rootPath: String, tomlInfo: TomlInfo): (Bool, String) {
+    if (tomlInfo.isPkgConfig) {
+        if (!replaceEnvforScriptDir(tomlInfo, Path(rootPath).join(CONFIG_FILE_NAME).toString())) {
+            return (false, "")
+        }
+        return (true, tomlInfo.pkg.scriptDir)
+    } else {
+        if (!verifyScriptDir(rootPath, tomlInfo.workspace.scriptDir)) {
+            return (false, "")
+        }
+        return (true, COMMON_INFO.scriptDir)
+    }
+}
 func cleanCov(rootPath: String): Bool {
     if (!deleteDirectory(DIR_COV_OUTPUT)) {
         return false

@@ -361,6 +361,14 @@ class DepModel {
             }
             this.globalConfig.scriptList.add(scriptConfig)
         }
+        if (COMMON_INFO.inWorkspace && !this.globalConfig.isSkipScript && (this.globalConfig.resolveType != RESOLVE_CHECK)) {
+            var scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
+                this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
+            if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
+                return FAILED_BUILD_CHECK_RESULT
+            }
+            this.globalConfig.scriptList.add(scriptConfig)
+        }
 
         if (!verifyModuleConfigPost(tomlInfo, path, isTest: this.globalConfig.isTest)) {
             return FAILED_BUILD_CHECK_RESULT

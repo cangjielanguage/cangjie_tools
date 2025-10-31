@@ -176,8 +176,22 @@ func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptD
     buildConfig.globalConfig.originDir = buildConfig.globalConfig.targetDir
     buildConfig.originTargetPath = buildConfig.globalConfig.targetDir
 
+    if (!replaceEnvforScriptDir(tomlInfo, Path(buildConfig.globalConfig.rootPath).join(CONFIG_FILE_NAME).toString())) {
+            return Option<ModuleResolve>.None
+    }
+
     if (!buildConfig.globalConfig.isSkipScript && !isScriptDep) {
-        let scriptConfig: ScriptConfig = makeScriptConfigByToml(buildConfig.globalConfig.rootPath,
+        var configScriptFileDir: String
+        if (tomlInfo.isPkgConfig) {
+            configScriptFileDir = tomlInfo.pkg.scriptDir
+        } else {
+            configScriptFileDir = tomlInfo.workspace.scriptDir
+        }
+
+        buildConfig.globalConfig.scriptDir = getOriginScriptDirectory(buildConfig.globalConfig.scriptDir,
+            buildConfig.globalConfig.rootPath, configScriptFileDir) ??
+            return Option<ModuleResolve>.None
+        let scriptConfig: ScriptConfig = makeScriptConfigByToml(buildConfig.globalConfig.scriptDir,
             buildConfig.globalConfig.rootPath, tomlInfo, buildConfig.isDebug, buildConfig.isVerbose,
             buildConfig.isCrossCompile) ?? return Option.None
         if (buildConfig.globalConfig.isInstall) {

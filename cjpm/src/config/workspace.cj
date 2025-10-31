@@ -27,6 +27,7 @@ public class CommonInfo {
     public var nativeOverrideCompileOption: String = ""
     public var linkOption: String = ""
     public var targetDir: String = ""
+    public var scriptDir: String = ""
     public var dependencies: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
     public var testDependencies: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
     public var scriptDependencies: HashMap<String, DepInfo> = HashMap<String, DepInfo>()
@@ -110,6 +111,7 @@ public class WorkSpace <: Serializable<WorkSpace> {
     public var overrideCompileOption: String = ""
     public var linkOption: String = ""
     public var targetDir: String = ""
+    public var scriptDir: String = ""
 
     public func serialize(): DataModel {
         return DataModelStruct()
@@ -120,6 +122,7 @@ public class WorkSpace <: Serializable<WorkSpace> {
             .add(field<String>(OVERRIDE_COMPILE_OPTION, this.overrideCompileOption))
             .add(field<String>(LINK_OPTION, this.linkOption))
             .add(field<String>(TARGET_DIR, this.targetDir))
+            .add(field<String>(SCRIPT_DIR, this.scriptDir))
     }
 
     public static func deserialize(dm: DataModel): WorkSpace {
@@ -137,6 +140,7 @@ public class WorkSpace <: Serializable<WorkSpace> {
             (dms.get(OVERRIDE_COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
         result.linkOption = String.deserialize((dms.get(LINK_OPTION) as DataModelString) ?? DataModelString(""))
         result.targetDir = String.deserialize((dms.get(TARGET_DIR) as DataModelString) ?? DataModelString(""))
+        result.scriptDir = String.deserialize((dms.get(SCRIPT_DIR) as DataModelString) ?? DataModelString(""))
         return result
     }
 }
@@ -173,6 +177,10 @@ public func checkForWorkspace(rootPath: String, tomlInfo: TomlInfo, memberModule
         return false
     }
     COMMON_INFO.targetDir = tomlInfo.workspace.targetDir
+    if (!safeCheck(tomlInfo.workspace.scriptDir, configFilePath)) {
+        return false
+    }
+    COMMON_INFO.scriptDir = tomlInfo.workspace.scriptDir
 
     if (!verifyMembers(rootPath, tomlInfo.workspace.members, tomlInfo.workspace.buildMembers,
         tomlInfo.workspace.testMembers, checkWorkspaceDir)) {
@@ -323,7 +331,16 @@ public func verifyTargetDir(rootPath: String, dir: String): Bool {
     COMMON_INFO.targetDir = replaceEnvVars(dir)
     return true
 }
-
+public func verifyScriptDir(rootPath: String, dir: String): Bool {
+    if (dir.isEmpty()) {
+        return true
+    }
+    if (!checkEnvVars(dir, Path(rootPath).join(CONFIG_FILE_NAME).toString())) {
+        return false
+    }
+    COMMON_INFO.scriptDir = replaceEnvVars(dir)
+    return true
+}
 public func searchModuleFromWorkspace(tomlInfo: TomlInfo, rootPkgName: String, prePath: String): String {
     for (mem in tomlInfo.workspace.members) {
         let eachMember = replaceEnvVars(mem)
