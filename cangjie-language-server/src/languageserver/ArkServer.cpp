@@ -897,6 +897,9 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
     auto action = [this, file, type, docMgr](const InputsAndAST &input) {
         if (type == FileChangeType::CHANGED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "change the file:  " + file);
+            if (docMgr->GetDoc(file).version != -1) {
+                return;
+            }
             const std::string &contents = GetFileContents(file);
             if (std::hash<std::string>{}(contents) == std::hash<std::string>{}(docMgr->GetDoc(file).contents)) {
                 Logger::Instance().LogMessage(MessageType::MSG_INFO, "recieve file change, but contens are same.");
