@@ -25,6 +25,8 @@ Available subcommands:
   test             Unittest a local package or module
   bench            Run benchmarks in a local package or module
   clean            Clean up the target directory
+  bundle           Make distributable tarball of current module
+  publish          Publish a module to central repository
   install          Install a cangjie binary
   uninstall        Uninstall a cangjie binary
 

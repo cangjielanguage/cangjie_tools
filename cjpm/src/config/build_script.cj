@@ -47,6 +47,6 @@ public const BUILD_SCRIPT_OUTPUT: String = "build-script"
 public const BUILD_SCRIPT_OUTPUT: String = "build-script.exe"
 public let RELOCATED_SCRIPT_MAP: HashSet<String> = HashSet<String>()
 // command, exe path, env map
-public let RUN_SCRIPT_CMD_MAP: HashMap<String, (String, String, HashMap<String, String>)> = HashMap<String,
-    (String, String, HashMap<String, String>)>()
+public let RUN_SCRIPT_CMD_MAP: HashMap<String, (String, String, HashMap<String, String>)> =
+    HashMap<String, (String, String, HashMap<String, String>)>()
 

@@ -17,10 +17,8 @@ let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
 // Regexp version.
 public let REGEXP_VERTION: String = "^(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
 let EXAMPLE_MODULE_VERSION: String = "1.0.0"
-// used for central repository
-let REGEXP_NAME_VERSION: String = "^(_*[a-zA-Z][_a-zA-Z0-9]*):(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
-// used for central repository
-public let EXAMPLE_NAME_VERSION: String = "cjModDemo:1.0.0"
+let REGEXP_NAME_VERSION: String = "^(_*[a-zA-Z][_a-zA-Z0-9]*::)?(_*[a-zA-Z][_a-zA-Z0-9]*)-(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
+public let EXAMPLE_NAME_VERSION: String = "cjModDemo-1.0.0"
 let EXAMPLE_CJC_VERSION: String = "1.0.0"
 // regexp c library name.
 let REGEXP_C_LIB_NAME: String = "^[A-Za-z0-9\\._\\-#%\\+,=@\\[\\]\\^\\{\\}~]+$"
@@ -56,7 +54,7 @@ public func organizationNameCheck(text: String, path: String): Bool {
         eprintln("Error: the 'name' file in ${path} is invalid")
         return false
     }
-    
+
     var matched = Regex(REGEXP_CONDITON_VALUE)
     if (matched.find(organizationNameArr[0]).isSome() && matched.find(organizationNameArr[organizationNameArr.size - 1]).isSome()) {
         return true
@@ -111,7 +109,6 @@ func versionCheck(text: String, path: String): Bool {
     return false
 }
 
-// used for central repository
 // Check name:version args
 public func nameVersionCheck(text: String): Bool {
     let matched = Regex(REGEXP_NAME_VERSION)
@@ -121,7 +118,6 @@ public func nameVersionCheck(text: String): Bool {
     }
 }
 
-// used for central repository
 // Check central dependencies version in cjpm.toml.
 func centralVersionCheck(name: String, text: String, path: String): Bool {
     if (text.isEmpty()) {

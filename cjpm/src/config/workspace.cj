@@ -353,7 +353,12 @@ public func searchModuleFromWorkspace(tomlInfo: TomlInfo, rootPkgName: String, p
             continue
         }
         let eachTomlInfo = loadModuleFile(eachModulePath) ?? return ""
-        if (eachTomlInfo.pkg.name == rootPkgName) {
+        let eachTomlName = if (eachTomlInfo.pkg.organization.isEmpty()) {
+            eachTomlInfo.pkg.name
+        } else {
+            eachTomlInfo.pkg.organization + "::" + eachTomlInfo.pkg.name
+        }
+        if (eachTomlName == rootPkgName) {
             return getCanonicalPath(eachModulePath)
         }
     }

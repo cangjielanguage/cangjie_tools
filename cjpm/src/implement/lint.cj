@@ -16,13 +16,16 @@ func buildCodeCheck(buildConfig: BuildConfig): Bool {
     }
 
     var tomlInfo = loadModuleFile(DIR_CURRENT) ?? return false
+    return doLint(tomlInfo, buildConfig.isVerbose, targetDir: buildConfig.globalConfig.targetDir)
+}
 
+func doLint(tomlInfo: TomlInfo, isVerbose: Bool, targetDir!: String = TARGET): Bool {
     if (state.isExperimental) {
         var totalflag = true
         var hasErrors = false
         for (path in tomlInfo.pkg.actualSources.allPaths) {
             // Default operation: cjlint -f srcDir
-            if (buildConfig.isVerbose) {
+            if (isVerbose) {
                 let cmdStr: String = "cjlint -f ${path} 2>&1"
                 println("check codes in ${path}: ${cmdStr}")
             }
@@ -38,13 +41,13 @@ func buildCodeCheck(buildConfig: BuildConfig): Bool {
         }
         if (hasErrors) {
             eprintln("Error: code specifications with level 'MANDATORY' are violated, please check related files")
-            deleteDirectory(buildConfig.globalConfig.targetDir)
+            deleteDirectory(targetDir)
             return false
         }
         return true
     } else {
         // Default operation: cjlint -f srcDir
-        if (buildConfig.isVerbose) {
+        if (isVerbose) {
             let cmdStr: String = "cjlint -f ${tomlInfo.pkg.srcDir.value} 2>&1"
             println("check codes in ${tomlInfo.pkg.srcDir.value}: ${cmdStr}")
         }
@@ -57,7 +60,7 @@ func buildCodeCheck(buildConfig: BuildConfig): Bool {
         }
         if (output.contains("error:") || output.contains("error\u{1B}[0m:")) {
             eprintln("Error: code specifications with level 'MANDATORY' are violated, please check related files")
-            deleteDirectory(buildConfig.globalConfig.targetDir)
+            deleteDirectory(targetDir)
             return false
         }
 

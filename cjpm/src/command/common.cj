@@ -80,7 +80,7 @@ func handleEnableFeaturesOption(argMap: HashMap<String, String>): Result<Array<F
         return Ok([])
     }
 
-    featureString.trimAscii().split(",", removeEmpty: true).allResult { it => 
+    featureString.trimAscii().split(",", removeEmpty: true).allResult { it =>
         QName.fromString(it)
             .mapErr { e => ErrorWrapper(None, e) }
             .flatMap { it => Feature.create(it) }.mapErr { e => [ e ] } }
@@ -157,6 +157,10 @@ func crossCompileCheck(target: String): (Bool, Bool) {
     }
 
     return (false, false)
+}
+
+public func lackConfigInfo(): Bool {
+    !FINAL_CJPM_CONFIG_INFO.isValid
 }
 
 @When[os != "macOS"]

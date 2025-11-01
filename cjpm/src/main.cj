@@ -28,6 +28,10 @@ main(): Int64 {
             return 1
         }
 
+        if (lackConfigInfo()) {
+            return 1
+        }
+
         if (!runScriptPreCommand(cmdHandler.cmdName, cmdHandler.arguments)) {
             cmdHandler.printError()
             return 1

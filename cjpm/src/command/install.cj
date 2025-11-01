@@ -15,7 +15,10 @@ let INSTALL_USAGE: String = """
 Install a Cangjie binary.
 
 Usage:
-  cjpm install [option]
+  cjpm install [option] [name-version]
+
+Arguments:
+  name-version              select module with specified name and version from cangjie repository, e.g., aoo-1.0.0
 
 Available option:
   -h, --help                help for install
@@ -36,10 +39,10 @@ Available option:
   --list                    list all installed modules and their versions
   --skip-script             disable script 'build.cj'."""
 
-let SKIP_BUILD_WARNING = "Warning: cannot skip building while installing binary from Git, " +
+let SKIP_BUILD_WARNING = "Warning: cannot skip building while installing binary from Git or repository, " +
     "--skip-build will be ignored"
 let INSTALL_TYPE_CONFLICT = "Error: cjpm install can have at most one type of configuration " +
-    "between --git(from git) and --path(local project)"
+    "between name-version(from repository), --git(from git) and --path(local project)"
 
 class InstallCommand <: Handle {
     private let INSTALL_SHORT_OPTION: String = "Vm:gj:"
@@ -85,7 +88,9 @@ class InstallCommand <: Handle {
 
         for (arg in unparseArgs) {
             if (!arg.startsWith("--")) {
-                eprintln("Error: unknown command '${arg}' for cjpm install")
+                if (handleNameVersion(this.installConfig, arg)) {
+                    continue
+                }
                 return false
             }
             let option: String = arg[2..] // remove -- prefix
@@ -166,7 +171,6 @@ class InstallCommand <: Handle {
                 } else {
                     this.installConfig.installType = InstallType.Local
                 }
-            // used for central repository
             case InstallType.Repo =>
                 if (pathFlag || gitFlag) {
                     eprintln(INSTALL_TYPE_CONFLICT)
@@ -235,7 +239,6 @@ class InstallCommand <: Handle {
                 if (targetDirFlag) {
                     eprintln("Warning: --target-dir will be ignored with --git")
                 }
-            // used for central repository
             case InstallType.Repo =>
                 if (targetDirFlag) {
                     eprintln("Warning: --target-dir will be ignored when installing central repository modules")
@@ -247,14 +250,13 @@ class InstallCommand <: Handle {
     }
 }
 
-// used for central repository
 func handleNameVersion(installConfig: InstallConfig, arg: String): Bool {
     if (nameVersionCheck(arg)) {
         installConfig.artifacts.add(arg)
         installConfig.installType = InstallType.Repo
         return true
     }
-    if (arg.contains(":")) {
+    if (arg.contains("-")) {
         eprintln("Error: repo argument ${arg} is wrong, the example is '${EXAMPLE_NAME_VERSION}'")
         return false
     }
