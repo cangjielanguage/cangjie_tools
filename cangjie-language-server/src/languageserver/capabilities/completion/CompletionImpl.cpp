@@ -473,7 +473,7 @@ std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start
         if (!quoteStack.empty()) {
             continue;
         }
-        if (!hasDot && input.tokens[i].kind == TokenKind::DOT) {
+        if (!hasDot && (input.tokens[i].kind == TokenKind::DOT || input.tokens[i].kind == TokenKind::DOUBLE_COLON)) {
             hasDot = true;
             (void)chainedName.insert(zeroPos, input.tokens[i].Value());
         } else if (hasDot && identifier.find(input.tokens[i].kind) != identifier.end()) {
