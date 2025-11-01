@@ -8,6 +8,7 @@ package hle.tool
 
 import std.collection.*
 import std.ast.*
+import std.sync.*
 
 public class GlobalConfig {
     public var module: String = ""
@@ -25,6 +26,8 @@ public class GlobalConfig {
     public var typeDeclFile: String = ""
     public var gconfigArray: ArrayList<GlobalConfig> = ArrayList<GlobalConfig>()
     public var arkTSMoudleName: String = ""
+    public var requiredUnionMembers: ArrayList<(String, TsType)> = ArrayList<(String, TsType)>() 
+    private var count = AtomicInt64(0)
 
     public init(cjModuleNameArg: String, is3rdArg: Bool,
         typeDeclFileArg!: String = "") {
@@ -158,5 +161,99 @@ public class GlobalConfig {
         let moduleName = moduleFullName.replace("@", "").replace("hms", "").replace("ohos", "")
 
         "tpc" + removeTsSuffix(moduleName)
+    }
+    
+    // Collect all required union member counts by scanning all types in the module
+    public func collectRequiredUnionMemberCounts(): Unit {
+        for (i in 0..this.moduleMeta.namespaces.size) {
+            let cns: NameSpace = this.moduleMeta.namespaces[i]
+            if (cns.isEmpty()) {
+                continue
+            }
+            
+            // Scan properties in classes
+            for ((_, c) in cns.classes) {
+                for (p in c.properties) {
+                    if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
+                        p.typeNode = v
+                    }
+                }
+                // Scan methods in classes
+                for (m in c.methods) {
+                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                    }
+                }
+            }
+            
+            // Scan properties in interfaces
+            for ((_, iface) in cns.interfaces) {
+                for (p in iface.properties) {
+                    if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
+                        p.typeNode = v
+                    }
+                }
+                // Scan methods in interfaces
+                for (m in iface.methods) {
+                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                    }
+                }
+            }
+            
+            // Scan global methods
+            for (m in cns.methods) {
+                // for (param in m.parameters) {
+                //     if (let Some(v) <- scanTypeForUnions(param.ty)) {
+                //             param.ty = v
+                //     }
+                // }
+                if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                }
+            }
+        }
+    }
+    
+    // Recursively scan a type for union types and record their member counts
+    private func scanTypeForUnions(ty: TsType): Option<TsType> {
+        match (ty) {
+            case TsUnion(elems) =>
+                let nonNullTypes = ArrayList<TsType>()
+                for (e in elems) {
+                    match (e) {
+                        case TsNull | TsUndefined => ()
+                        case _ => nonNullTypes.add(e)
+                    }
+                }
+                // Only count primitive unions with 2+ members
+                if (nonNullTypes.size > 1) {
+                    let paramName = "AutoGenType" + count.load().toString() 
+                    requiredUnionMembers.add((paramName, ty))
+                    count.fetchAdd(1)
+                    return Some(TsTypeRef(paramName))
+                }
+                // Recursively scan union members
+                for (e in elems) {
+                    scanTypeForUnions(e)
+                }
+            case TsArray(elemTy) => scanTypeForUnions(elemTy)
+            case TsOptional(elemTy) => scanTypeForUnions(elemTy)
+            case TsTypeRef(_, arr) =>
+                for (t in arr) {
+                    scanTypeForUnions(t)
+                }
+            case TsTuple(elems) =>
+                for (e in elems) {
+                    scanTypeForUnions(e)
+                }
+            case TsFunction(ret, params, _) =>
+                scanTypeForUnions(ret)
+                for (p in params) {
+                    scanTypeForUnions(p.ty)
+                }
+            case _ => ()
+        }
+        return None
     }
 }

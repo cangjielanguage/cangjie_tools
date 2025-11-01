@@ -218,11 +218,11 @@ public func splitUnionParams(params: ArrayList<TsParameter>): Array<ArrayList<Ts
     for (i in 0..params.size) {
         let p = params[i]
         if (let TsUnion(types) <- p.ty) {
-            // Do not split union type which pattern is "T|null" or "T|undefined"
+            // Do not split union type which pattern is "T|null" or "T|undefined" or "T|void"
             let nonNullTypes: ArrayList<TsType> = ArrayList<TsType>()
             for (e in types) {
                 match (e) {
-                    case TsNull | TsUndefined => ()
+                    case TsNull | TsUndefined | TsVoid => ()
                     case _ => nonNullTypes.add(e)
                 }
             }

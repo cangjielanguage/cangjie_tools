@@ -9,6 +9,7 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+
 /*
 
 public const aesEncText = 0/* FIXME: Initialization is required */

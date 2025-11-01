@@ -9,6 +9,7 @@ package hle.entry
 import std.ast.*
 import std.fs.*
 import std.sync.*
+import std.sort.*
 import hle.tool.*
 import std.time.DateTime
 import std.collection.*
@@ -44,8 +45,12 @@ public class A2CJ {
     public func transfer(): Unit {
         let file = createDirAndFile()
 
+        // First, collect all required union member counts
+        gconfig.collectRequiredUnionMemberCounts()
+
         let outToken = Tokens()
         addHeader(outToken)
+        addGenericUnionEnums(outToken)
         for (i in 0..gconfig.moduleMeta.namespaces.size) {
             parseNamespaces(i, outToken)
         }
@@ -215,6 +220,18 @@ public class A2CJ {
         out.append(headToken + nl)
         out.append(quote(package ) + packageName + nl + nl)
         addImport(gconfig, out)
+    }
+    
+    private func addGenericUnionEnums(out: Tokens): Unit {
+        
+        // Add a newline before union enums
+        out.append(nl)
+        
+        for (items in gconfig.requiredUnionMembers) {
+            let ut = UnionType(items[0], items[1])
+            out.append(ut.genTokens())
+            out.append(nl) // Extra newline after union enums
+        }
     }
 
     public func addImport(gconfig: GlobalConfig, out: Tokens): Unit {

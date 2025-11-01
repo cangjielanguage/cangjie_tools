@@ -9,6 +9,7 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+
 //构造函数
 /*class DeclareKeyword Greeter {
     constructor(greeting : string): void

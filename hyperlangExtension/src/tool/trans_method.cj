@@ -89,7 +89,8 @@ public class TransMethod {
         }
         let arkR = methodType.returns
         this.arkRetType = arkR
-        this.cjRetType = TypeMap.typeMap(arkR)
+        // Use TsType-based conversion for better union type support
+        this.cjRetType = methodType.returnTypeNode.toCJType()
         if (promiseNeedGen) {
             callbackInnerType = cjRetType
         }

@@ -15,6 +15,7 @@ import std.collection.{ HashMap }
 /*FIXME: Import details need to be verified and rewritten by user.*/
 /*import { MyStringEnum, MyNumericEnum } from './exportAlias';*/
 
+
 /***********OBJECT***********/
 
 /*interface I1 {

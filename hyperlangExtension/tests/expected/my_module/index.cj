@@ -9,6 +9,7 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+
 /***********METHOD***********/
 /**
 	 * @brief compress(src: Uint8Array | number[], maxSize?: number): Uint8Array

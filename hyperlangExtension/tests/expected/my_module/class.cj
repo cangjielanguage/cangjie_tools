@@ -10,6 +10,7 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
+
 /*class ExportKeyword DeclareKeyword TDDiagBuilder {
     StaticKeywordReadonlyKeywordPLATFORM_OA: number = 0;
     StaticKeywordReadonlyKeywordPLATFORM_PRO: number = 3;

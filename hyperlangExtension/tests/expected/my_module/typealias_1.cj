@@ -10,6 +10,7 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
+
 public type TB230 = (arg: JSValue/* FIXME: `V` */) -> JSValue/* FIXME: `W` *//* FIXME: `<V, W extends "abc" | "def">(arg: V) => W` */
 
 

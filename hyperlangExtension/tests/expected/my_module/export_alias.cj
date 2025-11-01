@@ -10,6 +10,7 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
+
 public const MY_VALUE = 123
 
 public const EXPORTED_VALUE = "abc"

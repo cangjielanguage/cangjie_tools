@@ -28,6 +28,7 @@ import ohos.base.*
 /*FIXME: Import details need to be verified and rewritten by user.*/
 /*import { ExportedInterface } from './exportAlias';*/
 
+
 /*
 
 public const value1 = 0/* FIXME: Initialization is required */
