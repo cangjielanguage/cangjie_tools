@@ -39,7 +39,7 @@ std::tuple<std::string, std::string> GetFullPackageNames(const ImportSpec& impor
     if (import.content.prefixPaths.empty()) {
         return std::tuple(import.content.identifier, "");
     }
-    std::string fullPackageName = JoinStrings(import.content.prefixPaths, ".");
+    std::string fullPackageName = import.content.GetPrefixPath();
     if (import.content.kind == ImportKind::IMPORT_ALL) {
         return std::tuple(fullPackageName, "");
     }
