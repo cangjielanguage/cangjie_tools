@@ -27,6 +27,7 @@ public class GlobalConfig {
     public var gconfigArray: ArrayList<GlobalConfig> = ArrayList<GlobalConfig>()
     public var arkTSMoudleName: String = ""
     public var requiredUnionMembers: ArrayList<(String, TsType)> = ArrayList<(String, TsType)>() 
+    public var requiredAnonymousInterfaces = ArrayList<ObjectType>() 
     private var count = AtomicInt64(0)
 
     public init(cjModuleNameArg: String, is3rdArg: Bool,
@@ -174,12 +175,23 @@ public class GlobalConfig {
             // Scan properties in classes
             for ((_, c) in cns.classes) {
                 for (p in c.properties) {
+                    if (let Some(v) <- scanTypeForAnonymousInterface(p.typeNode)) {
+                        p.typeNode = v
+                    }
                     if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
                         p.typeNode = v
                     }
                 }
                 // Scan methods in classes
                 for (m in c.methods) {
+                    for (param in m.parameters) {
+                        if (let Some(v) <- scanTypeForAnonymousInterface(param.ty)) {
+                            param.ty = v
+                        }
+                    }
+                    if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                    }
                     if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
                         m.returnTypeNode = v
                     }
@@ -189,28 +201,42 @@ public class GlobalConfig {
             // Scan properties in interfaces
             for ((_, iface) in cns.interfaces) {
                 for (p in iface.properties) {
+                    if (let Some(v) <- scanTypeForAnonymousInterface(p.typeNode)) {
+                        p.typeNode = v
+                    }
                     if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
                         p.typeNode = v
                     }
                 }
                 // Scan methods in interfaces
                 for (m in iface.methods) {
-                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                    for (param in m.parameters) {
+                        if (let Some(v) <- scanTypeForAnonymousInterface(param.ty)) {
+                            param.ty = v
+                        }
+                    }
+                    if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
                         m.returnTypeNode = v
                     }
+                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                    }   
                 }
             }
             
             // Scan global methods
             for (m in cns.methods) {
-                // for (param in m.parameters) {
-                //     if (let Some(v) <- scanTypeForUnions(param.ty)) {
-                //             param.ty = v
-                //     }
-                // }
-                if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                for (param in m.parameters) {
+                    if (let Some(v) <- scanTypeForAnonymousInterface(param.ty)) {
+                            param.ty = v
+                    }
+                }
+                if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
                         m.returnTypeNode = v
                 }
+                if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                        m.returnTypeNode = v
+                } 
             }
         }
     }
@@ -255,5 +281,56 @@ public class GlobalConfig {
             case _ => ()
         }
         return None
+    }
+
+    private func scanTypeForAnonymousInterface(ty: TsType): Option<TsType> {
+        match (ty) {
+            case TsUnion(elems) =>
+                // Recursively scan union members
+                for (e in elems) {
+                    scanTypeForAnonymousInterface(e)
+                }
+            case TsArray(elemTy) => scanTypeForAnonymousInterface(elemTy)
+            case TsOptional(elemTy) => scanTypeForAnonymousInterface(elemTy)
+            case TsTypeRef(_, arr) =>
+                for (t in arr) {
+                    scanTypeForAnonymousInterface(t)
+                }
+            case TsTuple(elems) =>
+                for (e in elems) {
+                    scanTypeForAnonymousInterface(e)
+                }
+            case TsFunction(ret, params, _) =>
+                scanTypeForAnonymousInterface(ret)
+                for (p in params) {
+                    scanTypeForAnonymousInterface(p.ty)
+                }
+            case TsTypeLiteral(members) =>
+                let propertiesNew = ArrayList<Property>()
+                let boxed = Box<ArrayList<Property>>(propertiesNew)
+                members.map {item:TsMember => 
+                    match (item) {
+                        case TsProperty(name, ty, optional) => 
+                            let result = Property()
+                            result.propKey = name
+                            result.isOptional = optional
+                            result.typeNode = ty
+                            boxed.value.add(result)
+                            ()
+                        case _ =>
+                            ()
+                    }
+            
+                }
+                var objectType = ObjectType()
+                objectType.properties = propertiesNew
+                let paramName = "AutoGenType" + count.load().toString() 
+                objectType.name = paramName
+                requiredAnonymousInterfaces.add(objectType)
+                count.fetchAdd(1)
+                return Some(TsTypeRef(paramName))
+            case _ => ()
+        }
+        return ty
     }
 }

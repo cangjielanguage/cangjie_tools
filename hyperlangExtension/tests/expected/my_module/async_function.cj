@@ -11,6 +11,34 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 import tpc.AbilityKit.common
 
+
+/*interface AutoGenType0 {
+    a: ;
+    b: ;
+    }*/
+
+public open class AutoGenType0 {
+    
+    protected AutoGenType0(public var : Float64,
+    public var : String) {}
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["a"] = .toJSValue(context)
+        obj["b"] = .toJSValue(context)
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+        let obj = input.asObject()
+        AutoGenType0(
+        Float64.fromJSValue(context, obj["a"]),
+        String.fromJSValue(context, obj["b"])
+        )
+    }
+    
+}
 /***********ENUM***********/
 
 /* enum Colors {

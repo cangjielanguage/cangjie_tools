@@ -291,6 +291,7 @@ public class TransObject {
         tokens.append(template1)
         tokens.append(brackets)
         tokens.append(template2)
+        tokens
     }
 
     public func generate(): Tokens {

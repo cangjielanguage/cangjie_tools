@@ -197,7 +197,7 @@ public class A2CJ {
     public func transType(typeType: TypeType): Tokens {
         let ret = Tokens()
         ret.append(Token(TokenKind.COMMENT, typeType.comment) + nl)
-        ret.append(typeType.generate() + nl)
+        ret.append(typeType.generate(gconfig) + nl)
         ret
     }
 
@@ -230,6 +230,14 @@ public class A2CJ {
         for (items in gconfig.requiredUnionMembers) {
             let ut = UnionType(items[0], items[1])
             out.append(ut.genTokens())
+            out.append(nl) // Extra newline after union enums
+        }
+
+        for (item in gconfig.requiredAnonymousInterfaces) {
+            let to = TransObject(item, gconfig)
+            to.arkCategory = "interface"
+            to.cjCategory = "class"
+            out.append(to.generate())
             out.append(nl) // Extra newline after union enums
         }
     }
