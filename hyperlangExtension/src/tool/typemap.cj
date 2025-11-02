@@ -91,7 +91,7 @@ public class TypeMap {
                 "Array<${cj_tp}>"
             case _ where (tmp.startsWith("'") && tmp.endsWith("'")) => str
             case _ =>
-                if (userDefinedNames.contains(tmp)) {
+                if (userDefinedNames.contains(tmp) || tmp.startsWith("AutoGenType")) {
                     return tmp
                 } else {
                     return "JSValue/* FIXME: `${tmp}` */"

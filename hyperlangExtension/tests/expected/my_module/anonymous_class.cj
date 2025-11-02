@@ -11,13 +11,13 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 
 public enum AutoGenType5 {
-    | _MSG_STRING_DATA_STRING_CODE__UNDEFINED_(JSValue/* FIXME: `{ msg: string; data: string; code?: undefined }` */)
-    | _CODE_NUMBER_MSG_STRING_DATA__UNDEFINED_(JSValue/* FIXME: `{ code: number; msg: string; data?: undefined }` */)
+    | AUTOGENTYPE3(AutoGenType3)
+    | AUTOGENTYPE4(AutoGenType4)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
-            case _MSG_STRING_DATA_STRING_CODE__UNDEFINED_(x) => x
-            case _CODE_NUMBER_MSG_STRING_DATA__UNDEFINED_(x) => x
+            case AUTOGENTYPE3(x) => x.toJSValue(context)
+            case AUTOGENTYPE4(x) => x.toJSValue(context)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5 {
@@ -209,8 +209,8 @@ public class AnonymousClass {
         msg: String;
     }>
 	 */
-    public func f3(callback: AsyncCallback < JSValue/* FIXME: `Promise<{ msg: string }>` */ >, n: Float64): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<{ msg: string }>` */ >( arkts_object, "f3", callback, { ctx =>[n.toJSValue(ctx)] }) {
+    public func f3(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType2>` */ >, n: Float64): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType2>` */ >( arkts_object, "f3", callback, { ctx =>[n.toJSValue(ctx)] }) {
             ctx, info => info
         }
     }
@@ -225,8 +225,8 @@ public class AnonymousClass {
         data?: undefined;
     }>
 	 */
-    public func f4(callback: AsyncCallback < JSValue/* FIXME: `Promise<{ msg: string; data: string; code?: undefined } | { code: number; msg: string; data?: undefined }>` */ >): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<{ msg: string; data: string; code?: undefined } | { code: number; msg: string; data?: undefined }>` */ >( arkts_object, "f4", callback, emptyArg) {
+    public func f4(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType5>` */ >): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType5>` */ >( arkts_object, "f4", callback, emptyArg) {
             ctx, info => info
         }
     }

@@ -52,27 +52,6 @@ public enum AutoGenType1 {
     }
 }
 
-public enum AutoGenType2 {
-    | STRING(String)
-    | NUMBER(Float64)
-    
-    public func toJSValue(context: JSContext): JSValue {
-        match(this) {
-            case STRING(x) => context.string(x).toJSValue()
-            case NUMBER(x) => context.number(x).toJSValue()
-        }
-    }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2 {
-        
-        if(input.isString()) {
-            return STRING(String.fromJSValue(context, input))
-        } 
-        if(input.isNumber()) {
-            return NUMBER(Float64.fromJSValue(context, input))
-        } 
-    }
-}
-
 // type alias
 public enum a1 {
     | STRING(String)
@@ -173,9 +152,9 @@ public class A {
 	 * @brief test(a:a1): String|number
 	 */
 	// global func
-public func test(a: a1): AutoGenType2 {
-    hmsGlobalApiCall < AutoGenType2 >( "my_module_unionTypes1", "test", { ctx =>[a.toJSValue(ctx)] }) {
-        ctx, info => AutoGenType2.fromJSValue(ctx, info)
+public func test(a: a1): AutoGenType1 {
+    hmsGlobalApiCall < AutoGenType1 >( "my_module_unionTypes1", "test", { ctx =>[a.toJSValue(ctx)] }) {
+        ctx, info => AutoGenType1.fromJSValue(ctx, info)
     }
 }
 
