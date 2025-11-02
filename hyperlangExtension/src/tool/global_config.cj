@@ -29,6 +29,8 @@ public class GlobalConfig {
     public var requiredUnionMembers: ArrayList<(String, TsType)> = ArrayList<(String, TsType)>() 
     public var requiredAnonymousInterfaces = ArrayList<ObjectType>() 
     private var count = AtomicInt64(0)
+    private var cacheUnions: HashMap<String, TsType> = HashMap<String, TsType>()
+    private var cacheAnonymousInterfaces: HashMap<String, TsType> = HashMap<String, TsType>()
 
     public init(cjModuleNameArg: String, is3rdArg: Bool,
         typeDeclFileArg!: String = "") {
@@ -245,8 +247,15 @@ public class GlobalConfig {
     private func scanTypeForUnions(ty: TsType): Option<TsType> {
         match (ty) {
             case TsUnion(elems) =>
+                let elements = elems.map {item => 
+                    if (let Some(v) <- scanTypeForUnions(item)) {
+                        v
+                    } else {
+                        item
+                    }
+                } 
                 let nonNullTypes = ArrayList<TsType>()
-                for (e in elems) {
+                for (e in elements) {
                     match (e) {
                         case TsNull | TsUndefined => ()
                         case _ => nonNullTypes.add(e)
@@ -254,30 +263,59 @@ public class GlobalConfig {
                 }
                 // Only count primitive unions with 2+ members
                 if (nonNullTypes.size > 1) {
-                    let paramName = "AutoGenType" + count.load().toString() 
-                    requiredUnionMembers.add((paramName, ty))
-                    count.fetchAdd(1)
-                    return Some(TsTypeRef(paramName))
+                    let tempName = ty.toString().replace(" ", "")
+                    if (cacheUnions.contains(tempName)) {
+                        return Some(cacheUnions[tempName])
+                    } else {
+                        let paramName = "AutoGenType" + count.load().toString() 
+                        requiredUnionMembers.add((paramName, ty))
+                        count.fetchAdd(1)
+                        cacheUnions[tempName] = TsTypeRef(paramName)
+                        return Some(TsTypeRef(paramName))
+                    }
                 }
-                // Recursively scan union members
-                for (e in elems) {
-                    scanTypeForUnions(e)
+               return TsUnion(elements) 
+            case TsArray(elemTy) => 
+                let elementType = if (let Some(v) <- scanTypeForUnions(elemTy)) {
+                    v
+                } else {
+                    elemTy
                 }
-            case TsArray(elemTy) => scanTypeForUnions(elemTy)
+                return TsArray(elementType)
             case TsOptional(elemTy) => scanTypeForUnions(elemTy)
-            case TsTypeRef(_, arr) =>
-                for (t in arr) {
-                    scanTypeForUnions(t)
+            case TsTypeRef(temp, arr) =>
+                let elements = arr.map {item => 
+                    if (let Some(v) <- scanTypeForUnions(item)) {
+                        v
+                    } else {
+                        item
+                    }
                 }
+                return TsTypeRef(temp, elements) 
             case TsTuple(elems) =>
-                for (e in elems) {
-                    scanTypeForUnions(e)
+                let elements = elems.map {item => 
+                    if (let Some(v) <- scanTypeForUnions(item)) {
+                        v
+                    } else {
+                        item
+                    }
+                } 
+                return TsTuple(elements)
+            case TsFunction(ret, params, temp) =>
+                let returnType = if (let Some(v) <- scanTypeForUnions(ret)) {
+                        v
+                    } else {
+                        ret
+                    }
+                let elements = params.map {item => 
+                    if (let Some(v) <- scanTypeForUnions(item.ty)) {
+                        item.ty = v
+                        item
+                    } else {
+                        item
+                    }
                 }
-            case TsFunction(ret, params, _) =>
-                scanTypeForUnions(ret)
-                for (p in params) {
-                    scanTypeForUnions(p.ty)
-                }
+                return TsFunction(returnType, elements, temp)
             case _ => ()
         }
         return None
@@ -286,25 +324,55 @@ public class GlobalConfig {
     private func scanTypeForAnonymousInterface(ty: TsType): Option<TsType> {
         match (ty) {
             case TsUnion(elems) =>
-                // Recursively scan union members
-                for (e in elems) {
-                    scanTypeForAnonymousInterface(e)
+                let elements = elems.map {item => 
+                    if (let Some(v) <- scanTypeForAnonymousInterface(item)) {
+                        v
+                    } else {
+                        item
+                    }
+                } 
+                return TsUnion(elements)
+            case TsArray(elemTy) => 
+                let elementType = if (let Some(v) <- scanTypeForAnonymousInterface(elemTy)) {
+                    v
+                } else {
+                    elemTy
                 }
-            case TsArray(elemTy) => scanTypeForAnonymousInterface(elemTy)
+                return TsArray(elementType)
             case TsOptional(elemTy) => scanTypeForAnonymousInterface(elemTy)
-            case TsTypeRef(_, arr) =>
-                for (t in arr) {
-                    scanTypeForAnonymousInterface(t)
+            case TsTypeRef(temp, arr) =>
+                let elements = arr.map {item => 
+                    if (let Some(v) <- scanTypeForAnonymousInterface(item)) {
+                        v
+                    } else {
+                        item
+                    }
                 }
+                return TsTypeRef(temp, elements) 
             case TsTuple(elems) =>
-                for (e in elems) {
-                    scanTypeForAnonymousInterface(e)
+                let elements = elems.map {item => 
+                    if (let Some(v) <- scanTypeForAnonymousInterface(item)) {
+                        v
+                    } else {
+                        item
+                    }
+                } 
+                return TsTuple(elements)
+            case TsFunction(ret, params, temp) =>
+                let returnType = if (let Some(v) <- scanTypeForAnonymousInterface(ret)) {
+                        v
+                    } else {
+                        ret
+                    }
+                let elements = params.map {item => 
+                    if (let Some(v) <- scanTypeForAnonymousInterface(item.ty)) {
+                        item.ty = v
+                        item
+                    } else {
+                        item
+                    }
                 }
-            case TsFunction(ret, params, _) =>
-                scanTypeForAnonymousInterface(ret)
-                for (p in params) {
-                    scanTypeForAnonymousInterface(p.ty)
-                }
+                return TsFunction(returnType, elements, temp)
             case TsTypeLiteral(members) =>
                 let propertiesNew = ArrayList<Property>()
                 let boxed = Box<ArrayList<Property>>(propertiesNew)
@@ -322,13 +390,19 @@ public class GlobalConfig {
                     }
             
                 }
-                var objectType = ObjectType()
-                objectType.properties = propertiesNew
-                let paramName = "AutoGenType" + count.load().toString() 
-                objectType.name = paramName
-                requiredAnonymousInterfaces.add(objectType)
-                count.fetchAdd(1)
-                return Some(TsTypeRef(paramName))
+                let tempName = ty.toString().replace(" ", "")
+                if (cacheAnonymousInterfaces.contains(tempName)) {
+                    return Some(cacheUnions[tempName])
+                } else {
+                    var objectType = ObjectType()
+                    objectType.properties = propertiesNew
+                    let paramName = "AutoGenType" + count.load().toString() 
+                    objectType.name = paramName
+                    requiredAnonymousInterfaces.add(objectType)
+                    count.fetchAdd(1)
+                    return Some(TsTypeRef(paramName))
+                }
+                
             case _ => ()
         }
         return ty

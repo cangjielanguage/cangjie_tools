@@ -423,7 +423,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
     public var unionType: AutoGenType0,
     public var intersectionType: JSValue/* FIXME: `object & HashMap<U, T>` */,
     public var parenthesizedType1: JSValue/* FIXME: `any` */,
-    public var parenthesizedType2: Array<JSValue/* FIXME: `U | number` */>,
+    public var parenthesizedType2: Array<AutoGenType1>,
     public var tupleType: (Float64, Float64, String),
     public var typeLiteral10: AutoGenType2,
     public var typeLiteral20: AutoGenType3,
@@ -449,7 +449,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["unionType"] = unionType.toJSValue(context)
         obj["intersectionType"] = intersectionType
         obj["parenthesizedType1"] = parenthesizedType1
-        obj["parenthesizedType2"] = toJSArray < JSValue/* FIXME: `U | number` */ >(context, parenthesizedType2, { ctx: JSContext, val: JSValue/* FIXME: `U | number` */ => val })
+        obj["parenthesizedType2"] = toJSArray < AutoGenType1 >(context, parenthesizedType2, { ctx: JSContext, val: AutoGenType1 => val.toJSValue(ctx) })
         obj["tupleType"] = tupleType.toJSValue(context)
         obj["typeLiteral10"] = typeLiteral10.toJSValue(context)
         obj["typeLiteral20"] = typeLiteral20.toJSValue(context)
@@ -477,7 +477,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         AutoGenType0.fromJSValue(context, obj["unionType"]),
         obj["intersectionType"],
         obj["parenthesizedType1"],
-        fromJSArray < JSValue/* FIXME: `U | number` */ >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => val }),
+        fromJSArray < AutoGenType1 >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => AutoGenType1.fromJSValue(ctx, val) }),
         (Float64.fromJSValue(context, obj["tupleType"].asObject()[0]), Float64.fromJSValue(context, obj["tupleType"].asObject()[1]), String.fromJSValue(context, obj["tupleType"].asObject()[2])),
         AutoGenType2.fromJSValue(context, obj["typeLiteral10"]),
         AutoGenType3.fromJSValue(context, obj["typeLiteral20"]),

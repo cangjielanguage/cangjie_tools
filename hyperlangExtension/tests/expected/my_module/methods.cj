@@ -34,27 +34,6 @@ public enum AutoGenType0 {
     }
 }
 
-public enum AutoGenType1 {
-    | STRING(String)
-    | NUMBER(Float64)
-    
-    public func toJSValue(context: JSContext): JSValue {
-        match(this) {
-            case STRING(x) => context.string(x).toJSValue()
-            case NUMBER(x) => context.number(x).toJSValue()
-        }
-    }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1 {
-        
-        if(input.isString()) {
-            return STRING(String.fromJSValue(context, input))
-        } 
-        if(input.isNumber()) {
-            return NUMBER(Float64.fromJSValue(context, input))
-        } 
-    }
-}
-
 
 public type Callback = (arg: T) -> Unit/* FIXME: `<T>(arg: T) => void` */
 
@@ -1048,15 +1027,15 @@ public class RecordTest {
         
     }
     
-    public mut prop recordTest1: HashMap<String, JSValue/* FIXME: `string | number` */> {
+    public mut prop recordTest1: HashMap<String, AutoGenType0> {
         get() {
-            checkThreadAndCall < HashMap<String, JSValue/* FIXME: `string | number` */> >(getMainContext()) {
-                ctx: JSContext => record2Hashmap<JSValue/* FIXME: `string | number` */>(ctx, arkts_object["recordTest1"], { context, i => JSValue/* FIXME: `string | number` */.fromJSValue(context, i) })
+            checkThreadAndCall < HashMap<String, AutoGenType0> >(getMainContext()) {
+                ctx: JSContext => record2Hashmap<AutoGenType0>(ctx, arkts_object["recordTest1"], { context, i => AutoGenType0.fromJSValue(context, i) })
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["recordTest1"] = hashmap2Record<JSValue/* FIXME: `string | number` */>(ctx, v, { context, i => i.toJSValue(context) })
+                ctx: JSContext => arkts_object["recordTest1"] = hashmap2Record<AutoGenType0>(ctx, v, { context, i => i.toJSValue(context) })
             }
         }
         
@@ -1076,15 +1055,15 @@ public class RecordTest {
         
     }
     
-    public mut prop recordTest3: Option<HashMap<String, JSValue/* FIXME: `string | number` */>> {
+    public mut prop recordTest3: Option<HashMap<String, AutoGenType0>> {
         get() {
-            checkThreadAndCall < Option<HashMap<String, JSValue/* FIXME: `string | number` */>> >(getMainContext()) {
-                ctx: JSContext => record2Hashmap<JSValue/* FIXME: `string | number` */>(ctx, arkts_object["recordTest3"], { context, i => JSValue/* FIXME: `string | number` */.fromJSValue(context, i) })
+            checkThreadAndCall < Option<HashMap<String, AutoGenType0>> >(getMainContext()) {
+                ctx: JSContext => record2Hashmap<AutoGenType0>(ctx, arkts_object["recordTest3"], { context, i => AutoGenType0.fromJSValue(context, i) })
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["recordTest3"] = hashmap2Record<JSValue/* FIXME: `string | number` */>(ctx, v, { context, i => i.toJSValue(context) })
+                ctx: JSContext => arkts_object["recordTest3"] = hashmap2Record<AutoGenType0>(ctx, v, { context, i => i.toJSValue(context) })
             }
         }
         

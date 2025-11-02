@@ -689,7 +689,7 @@ public class UnionType {
         return if (let Some(v) <- nativeTypeMap.get(t)) {
             // handle native type
             v[0]
-        } else if (userDefinedNames.contains(t)) {
+        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
             // handle user-defined type
             t.toAsciiUpper() + "(${t})"
         } else if (isStringLiteral(t)) {
@@ -704,7 +704,7 @@ public class UnionType {
     func getIdentifierToken(t: String): (Token, Token) {
         return if (let Some(c) <- nativeTypeMap.get(t)) {
             (Token(TokenKind.IDENTIFIER, c[1]), Token(TokenKind.IDENTIFIER, c[2]))
-        } else if (userDefinedNames.contains(t)) {
+        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
             let x = Token(TokenKind.IDENTIFIER, t.toAsciiUpper() + "(x)")
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
             (x, y)

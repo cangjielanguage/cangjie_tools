@@ -169,48 +169,6 @@ public enum AutoGenType5 {
     }
 }
 
-public enum AutoGenType6 {
-    | BOOLEAN(Bool)
-    | STRING(String)
-    
-    public func toJSValue(context: JSContext): JSValue {
-        match(this) {
-            case BOOLEAN(x) => context.boolean(x).toJSValue()
-            case STRING(x) => context.string(x).toJSValue()
-        }
-    }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType6 {
-        
-        if (input.isBoolean()) {
-            return BOOLEAN(Bool.fromJSValue(context, input))
-        } 
-        if(input.isString()) {
-            return STRING(String.fromJSValue(context, input))
-        }
-    }
-}
-
-public enum AutoGenType7 {
-    | BOOLEAN(Bool)
-    | STRING(String)
-    
-    public func toJSValue(context: JSContext): JSValue {
-        match(this) {
-            case BOOLEAN(x) => context.boolean(x).toJSValue()
-            case STRING(x) => context.string(x).toJSValue()
-        }
-    }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType7 {
-        
-        if (input.isBoolean()) {
-            return BOOLEAN(Bool.fromJSValue(context, input))
-        } 
-        if(input.isString()) {
-            return STRING(String.fromJSValue(context, input))
-        }
-    }
-}
-
 
 /*class ExportKeyword UnionTypes {
     t_null: number | null;
@@ -374,27 +332,27 @@ public class UnionTypes {
 /**
 	 * @brief testUnion(s: string): boolean | String
 	 */
-public func testUnion(s: String): AutoGenType6 {
-    hmsGlobalApiCall < AutoGenType6 >( "my_module_unionTypes", "testUnion", { ctx =>[s.toJSValue(ctx)] }) {
-        ctx, info => AutoGenType6.fromJSValue(ctx, info)
+public func testUnion(s: String): AutoGenType0 {
+    hmsGlobalApiCall < AutoGenType0 >( "my_module_unionTypes", "testUnion", { ctx =>[s.toJSValue(ctx)] }) {
+        ctx, info => AutoGenType0.fromJSValue(ctx, info)
     }
 }
 
 /**
 	 * @brief testUnion1(s: string | number): boolean | String
 	 */
-public func testUnion1(s: String): AutoGenType7 {
-    hmsGlobalApiCall < AutoGenType7 >( "my_module_unionTypes", "testUnion1", { ctx =>[s.toJSValue(ctx)] }) {
-        ctx, info => AutoGenType7.fromJSValue(ctx, info)
+public func testUnion1(s: String): AutoGenType0 {
+    hmsGlobalApiCall < AutoGenType0 >( "my_module_unionTypes", "testUnion1", { ctx =>[s.toJSValue(ctx)] }) {
+        ctx, info => AutoGenType0.fromJSValue(ctx, info)
     }
 }
 
 /**
 	 * @brief testUnion1(s: string | number): boolean | String
 	 */
-public func testUnion1(s: Float64): AutoGenType7 {
-    hmsGlobalApiCall < AutoGenType7 >( "my_module_unionTypes", "testUnion1", { ctx =>[s.toJSValue(ctx)] }) {
-        ctx, info => AutoGenType7.fromJSValue(ctx, info)
+public func testUnion1(s: Float64): AutoGenType0 {
+    hmsGlobalApiCall < AutoGenType0 >( "my_module_unionTypes", "testUnion1", { ctx =>[s.toJSValue(ctx)] }) {
+        ctx, info => AutoGenType0.fromJSValue(ctx, info)
     }
 }
 
