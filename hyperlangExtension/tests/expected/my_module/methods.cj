@@ -13,6 +13,49 @@ import std.math.numeric.*
 import tpc.AbilityKit.common
 import std.collection.{ HashMap }
 
+public enum AutoGenType0 {
+    | STRING(String)
+    | NUMBER(Float64)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case STRING(x) => context.string(x).toJSValue()
+            case NUMBER(x) => context.number(x).toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+        
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        } 
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        } 
+    }
+}
+
+public enum AutoGenType1 {
+    | STRING(String)
+    | NUMBER(Float64)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case STRING(x) => context.string(x).toJSValue()
+            case NUMBER(x) => context.number(x).toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1 {
+        
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        } 
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        } 
+    }
+}
+
+
 public type Callback = (arg: T) -> Unit/* FIXME: `<T>(arg: T) => void` */
 
 
@@ -168,9 +211,9 @@ public open class IM {
     /**
 	 * @brief f4(e: EMStr): (s: String) => void
 	 */
-    public func f4(e: EMStr): (String)->Unit {
-        jsObjApiCall < (String)->Unit >( arkts_object, "f4", { ctx =>[e.get().toJSValue(ctx)] }) {
-            ctx, info => (String)->Unit.fromJSValue(ctx, info)
+    public func f4(e: EMStr): (s: String) -> Unit {
+        jsObjApiCall < (s: String) -> Unit >( arkts_object, "f4", { ctx =>[e.get().toJSValue(ctx)] }) {
+            ctx, info => (s: String) -> Unit.fromJSValue(ctx, info)
         }
     }
     /**
@@ -386,9 +429,9 @@ public class CM {
     /**
 	 * @brief f4(e: EMStr): (s: String) => void
 	 */
-    public func f4(e: EMStr): (String)->Unit {
-        jsObjApiCall < (String)->Unit >( arkts_object, "f4", { ctx =>[e.get().toJSValue(ctx)] }) {
-            ctx, info => (String)->Unit.fromJSValue(ctx, info)
+    public func f4(e: EMStr): (s: String) -> Unit {
+        jsObjApiCall < (s: String) -> Unit >( arkts_object, "f4", { ctx =>[e.get().toJSValue(ctx)] }) {
+            ctx, info => (s: String) -> Unit.fromJSValue(ctx, info)
         }
     }
     /**
@@ -481,14 +524,18 @@ public class TE {
     /**
 	 * @brief f1(result: string | Promise<string>): Promise<String>
 	 */
-    public func f1(callback: AsyncCallback < String >, result: string|Promise<String>): Unit {
-        jsObjApiCallPromise < String >( arkts_object, "f1", callback, { ctx =>[result.toJSValue(ctx)] })
+    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result.toJSValue(ctx)] }) {
+            ctx, info => info
+        }
     }
     /**
 	 * @brief f1(result: string | Promise<string>): Promise<String>
 	 */
-    public func f1(callback: AsyncCallback < String >, result: string|Promise<String>): Unit {
-        jsObjApiCallPromise < String >( arkts_object, "f1", callback, { ctx =>[result] })
+    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result] }) {
+            ctx, info => info
+        }
     }
     
     func toJSValue(context: JSContext): JSValue {
@@ -1057,8 +1104,10 @@ public class RecordTest {
 /**
 	 * @brief test(): Promise<String>
 	 */
-public func test(callback: AsyncCallback < String >): Unit {
-    hmsGlobalApiCallPromise < String >( "my_module_methods", "test", callback, emptyArg)
+public func test(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >): Unit {
+    hmsGlobalApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( "my_module_methods", "test", callback, emptyArg) {
+        ctx, info => info
+    }
 }
 
 /**
@@ -1124,15 +1173,19 @@ public func getFavoriteNumber < T >(t: T): T where T <: JSInteropType<T> {
 /**
 	 * @brief test(): Promise<void>
 	 */
-public func test(callback: AsyncCallback < Unit >): Unit {
-    hmsGlobalApiCallPromise < Unit >( "my_module_methods", "test", callback, emptyArg)
+public func test(callback: AsyncCallback < JSValue/* FIXME: `Promise<void>` */ >): Unit {
+    hmsGlobalApiCallPromise < JSValue/* FIXME: `Promise<void>` */ >( "my_module_methods", "test", callback, emptyArg) {
+        ctx, info => info
+    }
 }
 
 /**
 	 * @brief test1(name:string): Promise<void>
 	 */
-public func test1(callback: AsyncCallback < Unit >, name: String): Unit {
-    hmsGlobalApiCallPromise < Unit >( "my_module_methods", "test1", callback, { ctx =>[name.toJSValue(ctx)] })
+public func test1(callback: AsyncCallback < JSValue/* FIXME: `Promise<void>` */ >, name: String): Unit {
+    hmsGlobalApiCallPromise < JSValue/* FIXME: `Promise<void>` */ >( "my_module_methods", "test1", callback, { ctx =>[name.toJSValue(ctx)] }) {
+        ctx, info => info
+    }
 }
 
 /**

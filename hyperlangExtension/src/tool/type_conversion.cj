@@ -8,6 +8,7 @@ package hle.tool
 
 import std.ast.*
 import std.collection.*
+import std.sort.*
 
 extend TsType {
     public func toCJType(): String {
@@ -34,10 +35,6 @@ extend TsType {
         fromJSValue(normalize(this), gconfig, targetObj, ctxParam, isOptional: isOptional, initValue: initValue)
     }
 }
-
-/**************************************************
- * The following functions are mutually recursive *
- **************************************************/
 
 // preprocess the original type to reveal its real structure
 private func normalize(ty: TsType): TsType {
@@ -109,11 +106,10 @@ private func toCJType(ty: TsType): String {
             if (nonNullTypes.size == 1) {
                 return "Option<${toCJType(nonNullTypes[0])}>"
             }
-            // FIXME: General union types need further processing.
             println("WARNING: type is not supported - ${ty}")
             "JSValue/* FIXME: `${ty}` */"
         case TsTypeRef(x) =>
-            if (userDefinedNames.contains(x)) {
+            if (userDefinedNames.contains(x) || x.startsWith("AutoGenType")) {
                 return x
             } else {
                 return "JSValue/* FIXME: `${x}` */"

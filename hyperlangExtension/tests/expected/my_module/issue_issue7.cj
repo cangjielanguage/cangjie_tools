@@ -10,6 +10,38 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
+public enum AutoGenType0 {
+    | STRING(String)
+    | NUMBER(Float64)
+    | BOOLEAN(Bool)
+    | UNDEFINED
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case STRING(x) => context.string(x).toJSValue()
+            case NUMBER(x) => context.number(x).toJSValue()
+            case BOOLEAN(x) => context.boolean(x).toJSValue()
+            case UNDEFINED => context.undefined().toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+        
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        } 
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        }  
+        if (input.isBoolean()) {
+            return BOOLEAN(Bool.fromJSValue(context, input))
+        } 
+        if (input.isUndefined()) {
+            return UNDEFINED
+        }
+    }
+}
+
+
 /*class ExportKeyword DeclareKeyword AppSettings {
     getInstance(): AppSettings
     getSetting(key: string): String | number | boolean | undefined
@@ -31,9 +63,9 @@ public class AppSettings {
     /**
 	 * @brief getSetting(key: string): String | number | boolean | undefined
 	 */
-    public func getSetting(key: String): JSValue/* FIXME: `String|number|boolean|undefined` */ {
-        jsObjApiCall < JSValue/* FIXME: `String|number|boolean|undefined` */ >( arkts_object, "getSetting", { ctx =>[key.toJSValue(ctx)] }) {
-            ctx, info => info
+    public func getSetting(key: String): AutoGenType0 {
+        jsObjApiCall < AutoGenType0 >( arkts_object, "getSetting", { ctx =>[key.toJSValue(ctx)] }) {
+            ctx, info => AutoGenType0.fromJSValue(ctx, info)
         }
     }
     

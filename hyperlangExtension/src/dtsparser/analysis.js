@@ -278,6 +278,10 @@ class ASTVisitor {
         });
 
         rjson[rjson.length - 1].info.return = `${returnType}`;
+        
+        // 将返回值转换为S表达式，以便序列化返回值为联合体时的返回值
+        const returnTypeNode = node.type ? this.serializeType(node.type) : '(void)';
+        rjson[rjson.length - 1].info.returnTypeNode = returnTypeNode;
 
         this.populateJsDoc(node, rjson[rjson.length - 1].info);
         this.handleTypeParameters(node, rjson[rjson.length - 1].info);

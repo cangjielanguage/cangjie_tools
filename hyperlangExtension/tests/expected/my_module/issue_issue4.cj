@@ -9,6 +9,7 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+
 //简单元组类型
 public type BasicTuple = (Float64, String, Bool)
 

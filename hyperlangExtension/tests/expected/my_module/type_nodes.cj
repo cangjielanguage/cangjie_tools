@@ -11,6 +11,43 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 import std.math.numeric.*
 import std.collection.{ HashMap }
+
+public enum AutoGenType0 {
+    | NUMBER(Float64)
+    | U(U)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case NUMBER(x) => context.number(x).toJSValue()
+            case U(x) => x.toJSValue(context)
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+        
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        } 
+    }
+}
+
+public enum AutoGenType1 {
+    | U(U)
+    | NUMBER(Float64)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case U(x) => x.toJSValue(context)
+            case NUMBER(x) => context.number(x).toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1 {
+        
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        } 
+    }
+}
+
 /***********OBJECT***********/
 // These interfaces are used for testing type syntax of the typescript compiler.
 // Properties are named after the syntax kinds as in tsc.
@@ -212,7 +249,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
     public var literalType3: JSValue/* FIXME: `null` */,
     public var arrayType1: Array<Float64>,
     public var arrayType2: Array<U>,
-    public var unionType: JSValue/* FIXME: `number | U` */,
+    public var unionType: AutoGenType0,
     public var intersectionType: JSValue/* FIXME: `object & HashMap<U, T>` */,
     public var parenthesizedType1: JSValue/* FIXME: `any` */,
     public var parenthesizedType2: Array<JSValue/* FIXME: `U | number` */>,
@@ -238,7 +275,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["literalType3"] = literalType3
         obj["arrayType1"] = toJSArray < Float64 >(context, arrayType1)
         obj["arrayType2"] = toJSArray < U >(context, arrayType2, { ctx: JSContext, val: U => val.toJSValue(ctx) })
-        obj["unionType"] = unionType
+        obj["unionType"] = unionType.toJSValue(context)
         obj["intersectionType"] = intersectionType
         obj["parenthesizedType1"] = parenthesizedType1
         obj["parenthesizedType2"] = toJSArray < JSValue/* FIXME: `U | number` */ >(context, parenthesizedType2, { ctx: JSContext, val: JSValue/* FIXME: `U | number` */ => val })
@@ -266,7 +303,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["literalType3"],
         fromJSArray < Float64 >(context, obj["arrayType1"]),
         fromJSArray < U >(context, obj["arrayType2"], { ctx: JSContext, val: JSValue => U.fromJSValue(ctx, val) }),
-        obj["unionType"],
+        AutoGenType0.fromJSValue(context, obj["unionType"]),
         obj["intersectionType"],
         obj["parenthesizedType1"],
         fromJSArray < JSValue/* FIXME: `U | number` */ >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => val }),

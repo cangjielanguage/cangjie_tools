@@ -12,6 +12,7 @@ import ohos.base.*
 import std.math.numeric.*
 import std.collection.{ HashMap }
 
+
 public type TA10 = Float64
 
 
@@ -107,6 +108,9 @@ public enum TA710 {
             case DDD => context.string("ddd").toJSValue()
         }
     }
+    public static func fromJSValue(context: JSContext, input: JSValue): TA710 {
+        
+    }
 }
 
 
@@ -118,6 +122,15 @@ public enum TA720 {
         match(this) {
             case NUMBER(x) => context.number(x).toJSValue()
             case STRING(x) => context.string(x).toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): TA720 {
+        
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        }  
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
         }
     }
 }
@@ -133,6 +146,12 @@ public enum TA730 {
             case STRING(x) => context.string(x).toJSValue()
         }
     }
+    public static func fromJSValue(context: JSContext, input: JSValue): TA730 {
+        
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        }
+    }
 }
 
 
@@ -145,6 +164,9 @@ public enum TA740 {
             case 111 => context.string("111").toJSValue()
             case TA710(x) => x.toJSValue(context)
         }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): TA740 {
+        
     }
 }
 
@@ -204,6 +226,64 @@ public enum ARK1 {
             case INT64ARRAY(x) => context.global["BigInt64Array"].asClass().new(context.arrayBuffer(x).toJSValue())
             case UINT64ARRAY(x) => context.global["BigUint64Array"].asClass().new(context.arrayBuffer(x).toJSValue())
             case FLOAT64ARRAY(x) => context.global["Float64Array"].asClass().new(context.arrayBuffer(x).toJSValue())
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): ARK1 {
+        
+        if (input.isNull()) {
+            return NULL
+        } 
+        if(input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        }  
+        if(input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        } 
+        if (input.isBoolean()) {
+            return BOOLEAN(Bool.fromJSValue(context, input))
+        } 
+        if (instanceof(input, "Uint8Array")) {
+            let jsArray: JSValue = context.global["Uint8Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<UInt8>(context, jsArray))
+        } 
+        if (instanceof(input, "Float32Array")) {
+            let jsArray: JSValue = context.global["Float32Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Float32>(context, jsArray))
+        } 
+        if (input.isBigInt()) {
+            return BIGINT(input.toBigInt())
+        } 
+        if (instanceof(input, "Int8Array")) {
+            let jsArray: JSValue = context.global["Int8Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Int8>(context, jsArray))
+        } 
+        if (instanceof(input, "Int16Array")) {
+            let jsArray: JSValue = context.global["Int16Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Int16>(context, jsArray))
+        } 
+        if (instanceof(input, "Uint16Array")) {
+            let jsArray: JSValue = context.global["Uint16Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<UInt16>(context, jsArray))
+        } 
+        if (instanceof(input, "Uint32Array")) {
+            let jsArray: JSValue = context.global["Uint32Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<UInt32>(context, jsArray))
+        } 
+        if (instanceof(input, "Int32Array")) {
+            let jsArray: JSValue = context.global["Int32Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Int32>(context, jsArray))
+        } 
+        if (instanceof(input, "BigInt64Array")) {
+            let jsArray: JSValue = context.global["BigInt64Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Int64>(context, jsArray))
+        } 
+        if (instanceof(input, "BigUint64Array")) {
+            let jsArray: JSValue = context.global["BigUint64Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<UInt64>(context, jsArray))
+        } 
+        if (instanceof(input, "Float64Array")) {
+            let jsArray: JSValue = context.global["Float64Array"].asObject().callMethod("from", [input])
+            return UINT8ARRAY(fromJSArray<Float64>(context, jsArray))
         }
     }
 }

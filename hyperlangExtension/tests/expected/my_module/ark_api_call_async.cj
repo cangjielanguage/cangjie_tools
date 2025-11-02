@@ -598,10 +598,12 @@ protected func hashmap2Record<V>(context: JSContext, hashmap: ?HashMap<String, V
     }
 }
 
+// deprecated, use context.arrayBuffer(cjArray).toUInt8ArrayJSValue() to directly convert Cangjie array to typed array
 protected func typedArray2JSArray(context: JSContext, input: JSValue): JSValue {
     context.global["Array"].asObject().callMethod("from", [input])
 }
 
+// deprecated, use input.asArrayBuffer(context).toUInt8Array() to directly convert JSValue to Cangjie array
 protected func jsArray2TypedArray(context: JSContext, input: JSValue, arrayClass: String): JSValue {
     context.global[arrayClass].asClass().new(input)
 }
