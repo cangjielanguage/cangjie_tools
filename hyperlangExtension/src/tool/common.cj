@@ -329,7 +329,7 @@ public class TypeType <: Serializable<TypeType> {
         "type ${name} = ${tsType}"
     }
 
-    public func generate(): Tokens {
+    public func generate(gconfig: GlobalConfig): Tokens {
         let tok = Tokens()
         match (tsType) {
             case TsUnion(arr) =>
