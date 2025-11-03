@@ -2,5 +2,5 @@
     path = ""
 
 [repository.home]
-    registry = ""
+    registry = "central repository url"
     token = ""
