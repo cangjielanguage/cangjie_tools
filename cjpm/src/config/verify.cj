@@ -55,14 +55,13 @@ public func organizationNameCheck(text: String, path: String): Bool {
         return false
     }
 
-    var matched = Regex(REGEXP_CONDITON_VALUE)
+    let matched = Regex(REGEXP_CONDITON_VALUE)
     if (matched.find(organizationNameArr[0]).isSome() && matched.find(organizationNameArr[organizationNameArr.size - 1]).isSome()) {
         return true
-    } else {
-        eprintln("Error: the 'name' field '${text}' in ${path} is wrong, " +
-            "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}'")
-        return false
     }
+    eprintln("Error: the 'name' field '${text}' in ${path} is wrong, " +
+        "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}'")
+    return false
 }
 
 // Check initial root package name.

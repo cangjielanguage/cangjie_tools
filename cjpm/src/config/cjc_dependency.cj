@@ -177,7 +177,7 @@ public func swapOrgName(file: String): String {
     if (!file.contains("::")) {
         return file
     }
-    var fileArr = file.split("::")
+    let fileArr = file.split("::")
     let index = fileArr.size
     fileArr.swap(0, index - 1)
     return fileArr[0] + "@" + fileArr[index - 1]
