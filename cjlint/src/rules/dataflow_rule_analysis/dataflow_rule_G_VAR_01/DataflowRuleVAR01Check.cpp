@@ -477,7 +477,7 @@ void DataflowRuleVAR01Check::DoAnalysis(CJLintCompilerInstance* instance)
     }
 
     // Traverse and inspect CHIR packages
-    analysisWrapper = const_cast<AnalysisWrapper*>(&instance->GetConstAnalysisWrapper());
+    analysisWrapper = const_cast<CHIR::ConstAnalysisWrapper*>(&instance->GetConstAnalysisWrapper());
     for (auto chirPkg : instance->GetAllCHIRPackages()) {
         CheckBasedOnCHIR(*chirPkg);
     }
