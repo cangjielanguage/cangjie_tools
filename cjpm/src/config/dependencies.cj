@@ -197,11 +197,10 @@ public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: S
             }
         }
 
-        let checkList: Array<((String, String) -> Bool, ?String)>
-        if (name.contains("::")) {
-            checkList = [(safeCheck, v.commitId), (organizationNameCheck, name)]
+        let checkList: Array<((String, String) -> Bool, ?String)> = if (name.contains("::")) {
+            [(safeCheck, v.commitId), (organizationNameCheck, name)]
         } else {
-            checkList = [(safeCheck, v.commitId), (nameCheck, name)]
+            [(safeCheck, v.commitId), (nameCheck, name)]
         }
 
         if (!verifyAll(errLoc, checkList)) {
