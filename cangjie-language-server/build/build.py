@@ -55,16 +55,12 @@ def resolve_path(path):
     return os.path.abspath(path)
 def download_json():
     cmd = ["git", "clone", "-b", "OpenHarmony-v6.0-Release", "--depth=1", JSON_GIT, "json-v3.11.3"]
-    output = subprocess.Popen(cmd, cwd=THIRDPARTY_DIR, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(cmd, cwd=THIRDPARTY_DIR, check=True)
 
 
 def download_flatbuffers(args):
     cmd = ["git", "clone", "-b", "OpenHarmony-v6.0-Release", "--depth=1", FLATBUFFER_GIT, "flatbuffers"]
-    output = subprocess.Popen(cmd, cwd=THIRDPARTY_DIR, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(cmd, cwd=THIRDPARTY_DIR, check=True)
 
 
 def generate_flat_header():
@@ -77,30 +73,22 @@ def generate_flat_header():
     if not os.path.exists(flatbuffers_build_dir):
         os.makedirs(flatbuffers_build_dir)
     compile_cmd = ["cmake", flatbuffers_dir, "-G", get_generator(), "-DFLATBUFFERS_BUILD_TESTS=OFF"]
-    output = subprocess.Popen(compile_cmd, cwd=flatbuffers_build_dir, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(compile_cmd, cwd=flatbuffers_build_dir, check=True)
     build_cmd = ["cmake", "--build", flatbuffers_build_dir, "-j8"]
-    output = subprocess.Popen(build_cmd, cwd=flatbuffers_build_dir, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(build_cmd, cwd=flatbuffers_build_dir, check=True)
     flatc_binary = "flatc"
     if IS_WINDOWS:
         flatc_binary = "flatc.exe"
     flac_cmd = os.path.join(flatbuffers_build_dir, flatc_binary)
     generate_cmd = [flac_cmd, "--cpp", index_file]
-    output = subprocess.Popen(generate_cmd, cwd=flatbuffers_build_dir, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(generate_cmd, cwd=flatbuffers_build_dir, check=True)
     header_path = os.path.join(flatbuffers_build_dir, "index_generated.h")
     new_header_path = os.path.join(flatbuffers_dir, "include", "index_generated.h")
     shutil.copy(header_path, new_header_path)
 
 def download_sqlite(args):
     cmd = ["git", "clone", "-b", "OpenHarmony-v6.0-Release", "--depth=1", SQLITE_GIT, "sqlite3"]
-    output = subprocess.Popen(cmd, cwd=THIRDPARTY_DIR, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(cmd, cwd=THIRDPARTY_DIR, check=True)
 
 def build_sqlite_amalgamation():
     sqlite_dir = os.path.join(THIRDPARTY_DIR, "sqlite3")
@@ -220,13 +208,9 @@ def build(args):
     build_command = get_build_commands(args)
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
-        output = subprocess.Popen(cmake_command, cwd=BUILD_DIR, stdout=PIPE)
-        for line in output.stdout:
-            print(line.decode("ascii", "ignore").rstrip())
+        subprocess.run(cmake_command, cwd=BUILD_DIR, check=True)
     print(build_command)
-    output = subprocess.Popen(build_command, cwd=BUILD_DIR, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
+    subprocess.run(build_command, cwd=BUILD_DIR, check=True)
     print("end build")
 
 def redo_with_write(redo_func, path, err):
@@ -312,10 +296,7 @@ def test(args):
         print("no output/bin path")
         return
     commands = get_run_test_command(cangjie_sdk_path)
-    output = subprocess.Popen(commands, cwd=OUTPUT_DIR, stdout=PIPE)
-    for line in output.stdout:
-        print(line.decode("ascii", "ignore").rstrip())
-    output.wait()
+    output = subprocess.run(commands, cwd=OUTPUT_DIR, check=True)
     if output.returncode != 0:
         print("test failed with return code:", output.returncode)
         exit(1)
