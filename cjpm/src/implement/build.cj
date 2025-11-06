@@ -454,16 +454,18 @@ func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit
             }
         }
     }
+
+    for (fullName in buildConfig.packageList.macros) {
+        buildConfig.pkgRequireByMacro.add(all: getDepSet(fullName, buildConfig.requiresMap, 
+            buildConfig.superPkgSubMap, isForMacroRequire: true))
+    }
+
     for ((_, deps) in curResolveData.crossBinDeps) {
         for ((fullName, info) in deps.packageRequires) {
             if (!buildConfig.requiresMap.contains(fullName)) {
                 buildConfig.requiresMap[fullName] = info.requires
             }
         }
-    }
-
-    for (fullName in buildConfig.packageList.macros) {
-        buildConfig.pkgRequireByMacro.add(all: getDepSet(fullName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
     }
 
     for ((_, jsonData) in buildConfig.jsonInformation) {
@@ -863,13 +865,13 @@ func getDepLinkCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, i
     let res = ArrayList<String>()
     if (resolveConfig.outputType == Exe || resolveConfig.outputType == Dynamic) {
         if (buildConfig.globalConfig.isProjectCombine &&
-            resolveConfig.fullName == buildConfig.globalConfig.rootName) {
+            resolveConfig.fullName == buildConfig.globalConfig.rootName && !isNativeForCross) {
             res.add(all: getLtoCombineBuildArgs(resolveConfig, buildConfig, isNativeForCross))
         } else {
             res.add(all: getBuildArgs(resolveConfig, buildConfig, isNativeForCross, features))
         }
     }
-    if (let Some(superPkgCfg) <- resolveConfig.superPkgCfg) {
+    if (let Some(superPkgCfg) <- resolveConfig.superPkgCfg && !isNativeForCross) {
         res.add(all: getForcedLibArgs(resolveConfig, superPkgCfg, buildConfig, isNativeForCross))
     }
     return res
@@ -1015,7 +1017,8 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
     let res = ArrayList<String>()
     var cLibNameList = ArrayList<String>([resolveConfig.rootPkgName]) // Record dependent root packages
     var linkSort: HashSet<String> = getDepSet(resolveConfig.fullName, buildConfig.requiresMap,
-        buildConfig.superPkgSubMap) // Record dependent package names
+        buildConfig.superPkgSubMap,
+        isForMacroRequire: buildConfig.packageList.macros.contains(resolveConfig.fullName)) // Record dependent package names
     let allOptions = ArrayList<String>()
     let libPathSet = HashSet<String>()
     var binDepSet = HashSet<String>()
@@ -1024,7 +1027,8 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
     for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
         let depName = buildConfig.packageList.all[index]
         if (linkSort.contains(depName)) {
-            linkSort.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
+            linkSort.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
+            isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
         }
         let depRootName: String = getRootPkgName(depName)
         cLibNameList.add(depRootName, at: 0)
@@ -1040,7 +1044,8 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
         let linkArray: ArrayList<String> = linkPackage(depName, libPath, buildConfig.isLto)
         if (linkArray.size <= 1) {
             allOptions.add(all: linkArray)
-            binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
+            binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
+                isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
             continue
         }
         if (libPathSet.contains(libPath)) {
@@ -1049,7 +1054,8 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
             allOptions.add(all: linkArray)
             libPathSet.add(libPath)
         }
-        binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
+        binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
+            isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
     }
     res.add(all: allOptions)
 
@@ -1088,7 +1094,8 @@ func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNati
     let res = ArrayList<String>()
     var cLibNameList = ArrayList<String>([resolveConfig.rootPkgName]) // Record dependent root packages
     var linkSort: HashSet<String> = getDepSet(resolveConfig.fullName, buildConfig.requiresMap,
-        buildConfig.superPkgSubMap) // Record dependent package names
+            buildConfig.superPkgSubMap,
+            isForMacroRequire: buildConfig.packageList.macros.contains(resolveConfig.fullName)) // Record dependent package names
 
     if (linkSort.size == 0) {
         appendCLibLinkStr(buildConfig, cLibNameList, res, buildConfig.isCrossCompile && !isNativeForCross)
@@ -1150,7 +1157,8 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
     let res = ArrayList<String>()
     var cLibNameList = ArrayList<String>([resolveConfig.rootPkgName]) // Record dependent root packages
     var linkSort: HashSet<String> = getDepSet(resolveConfig.fullName, buildConfig.requiresMap,
-        buildConfig.superPkgSubMap) // Record dependent package names
+        buildConfig.superPkgSubMap,
+        isForMacroRequire: buildConfig.packageList.macros.contains(resolveConfig.fullName)) // Record dependent package names
 
     let allOptions = ArrayList<String>()
     let libPathSet = HashSet<String>()
@@ -1158,7 +1166,8 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
     let forcedLibSet: HashSet<String> = HashSet<String>(superPkgCfg.subPkgSet)
     for (forcedLib in superPkgCfg.subPkgSet) {
         forcedLibSet.add(all: getDepSet(forcedLib, buildConfig.requiresMap,
-            buildConfig.superPkgSubMap))
+            buildConfig.superPkgSubMap,
+            isForMacroRequire: buildConfig.packageList.macros.contains(forcedLib)))
     }
     for (depName in forcedLibSet) {
         if (linkSort.contains(depName)) {
@@ -1185,7 +1194,8 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
         let linkArray: ArrayList<String> = forcedLinkPackage(depName, libPath, buildConfig.isLto)
         if (linkArray.size <= 1) {
             allOptions.add(all: linkArray)
-            binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
+            binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
+                isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
             continue
         }
         if (libPathSet.contains(libPath)) {
@@ -1195,7 +1205,8 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
             libPathSet.add(libPath)
         }
 
-        binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
+        binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
+            isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
     }
 
     allOptions.add(all: getForcedBinDep(buildConfig, binDepSet, cLibNameList, isNativeForCross))
@@ -1326,7 +1337,7 @@ func getDylibOutputName(fullName: String, buildConfig: BuildConfig, isNativeForC
 }
 
 public func getDepSet(fullName: String, requiresMap: HashMap<String, HashSet<String>>,
-    superPkgSubMap: HashMap<String, String>): HashSet<String> {
+    superPkgSubMap: HashMap<String, String>, isForMacroRequire!: Bool = false): HashSet<String> {
     var linkPkgs = HashSet<String>()
     var queue = ArrayList<String>()
     queue.add(fullName)
@@ -1338,7 +1349,7 @@ public func getDepSet(fullName: String, requiresMap: HashMap<String, HashSet<Str
         }
         for (k in requiresMap[cur]) {
             var finalPkg = k
-            if (superPkgSubMap.contains(k)) {
+            if (!isForMacroRequire && superPkgSubMap.contains(k)) {
                 printSuperPkgWarn(k)
                 finalPkg = superPkgSubMap[k]
             }
