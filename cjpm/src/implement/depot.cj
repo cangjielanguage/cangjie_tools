@@ -164,10 +164,4 @@ public class Depot {
             deleteFile(cjpTempPath.toString())
         }
     }
-
-    func getTarDirName(tarFilePath: String): String {
-        var tarFileName = tarFilePath.replace("\\", "/")
-        tarFileName = tarFileName.split("/")[tarFileName.split("/").size - 1]
-        return tarFilePath.removeSuffix(tarFileName)
-    }
 }

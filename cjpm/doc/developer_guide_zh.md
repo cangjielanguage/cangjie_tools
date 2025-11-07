@@ -166,6 +166,8 @@ Available subcommands:
   test             Unittest a local package or module
   bench            Run benchmarks in a local package or module
   clean            Clean up the target directory
+  bundle           Make distributable tarball of current module
+  publish          Publish a module to central repository
   install          Install a cangjie binary
   uninstall        Uninstall a cangjie binary
 
@@ -204,6 +206,7 @@ Use "cjpm [subcommand] --help" for more information about a command.
 [package] # 单模块配置字段，与 workspace 字段不能同时存在
   cjc-version = "1.0.0" # 所需 `cjc` 的最低版本要求，必需
   name = "demo" # 模块名及模块 root 包名，必需
+  organization = "" # 组织名, 非必需
   description = "nothing here" # 描述信息，非必需
   version = "1.0.0" # 模块版本信息，必需
   compile-option = "" # 额外编译命令选项，非必需
@@ -212,7 +215,19 @@ Use "cjpm [subcommand] --help" for more information about a command.
   output-type = "executable" # 编译输出产物类型，必需
   src-dir = "" # 指定源码存放路径，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
   package-configuration = {} # 单包配置选项，非必需
+  include = ["src"] # 指定打包范围，非必需
+  exclude = ["*.txt"] # 指定打包排除范围，非必需
+
+  # 中心仓制品展示相关字段
+  authors = ["Tom", "Joan"] # 作者 ID 列表，非必需
+  repository = "" # 制品仓代码 url，非必需
+  homepage = "" # 制品主页 url，非必需
+  documentation = "" # 制品文档页 url，非必需
+  tag = [] # 制品标签，非必需
+  category = [] # 制品分类，非必需
+  license = [] # 协议列表，非必需
 
 [workspace] # 工作空间管理字段，与 package 字段不能同时存在
   members = [] # 工作空间成员模块列表，必需
@@ -222,6 +237,7 @@ Use "cjpm [subcommand] --help" for more information about a command.
   override-compile-option = "" # 应用于所有工作空间成员模块的额外全局编译命令选项，非必需
   link-option = "" # 应用于所有工作空间成员模块的链接器透传选项，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
 
 [dependencies] # 源码依赖配置项，非必需
   coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
