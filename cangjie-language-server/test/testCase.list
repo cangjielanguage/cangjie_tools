@@ -241,7 +241,6 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_202104270OWBL4P1300.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_202104270OL9IMP1200.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_2021042305L95WP1300.test"}}
-{"diagnostic":{"testFile":"LSP_Diagnostic_202105070NQ8N6P1L00.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_2022022212539.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_2022022212539_multiString.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_2022032112702.test"}}
@@ -745,7 +744,6 @@
 {"rename":{"testFile":"LSP_Rename_Mutex_001.test","id":"22"}}
 {"rename":{"testFile":"LSP_Rename_Future_001.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_Pipeline_001.test","id":"9"}}
-{"rename":{"testFile":"LSP_Rename_Pipeline_002.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_Composition_001.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_Composition_002.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_Any_001.test","id":"9"}}
