@@ -61,7 +61,6 @@ public func doPublish(isVerbose: Bool): Bool {
     if (!addDataToCjp(cjpArray, metaDataPath, "meta data") || !addDataToCjp(cjpArray, tarballPath, "tarball")) {
         return false
     }
-    // File.writeTo("./${tomlInfo.pkg.name}-${tomlInfo.pkg.version}.cjp", cjpArray.toArray())
 
     // publish cjp data
     try {

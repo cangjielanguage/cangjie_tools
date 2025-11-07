@@ -371,7 +371,7 @@ main(args: Array<String>): Int64 {
 
 ```text
 输入: cjpm run
-输出: 
+输出:
 release
 
 cjpm run finished
@@ -379,7 +379,7 @@ cjpm run finished
 
 ```text
 输入: cjpm run -g // 此时会默认执行 cjpm build -i -g 命令
-输出: 
+输出:
 debug
 
 cjpm run finished
@@ -854,7 +854,7 @@ cjpm install org::boo-2.0.0         # 从中心仓安装 org 组织下名为 boo
 
 配置文件代码如下所示：
 
-```text
+```toml
 [package] # 单模块配置字段，与 workspace 字段不能同时存在
   cjc-version = "1.0.0" # 所需 `cjc` 的最低版本要求，必需
   name = "demo" # 模块名及模块 root 包名，必需
@@ -1384,6 +1384,10 @@ abc = { path = "libs" }
   aoo = "1.0.0"
   "org::boo" = "2.0.0"
 ```
+
+> **注意：**
+>
+> 要想使中心仓依赖生效，需要正确进行中心仓配置，参考[项目管理配置文件说明](#项目管理配置文件说明)。
 
 `dependencies` 字段可以通过 `output-type` 属性指定编译产物类型，指定的类型可以与源码依赖自身的编译产物类型不一致，且仅能为 `static` 或者 `dynamic`， 如下所示：
 

@@ -101,7 +101,7 @@ func verifyBundleToml(tomlInfo: TomlInfo): Bool {
     }
 
     // check readme
-    if (!fileExists(getPath(DIR_CURRENT, README_FILE)) && !fileExists(getPath(DIR_CURRENT, README_ZH_FILE))) {
+    if (!verifyReadme()) {
         eprintln("Error: a valid artifact should contain a README.md or README_zh.md in root directory")
         return false
     }
@@ -394,4 +394,21 @@ func printBundle(logStr: String, isVerbose: Bool): Unit {
     if (isVerbose) {
         println(logStr)
     }
+}
+
+@When [os != "Windows"]
+func verifyReadme(): Bool {
+    return fileExists(getPath(DIR_CURRENT, README_FILE)) || fileExists(getPath(DIR_CURRENT, README_ZH_FILE))
+}
+
+@When [os == "Windows"]
+func verifyReadme(): Bool {
+    let fileList = getFileList(DIR_CURRENT)
+    for (fileInfo in fileList) {
+        let filePath = getCanonicalPath(fileInfo.path.toString())
+        if (filePath.endsWith("${PATH_SPLIT_CHAR}${README_FILE}") || filePath.endsWith("${PATH_SPLIT_CHAR}${README_ZH_FILE}")) {
+            return true
+        }
+    }
+    return false
 }
