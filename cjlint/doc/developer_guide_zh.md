@@ -62,7 +62,7 @@ cjlint/
     python3 build.py build -t release
     ```
 
-    当前支持 `debug`、`release` 两种编译类型，开发者需要通过 `-t` 或者 `--build-type` 指定。
+    当前支持 `debug`、`release` 和 `relwithdebinfo` 三种编译类型，开发者需要通过 `-t` 或者 `--build-type` 指定。
 
 4. 安装到指定目录：
 

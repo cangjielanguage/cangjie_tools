@@ -63,10 +63,15 @@ def build(build_type, target, rpath=None):
 
     # Set common compile option
     DEBUG_MODE = ""
+    STRIP_FLAG = "-s"
     if build_type == "debug":
         DEBUG_MODE = "-g"
+        STRIP_FLAG = ""
+    elif build_type == "relwithdebinfo":
+        DEBUG_MODE = "-O2 -g"
+        STRIP_FLAG = ""
     elif build_type != "release":
-        print("error: cjcov only support 'release' and 'debug' mode of compiling.")
+        print("error: cjcov only support 'release', 'debug' and 'relwithdebinfo' mode of compiling.")
         return 1
     # Get cjc executable file
     if IS_WINDOWS:
@@ -109,7 +114,7 @@ def build(build_type, target, rpath=None):
         STDX_LINKS=f"-L $CANGJIE_STDX_PATH -l:libstdx.logger.a -l:libstdx.log.a -l:libstdx.encoding.json.stream.a -l:libstdx.serialization.serialization.a -l:libstdx.encoding.json.a"
     
     if IS_LINUX:
-        returncode = check_call(f"{CJC} {COMMON_OPTION2} {RPATH_SET_OPTION} \"--link-options=-z noexecstack -z relro -z now -s\" -L {os.path.join(CURRENT_DIR, 'bin', 'cjcov')} -L bin/cjcov -lcjcov.util -lcjcov.core {STDX_LINKS} -p {os.path.join(CURRENT_DIR, '..', 'src')}  -o cjcov")
+        returncode = check_call(f"{CJC} {COMMON_OPTION2} {RPATH_SET_OPTION} \"--link-options=-z noexecstack -z relro -z now {STRIP_FLAG}\" -L {os.path.join(CURRENT_DIR, 'bin', 'cjcov')} -L bin/cjcov -lcjcov.util -lcjcov.core {STDX_LINKS} -p {os.path.join(CURRENT_DIR, '..', 'src')}  -o cjcov")
     if IS_MACOS:
         returncode = check_call(f"{CJC} {COMMON_OPTION2} {RPATH_SET_OPTION} --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjcov')} -L bin/cjcov -lcjcov.util -lcjcov.core  {STDX_LINKS} -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 -o cjcov")
     if IS_CROSS_WINDOWS:

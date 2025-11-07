@@ -102,7 +102,7 @@ cjpm/target/x86_64-w64-mingw32/release/bin
     python3 build.py build -t release --target windows-x86_64  (for Linux-to-Windows)
     ```
 
-    开发者需要通过 `-t, --build-type` 指定构建产物版本，可选值为 `debug/release`。
+    开发者需要通过 `-t, --build-type` 指定构建产物版本，可选值为 `debug/release/relwithdebinfo`。
 
     编译成功后，`cjpm` 可执行文件会生成在 `cjpm/dist/` 目录中。
 
@@ -133,7 +133,7 @@ cjpm/target/x86_64-w64-mingw32/release/bin
 `build.py` 的 `build` 功能提供如下额外选项：
 - `--target TARGET`: 指定编译目标产物的运行平台，默认值为 `native`，即本地平台，当前仅支持 `linux` 平台上通过 `--target windows-x86_64` 交叉编译 `windows-x86_64` 平台的产物；
 - `--set-rpath RPATH`: 指定 `rpath` 路径；
-- `-t, --build-type BUILD_TYPE`: 指定构建产物版本，可选值为 `debug/release`；
+- `-t, --build-type BUILD_TYPE`: 指定构建产物版本，可选值为 `debug/release/relwithdebinfo`；
 - `-h, --help`: 打印 `build` 功能的帮助信息。
 
 此外，`build.py` 还提供如下额外功能：
