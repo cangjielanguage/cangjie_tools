@@ -79,7 +79,7 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
 public func readConfigToml(file: Path): SettingsConfig {
     var res = SettingsConfig()
     try {
-        let fileInfo = File(file, ReadWrite)
+        let fileInfo = File(file, Read)
         let de = DecoderToml(fileInfo)
         let to = de.decode()
         res = SettingsConfig.deserialize(DataModel.fromToml(to))

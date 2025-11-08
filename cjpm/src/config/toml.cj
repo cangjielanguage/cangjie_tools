@@ -398,7 +398,7 @@ public func loadModuleFile(path: String): Option<TomlInfo> {
 
     var tomlInfo: TomlInfo
     try {
-        let file = File(tomlFile, ReadWrite)
+        let file = File(tomlFile, Read)
         let de = DecoderToml(file)
         let to = de.decode()
         tomlInfo = TomlInfo.deserialize(DataModel.fromToml(to))
