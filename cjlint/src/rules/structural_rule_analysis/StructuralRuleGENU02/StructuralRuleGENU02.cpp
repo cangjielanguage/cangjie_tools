@@ -93,6 +93,11 @@ void StructuralRuleGENU02::DuplicatedEnumCtrOrFuncHelper(const Cangjie::AST::Fun
 
 void StructuralRuleGENU02::CheckEnumCtrOverload(const Cangjie::AST::EnumDecl& enumDecl)
 {
+    for (auto modifier : enumDecl.modifiers) {
+        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            return;
+        }
+    }
     for (auto& constructor : enumDecl.constructors) {
         if (constructor->astKind == ASTKind::FUNC_DECL) {
             auto funcDecl = static_cast<FuncDecl*>(constructor.get().get());
@@ -103,6 +108,11 @@ void StructuralRuleGENU02::CheckEnumCtrOverload(const Cangjie::AST::EnumDecl& en
 
 void StructuralRuleGENU02::CheckFuncOverload(const Cangjie::AST::FuncDecl& funcDecl)
 {
+    for (auto modifier : funcDecl.modifiers) {
+        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            return;
+        }
+    }
     if (funcDecl.scopeLevel == 0 && !funcDecl.outerDecl) {
         DuplicatedEnumCtrOrFuncHelper(funcDecl);
     }
