@@ -28,6 +28,7 @@ private:
     void DuplicateNameFinderHelper(Ptr<Cangjie::AST::Node> node);
     void DiagnosticsFunc(const Cangjie::AST::Decl &decl);
     void DuplicateNameFinder(Ptr<Cangjie::AST::Node> node);
+    void DiagnosticsPackage(const Cangjie::AST::PackageSpec &packageSpec);
 };
 } // namespace Cangjie::CodeCheck
 
