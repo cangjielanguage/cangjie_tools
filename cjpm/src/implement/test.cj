@@ -973,7 +973,7 @@ func checkTestDir(targetDir: String, testPkgsMap: Collection<PkgDescTest>): Bool
     }
 
     for (pkgDesc in testPkgsMap) {
-        let rootPkgName: String = getRootPkgName(pkgDesc.fqname.value)
+        let rootPkgName: String = getRootPkgName(swapOrgName(pkgDesc.fqname.value))
         let logModPath: String = Path(testLogPath).join(rootPkgName).toString()
         if (!createDirectory(logModPath)) {
             return false
@@ -1026,9 +1026,9 @@ func parallelCompileTests(
             DummyTestFile.compile(testConfig, pkgDesc, linkMap)
         }
         testFut.add(spawn { =>
-            let rootPkgName: String = getRootPkgName(pkgDesc.fqname.value)
-            let outLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fqname}.outlog").toString()
-            let errLogFile = testLogPath.join(rootPkgName).join("${pkgDesc.fqname}.errlog").toString()
+            let rootPkgName: String = getRootPkgName(swapOrgName(pkgDesc.fqname.value))
+            let outLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.outlog").toString()
+            let errLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.errlog").toString()
             let pkgInfo = PkgTestInfo(
                 pkgDesc.fqname,
                 pkgDesc.srcDir,
