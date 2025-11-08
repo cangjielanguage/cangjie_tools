@@ -40,6 +40,12 @@ Cangjie Language CLI Toolchain currently supports the following platforms: Windo
 │   ├── doc      # construction and usage guidelines
 │   ├── include  # configuration file
 │   └── src      # source code
+├── cjhead
+│   ├── build    # build script
+│   ├── config   # configuration file
+│   ├── doc      # construction and usage guidelines
+│   ├── include  # configuration file
+│   └── src      # source code
 ├── cjlint
 │   ├── build    # build script
 │   ├── config   # configuration file
@@ -65,6 +71,7 @@ Please refer to the following software architecture diagrams for the command-lin
 
 - [software architecture diagram for `cjpm`](./cjpm/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `cjfmt`](./cjfmt/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `cjhead`](./cjhead/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `hle`](./hyperlangExtension/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `lsp`](./cangjie-language-server/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `cjcov`](./cjcov/doc/developer_guide_zh.md#开源项目介绍)
