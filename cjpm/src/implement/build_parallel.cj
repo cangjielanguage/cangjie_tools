@@ -382,8 +382,8 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
                 buildConfig.indirectRebuilds.contains(resolve.fullName)) {
                 resolveConfig.checkDepCjo = true
             }
-            resolveConfig.outLogFile = Path(finalLogPath).join("${resolveConfig.fullName}.outlog").toString()
-            resolveConfig.errLogFile = Path(finalLogPath).join("${resolveConfig.fullName}.errlog").toString()
+            resolveConfig.outLogFile = Path(finalLogPath).join("${swapOrgName(resolveConfig.fullName)}.outlog").toString()
+            resolveConfig.errLogFile = Path(finalLogPath).join("${swapOrgName(resolveConfig.fullName)}.errlog").toString()
 
             if (resolve.nativePlatform) {
                 resolveConfig.nativePath = getFinalPath(buildConfig.globalConfig.targetDir,
@@ -391,8 +391,8 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
                     buildConfig.requiredForTests)
                 let nativeLogPath = getLogPath(buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir,
                     false, resolve.rootPkgName)
-                resolveConfig.nativeOutLog = Path(nativeLogPath).join("${resolveConfig.fullName}.outlog").toString()
-                resolveConfig.nativeErrLog = Path(nativeLogPath).join("${resolveConfig.fullName}.errlog").toString()
+                resolveConfig.nativeOutLog = Path(nativeLogPath).join("${swapOrgName(resolveConfig.fullName)}.outlog").toString()
+                resolveConfig.nativeErrLog = Path(nativeLogPath).join("${swapOrgName(resolveConfig.fullName)}.errlog").toString()
                 if (!createDirectory(resolveConfig.nativePath) || !createDirectory(nativeLogPath)) {
                     return false
                 }
