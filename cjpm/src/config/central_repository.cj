@@ -51,6 +51,7 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
     public init() {
         this.repository.add("local", RepositoryInfo())
         this.repository["local"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
+        this.repository.add("home", RepositoryInfo())
     }
 
     public func serialize(): DataModel {
@@ -72,6 +73,10 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
             result.repository["local"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
         }
 
+        if (!result.repository.contains("home")) {
+            result.repository.add("home", RepositoryInfo())
+        }
+
         return result
     }
 }
@@ -87,13 +92,6 @@ public func readConfigToml(file: Path): SettingsConfig {
     } catch (e: Exception) {
         eprintln(e.message)
         eprintln("Error: load file '${file}' failed.")
-        res.isValid = false
-        return res
-    }
-
-    // Invaild config when cannot get [repository.home] data)
-    if (res.repository.isEmpty() || !res.repository.contains("home") || res.repository["home"].registry.isEmpty()) {
-        println("Error: load config data '[repository.home]'  from '${file}' failed.")
         res.isValid = false
         return res
     }
