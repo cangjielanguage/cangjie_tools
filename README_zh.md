@@ -40,6 +40,12 @@
 │   ├── doc      # 构建指南和使用指南
 │   ├── include  # 头文件
 │   └── src      # 源码
+|—— cjhead
+|   ├── build    # 构建脚本
+│   ├── config   # 配置文件
+│   ├── doc      # 构建指南和使用指南
+│   ├── include  # 头文件
+│   └── src      # 源码
 ├── cjlint
 │   ├── build    # 构建脚本
 │   ├── config   # 配置文件
@@ -65,6 +71,7 @@
 
 - [`cjpm` 软件架构图](./cjpm/doc/developer_guide_zh.md#开源项目介绍)
 - [`cjfmt` 软件架构图](./cjfmt/doc/developer_guide_zh.md#开源项目介绍)
+- [`cjhead` 软件架构图](./cjhead/doc/developer_guide.md#开源项目介绍)
 - [`hle` 软件架构图](./hyperlangExtension/doc/developer_guide_zh.md#开源项目介绍)
 - [`lsp` 系统架构图](./cangjie-language-server/doc/developer_guide_zh.md#开源项目介绍)
 - [`cjcov` 系统架构图](./cjcov/doc/developer_guide_zh.md#开源项目介绍)
