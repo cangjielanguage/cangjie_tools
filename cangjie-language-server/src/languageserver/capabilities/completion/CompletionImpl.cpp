@@ -390,6 +390,11 @@ void CompletionImpl::NormalParseImpl(
         beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 1)].kind;
     }
 
+    // if package name has org name, check beforePrefixKind and change token position
+    if (beforePrefixKind == TokenKind::DOUBLE_COLON && index > 2) {
+        beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 3)].kind;
+    }
+
     auto &importManager =
         needImport ? input.packageInstance->importManager : input.semaCache->packageInstance->importManager;
     NormalCompleterByParse normalCompleter(result, &importManager, *(input.semaCache->packageInstance->ctx), prefix);

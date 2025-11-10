@@ -15,8 +15,8 @@ std::string GetPackagePrefixWithPaths(const std::vector<std::string> &prefixPath
         ss << prefix << ".";
     }
     return ss.str().substr(0, ss.str().size() - 1);
-};    
-    
+};
+
 Ptr<Decl> ProcSingleImport(
     const ArkAST &ast, File *fileNode,
     ImportContent &importContent,
@@ -25,7 +25,7 @@ Ptr<Decl> ProcSingleImport(
     const auto &importManager = ast.packageInstance->importManager;
     const auto srcPkgName = fileNode->curPackage->fullPackageName;
     if (packagePrefix.empty()) {
-        packagePrefix = GetPackagePrefixWithPaths(importContent.prefixPaths);
+        packagePrefix = importContent.GetPrefixPath();
     }
 
     if (const auto targetPkg = importManager.GetPackageDecl(packagePrefix)) {
