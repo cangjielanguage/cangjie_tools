@@ -25,6 +25,6 @@ func isSupportCombine(): Bool {
         }
     let isTargetLinux = compileTarget.contains("linux")
     let isTargetAndroid = compileTarget.contains("android")
-    let isTargetWindows = compileTarget.contains("windows")
+    let isTargetWindows = compileTarget.contains("windows") || compileTarget.contains("w64")
     return ((isTargetLinux && !isTargetAndroid) || isTargetWindows)
 }
