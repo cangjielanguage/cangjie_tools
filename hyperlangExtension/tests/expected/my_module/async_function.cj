@@ -13,20 +13,20 @@ import tpc.AbilityKit.common
 
 
 /*interface AutoGenType0 {
-    a: ;
-    b: ;
+    a: number;
+    b: string;
     }*/
 
 public open class AutoGenType0 {
     
-    protected AutoGenType0(public var : Float64,
-    public var : String) {}
+    protected AutoGenType0(public var a: Float64,
+    public var b: String) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["a"] = .toJSValue(context)
-        obj["b"] = .toJSValue(context)
+        obj["a"] = a.toJSValue(context)
+        obj["b"] = b.toJSValue(context)
         obj.toJSValue()
     }
     

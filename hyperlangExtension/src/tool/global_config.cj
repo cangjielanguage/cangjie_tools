@@ -381,6 +381,8 @@ public class GlobalConfig {
                         case TsProperty(name, ty, optional) => 
                             let result = Property()
                             result.propKey = name
+                            result.propType = ty.toString()
+                            result.cjKey = name
                             result.isOptional = optional
                             result.typeNode = ty
                             boxed.value.add(result)

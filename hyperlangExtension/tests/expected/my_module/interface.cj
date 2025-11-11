@@ -14,20 +14,20 @@ import std.collection.{ HashMap }
 
 
 /*interface AutoGenType0 {
-    city: ;
-    zipCode: ;
+    city: string;
+    zipCode: string;
     }*/
 
 public open class AutoGenType0 {
     
-    protected AutoGenType0(public var : String,
-    public var : String) {}
+    protected AutoGenType0(public var city: String,
+    public var zipCode: String) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["city"] = .toJSValue(context)
-        obj["zipCode"] = .toJSValue(context)
+        obj["city"] = city.toJSValue(context)
+        obj["zipCode"] = zipCode.toJSValue(context)
         obj.toJSValue()
     }
     

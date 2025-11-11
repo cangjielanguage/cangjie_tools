@@ -27,17 +27,17 @@ public enum AutoGenType5 {
 
 
 /*interface AutoGenType0 {
-    n: ;
+    n: number;
     }*/
 
 public open class AutoGenType0 {
     
-    protected AutoGenType0(public var : Float64) {}
+    protected AutoGenType0(public var n: Float64) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["n"] = .toJSValue(context)
+        obj["n"] = n.toJSValue(context)
         obj.toJSValue()
     }
     
@@ -51,17 +51,17 @@ public open class AutoGenType0 {
 }
 
 /*interface AutoGenType1 {
-    n: ;
+    n: number;
     }*/
 
 public open class AutoGenType1 {
     
-    protected AutoGenType1(public var : Float64) {}
+    protected AutoGenType1(public var n: Float64) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["n"] = .toJSValue(context)
+        obj["n"] = n.toJSValue(context)
         obj.toJSValue()
     }
     
@@ -75,17 +75,17 @@ public open class AutoGenType1 {
 }
 
 /*interface AutoGenType2 {
-    msg: ;
+    msg: string;
     }*/
 
 public open class AutoGenType2 {
     
-    protected AutoGenType2(public var : String) {}
+    protected AutoGenType2(public var msg: String) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["msg"] = .toJSValue(context)
+        obj["msg"] = msg.toJSValue(context)
         obj.toJSValue()
     }
     
@@ -99,23 +99,23 @@ public open class AutoGenType2 {
 }
 
 /*interface AutoGenType3 {
-    msg: ;
-    data: ;
-    code?: ;
+    msg: string;
+    data: string;
+    code?: undefined;
     }*/
 
 public open class AutoGenType3 {
     
-    protected AutoGenType3(public var : String,
-    public var : String,
-    public var !: Option<JSValue/* FIXME: `undefined` */> = None) {}
+    protected AutoGenType3(public var msg: String,
+    public var data: String,
+    public var code!: Option<JSValue/* FIXME: `undefined` */> = None) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["msg"] = .toJSValue(context)
-        obj["data"] = .toJSValue(context)
-        if(let Some(v) <- ) {
+        obj["msg"] = msg.toJSValue(context)
+        obj["data"] = data.toJSValue(context)
+        if(let Some(v) <- code) {
             obj["code"] = v
         }
         obj.toJSValue()
@@ -126,30 +126,30 @@ public open class AutoGenType3 {
         AutoGenType3(
         String.fromJSValue(context, obj["msg"]),
         String.fromJSValue(context, obj["data"]),
-        : obj["code"]
+        code: obj["code"]
         )
     }
     
 }
 
 /*interface AutoGenType4 {
-    code: ;
-    msg: ;
-    data?: ;
+    code: number;
+    msg: string;
+    data?: undefined;
     }*/
 
 public open class AutoGenType4 {
     
-    protected AutoGenType4(public var : Float64,
-    public var : String,
-    public var !: Option<JSValue/* FIXME: `undefined` */> = None) {}
+    protected AutoGenType4(public var code: Float64,
+    public var msg: String,
+    public var data!: Option<JSValue/* FIXME: `undefined` */> = None) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["code"] = .toJSValue(context)
-        obj["msg"] = .toJSValue(context)
-        if(let Some(v) <- ) {
+        obj["code"] = code.toJSValue(context)
+        obj["msg"] = msg.toJSValue(context)
+        if(let Some(v) <- data) {
             obj["data"] = v
         }
         obj.toJSValue()
@@ -160,7 +160,7 @@ public open class AutoGenType4 {
         AutoGenType4(
         Float64.fromJSValue(context, obj["code"]),
         String.fromJSValue(context, obj["msg"]),
-        : obj["data"]
+        data: obj["data"]
         )
     }
     

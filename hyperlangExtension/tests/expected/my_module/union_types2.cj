@@ -90,20 +90,20 @@ public enum AutoGenType3 {
 
 
 /*interface AutoGenType4 {
-    city: ;
-    zipCode: ;
+    city: string;
+    zipCode: string;
     }*/
 
 public open class AutoGenType4 {
     
-    protected AutoGenType4(public var : String,
-    public var : String) {}
+    protected AutoGenType4(public var city: String,
+    public var zipCode: String) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["city"] = .toJSValue(context)
-        obj["zipCode"] = .toJSValue(context)
+        obj["city"] = city.toJSValue(context)
+        obj["zipCode"] = zipCode.toJSValue(context)
         obj.toJSValue()
     }
     

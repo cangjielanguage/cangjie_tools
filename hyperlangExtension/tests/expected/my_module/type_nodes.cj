@@ -50,20 +50,20 @@ public enum AutoGenType1 {
 
 
 /*interface AutoGenType2 {
-    x: ;
-    y: ;
+    x: number;
+    y: U;
     }*/
 
 public open class AutoGenType2 {
     
-    protected AutoGenType2(public var : Float64,
-    public var : U) {}
+    protected AutoGenType2(public var x: Float64,
+    public var y: U) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["x"] = .toJSValue(context)
-        obj["y"] = .toJSValue(context)
+        obj["x"] = x.toJSValue(context)
+        obj["y"] = y.toJSValue(context)
         obj.toJSValue()
     }
     
@@ -124,20 +124,20 @@ public open class AutoGenType4 {
 }
 
 /*interface AutoGenType5 {
-    x: ;
-    y: ;
+    x: { value: number; unit: string } | number;
+    y: { value: number; unit: string } | number;
     }*/
 
 public open class AutoGenType5 {
     
-    protected AutoGenType5(public var : JSValue/* FIXME: `{ value: number; unit: string } | number` */,
-    public var : JSValue/* FIXME: `{ value: number; unit: string } | number` */) {}
+    protected AutoGenType5(public var x: JSValue/* FIXME: `{ value: number; unit: string } | number` */,
+    public var y: JSValue/* FIXME: `{ value: number; unit: string } | number` */) {}
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        obj["x"] = 
-        obj["y"] = 
+        obj["x"] = x
+        obj["y"] = y
         obj.toJSValue()
     }
     
