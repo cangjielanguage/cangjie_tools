@@ -279,7 +279,7 @@ public class TransMethod {
         }
 
         let template: Tokens = quote(
-            $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) $(typeConstraintsToken) {
+            $(prefix) func $(funcName)$(typeParameters)($(paramToken)):$(retTypeToken) $(typeConstraintsToken) {
                 $(cbToken)jsObjApiCall<$(retTypeToken)>($(staticConstructor)$(memberToken)$(getArkTSFuncName()), $(third_param)) $(forth_param)
             }
         )
