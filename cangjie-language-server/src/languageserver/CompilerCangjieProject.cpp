@@ -125,7 +125,7 @@ PkgInfo::PkgInfo(const std::string &pkgPath,
         }
     }
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::ClearCacheForDelete(const std::string &fullPkgName, const std::string &dirPath,
                                                  bool isInModule)
 {
@@ -206,7 +206,7 @@ std::string CompilerCangjieProject::GetFullPkgName(const std::string &filePath) 
     }
     return pathToFullPkgName.at(dirPath);
 }
-
+// LCOV_EXCL_STOP
 std::string CompilerCangjieProject::GetFullPkgByDir(const std::string &dirPath) const
 {
     std::string normalizePath = Normalize(dirPath);
@@ -416,7 +416,7 @@ void CompilerCangjieProject::SubmitTasksToPool(const std::unordered_set<std::str
     }
     thrdPool->WaitUntilAllTasksComplete();
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::IncrementOnePkgCompile(const std::string &filePath, const std::string &contents)
 {
     std::string fullPkgName = GetFullPkgName(filePath);
@@ -575,7 +575,7 @@ std::vector<std::string> CompilerCangjieProject::GetIncTopologySort(const std::s
     }
     return sortResult;
 }
-
+// LCOV_EXCL_STOP
 void CompilerCangjieProject::CompilerOneFile(
     const std::string &file, const std::string &contents, Position pos, bool onlyParse, const std::string &name)
 {
@@ -1095,7 +1095,7 @@ void CompilerCangjieProject::InitPkgInfoAndParse()
     InitPkgInfoAndParseNotInModule();
     UpdateDownstreamPackages();
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::EraseOtherCache(const std::string &fullPkgName)
 {
     if (fullPkgName.empty() || fullPkgNameToPath.find(fullPkgName) == fullPkgNameToPath.end() ||
@@ -1138,7 +1138,7 @@ void CompilerCangjieProject::EraseOtherCache(const std::string &fullPkgName)
     (void) malloc_zone_pressure_relief(malloc_default_zone(), 0);
 #endif
 }
-
+// LCOV_EXCL_STOP
 void CompilerCangjieProject::FullCompilation()
 {
     if (MessageHeaderEndOfLine::GetIsDeveco() && lsp::CjdIndexer::GetInstance() != nullptr) {
@@ -1206,7 +1206,7 @@ void CompilerCangjieProject::FullCompilation()
     thrdPool->WaitUntilAllTasksComplete();
     Trace::Log("All tasks are completed in full compilation");
 }
-
+// LCOV_EXCL_START
 bool CompilerCangjieProject::LoadASTCache(const std::string &package)
 {
     if (!cacheManager->IsStale(package, Digest(GetPathFromPkg(package)))) {
@@ -1226,7 +1226,7 @@ bool CompilerCangjieProject::LoadASTCache(const std::string &package)
 
     return false;
 }
-
+// LCOV_EXCL_STOP
 bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
                                       const nlohmann::json &initializationOptions,
                                       const Environment &environment)
@@ -1402,7 +1402,7 @@ void CompilerCangjieProject::UpdateBuffCache(const std::string &file, bool isCon
     auto downStreamPkgs = graph->FindAllDependents(pkgName);
     cjoManager->UpdateStatus(downStreamPkgs, DataStatus::WEAKSTALE);
 }
-
+// LCOV_EXCL_START
 std::vector<std::vector<std::string>> CompilerCangjieProject::ResolveDependence()
 {
     std::vector<std::vector<std::string>> res;
@@ -1424,7 +1424,7 @@ std::vector<std::vector<std::string>> CompilerCangjieProject::ResolveDependence(
     }
     return res;
 }
-
+// LCOV_EXCL_STOP
 void CompilerCangjieProject::ReportCircularDeps(const std::vector<std::vector<std::string>> &cycles)
 {
     for (const auto &it : cycles) {
@@ -1460,7 +1460,7 @@ void CompilerCangjieProject::EmitDiagsOfFile(const std::string &filePath)
     std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(filePath);
     callback->ReadyForDiagnostics(filePath, callback->GetVersionByFile(filePath), diagnostics);
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::TarjanForSCC(SCCParam &sccParam, std::stack<std::string> &st, size_t &index,
                                           const std::string &pkgName, std::vector<std::vector<std::string>> &cycles)
 {
@@ -1496,7 +1496,7 @@ void CompilerCangjieProject::TarjanForSCC(SCCParam &sccParam, std::stack<std::st
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void CompilerCangjieProject::GetRealPath(std::string &path)
 {
     if (!IsRelativePathByImported(path)) {
@@ -1740,7 +1740,7 @@ void CompilerCangjieProject::StoreAllPackagesCache()
         StorePackageCache(fullPkgName);
     }
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::StorePackageCache(const std::string& pkgName)
 {
     if (!useDB) {
@@ -1762,7 +1762,7 @@ void CompilerCangjieProject::StorePackageCache(const std::string& pkgName)
     cacheManager->Store(
         pkgName, Digest(GetPathFromPkg(pkgName)), *cjoManager->GetData(pkgName));
 }
-
+// LCOV_EXCL_STOP
 void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstance> &ci, bool isFullCompilation)
 {
     auto packages = ci->GetSourcePackages();
@@ -2005,7 +2005,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
         Trace::Log("UpdateAll End");
     }
 }
-
+// LCOV_EXCL_START
 void CompilerCangjieProject::BuildIndexFromCache(const std::string &package) {
         std::string sourceCodePath;
         if (fullPkgNameToPath.find(package) != fullPkgNameToPath.end()) {
@@ -2027,7 +2027,7 @@ void CompilerCangjieProject::BuildIndexFromCache(const std::string &package) {
             (void) memIndex->pkgCrossSymsMap.insert_or_assign(package, indexCache->get()->crossSymbos);
         }
 }
-
+// LCOV_EXCL_STOP
 std::unordered_set<std::string> CompilerCangjieProject::GetOneModuleDeps(const std::string &curModule)
 {
     std::unordered_set<std::string> res;

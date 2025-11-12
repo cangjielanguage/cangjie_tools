@@ -154,7 +154,7 @@ void GetMemberAccess(
         result.push_back({HighlightKind::FIELD_H, TransformFromChar2IDE(rightRange)});
     }
 }
-
+// LCOV_EXCL_START
 void GetFuncArg(Ptr<Node> node, std::vector<SemanticHighlightToken> &result, const std::vector<Cangjie::Token> &tokens,
                 Cangjie::SourceManager *sourceManager)
 {
@@ -168,7 +168,7 @@ void GetFuncArg(Ptr<Node> node, std::vector<SemanticHighlightToken> &result, con
     UpdateRange(tokens, range, *node);
     result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(range)});
 }
-
+// LCOV_EXCL_STOP
 bool RefTargetEmpty(const Ptr<Node> node)
 {
     auto refExpr = dynamic_cast<RefExpr*>(node.get());

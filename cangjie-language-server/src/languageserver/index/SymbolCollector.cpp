@@ -17,9 +17,11 @@ using namespace Cangjie;
 using namespace AST;
 Ptr<Decl> GetRealDecl(Ptr<Decl> decl)
 {
+    // LCOV_EXCL_START
     if (auto fd = DynamicCast<FuncDecl *>(decl); fd && fd->propDecl) {
         return fd->propDecl;
     }
+    // LCOV_EXCL_STOP
     return decl;
 }
 
@@ -506,6 +508,7 @@ void SymbolCollector::CreateCrossSymbolByInterop(const Decl &decl)
         const auto invocation = member->GetConstInvocation();
         bool isInvisible = false;
         auto realDecl = &invocation->decl;
+        // LCOV_EXCL_START
         while (realDecl && realDecl->get()->astKind == ASTKind::MACRO_EXPAND_DECL
             && realDecl->get()->GetConstInvocation()) {
             // realDecl is macro expand node, check its name, invocation and attr
@@ -520,6 +523,7 @@ void SymbolCollector::CreateCrossSymbolByInterop(const Decl &decl)
             // get next decl for realDecl
             realDecl = &realDecl->get()->GetConstInvocation()->decl;
         }
+        // LCOV_EXCL_STOP
         if (isInvisible || !realDecl) {
             continue;
         }

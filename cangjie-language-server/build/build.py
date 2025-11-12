@@ -16,6 +16,7 @@ import platform
 import shutil
 import stat
 import subprocess
+import sys
 from subprocess import PIPE
 from pathlib import Path
 from enum import Enum
@@ -191,7 +192,10 @@ def generate_cmake_commands(args):
         ])
     if args.test:
         result.extend([
-            "-DENABLE_TEST=ON"
+            "-DENABLE_TEST=ON",
+            "-DENABLE_COVERAGE=ON",
+            "-DNO_EXCEPTIONS=ON",
+            "-DCMAKE_CXX_FLAGS='-fno-exceptions'"
         ])
     return result
 

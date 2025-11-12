@@ -56,11 +56,15 @@ uint64_t ParseJsonNumber(size_t& pos, const std::vector<uint8_t>& in)
     if (num.str().size()) {
         --pos;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         return std::stoull(num.str());
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         return 0;
     }
+#endif
 }
 
 OwnedPtr<JsonObject> ParseJsonObject(size_t& pos, const std::vector<uint8_t>& in);

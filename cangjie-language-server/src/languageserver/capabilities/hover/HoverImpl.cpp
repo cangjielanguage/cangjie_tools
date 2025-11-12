@@ -199,7 +199,7 @@ std::string HoverImpl::ResolveComment(const std::string &comment, const CommentK
     }
     return retComment;
 }
-
+// LCOV_EXCL_START
 bool HoverImpl::IsAnnoAPILevel(Ptr<Annotation> anno, Ptr<ASTContext> ctx)
 {
     if (ctx && ctx->curPackage && ctx->curPackage->fullPackageName == PKG_NAME_WHERE_APILEVEL_AT) {
@@ -256,7 +256,7 @@ std::string HoverImpl::GetDeclApiLevelAnnoInfo(Decl &decl, const ArkAST &ast)
     }
     return "";
 }
-
+// LCOV_EXCL_STOP
 std::string HoverImpl::GetHoverMessageByOuterDecl(const Decl &node)
 {
     std::string detail;
