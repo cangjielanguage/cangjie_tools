@@ -48,7 +48,8 @@ bool StructuralRuleGENU02::CheckTyEqualityHelper(Cangjie::AST::Ty* base, Cangjie
 bool StructuralRuleGENU02::IsEqual(Cangjie::AST::Ty* base, Cangjie::AST::Ty* derived)
 {
     if (!base->IsClassLike()) {
-        if (base->kind == derived->kind) {
+        if (base->kind == derived->kind || base->kind == TypeKind::TYPE_GENERICS ||
+            derived->kind == TypeKind::TYPE_GENERICS) {
             return true;
         } else {
             return false;
@@ -59,11 +60,6 @@ bool StructuralRuleGENU02::IsEqual(Cangjie::AST::Ty* base, Cangjie::AST::Ty* der
 
 void StructuralRuleGENU02::DuplicatedEnumCtrOrFuncHelper(const Cangjie::AST::FuncDecl& funcDecl)
 {
-    for (auto modifier : funcDecl.modifiers) {
-        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
-            return;
-        }
-    }
     auto& params = funcDecl.funcBody->paramLists[0]->params;
     std::vector<AST::Ty*> args;
     for (size_t i = 0; i < params.size(); i++) {
@@ -93,11 +89,6 @@ void StructuralRuleGENU02::DuplicatedEnumCtrOrFuncHelper(const Cangjie::AST::Fun
 
 void StructuralRuleGENU02::CheckEnumCtrOverload(const Cangjie::AST::EnumDecl& enumDecl)
 {
-    for (auto modifier : enumDecl.modifiers) {
-        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
-            return;
-        }
-    }
     for (auto& constructor : enumDecl.constructors) {
         if (constructor->astKind == ASTKind::FUNC_DECL) {
             auto funcDecl = static_cast<FuncDecl*>(constructor.get().get());
@@ -108,11 +99,6 @@ void StructuralRuleGENU02::CheckEnumCtrOverload(const Cangjie::AST::EnumDecl& en
 
 void StructuralRuleGENU02::CheckFuncOverload(const Cangjie::AST::FuncDecl& funcDecl)
 {
-    for (auto modifier : funcDecl.modifiers) {
-        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
-            return;
-        }
-    }
     if (funcDecl.scopeLevel == 0 && !funcDecl.outerDecl) {
         DuplicatedEnumCtrOrFuncHelper(funcDecl);
     }
@@ -161,8 +147,15 @@ void StructuralRuleGENU02::FindExtendHelper(Ptr<Cangjie::AST::Node> node)
 void StructuralRuleGENU02::MatchPattern(ASTContext& ctx, Ptr<Node> node)
 {
     (void)ctx;
-    // Collect the inheritance relationships between classes/interfaces through extendDecl
-    FindExtendHelper(node);
-    // Check enum's constructor and top-level functions
-    FindEnumDeclHelper(node);
+    if (node->astKind ==  ASTKind::PACKAGE) {
+        auto pkg = static_cast<Package*>(node.get());
+        for (auto& file: pkg->files) {
+            enumCtrSet.clear();
+            inheritedClassMap.clear();
+            // Collect the inheritance relationships between classes/interfaces through extendDecl
+            FindExtendHelper(file);
+            // Check enum's constructor and top-level functions
+            FindEnumDeclHelper(file);
+        }
+    }
 }
