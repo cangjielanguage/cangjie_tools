@@ -4,12 +4,8 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-import { Callback } from '@ohos.base';
-export declare class PushReporter {
-static getTags(t12: Callback<Record<string, any>>): void;
+type Callback<T> = (arg: T) => void;
+
+class CM {
+    static f01(x: (obj: IM, cb: Callback<EMStr>) => void): void
 }
-
-
-export declare class MessagePackage {
-    static idt: idt_struct;
-    }
