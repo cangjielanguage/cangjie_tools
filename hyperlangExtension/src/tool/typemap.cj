@@ -15,7 +15,7 @@ public class TypeMap {
 
         if ((tmp.startsWith("<") && (tmp.count("<") > 2 || tmp.contains("|"))) || (tmp.startsWith("{") && tmp.endsWith(
             "}")) || tmp.contains("->") || tmp.startsWith("typeof")) {
-            let oneLine = Regex(#"(\r|\n|\r\n) *"#).replaceAll(type_ark, " ")       
+            let oneLine = Regex(#"(\r|\n|\r\n) *"#).replaceAll(type_ark, " ")
             return "JSValue/* FIXME: `${oneLine}` */"
         }
 
