@@ -22,6 +22,7 @@ public enum AutoGenType5 {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5 {
         
+        throw Exception("unsupport type!")
     }
 }
 

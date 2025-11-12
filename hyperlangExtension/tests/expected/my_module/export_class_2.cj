@@ -38,6 +38,7 @@ public enum AutoGenType0 {
         if (input.isUndefined()) {
             return UNDEFINED
         }
+        throw Exception("unsupport type!")
     }
 }
 

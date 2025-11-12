@@ -28,6 +28,7 @@ public enum AutoGenType0 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 

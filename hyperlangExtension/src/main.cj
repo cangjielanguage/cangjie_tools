@@ -18,7 +18,7 @@ import stdx.encoding.json.*
 import std.process.*
 import hle.tool.*
 import hle.entry.*
-import std.fs.{exists, remove}
+import std.fs.{exists}
 import std.regex.*
 
 const OS_WINDOWS = "Windows"

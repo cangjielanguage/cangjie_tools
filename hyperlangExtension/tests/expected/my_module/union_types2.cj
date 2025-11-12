@@ -28,6 +28,7 @@ public enum AutoGenType0 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -49,6 +50,7 @@ public enum AutoGenType1 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -67,6 +69,7 @@ public enum AutoGenType2 {
         if(input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } 
+        throw Exception("unsupport type!")
     }
 }
 
@@ -85,6 +88,7 @@ public enum AutoGenType3 {
         if(input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } 
+        throw Exception("unsupport type!")
     }
 }
 
