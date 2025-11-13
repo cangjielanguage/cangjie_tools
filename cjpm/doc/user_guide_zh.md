@@ -1057,8 +1057,6 @@ abc = { path = "libs" }
 hello = { path = "./src/" }
 ```
 
-若需要指定不同平台可使用的 `c` 库配置，请参见 [target](./user_guide.md#target)。
-
 ### "profile"
 
 `profile` 作为一种命令剖面配置项，用于控制某个命令执行时的默认配置项。目前支持如下场景：`build`、`test`、`bench`、`run` 和 `customized-option`。
@@ -1270,8 +1268,6 @@ cfg3 = "-O2"
     "pro0.xoo" = "./test/pro0/pro0.xoo.cjo"
     "pro0.yoo" = "./test/pro0/pro0.yoo.cjo"
     "pro1.zoo" = "./test/pro1/pro1.zoo.cjo"
-  [target.x86_64-unknown-linux-gnu.ffi.c] # C 二进制库依赖
-    "ctest" = "./test/c"
 
 [target.x86_64-unknown-linux-gnu.debug] # Linux 系统的 debug 配置项
   [target.x86_64-unknown-linux-gnu.debug.test-dependencies]
@@ -1290,7 +1286,6 @@ cfg3 = "-O2"
 - `dependencies`：源码依赖配置项，结构同 `dependencies` 字段
 - `test-dependencies`：测试阶段依赖配置项，结构同 `test-dependencies` 字段
 - `bin-dependencies`：仓颉二进制库依赖，结构在下文中介绍
-- `ffi.c`：仓颉模块外部依赖 `c` 库的配置，结构同 `ffi.c` 字段
 - `compile-macros-for-target`：交叉编译时的宏包控制项，该选项不支持区分下述的 `debug` 和 `release` 编译模式
 
 开发者可以通过配置 `target.target-name.debug` 和 `target.target-name.release` 字段为该 `target` 额外配置在 `debug` 和 `release` 编译模式下特有的配置，可配置的配置项同上。配置于此类字段的配置项将仅应用于该 `target` 的对应编译模式。

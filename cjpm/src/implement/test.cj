@@ -187,10 +187,9 @@ func startTest(testConfig: TestConfig, scriptConfig: ScriptConfig): Bool {
 
     (testConfig.globalConfig.targetDir, testConfig.globalConfig.nativeDir) = setFinalTargetDirectory(
         testConfig.globalConfig, testConfig.isCrossCompile, testConfig.isDebug, testConfig.mock == MockSupport.On)
-    let (ldPath, cLibLinkMap, crossCLibLinkMap, cjPathList) = configureModuleResolveData(
+    let (ldPath, cLibLinkMap, cjPathList) = configureModuleResolveData(
         testConfig.globalConfig.targetDir, testConfig.globalConfig.nativeDir, resolve)
     testConfig.globalConfig.cLibLinkMap = cLibLinkMap.clone()
-    testConfig.globalConfig.crossCLibLinkMap = crossCLibLinkMap.clone()
     testConfig.globalConfig.ldPath.add(all: ldPath)
     testConfig.globalConfig.cjPathList.add(all: cjPathList)
 
@@ -402,14 +401,8 @@ func prepareTest(res: ModuleResolve, testConfig: TestConfig): (HashMap<PackageFq
     }
 
     for (r in res.resolves) {
-        if (testConfig.isCrossCompile) {
-            for ((_, cLibPath) in r.crossCLibs) {
-                cLibPathSet.add(cLibPath)
-            }
-        } else {
-            for ((_, cLibPath) in r.cLibs) {
-                cLibPathSet.add(cLibPath)
-            }
+        for ((_, cLibPath) in r.cLibs) {
+            cLibPathSet.add(cLibPath)
         }
 
         if (r.isMacroPackage) {
@@ -549,15 +542,10 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
         if (testConfig.globalConfig.cLibLinkMap.contains(k)) {
             linkSort.add(all: testConfig.globalConfig.cLibLinkMap[k])
         }
-        if (testConfig.globalConfig.crossCLibLinkMap.contains(k)) {
-            linkSort.add(all: testConfig.globalConfig.crossCLibLinkMap[k])
-        }
     }
-
 
     var index: Int64 = 0
     let libPathSet = HashSet<String>()
-    let libPathNameSet = HashSet<String>()
     while (index < linkSort.size) {
         if (linkSort[index] == "-L") {
             if (!libPathSet.contains(linkSort[index + 1])) {
@@ -567,10 +555,7 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
             }
             index += 2
         } else {
-            if (!libPathNameSet.contains(linkSort[index])) {
-                result.add(linkSort[index])
-                libPathNameSet.add(linkSort[index])
-            }
+            result.add(linkSort[index])
             index += 1
         }
     }
