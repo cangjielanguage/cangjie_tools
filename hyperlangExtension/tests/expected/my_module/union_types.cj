@@ -29,6 +29,7 @@ public enum AutoGenType0 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -55,6 +56,7 @@ public enum AutoGenType1 {
         if (input.isBoolean()) {
             return BOOLEAN(Bool.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -91,6 +93,7 @@ public enum AutoGenType2 {
         if (input.isUndefined()) {
             return UNDEFINED
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -124,6 +127,7 @@ public enum AutoGenType3 {
         if (input.isBigInt()) {
             return BIGINT(input.toBigInt())
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -145,6 +149,7 @@ public enum AutoGenType4 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -166,6 +171,7 @@ public enum AutoGenType5 {
         if (input.isBoolean()) {
             return BOOLEAN(Bool.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 

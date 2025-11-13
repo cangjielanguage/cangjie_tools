@@ -8,7 +8,6 @@ package hle.tool
 
 import std.ast.*
 import std.collection.*
-import std.sort.*
 
 extend TsType {
     public func toCJType(): String {

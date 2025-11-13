@@ -7,7 +7,6 @@
 package hle.tool
 
 import std.collection.ArrayList
-import std.collection.HashSet
 
 extend<T> Array<T> {
     public func map<R>(mapper: (e: T, i: Int64) -> R): Array<R> {

@@ -9,7 +9,6 @@ package hle.entry
 import std.ast.*
 import std.fs.*
 import std.sync.*
-import std.sort.*
 import hle.tool.*
 import std.time.DateTime
 import std.collection.*
@@ -228,7 +227,7 @@ public class A2CJ {
         out.append(nl)
         
         for (items in gconfig.requiredUnionMembers) {
-            let ut = UnionType(items[0], items[1])
+            let ut = UnionType(items[0], items[1], items[2])
             out.append(ut.genTokens())
             out.append(nl) // Extra newline after union enums
         }

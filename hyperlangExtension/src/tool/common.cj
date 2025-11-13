@@ -10,6 +10,7 @@ import std.collection.*
 import std.ast.*
 import std.regex.*
 import stdx.serialization.serialization.*
+import std.sync.*
 
 public const i8: String = "Int8"
 public const i16: String = "Int16"
@@ -343,7 +344,7 @@ public class TypeType <: Serializable<TypeType> {
                 }
                 if (nonNullTypes.size != 1) {
                     // handle union type, convert it to enum
-                    let ut = UnionType(name, tsType)
+                    let ut = UnionType(name, tsType, ArrayList<String>())
                     tok.append(ut.genTokens())
                     return tok
                 }
@@ -565,6 +566,8 @@ public class UnionType {
     let metaInfo: TsType
     let typeList = ArrayList<String>()
     let ctxName = "context"
+    let genericParams: ArrayList<TypeParameter>
+    let genericSet = HashSet<String>()
     let nativeTypeMap = HashMap<String, (String, String, String, String)>(
         [
             ("null", ("NULL", "NULL", "${ctxName}.null().toJSValue()", ###"
@@ -654,12 +657,20 @@ public class UnionType {
         ]
     )
 
-    public init(_name: String, _metaInfo: TsType) {
+    public init(_name: String, _metaInfo: TsType, _genericParams: ArrayList<String>) {
         name = _name
         metaInfo = _metaInfo
         match (metaInfo) {
             case TsUnion(list) => typeList.add(all: list.map {it => it.toString()})
             case _ => throw IllegalArgumentException("Input is not a union type")
+        }
+        genericParams = _genericParams |> map {item =>
+            let result = TypeParameter()
+            result.name = item
+            result
+        } |> collectArrayList
+        _genericParams |> forEach {item =>
+            genericSet.add(item)
         }
     }
 
@@ -689,6 +700,8 @@ public class UnionType {
         return if (let Some(v) <- nativeTypeMap.get(t)) {
             // handle native type
             v[0]
+        } else if (genericSet.contains(t)) {
+            t + 0.toString() + "(${t})"
         } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
             // handle user-defined type
             t.toAsciiUpper() + "(${t})"
@@ -704,6 +717,10 @@ public class UnionType {
     func getIdentifierToken(t: String): (Token, Token) {
         return if (let Some(c) <- nativeTypeMap.get(t)) {
             (Token(TokenKind.IDENTIFIER, c[1]), Token(TokenKind.IDENTIFIER, c[2]))
+        } else if (genericSet.contains(t)) {
+            let x = Token(TokenKind.IDENTIFIER, t + 0.toString() + "(x)")
+            let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
+            (x, y)
         } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
             let x = Token(TokenKind.IDENTIFIER, t.toAsciiUpper() + "(x)")
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
@@ -723,7 +740,9 @@ public class UnionType {
     public func genTokens(): Tokens {
         var ret = Tokens()
         let nameToken = Token(TokenKind.IDENTIFIER, name)
-        ret.append(quote(public enum $(nameToken) { ) + nl)
+        let typeParameters = getTypeParametersToken(genericParams)
+        let typeConstraintsToken = getTypeConstraintsToken(genericParams)
+        ret.append(quote(public enum $(nameToken)$(typeParameters)$(typeConstraintsToken){ ) + nl)
         for (t in typeList) {
             let vToken = Token(TokenKind.IDENTIFIER, getStringToken(t))
             ret.append(quote(| $(vToken)) + nl)
@@ -742,12 +761,14 @@ public class UnionType {
 
         ret.append(quote(}) + nl + quote(}) + nl)
         
-        ret.append(quote(public static func fromJSValue(context: JSContext, input: JSValue): $(nameToken) {) + nl)
+        ret.append(quote(public static func fromJSValue(context: JSContext, input: JSValue): $(nameToken)$(typeParameters) {) + nl)
         for (t in typeList) {
             if (let Some(c) <- nativeTypeMap.get(t)) {
                 ret.append(Token(TokenKind.IDENTIFIER, c[3]))       
             }
         }
+        ret.append(nl)
+        ret.append(quote(throw Exception("unsupport type!")))
         ret.append(nl)
         
         ret.append(quote(}) + nl)

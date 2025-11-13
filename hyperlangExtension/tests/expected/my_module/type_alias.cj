@@ -52,10 +52,10 @@ public type TA200 = () -> Unit
 public type TA210 = (arg: JSValue/* FIXME: `V` */) -> Unit/* FIXME: `<V>(arg: V) => void` */
 
 
-public type TA220 = (arg: JSValue/* FIXME: `V` */) -> JSValue/* FIXME: `W` *//* FIXME: `<V, W extends string>(arg: V) => W` */
+public type TA220 = (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
 
 
-public type TA230 = (arg: JSValue/* FIXME: `V` */) -> JSValue/* FIXME: `W` *//* FIXME: `<V, W extends string>(arg: V) => W` */
+public type TA230 = (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
 
 
 public type TA240 = (a: Array<Float64>) -> Unit
@@ -110,6 +110,7 @@ public enum TA710 {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): TA710 {
         
+        throw Exception("unsupport type!")
     }
 }
 
@@ -132,6 +133,7 @@ public enum TA720 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -151,6 +153,7 @@ public enum TA730 {
         if(input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
+        throw Exception("unsupport type!")
     }
 }
 
@@ -167,6 +170,7 @@ public enum TA740 {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): TA740 {
         
+        throw Exception("unsupport type!")
     }
 }
 
@@ -285,6 +289,7 @@ public enum ARK1 {
             let jsArray: JSValue = context.global["Float64Array"].asObject().callMethod("from", [input])
             return UINT8ARRAY(fromJSArray<Float64>(context, jsArray))
         }
+        throw Exception("unsupport type!")
     }
 }
 

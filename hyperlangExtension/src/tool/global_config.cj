@@ -26,7 +26,7 @@ public class GlobalConfig {
     public var typeDeclFile: String = ""
     public var gconfigArray: ArrayList<GlobalConfig> = ArrayList<GlobalConfig>()
     public var arkTSMoudleName: String = ""
-    public var requiredUnionMembers: ArrayList<(String, TsType)> = ArrayList<(String, TsType)>() 
+    public var requiredUnionMembers = ArrayList<(String, TsType, ArrayList<String>)>() 
     public var requiredAnonymousInterfaces = ArrayList<ObjectType>() 
     private var count = AtomicInt64(0)
     private var cacheUnions: HashMap<String, TsType> = HashMap<String, TsType>()
@@ -176,11 +176,15 @@ public class GlobalConfig {
             
             // Scan properties in classes
             for ((_, c) in cns.classes) {
+                let result = HashSet<String>()
+                c.typeParameters |> map {it => it.name.replace(" ", "")} |> forEach {item => 
+                    result.add(item)
+                }
                 for (p in c.properties) {
                     if (let Some(v) <- scanTypeForAnonymousInterface(p.typeNode)) {
                         p.typeNode = v
                     }
-                    if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
+                    if (let Some(v) <- scanTypeForUnions(p.typeNode, result)) {
                         p.typeNode = v
                     }
                 }
@@ -194,7 +198,10 @@ public class GlobalConfig {
                     if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
                         m.returnTypeNode = v
                     }
-                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                    m.typeParameters |> map {it => it.name.replace(" ", "")} |> forEach {item => 
+                        result.add(item)
+                    }
+                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode, result)) {
                         m.returnTypeNode = v
                     }
                 }
@@ -202,11 +209,15 @@ public class GlobalConfig {
             
             // Scan properties in interfaces
             for ((_, iface) in cns.interfaces) {
+                let result = HashSet<String>()
+                iface.typeParameters |> map {it => it.name.replace(" ", "")} |> forEach {item => 
+                    result.add(item)
+                }
                 for (p in iface.properties) {
                     if (let Some(v) <- scanTypeForAnonymousInterface(p.typeNode)) {
                         p.typeNode = v
                     }
-                    if (let Some(v) <- scanTypeForUnions(p.typeNode)) {
+                    if (let Some(v) <- scanTypeForUnions(p.typeNode, result)) {
                         p.typeNode = v
                     }
                 }
@@ -220,7 +231,10 @@ public class GlobalConfig {
                     if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
                         m.returnTypeNode = v
                     }
-                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+                    m.typeParameters |> map {it => it.name.replace(" ", "")} |> forEach {item => 
+                        result.add(item)
+                    }
+                    if (let Some(v) <- scanTypeForUnions(m.returnTypeNode, result)) {
                         m.returnTypeNode = v
                     }   
                 }
@@ -236,7 +250,16 @@ public class GlobalConfig {
                 if (let Some(v) <- scanTypeForAnonymousInterface(m.returnTypeNode)) {
                         m.returnTypeNode = v
                 }
-                if (let Some(v) <- scanTypeForUnions(m.returnTypeNode)) {
+
+                /* Consider the following example, where generic parameters need to be collected.
+
+                    declare function testGeneric<T>(t:T): T | string
+                */
+                let result = HashSet<String>()
+                m.typeParameters |> map {it => it.name.replace(" ", "")} |> forEach {item => 
+                    result.add(item)
+                }
+                if (let Some(v) <- scanTypeForUnions(m.returnTypeNode,  result)) {
                         m.returnTypeNode = v
                 } 
             }
@@ -244,11 +267,11 @@ public class GlobalConfig {
     }
     
     // Recursively scan a type for union types and record their member counts
-    private func scanTypeForUnions(ty: TsType): Option<TsType> {
+    private func scanTypeForUnions(ty: TsType, genericParameters: HashSet<String>): Option<TsType> {
         match (ty) {
             case TsUnion(elems) =>
                 let elements = elems.map {item => 
-                    if (let Some(v) <- scanTypeForUnions(item)) {
+                    if (let Some(v) <- scanTypeForUnions(item, genericParameters)) {
                         v
                     } else {
                         item
@@ -261,31 +284,42 @@ public class GlobalConfig {
                         case _ => nonNullTypes.add(e)
                     }
                 }
+                let result = ArrayList<String>()
+                for (e in elements) {
+                    if (genericParameters.contains(e.toString())) {
+                        result.add(e.toString())
+                    }
+                }
                 // Only count primitive unions with 2+ members
                 if (nonNullTypes.size > 1) {
                     let tempName = ty.toString().replace(" ", "")
                     if (cacheUnions.contains(tempName)) {
                         return Some(cacheUnions[tempName])
                     } else {
-                        let paramName = "AutoGenType" + count.load().toString() 
-                        requiredUnionMembers.add((paramName, ty))
+                        let paramName = "AutoGenType" + count.load().toString()
+                        requiredUnionMembers.add((paramName, ty, result))
                         count.fetchAdd(1)
                         cacheUnions[tempName] = TsTypeRef(paramName)
-                        return Some(TsTypeRef(paramName))
+                        let temp = result |> map {item => 
+                            let result = TypeParameter()
+                            result.name = item
+                            result
+                        } |> collectArrayList
+                        return Some(TsTypeRef(paramName + getTypeParametersToken(temp).toString()))
                     }
                 }
                return TsUnion(elements) 
             case TsArray(elemTy) => 
-                let elementType = if (let Some(v) <- scanTypeForUnions(elemTy)) {
+                let elementType = if (let Some(v) <- scanTypeForUnions(elemTy, genericParameters)) {
                     v
                 } else {
                     elemTy
                 }
                 return TsArray(elementType)
-            case TsOptional(elemTy) => scanTypeForUnions(elemTy)
+            case TsOptional(elemTy) => scanTypeForUnions(elemTy, genericParameters)
             case TsTypeRef(temp, arr) =>
                 let elements = arr.map {item => 
-                    if (let Some(v) <- scanTypeForUnions(item)) {
+                    if (let Some(v) <- scanTypeForUnions(item, genericParameters)) {
                         v
                     } else {
                         item
@@ -294,7 +328,7 @@ public class GlobalConfig {
                 return TsTypeRef(temp, elements) 
             case TsTuple(elems) =>
                 let elements = elems.map {item => 
-                    if (let Some(v) <- scanTypeForUnions(item)) {
+                    if (let Some(v) <- scanTypeForUnions(item, genericParameters)) {
                         v
                     } else {
                         item
@@ -302,13 +336,13 @@ public class GlobalConfig {
                 } 
                 return TsTuple(elements)
             case TsFunction(ret, params, temp) =>
-                let returnType = if (let Some(v) <- scanTypeForUnions(ret)) {
+                let returnType = if (let Some(v) <- scanTypeForUnions(ret, genericParameters)) {
                         v
                     } else {
                         ret
                     }
                 let elements = params.map {item => 
-                    if (let Some(v) <- scanTypeForUnions(item.ty)) {
+                    if (let Some(v) <- scanTypeForUnions(item.ty, genericParameters)) {
                         item.ty = v
                         item
                     } else {

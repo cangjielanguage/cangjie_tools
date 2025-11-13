@@ -71,25 +71,31 @@ public open class A {
 
 public open class B <: A {
     
-    protected B(p: Float64,
-    public var p1: Float64) { super(p) }
+    protected B(arkts_object: JSObject) { super(arkts_object) }
+    
+    
+    public mut prop p1: Float64 {
+        get() {
+            checkThreadAndCall < Float64 >(getMainContext()) {
+                ctx: JSContext => Float64.fromJSValue(ctx, arkts_object["p1"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["p1"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
     
     
     public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["p"] = p.toJSValue(context)
-        obj["p1"] = p1.toJSValue(context)
-        obj.toJSValue()
+        arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): B {
-        let obj = input.asObject()
-        B(
-        Float64.fromJSValue(context, obj["p"]),
-        Float64.fromJSValue(context, obj["p1"])
-        )
+    static func fromJSValue(context: JSContext, input: JSValue): B {
+        B(input.asObject())
     }
-    
 }
 
 /*interface C {
@@ -140,22 +146,17 @@ public open class D <: C {
 
 public open class E <: A {
     
-    protected E(p: Float64) { super(p) }
+    protected E(arkts_object: JSObject) { super(arkts_object) }
+    
     
     
     public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["p"] = p.toJSValue(context)
-        obj.toJSValue()
+        arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): E {
-        let obj = input.asObject()
-        E(
-        Float64.fromJSValue(context, obj["p"])
-        )
+    static func fromJSValue(context: JSContext, input: JSValue): E {
+        E(input.asObject())
     }
-    
 }
 
 /*interface F {
