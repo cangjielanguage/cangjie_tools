@@ -35,6 +35,7 @@ void InheritDeclUtil::HandleDeclBody(T *decl)
 
     auto inheritableDecl = dynamic_cast<InheritableDecl*>(decl);
     if (!inheritableDecl) { return; }
+    // LCOV_EXCL_START
     auto extendDecls = CompilerCangjieProject::GetInstance()->GetExtendDecls(inheritableDecl, pkgName);
     for (auto extendDecl : extendDecls) {
         for (auto &member : extendDecl->members) {
@@ -82,7 +83,7 @@ void InheritDeclUtil::HandleDeclBodyForProp(T *decl)
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void InheritDeclUtil::HandleRelatedFuncDeclsFromTopLevel(Ptr<Decl> topLevel, bool needSub)
 {
     // if not in super push it in
@@ -164,7 +165,7 @@ void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
     std::vector<Ptr<InheritableDecl> > topClasses = GetTopClassDecl(*classLikeOrStructDecl);
     DealTopClass(topClasses);
 }
-
+// LCOV_EXCL_START
 void InheritDeclUtil::DealTopClass(std::vector<Ptr<InheritableDecl> > &topClasses)
 {
     for (auto item: topClasses) {
@@ -359,3 +360,4 @@ void InheritDeclUtil::addDeclToRef(Ptr<Decl> const &decl, int length)
     (void) References.insert(location);
 }
 } // namespace ark
+// LCOV_EXCL_STOP

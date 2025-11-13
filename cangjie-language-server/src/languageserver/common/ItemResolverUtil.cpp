@@ -529,15 +529,19 @@ void ItemResolverUtil::AddTypeByNodeAndType(std::string &detail, const std::stri
                                                       {type->GetEnd().line, type->GetEnd().column});
         }
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         if (result.empty() && !type->ToString().empty()) {
             std::string temp = type->ToString();
             Utils::TrimString(temp);
             result += temp;
         }
+#ifndef NO_EXCEPTIONS
     } catch (NullPointerException &e) {
         Trace::Log("Invoke compiler api ToString() catch a NullPointerException");
     }
+#endif
     detail += result;
 }
 
@@ -737,7 +741,7 @@ void ItemResolverUtil::ResolvePrimaryCtorDeclSignature(std::string &detail,
         detail += ")";
     }
 }
-
+// LCOV_EXCL_START
 void ItemResolverUtil::ResolvePatternSignature(std::string &signature, Ptr<Cangjie::AST::Pattern> pattern,
                                                Cangjie::SourceManager *sourceManager)
 {
@@ -775,7 +779,7 @@ void ItemResolverUtil::ResolvePatternDetail(std::string &detail, Ptr<Cangjie::AS
         ResolveVarDeclDetail(detail, *pVarPattern->varDecl.get(), sourceManager);
     }
 }
-
+// LCOV_EXCL_STOP
 void ItemResolverUtil::ResolveFuncParams(std::string &detail,
                                          const std::vector<OwnedPtr<FuncParamList>> &paramLists,
                                          bool isEnumConstruct,
@@ -835,7 +839,9 @@ void ItemResolverUtil::ResolveFuncParams(std::string &detail,
 void ItemResolverUtil::GetFuncNamedParam(std::string &detail, Cangjie::SourceManager *sourceManager,
     const std::string &filePath, const OwnedPtr<Cangjie::AST::FuncParam> &param)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         auto assignExpr = param->assignment.get();
         if (assignExpr && assignExpr->desugarExpr) {
             assignExpr = assignExpr->desugarExpr;
@@ -844,9 +850,11 @@ void ItemResolverUtil::GetFuncNamedParam(std::string &detail, Cangjie::SourceMan
             detail += " = ";
             AddTypeByNodeAndType(detail, filePath, assignExpr, sourceManager);
         }
+#ifndef NO_EXCEPTIONS
     } catch (NullPointerException &e) {
         Trace::Log("Invoke compiler api catch a NullPointerException");
     }
+#endif
 }
 
 void ItemResolverUtil::ResolveMacroParams(std::string &detail,

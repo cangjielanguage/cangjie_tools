@@ -42,15 +42,19 @@ class Logger {
 public:
     ~Logger() noexcept
     {
+#ifndef NO_EXCEPTIONS
         try {
+#endif
             if (outToFile.is_open()) {
                 outToFile.close();
             }
+#ifndef NO_EXCEPTIONS
         } catch (std::exception &e) {
             // do nothing and prevent destructor from throwing exceptions.
         } catch (...) {
             // do nothing and prevent destructor from throwing exceptions.
         }
+#endif
     }
 
     Logger(const Logger &) = delete;

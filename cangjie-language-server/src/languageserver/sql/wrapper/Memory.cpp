@@ -28,14 +28,18 @@ std::size_t getHardHeapLimit() noexcept { return static_cast<std::size_t>(sqlite
 void setSoftHeapLimit(std::size_t N)
 {
     if (sqlite3_soft_heap_limit64(static_cast<sqlite_int64>(N)) < 0) {
+#ifndef NO_EXCEPTIONS
         throw std::runtime_error("Failed to set SQLite soft heap limit");
+#endif
     }
 }
 
 void setHardHeapLimit(std::size_t N)
 {
     if (sqlite3_hard_heap_limit64(static_cast<sqlite_int64>(N)) < 0) {
+#ifndef NO_EXCEPTIONS
         throw std::runtime_error("Failed to set SQLite hard heap limit");
+#endif
     }
 }
 

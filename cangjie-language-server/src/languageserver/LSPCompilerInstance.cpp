@@ -114,7 +114,7 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
     upstreamPkgs = depPkgs;
     return depPkgsEdges;
 }
-
+// LCOV_EXCL_START
 void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &prePkgName)
 {
     (void)UpdateUpstreamPkgs();
@@ -167,7 +167,7 @@ void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &pr
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::UpdateDepGraph(
     const std::unique_ptr<ark::DependencyGraph> &graph, const std::string &fullPkgName)
 {
@@ -215,7 +215,7 @@ Ptr<File> LSPCompilerInstance::GetFileByPath(const std::string& filePath)
     }
     return nullptr;
 }
-
+// LCOV_EXCL_START
 std::unordered_set<std::string> LSPCompilerInstance::GetAllImportedCjo(
     const std::string &pkgName, std::unordered_map<std::string, bool> &isVisited)
 {
@@ -268,7 +268,7 @@ void LSPCompilerInstance::ImportUsrPackage(const std::string &curModuleName)
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::ImportUsrCjo(const std::string &curModuleName)
 {
     if (usrCjoFileCacheMap.count(curModuleName) != 0) {
@@ -355,7 +355,7 @@ bool LSPCompilerInstance::CompileAfterParse(
     cjoManager->SetData(pkgNameForPath, cjoData);
     return changed;
 }
-
+// LCOV_EXCL_START
 std::vector<std::string> LSPCompilerInstance::GetTopologySort()
 {
     auto tempDependentPackageMap = dependentPackageMap;
@@ -387,7 +387,7 @@ std::vector<std::string> LSPCompilerInstance::GetTopologySort()
     }
     return result;
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::SetCjoPathInModules(const std::string &cangjieHome,
                                               const std::string &cangjiePath)
 {

@@ -54,9 +54,11 @@ bool Connection::isInterrupted() const noexcept { return sqlite3_is_interrupted(
 void Connection::enableLoadExtension()
 {
     int RC = sqlite3_enable_load_extension(DB, 1);
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK) {
         throw Exception(RC, "Failed to enable extension loading");
     }
+#endif
 }
 
 void Connection::loadExtension(const std::filesystem::path &File)
@@ -64,9 +66,12 @@ void Connection::loadExtension(const std::filesystem::path &File)
     char *ErrMsg = nullptr;
     ScopeExit FreeErrMsg = [&]() noexcept { sqlite3_free(ErrMsg); };
     int RC = sqlite3_load_extension(DB, File.string().c_str(), nullptr, &ErrMsg);
+
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(RC, "Failed to load extension from \"" + File.string() + "\"" +
                                 (ErrMsg != nullptr ? ": " + std::string(ErrMsg) : ""));
+#endif
     }
 }
 
@@ -76,10 +81,14 @@ Statement Connection::prepare(std::string_view SQL)
     int RC =
         sqlite3_prepare_v3(DB, SQL.data(), static_cast<int>(SQL.size()), SQLITE_PREPARE_PERSISTENT, &Stmt, nullptr);
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(RC, "Failed to prepare statement \"" + std::string(SQL) + "\"");
+#endif
     }
     if (Stmt == nullptr) {
+#ifndef NO_EXCEPTIONS
         throw Exception(sqlite::Error, "Failed to prepare SQL statement");
+#endif
     }
     return Statement(Stmt);
 }
@@ -91,7 +100,9 @@ void Connection::execute(std::string_view SQL)
         sqlite3_stmt *Stmt = nullptr;
         int RC = sqlite3_prepare_v2(DB, innerSQL.data(), static_cast<int>(innerSQL.size()), &Stmt, &Tail);
         if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
             throw Exception(DB, "Failed to prepare statement \"" + std::string(innerSQL) + "\"");
+#endif
         }
         innerSQL.remove_prefix(Tail - innerSQL.data());
         return Statement(Stmt);
@@ -124,7 +135,9 @@ void Connection::releaseMemory()
 {
     int RC = sqlite3_db_release_memory(DB);
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(DB, "Failed to release database connection memory");
+#endif
     }
 }
 
@@ -134,7 +147,9 @@ Connection open(const std::filesystem::path &File, int Flags)
     int RC = sqlite3_open_v2(File.string().c_str(), &SQLite, Flags, nullptr);
     auto DB = Connection(SQLite); // Non-null even on error.
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(RC, "Cannot open database file " + File.string());
+#endif
     }
     return DB;
 }
@@ -145,7 +160,9 @@ Connection memdb(const std::string &Name, int Flags)
     int RC = sqlite3_open_v2(Name.c_str(), &SQLite, Flags, "memdb");
     auto DB = Connection(SQLite); // Non-null even on error.
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(RC, "Cannot open in-memory database " + Name);
+#endif
     }
     return DB;
 }
@@ -156,7 +173,9 @@ Connection tempdb()
     int RC = sqlite3_open("", &SQLite);
     auto DB = Connection(SQLite); // Non-null even on error.
     if (RC != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(RC, "Cannot open temporary database");
+#endif
     }
     return DB;
 }
