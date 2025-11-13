@@ -57,7 +57,7 @@ public func createSub(): JSValue/* FIXME: `Inheritances.SubClass` */ {
 
 public open class ExportedInterface {
     
-    protected ExportedInterface(public var myOption!: Option<String> = None) {}
+    protected ExportedInterface(private var myOption!: Option<String> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {

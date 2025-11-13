@@ -29,7 +29,7 @@ import ohos.base.*
 
 public class TDDiagBuilder {
     
-    protected TDDiagBuilder(var arkts_object: JSObject) {}
+    protected TDDiagBuilder(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(): void
 	 */
@@ -202,7 +202,7 @@ public class TDDiagBuilder {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): TDDiagBuilder {
+     static func fromJSValue(context: JSContext, input: JSValue): TDDiagBuilder {
         TDDiagBuilder(input.asObject())
     }
 }
@@ -214,7 +214,7 @@ public class TDDiagBuilder {
 
 public class d10 {
     
-    protected d10(var arkts_object: JSObject) {}
+    protected d10(var arkts_object: JSObject) { }
     
     
     /**
@@ -278,7 +278,7 @@ public class d10 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): d10 {
+     static func fromJSValue(context: JSContext, input: JSValue): d10 {
         d10(input.asObject())
     }
 }

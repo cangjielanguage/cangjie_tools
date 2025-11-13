@@ -17,7 +17,7 @@ import ohos.base.*
 
 public class MessagePackage {
     
-    protected MessagePackage(var arkts_object: JSObject) {}
+    protected MessagePackage(var arkts_object: JSObject) { }
     
     
     /**
@@ -33,7 +33,7 @@ public class MessagePackage {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
+     static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
     }
 }

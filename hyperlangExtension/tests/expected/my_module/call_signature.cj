@@ -27,7 +27,7 @@ public const when = 0/* FIXME: Initialization is required */
 
 public open class when {
     
-    protected when(public var arkts_object: JSObject) {}
+    protected when(public var arkts_object: JSObject) { }
     
     
     /**
@@ -65,7 +65,7 @@ public open class when {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): when {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): when {
         when(input.asObject())
     }
 }
@@ -80,7 +80,7 @@ public open class when {
 
 public open class VerificationMode {
     
-    protected VerificationMode(public var arkts_object: JSObject) {}
+    protected VerificationMode(public var arkts_object: JSObject) { }
     
     
     /**
@@ -118,7 +118,7 @@ public open class VerificationMode {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): VerificationMode {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): VerificationMode {
         VerificationMode(input.asObject())
     }
 }
@@ -135,7 +135,7 @@ public open class VerificationMode {
 
 public class ArgumentMatchers {
     
-    protected ArgumentMatchers(var arkts_object: JSObject) {}
+    protected ArgumentMatchers(var arkts_object: JSObject) { }
     
     
     public static mut prop any: JSValue/* FIXME: `UnsupportedType[FirstToken]` */ {
@@ -233,7 +233,7 @@ public class ArgumentMatchers {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): ArgumentMatchers {
+     static func fromJSValue(context: JSContext, input: JSValue): ArgumentMatchers {
         ArgumentMatchers(input.asObject())
     }
 }
@@ -250,7 +250,7 @@ public class ArgumentMatchers {
 
 public class MockKit {
     
-    protected MockKit(var arkts_object: JSObject) {}
+    protected MockKit(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(): void
 	 */
@@ -309,7 +309,7 @@ public class MockKit {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MockKit {
+     static func fromJSValue(context: JSContext, input: JSValue): MockKit {
         MockKit(input.asObject())
     }
 }

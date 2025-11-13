@@ -55,7 +55,7 @@ public const o = "default"
 
 public class BuildProfile {
     
-    protected BuildProfile(var arkts_object: JSObject) {}
+    protected BuildProfile(var arkts_object: JSObject) { }
     
     
     public static prop j: String {
@@ -95,7 +95,7 @@ public class BuildProfile {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): BuildProfile {
+     static func fromJSValue(context: JSContext, input: JSValue): BuildProfile {
         BuildProfile(input.asObject())
     }
 }

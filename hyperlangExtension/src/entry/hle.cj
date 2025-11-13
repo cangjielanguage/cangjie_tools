@@ -196,7 +196,7 @@ public class A2CJ {
     public func transType(typeType: TypeType): Tokens {
         let ret = Tokens()
         ret.append(Token(TokenKind.COMMENT, typeType.comment) + nl)
-        ret.append(typeType.generate(gconfig) + nl)
+        ret.append(typeType.generate() + nl)
         ret
     }
 

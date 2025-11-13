@@ -50,7 +50,7 @@ public enum AutoGenType0 {
 
 public class AppSettings {
     
-    protected AppSettings(var arkts_object: JSObject) {}
+    protected AppSettings(var arkts_object: JSObject) { }
     
     
     /**
@@ -74,7 +74,7 @@ public class AppSettings {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): AppSettings {
+     static func fromJSValue(context: JSContext, input: JSValue): AppSettings {
         AppSettings(input.asObject())
     }
 }

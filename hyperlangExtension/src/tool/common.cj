@@ -10,7 +10,6 @@ import std.collection.*
 import std.ast.*
 import std.regex.*
 import stdx.serialization.serialization.*
-import std.sync.*
 
 public const i8: String = "Int8"
 public const i16: String = "Int16"
@@ -27,7 +26,6 @@ public const bool: String = "Bool"
 public const str: String = "String"
 public const unit: String = "Unit"
 public const byteArr: String = "Array<UInt8>"
-public const any: String = "Any"
 public const promise: String = "Promise"
 public const JsBigInt: String = "bigint"
 public const JsHashMap: String = "Record"
@@ -330,7 +328,7 @@ public class TypeType <: Serializable<TypeType> {
         "type ${name} = ${tsType}"
     }
 
-    public func generate(gconfig: GlobalConfig): Tokens {
+    public func generate(): Tokens {
         let tok = Tokens()
         match (tsType) {
             case TsUnion(arr) =>

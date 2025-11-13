@@ -22,7 +22,7 @@ import std.collection.{ HashMap }
 
 public class PushReporter {
     
-    protected PushReporter(var arkts_object: JSObject) {}
+    protected PushReporter(var arkts_object: JSObject) { }
     
     
     /**
@@ -36,7 +36,7 @@ public class PushReporter {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
+     static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
         PushReporter(input.asObject())
     }
 }
@@ -47,7 +47,7 @@ public class PushReporter {
 
 public class MessagePackage {
     
-    protected MessagePackage(var arkts_object: JSObject) {}
+    protected MessagePackage(var arkts_object: JSObject) { }
     
     
     public static mut prop idt: JSValue/* FIXME: `idt_struct` */ {
@@ -69,7 +69,7 @@ public class MessagePackage {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
+     static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
     }
 }

@@ -21,7 +21,7 @@ import std.collection.{ HashMap }
 public open class AutoGenType0 {
     
     protected AutoGenType0(public var city: String,
-    public var zipCode: String) {}
+    public var zipCode: String) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -48,7 +48,7 @@ public open class AutoGenType0 {
 
 public open class Product {
     
-    protected Product(public var price!: Option<Float64> = None) {}
+    protected Product(private var price!: Option<Float64> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -75,8 +75,8 @@ public open class Product {
 
 public open class Point {
     
-    protected Point(public let x: Float64,
-    public let y: Float64) {}
+    protected Point(private let x: Float64,
+    private let y: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -102,7 +102,7 @@ public open class Point {
 
 public open class Callback1 {
     
-    protected Callback1(public var arkts_object: JSObject) {}
+    protected Callback1(public var arkts_object: JSObject) { }
     
     
     
@@ -110,7 +110,7 @@ public open class Callback1 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Callback1 {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Callback1 {
         Callback1(input.asObject())
     }
 }
@@ -123,7 +123,7 @@ public open class Callback1 {
 
 public open class Person {
     
-    protected Person(public var arkts_object: JSObject) {}
+    protected Person(public var arkts_object: JSObject) { }
     
     
     public mut prop name: String {
@@ -151,7 +151,7 @@ public open class Person {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Person {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Person {
         Person(input.asObject())
     }
 }
@@ -162,7 +162,7 @@ public open class Person {
 
 public open class Dictionary {
     
-    protected Dictionary(public var arkts_object: JSObject) {}
+    protected Dictionary(public var arkts_object: JSObject) { }
     
     
     
@@ -170,7 +170,7 @@ public open class Dictionary {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Dictionary {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Dictionary {
         Dictionary(input.asObject())
     }
 }
@@ -182,7 +182,7 @@ public open class Dictionary {
 
 public open class Calculator {
     
-    protected Calculator(public var arkts_object: JSObject) {}
+    protected Calculator(public var arkts_object: JSObject) { }
     
     
     /**
@@ -202,7 +202,7 @@ public open class Calculator {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Calculator {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Calculator {
         Calculator(input.asObject())
     }
 }
@@ -213,7 +213,7 @@ public open class Calculator {
 
 public open class Config {
     
-    protected Config(public var arkts_object: JSObject) {}
+    protected Config(public var arkts_object: JSObject) { }
     
     
     
@@ -221,7 +221,7 @@ public open class Config {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Config {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Config {
         Config(input.asObject())
     }
 }
@@ -237,9 +237,9 @@ public open class Config {
 
 public open class UserProfile {
     
-    protected UserProfile(public var id: Float64,
-    public var name: String,
-    public var address: AutoGenType0) {}
+    protected UserProfile(private var id: Float64,
+    private var name: String,
+    private var address: AutoGenType0) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -268,7 +268,7 @@ public open class UserProfile {
 
 public open class List {
     
-    protected List(public var items: Array<String>) {}
+    protected List(private var items: Array<String>) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -291,7 +291,7 @@ public open class List {
 
 public open class ClockConstructor {
     
-    protected ClockConstructor() {}
+    protected ClockConstructor() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -318,7 +318,7 @@ public open class ClockConstructor {
 
 public open class IWBAPI {
     
-    protected IWBAPI(public var arkts_object: JSObject) {}
+    protected IWBAPI(public var arkts_object: JSObject) { }
     
     
     /**
@@ -350,7 +350,7 @@ public open class IWBAPI {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): IWBAPI {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): IWBAPI {
         IWBAPI(input.asObject())
     }
 }
@@ -362,7 +362,7 @@ public open class IWBAPI {
 
 public open class UnionInterface {
     
-    protected UnionInterface(public var arkts_object: JSObject) {}
+    protected UnionInterface(public var arkts_object: JSObject) { }
     
     
     /**
@@ -386,7 +386,7 @@ public open class UnionInterface {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UnionInterface {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): UnionInterface {
         UnionInterface(input.asObject())
     }
 }
@@ -400,7 +400,7 @@ public open class UnionInterface {
 
 public open class LoggerAdapter {
     
-    protected LoggerAdapter(public var arkts_object: JSObject) {}
+    protected LoggerAdapter(public var arkts_object: JSObject) { }
     
     
     /**
@@ -438,7 +438,7 @@ public open class LoggerAdapter {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): LoggerAdapter {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): LoggerAdapter {
         LoggerAdapter(input.asObject())
     }
 }
@@ -450,7 +450,7 @@ public open class LoggerAdapter {
 
 public open class PluginContainer {
     
-    protected PluginContainer(public var arkts_object: JSObject) {}
+    protected PluginContainer(public var arkts_object: JSObject) { }
     
     
     /**
@@ -474,7 +474,7 @@ public open class PluginContainer {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): PluginContainer {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): PluginContainer {
         PluginContainer(input.asObject())
     }
 }
@@ -497,7 +497,7 @@ public open class PluginContainer {
 
 public open class BasePlugin {
     
-    protected BasePlugin(public var arkts_object: JSObject) {}
+    protected BasePlugin(public var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(d12: Biz_Type): void
 	 */
@@ -647,7 +647,7 @@ public open class BasePlugin {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): BasePlugin {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): BasePlugin {
         BasePlugin(input.asObject())
     }
 }
@@ -661,7 +661,7 @@ public open class BasePlugin {
 
 public class DefaultPluginContainer <: PluginContainer {
     
-    protected DefaultPluginContainer(arkts_object: JSObject) { super(arkts_object) }
+    protected DefaultPluginContainer(public var arkts_object: JSObject) { super(arkts_object) }
     /**
 	 * @brief constructor(): void
 	 */
@@ -702,7 +702,7 @@ public class DefaultPluginContainer <: PluginContainer {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): DefaultPluginContainer {
+    public  static func fromJSValue(context: JSContext, input: JSValue): DefaultPluginContainer {
         DefaultPluginContainer(input.asObject())
     }
 }

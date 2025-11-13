@@ -39,7 +39,7 @@ public enum AutoGenType0 {
 
 public class C {
     
-    protected C(var arkts_object: JSObject) {}
+    protected C(var arkts_object: JSObject) { }
     
     
     /**
@@ -55,7 +55,7 @@ public class C {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): C {
+     static func fromJSValue(context: JSContext, input: JSValue): C {
         C(input.asObject())
     }
 }
