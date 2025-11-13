@@ -893,7 +893,6 @@
 {"codeCov":{"testFile":"LSP_Codecov_OnDocumentHighlight_002.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_Codecov_OnDocumentHighlight_003.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_CodeCov_OnDocumentLink_001.test","id":"9"}}
-{"codeCov":{"testFile":"LSP_CodeCov_OnDocumentLink_002.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_CodeCov_OnHover_001.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_CodeCov_OnHover_002.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_CodeCov_OnHover_003.test","id":"9"}}
