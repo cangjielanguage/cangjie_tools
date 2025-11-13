@@ -33,7 +33,7 @@ public enum AutoGenType5 {
 
 public open class AutoGenType0 {
     
-    protected AutoGenType0(public var n: Float64) {}
+    protected AutoGenType0(public var n: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -57,7 +57,7 @@ public open class AutoGenType0 {
 
 public open class AutoGenType1 {
     
-    protected AutoGenType1(public var n: Float64) {}
+    protected AutoGenType1(public var n: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -81,7 +81,7 @@ public open class AutoGenType1 {
 
 public open class AutoGenType2 {
     
-    protected AutoGenType2(public var msg: String) {}
+    protected AutoGenType2(public var msg: String) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -109,7 +109,7 @@ public open class AutoGenType3 {
     
     protected AutoGenType3(public var msg: String,
     public var data: String,
-    public var code!: Option<JSValue/* FIXME: `undefined` */> = None) {}
+    public var code!: Option<JSValue/* FIXME: `undefined` */> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -143,7 +143,7 @@ public open class AutoGenType4 {
     
     protected AutoGenType4(public var code: Float64,
     public var msg: String,
-    public var data!: Option<JSValue/* FIXME: `undefined` */> = None) {}
+    public var data!: Option<JSValue/* FIXME: `undefined` */> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -186,7 +186,7 @@ public open class AutoGenType4 {
 
 public class AnonymousClass {
     
-    protected AnonymousClass(var arkts_object: JSObject) {}
+    protected AnonymousClass(var arkts_object: JSObject) { }
     
     
     /**
@@ -236,7 +236,7 @@ public class AnonymousClass {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): AnonymousClass {
+     static func fromJSValue(context: JSContext, input: JSValue): AnonymousClass {
         AnonymousClass(input.asObject())
     }
 }

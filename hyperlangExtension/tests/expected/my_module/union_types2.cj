@@ -101,7 +101,7 @@ public enum AutoGenType3 {
 public open class AutoGenType4 {
     
     protected AutoGenType4(public var city: String,
-    public var zipCode: String) {}
+    public var zipCode: String) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -137,13 +137,13 @@ public open class AutoGenType4 {
 
 public open class UserProfile {
     
-    protected UserProfile(public var array: Array<AutoGenType0>,
-    public var test: (num: AutoGenType0) -> String,
-    public var test1: AutoGenType2,
-    public var test2: AutoGenType3,
-    public var name: String,
-    public var address: AutoGenType4,
-    public var id!: Option<AutoGenType0> = None) {}
+    protected UserProfile(private var array: Array<AutoGenType0>,
+    private var test: (num: AutoGenType0) -> String,
+    private var test1: AutoGenType2,
+    private var test2: AutoGenType3,
+    private var name: String,
+    private var address: AutoGenType4,
+    private var id!: Option<AutoGenType0> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {

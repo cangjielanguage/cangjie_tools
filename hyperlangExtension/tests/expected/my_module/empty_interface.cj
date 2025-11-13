@@ -17,7 +17,8 @@ import ohos.base.*
 
 public open class i <: e {
     
-    protected i() {}
+    protected i() {
+        super() }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -40,7 +41,8 @@ public open class i <: e {
 
 public class c <: e {
     
-    protected c(arkts_object: JSObject) {}
+    protected c(public var arkts_object: JSObject) {
+        super() }
     
     
     
@@ -48,7 +50,7 @@ public class c <: e {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): c {
+    public  static func fromJSValue(context: JSContext, input: JSValue): c {
         c(input.asObject())
     }
 }

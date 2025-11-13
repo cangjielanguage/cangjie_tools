@@ -101,7 +101,7 @@ public enum AutoGenType3 < T, M > where T <: JSInteropType<T>, M <: JSInteropTyp
 
 public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
     
-    protected B(public var arkts_object: JSObject) {}
+    protected B(public var arkts_object: JSObject) { }
     
     
     /**
@@ -125,7 +125,7 @@ public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): B<W, M> {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): B<W, M> {
         B(input.asObject())
     }
 }
@@ -137,7 +137,7 @@ public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
 
 public class A<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
     
-    protected A(var arkts_object: JSObject) {}
+    protected A(var arkts_object: JSObject) { }
     
     
     /**
@@ -161,7 +161,7 @@ public class A<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): A<T, U> {
+     static func fromJSValue(context: JSContext, input: JSValue): A<T, U> {
         A(input.asObject())
     }
 }

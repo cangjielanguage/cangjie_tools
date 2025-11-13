@@ -167,11 +167,11 @@ public enum ListenerStatusString <: ToString & Equatable < ListenerStatusString 
 
 public open class TestListener {
     
-    protected TestListener(public var onStart!: Option<() -> Unit> = None,
-    public var onDestroy!: Option<() -> Unit> = None,
-    public var onError!: Option<(code: ErrorCode, msg: String) -> Unit> = None,
-    public var onTouch!: Option<() -> Unit> = None,
-    public var onEvent!: Option<(e: EventType) -> Unit> = None) {}
+    protected TestListener(private var onStart!: Option<() -> Unit> = None,
+    private var onDestroy!: Option<() -> Unit> = None,
+    private var onError!: Option<(code: ErrorCode, msg: String) -> Unit> = None,
+    private var onTouch!: Option<() -> Unit> = None,
+    private var onEvent!: Option<(e: EventType) -> Unit> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -277,7 +277,7 @@ public open class MyListener {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener(public var arkts_object: JSObject) {}
+    protected MyListener(public var arkts_object: JSObject) { }
     
     
     /**
@@ -323,7 +323,7 @@ public open class MyListener {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyListener {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener {
         MyListener(input.asObject())
     }
 }
@@ -336,7 +336,7 @@ public open class MyListener2 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener2(public var arkts_object: JSObject) {}
+    protected MyListener2(public var arkts_object: JSObject) { }
     
     
     /**
@@ -363,7 +363,7 @@ public open class MyListener2 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyListener2 {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener2 {
         MyListener2(input.asObject())
     }
 }
@@ -376,7 +376,7 @@ public open class MyListener3 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener3(public var arkts_object: JSObject) {}
+    protected MyListener3(public var arkts_object: JSObject) { }
     
     
     /**
@@ -403,7 +403,7 @@ public open class MyListener3 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyListener3 {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener3 {
         MyListener3(input.asObject())
     }
 }
@@ -416,7 +416,7 @@ public open class MyListener5 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener5(public var arkts_object: JSObject) {}
+    protected MyListener5(public var arkts_object: JSObject) { }
     
     
     /**
@@ -443,7 +443,7 @@ public open class MyListener5 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyListener5 {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener5 {
         MyListener5(input.asObject())
     }
 }
@@ -456,7 +456,7 @@ public class MyListener4 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener4(var arkts_object: JSObject) {}
+    protected MyListener4(var arkts_object: JSObject) { }
     
     
     /**
@@ -483,7 +483,7 @@ public class MyListener4 {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyListener4 {
+     static func fromJSValue(context: JSContext, input: JSValue): MyListener4 {
         MyListener4(input.asObject())
     }
 }

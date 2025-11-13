@@ -191,7 +191,7 @@ public enum AutoGenType5 {
 
 public class UnionTypes {
     
-    protected UnionTypes(var arkts_object: JSObject) {}
+    protected UnionTypes(var arkts_object: JSObject) { }
     
     // Properties with union types
     public mut prop t_null: Option<Float64> {
@@ -329,7 +329,7 @@ public class UnionTypes {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UnionTypes {
+     static func fromJSValue(context: JSContext, input: JSValue): UnionTypes {
         UnionTypes(input.asObject())
     }
 }

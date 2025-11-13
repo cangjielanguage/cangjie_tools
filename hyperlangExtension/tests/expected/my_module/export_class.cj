@@ -16,7 +16,7 @@ import ohos.base.*
 
 public open class AutoGenType0 {
     
-    protected AutoGenType0() {}
+    protected AutoGenType0() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -40,7 +40,7 @@ public open class AutoGenType0 {
 
 public class UserInfoManager {
     
-    protected UserInfoManager(var arkts_object: JSObject) {}
+    protected UserInfoManager(var arkts_object: JSObject) { }
     
     
     public mut prop userPreferences: ?AutoGenType0 {
@@ -62,7 +62,7 @@ public class UserInfoManager {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UserInfoManager {
+     static func fromJSValue(context: JSContext, input: JSValue): UserInfoManager {
         UserInfoManager(input.asObject())
     }
 }

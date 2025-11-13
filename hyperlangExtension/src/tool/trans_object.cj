@@ -204,9 +204,7 @@ public class TransObject {
         var isPublicType = false
         if (arkMethods.size > 0 || arkParentsMethods.size > 0 || this.arkCategory == "class") {
             let classNameToken = Token(TokenKind.IDENTIFIER, arkName)
-            if (arkParents.size > 0) {
-                property.append(quote(arkts_object: JSObject))
-            } else if (this.cjModifiers.contains("open")) {
+            if (arkParents.size > 0 || this.cjModifiers.contains("open")) {
                 property.append(quote(public var arkts_object: JSObject))
             } else {
                 property.append(quote(var arkts_object: JSObject))
@@ -224,7 +222,7 @@ public class TransObject {
                     arkts_object.toJSValue()
                 }
 
-                static func fromJSValue(context: JSContext, input: JSValue): $(templateClassNameToken) {
+                $(getTokenWithoutNL(modifiers))static func fromJSValue(context: JSContext, input: JSValue): $(templateClassNameToken) {
                     $(classNameToken)\(input.asObject()\)
                 })
             methodToken.append(proMethodTemplate)
@@ -244,6 +242,28 @@ public class TransObject {
         }
         res += ") }"
         return res
+    }
+
+    private func genSuperOfInterface(totalProperties: ArrayList<Property>, fromJSValueItem: Tokens) {
+        for (i in 0..totalProperties.size) {
+            let arkProp = totalProperties[i]
+            var proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
+            let tsType = arkProp.typeNode
+            let ctxToken = Tokens(Token(TokenKind.IDENTIFIER, "getMainContext()"))
+
+            let isLast = i >= totalProperties.size - 1
+            // generate fromJS statement for this field
+            if (arkProp.isOptional) {
+                fromJSValueItem.append(quote($(proName): ))
+            }
+            let fromJs = tsType.fromJSValue(gconfig, quote(arkts_object[$(arkProp.propKey)]), ctxToken,
+                isOptional: arkProp.isOptional, initValue: arkProp.defValue)
+            fromJSValueItem.append(fromJs)
+
+            if (!isLast) {
+                fromJSValueItem.append(commaToken + nl)
+            }
+        }
     }
 
     private func generateAll(modifiersTokens: Tokens, templateClassNameToken: Token, parent: Tokens,
@@ -274,14 +294,25 @@ public class TransObject {
                     $(eventManager)
                     protected $(classNameToken)($(property)))
         let brackets = if (propertyOnly && arkParentsProperties.size > 0) {
-            Token(TokenKind.IDENTIFIER, generateSuper())
+            Token(TokenKind.IDENTIFIER, generateSuper()).toTokens()
         } else {
-            Token(TokenKind.IDENTIFIER,
+            var constructorBody = Tokens()
                 if (arkParents.size > 0 && (arkParentsCategories[0] == "class" || arkParentsMethods.size > 0)) {
-                    "{ super(arkts_object) }"
+                    constructorBody.append(quote({ super(arkts_object) }))
+                } else if (arkParents.size > 0 && (arkParentsCategories[0] == "interface")) {
+                    /* The generated code is as follows
+                        super(Float64.fromJSValue(getMainContext(), arkts_object["p"]))
+                    */
+                    let superTokens = Tokens()
+                    genSuperOfInterface(arkParentsProperties, superTokens)
+                    constructorBody.append(quote({))
+                    constructorBody.append(nl)
+                    constructorBody.append(quote(super($(superTokens))))
+                    constructorBody.append(quote(}))
                 } else {
-                    "{}"
-                })
+                    constructorBody.append(quote({}))
+                }
+                constructorBody
         }
         let template2 = quote(
                     $(constructorToken)
@@ -340,13 +371,23 @@ public class TransObject {
             if (fromParent) {
                 property.append(quote($(proName)!: $(typeToken) = $(defToken)))
             } else {
-                property.append(quote(public $(prefix) $(proName)!: $(typeToken) = $(defToken)))
+                if (this.arkCategory == "interface" && !arkName.startsWith("AutoGenType")) {
+                    property.append(quote(private $(prefix) $(proName)!: $(typeToken) = $(defToken)))
+                } else {
+                    property.append(quote(public $(prefix) $(proName)!: $(typeToken) = $(defToken)))
+                }
+                
             }
         } else {
             if (fromParent) {
                 property.append(quote($(proName): $(proType)))
             } else {
-                property.append(quote(public $(prefix) $(proName): $(proType)))
+                if (this.arkCategory == "interface" && !arkName.startsWith("AutoGenType")) {
+                    property.append(quote(private $(prefix) $(proName): $(proType)))
+                } else {
+                    property.append(quote(public $(prefix) $(proName): $(proType)))
+                }
+                
             }
         }
         if (!last) {

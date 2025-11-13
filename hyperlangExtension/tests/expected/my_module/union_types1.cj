@@ -88,7 +88,7 @@ public enum a1 {
 
 public class A {
     
-    protected A(var arkts_object: JSObject) {}
+    protected A(var arkts_object: JSObject) { }
     
     
     public mut prop a: a1 {
@@ -145,7 +145,7 @@ public class A {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): A {
+     static func fromJSValue(context: JSContext, input: JSValue): A {
         A(input.asObject())
     }
 }

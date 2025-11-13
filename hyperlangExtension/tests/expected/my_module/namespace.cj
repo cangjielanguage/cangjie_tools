@@ -17,7 +17,7 @@ import ohos.base.*
 
 public open class B {
     
-    protected B() {}
+    protected B() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -42,7 +42,7 @@ public open class B {
 
 public open class E {
     
-    protected E() {}
+    protected E() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -67,7 +67,7 @@ public open class E {
 
 public open class H {
     
-    protected H() {}
+    protected H() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {

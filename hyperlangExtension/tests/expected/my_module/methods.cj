@@ -165,7 +165,7 @@ public enum EMStr <: ToString & Equatable < EMStr > {
 
 public open class IM {
     
-    protected IM(public var arkts_object: JSObject) {}
+    protected IM(public var arkts_object: JSObject) { }
     
     
     /**
@@ -233,7 +233,7 @@ public open class IM {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): IM {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): IM {
         IM(input.asObject())
     }
 }
@@ -245,7 +245,7 @@ public open class IM {
 
 public open class Drivable {
     
-    protected Drivable(public var arkts_object: JSObject) {}
+    protected Drivable(public var arkts_object: JSObject) { }
     
     
     /**
@@ -265,7 +265,7 @@ public open class Drivable {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Drivable {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Drivable {
         Drivable(input.asObject())
     }
 }
@@ -289,7 +289,7 @@ public open class Drivable {
 
 public class CM {
     
-    protected CM(var arkts_object: JSObject) {}
+    protected CM(var arkts_object: JSObject) { }
     
     // 静态成员
     public static mut prop sa: String {
@@ -463,7 +463,7 @@ public class CM {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): CM {
+     static func fromJSValue(context: JSContext, input: JSValue): CM {
         CM(input.asObject())
     }
 }
@@ -476,7 +476,7 @@ public class CM {
 
 public class TE {
     
-    protected TE(var arkts_object: JSObject) {}
+    protected TE(var arkts_object: JSObject) { }
     /**
   * @brief constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
   */
@@ -522,7 +522,7 @@ public class TE {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): TE {
+     static func fromJSValue(context: JSContext, input: JSValue): TE {
         TE(input.asObject())
     }
 }
@@ -533,7 +533,7 @@ public class TE {
 
 public class Greeter {
     
-    protected Greeter(var arkts_object: JSObject) {}
+    protected Greeter(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(greeting: string): void
 	 */
@@ -557,7 +557,7 @@ public class Greeter {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Greeter {
+     static func fromJSValue(context: JSContext, input: JSValue): Greeter {
         Greeter(input.asObject())
     }
 }
@@ -567,7 +567,7 @@ public class Greeter {
 
 public class Person {
     
-    protected Person(var arkts_object: JSObject) {}
+    protected Person(var arkts_object: JSObject) { }
     
     
     
@@ -575,7 +575,7 @@ public class Person {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Person {
+     static func fromJSValue(context: JSContext, input: JSValue): Person {
         Person(input.asObject())
     }
 }
@@ -587,7 +587,7 @@ public class Person {
 
 public class AnimalProtect {
     
-    protected AnimalProtect(var arkts_object: JSObject) {}
+    protected AnimalProtect(var arkts_object: JSObject) { }
     
     // 受保护属性
     public mut prop name: String {
@@ -616,7 +616,7 @@ public class AnimalProtect {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): AnimalProtect {
+     static func fromJSValue(context: JSContext, input: JSValue): AnimalProtect {
         AnimalProtect(input.asObject())
     }
 }
@@ -628,7 +628,7 @@ public class AnimalProtect {
 
 public class Car {
     
-    protected Car(var arkts_object: JSObject) {}
+    protected Car(var arkts_object: JSObject) { }
     
     // 只读属性
     public prop brand: String {
@@ -658,7 +658,7 @@ public class Car {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Car {
+     static func fromJSValue(context: JSContext, input: JSValue): Car {
         Car(input.asObject())
     }
 }
@@ -670,7 +670,7 @@ public class Car {
 
 public class Box<T> where T <: JSInteropType<T> {
     
-    protected Box(var arkts_object: JSObject) {}
+    protected Box(var arkts_object: JSObject) { }
     
     // 属性
     public mut prop value: T {
@@ -701,7 +701,7 @@ public class Box<T> where T <: JSInteropType<T> {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Box<T> {
+     static func fromJSValue(context: JSContext, input: JSValue): Box<T> {
         Box(input.asObject())
     }
 }
@@ -712,7 +712,7 @@ public class Box<T> where T <: JSInteropType<T> {
 
 public open class Shape {
     
-    protected Shape(public var arkts_object: JSObject) {}
+    protected Shape(public var arkts_object: JSObject) { }
     
     
     /**
@@ -727,7 +727,7 @@ public open class Shape {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Shape {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Shape {
         Shape(input.asObject())
     }
 }
@@ -739,7 +739,7 @@ public open class Shape {
 
 public class Car1 <: Drivable {
     
-    protected Car1(arkts_object: JSObject) { super(arkts_object) }
+    protected Car1(public var arkts_object: JSObject) { super(arkts_object) }
     
     
     /**
@@ -759,7 +759,7 @@ public class Car1 <: Drivable {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Car1 {
+    public  static func fromJSValue(context: JSContext, input: JSValue): Car1 {
         Car1(input.asObject())
     }
 }
@@ -772,7 +772,7 @@ public class Car1 <: Drivable {
 
 public open class Animal {
     
-    protected Animal(public var arkts_object: JSObject) {}
+    protected Animal(public var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(name: string): void
 	 */
@@ -816,7 +816,7 @@ public open class Animal {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Animal {
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Animal {
         Animal(input.asObject())
     }
 }
@@ -827,7 +827,7 @@ public open class Animal {
 
 public class Dog <: Animal {
     
-    protected Dog(arkts_object: JSObject) { super(arkts_object) }
+    protected Dog(public var arkts_object: JSObject) { super(arkts_object) }
     
     
     /**
@@ -841,7 +841,7 @@ public class Dog <: Animal {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Dog {
+    public  static func fromJSValue(context: JSContext, input: JSValue): Dog {
         Dog(input.asObject())
     }
 }
@@ -854,7 +854,7 @@ public class Dog <: Animal {
 
 public class Calculator {
     
-    protected Calculator(var arkts_object: JSObject) {}
+    protected Calculator(var arkts_object: JSObject) { }
     
     
     /**
@@ -884,7 +884,7 @@ public class Calculator {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Calculator {
+     static func fromJSValue(context: JSContext, input: JSValue): Calculator {
         Calculator(input.asObject())
     }
 }
@@ -896,7 +896,7 @@ public class Calculator {
 
 public class MyClass {
     
-    protected MyClass(var arkts_object: JSObject) {}
+    protected MyClass(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(name: string): void
 	 */
@@ -934,7 +934,7 @@ public class MyClass {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyClass {
+     static func fromJSValue(context: JSContext, input: JSValue): MyClass {
         MyClass(input.asObject())
     }
 }
@@ -947,7 +947,7 @@ public class MyClass {
 
 public class UMConfig {
     
-    protected UMConfig(var arkts_object: JSObject) {}
+    protected UMConfig(var arkts_object: JSObject) { }
     
     
     public mut prop appKey: ?String {
@@ -997,7 +997,7 @@ public class UMConfig {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UMConfig {
+     static func fromJSValue(context: JSContext, input: JSValue): UMConfig {
         UMConfig(input.asObject())
     }
 }
@@ -1011,7 +1011,7 @@ public class UMConfig {
 
 public class RecordTest {
     
-    protected RecordTest(var arkts_object: JSObject) {}
+    protected RecordTest(var arkts_object: JSObject) { }
     
     
     public mut prop recordTest: HashMap<String, String> {
@@ -1075,7 +1075,7 @@ public class RecordTest {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): RecordTest {
+     static func fromJSValue(context: JSContext, input: JSValue): RecordTest {
         RecordTest(input.asObject())
     }
 }
