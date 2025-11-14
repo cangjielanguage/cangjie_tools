@@ -187,12 +187,16 @@ void ArkASTWorker::RunWithAST(const std::string &name,
             }
             CompilerCangjieProject::GetInstance()->CompilerOneFile(file, this->callback->GetContentsByFile(file));
             this->callback->UpdateDocNeedReparse(file, inputs.version, false);
+            std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
+            callback->ReadyForDiagnostics(file, inputs.version, diagnostics);
             useASTCache = false;
         }
         if (hierarchyIgnoreRequest.find(name) == hierarchyIgnoreRequest.end() &&
             (!CompilerCangjieProject::GetInstance()->FileHasSemaCache(file) ||
                 CompilerCangjieProject::GetInstance()->CheckNeedCompiler(file))) {
             CompilerCangjieProject::GetInstance()->IncrementOnePkgCompile(file, inputs.contents);
+            std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
+            callback->ReadyForDiagnostics(file, inputs.version, diagnostics);
             useASTCache = false;
         }
         ArkAST *ast = CompilerCangjieProject::GetInstance()->GetArkAST(file);
