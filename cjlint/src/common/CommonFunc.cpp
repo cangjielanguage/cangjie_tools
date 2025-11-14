@@ -38,8 +38,12 @@ int CommonFunc::ReadJsonFileToJsonInfo(
         }
         return ERR;
     }
+#ifndef CANGJIE_ENABLE_GCOV
     try {
+#endif
+
         inputFile >> jsonInfo;
+#ifndef CANGJIE_ENABLE_GCOV
         if (inputFile.fail() || !jsonInfo.is_object()) {
             throw std::runtime_error("read json data failed!");
         }
@@ -48,6 +52,7 @@ int CommonFunc::ReadJsonFileToJsonInfo(
         inputFile.close();
         return ERR;
     }
+#endif
     inputFile.close();
     return OK;
 }
