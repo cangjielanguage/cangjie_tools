@@ -14,7 +14,7 @@ import std.process.*
 import std.fs.exists as fs_exists
 
 public func getCjVersion() {
-    return "Cangjie Coverage: 1.0.0"
+    return "Cangjie Coverage: 1.0.5"
 }
 
 public func getCjcovHelp(): String {

@@ -64,7 +64,7 @@ public open class Handle {
 
 // CpmCommand represents the base command when called without any subcommands
 class CpmCommand <: Handle {
-    private let CJPM_VERSION: String = "Cangjie Package Manager: 1.0.0"
+    private let CJPM_VERSION: String = "Cangjie Package Manager: 1.0.5"
 
     init(args: Array<String>) {
         this.arguments = args
