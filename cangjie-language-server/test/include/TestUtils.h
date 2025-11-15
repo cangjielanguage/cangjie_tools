@@ -7,7 +7,9 @@
 #ifndef LSPSERVER_TESTUTILS_H
 #define LSPSERVER_TESTUTILS_H
 
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
 #include <sstream>
 #include "../../src/json-rpc/Protocol.h"
 #include "../../src/json-rpc/URI.h"

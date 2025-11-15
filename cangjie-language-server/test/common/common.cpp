@@ -11,13 +11,17 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#ifdef __linux__
+#include <dirent.h>
+#endif
 #include <unistd.h>
-
 
 #include "SingleInstance.h"
 #include "../../src/languageserver/ArkLanguageServer.h"
 
 #ifdef _WIN32
+#include <windows.h>
+#include <TlHelp32.h>
 #else
 #include<sys/types.h>
 #include<sys/wait.h>
@@ -591,6 +595,71 @@ namespace test::common {
 #endif
     }
 
+    void KillLSPServerProcesses(pid_t parentPid, int level = 1) {
+#ifdef _WIN32
+        HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (hSnapshot == INVALID_HANDLE_VALUE) {
+            return;
+        }
+
+        PROCESSENTRY32 pe;
+        pe.dwSize = sizeof(PROCESSENTRY32);
+
+        if (Process32First(hSnapshot, &pe)) {
+            do {
+                // check is target process
+                if (_stricmp(pe.szExeFile, "LSPServer.exe") == 0 && pe.th32ParentProcessID == parentPid) {
+                    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+                    if (hProcess) {
+                        TerminateProcess(hProcess, 0);
+                        std::cerr << "Terminated LSPServer process: " << pe.szExeFile << ", PID: " << pe.th32ProcessID << std::endl;
+                        CloseHandle(hProcess);
+                    }
+                }
+            } while (Process32Next(hSnapshot, &pe));
+        }
+
+        CloseHandle(hSnapshot);
+#else
+        // linux process tree is gtest -> sh -> lsp
+        if (level > 2) {
+            return;
+        }
+        DIR *dir = opendir("/proc");
+        if (dir == nullptr) {
+            return;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            if (entry->d_type != DT_DIR || !isdigit(entry->d_name[0])) {
+                continue;
+            }
+            std::string stat_path = "/proc/" + std::string(entry->d_name) + "/stat";
+            std::ifstream stat_file(stat_path);
+            if (stat_file.is_open()) {
+                std::string pid_str, comm, state, ppid_str;
+                pid_t pid, ppid;
+
+                // read pthread from stat
+                stat_file >> pid_str >> comm >> state >> ppid_str;
+                std::stringstream(pid_str) >> pid;
+                std::stringstream(ppid_str) >> ppid;
+
+                // check is target process
+                if (ppid == parentPid) {
+                    std::cerr << "Child Process ID: " << pid << " (Command: " << comm << ")" << std::endl;
+                    if (level <= 1) {
+                        KillLSPServerProcesses(pid, level + 1);
+                    }
+                    kill(pid, SIGTERM);
+                }
+            }
+        }
+        closedir(dir);
+#endif
+    }
+
     void StartLspServer(bool useDb) {
         SingleInstance *p = SingleInstance::GetInstance();
         const std::string cachePath = JoinPath(p->pathPwd, p->testFolder);
@@ -616,24 +685,56 @@ namespace test::common {
         si.cb = sizeof(si);
         ZeroMemory(&pi, sizeof(pi));
 
-        // Start the child process.
-        if (!CreateProcess(NULL, (TCHAR *) cmdLine.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-            printf(cmdLine.c_str());
-            printf("StartLspServer fisrt failed (%d).\n", GetLastError());
+        int retryCount = 0;
+        // 3 times
+        const int maxRetries = 3;
+        // 3 min timeout
+        const DWORD timeout = 1000 * 180;
+        bool success = false;
+
+        while (retryCount < maxRetries && !success) {
+            // Start the child process.
             if (!CreateProcess(NULL, (TCHAR *) cmdLine.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
                 printf(cmdLine.c_str());
-                printf("\n");
-                printf("StartLspServer failed (%d).\n", GetLastError());
-                return;
+                printf("StartLspServer failed to create process (%d).\n", GetLastError());
+                retryCount++;
+                continue;
             }
+
+            DWORD startTime = GetTickCount();
+            DWORD waitResult = WAIT_TIMEOUT;
+            pid_t gtestLspPid = static_cast<pid_t>(pi.dwProcessId);
+
+            // Wait until child process exits or timeout
+            while (waitResult == WAIT_TIMEOUT) {
+                waitResult = WaitForSingleObject(pi.hProcess, timeout);
+                DWORD elapsedTime = GetTickCount() - startTime;
+                if (elapsedTime > timeout) {
+                    KillLSPServerProcesses(gtestLspPid);
+                    TerminateProcess(pi.hProcess, 0);
+                    printf("Process timed out and was terminated.\n");
+                    retryCount++;
+                    break;
+                }
+            }
+
+            if (waitResult == WAIT_OBJECT_0) {
+                // Process completed successfully
+                success = true;
+            } else {
+                printf("Process failed with error code: %d\n", GetLastError());
+                retryCount++;
+            }
+
+            // Close process and thread handles
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
         }
 
-        // Wait until child process exits.
-        WaitForSingleObject(pi.hProcess, INFINITE);
+        if (!success) {
+            printf("StartLspServer failed after %d retries.\n", retryCount);
+        }
 
-        // Close process and thread handles.
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
 #else
         std::string cmd =
             p->pathPwd + "/LSPServer --test --enable-log true < " + p->testFolder + "_freopen.in > " +
@@ -643,11 +744,60 @@ namespace test::common {
                               p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
         }
 
-    int status = system(cmd.c_str());
-    if (-1 == status) {
-        perror("Failed to wait for the subprocess to end.");
-    }
-    return;
+        int retryCount = 0;
+        // 3 times
+        const int maxRetries = 3;
+        // 3 min timeout
+        const int timeout = 1 * 180;
+        bool success = false;
+
+        while (retryCount < maxRetries && !success) {
+            pid_t pid = fork();
+            if (pid == -1) {
+                // Fork failed
+                perror("fork failed");
+                retryCount++;
+                continue;
+            }
+
+            if (pid == 0) {
+                // Child process: execute the command
+                int result = system(cmd.c_str());
+                exit(result);
+            } else {
+                // Parent process: wait for child and implement timeout
+                time_t startTime = time(nullptr);
+                int status = 0;
+                pid_t result = waitpid(pid, &status, WNOHANG);
+
+                while (result == 0) {
+                    // Wait for process to finish or timeout
+                    if (time(nullptr) - startTime > timeout) {
+                        KillLSPServerProcesses(pid);
+                        kill(pid, SIGKILL);  // Kill the child process after timeout
+                        std::cerr << "Process timed out and was terminated." << std::endl;
+                        retryCount++;
+                        break;
+                    }
+                    usleep(10000);
+                    result = waitpid(pid, &status, WNOHANG);
+                }
+
+                if (result > 0) {
+                    if (WIFEXITED(status)) {
+                        // Process completed successfully
+                        success = true;
+                    } else {
+                        printf("Process failed with exit code: %d\n", WEXITSTATUS(status));
+                        retryCount++;
+                    }
+                }
+            }
+        }
+
+        if (!success) {
+            printf("StartLspServer failed after %d retries.\n", retryCount);
+        }
 #endif
     }
 
