@@ -11,7 +11,6 @@
 #include "DotCompleterByParse.h"
 #include "KeywordCompleter.h"
 #include "NormalCompleterByParse.h"
-#include "../../common/SyscapCheck.h"
 
 #undef THIS
 using namespace Cangjie;
@@ -118,15 +117,24 @@ std::string GetInterpolationPrefix(const ark::ArkAST &input, const StringPart &s
     }
     std::string newPrefix;
     std::for_each(tokenV.begin(), tokenV.end(), [&newPrefix](Token t) { newPrefix += t.Value(); });
-    std::cerr << "newPrefix is " << newPrefix << std::endl;
     return newPrefix;
+}
+
+TokenKind findPreFirstValidTokenKind(const ark::ArkAST &input, int index)
+{
+    while (--index > 0) {
+        auto kind = input.tokens[index].kind;
+        if (kind != TokenKind::NL && kind != TokenKind::COMMENT) {
+            return kind;
+        }
+    }
+    return TokenKind::INIT;
 }
 }
 
 namespace ark {
 Token CompletionImpl::curToken = Token(TokenKind::INIT);
 bool CompletionImpl::needImport = false;
-std::unordered_set<std::string> CompletionImpl::externalImportSym = {"ohos.ark_interop_macro:Interop"};
 
 CompletionItem CodeCompletion::Render(const std::string &sortText, const std::string &prefix) const
 {
@@ -296,16 +304,16 @@ void CompletionImpl::FasterComplete(
     NormalParseImpl(input, pos, result, index, prefix);
 }
 
-void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix)
+void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionResult &result)
 {
-    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
     if (!index) {
         return;
     }
     if (!input.file || !input.file->package || !input.file->curPackage) {
         return;
     }
-    auto pkgName = input.file->curPackage->fullPackageName;
+    auto curPkgName = input.file->curPackage->fullPackageName;
     // get import's pos
     int lastImportLine = 0;
     for (const auto &import : input.file->imports) {
@@ -321,56 +329,23 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
     Position textEditStart = {input.fileID, lastImportLine, 0};
     Range textEditRange{textEditStart, textEditStart};
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
-    SyscapCheck syscap(curModule);
-    index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
-        pkgName, curModule, prefix,
-        [&result, &textEditRange, &syscap](const std::string &pkg,
-            const lsp::Symbol &sym, const lsp::CompletionItem &completionItem) {
-            if (!sym.syscap.empty() && !syscap.CheckSysCap(sym.syscap)) {
-                return;
-            }
-            CodeCompletion completion;
-            std::string fullSymName = pkg + ":" + sym.name;
-            if (externalImportSym.count(fullSymName)) {
-                CompletionImpl::HandleExternalSymAutoImport(result, pkg, sym, completionItem, textEditRange);
-                return;
-            }
+    index->FindImportSymsOnCompletion(result.normalCompleteSymID, result.importDeclsSymID, curPkgName, curModule,
+        [&result, &textEditRange](const std::string &pkg, const lsp::Symbol &sym) {
+            CodeCompletion item;
             auto astKind = sym.kind;
-            completion.deprecated = sym.isDeprecated;
-            completion.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
-            completion.name = sym.name;
-            completion.label = completionItem.label;
-            completion.insertText = completionItem.insertText;
-            completion.detail = "import " + pkg;
-            TextEdit textEdit;
+            item.deprecated = sym.isDeprecated;
+            item.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
+            item.name = sym.name;
+            item.label = sym.signature;
+            item.insertText = sym.insertText;
+            item.detail = "import " + pkg;
+            ark::TextEdit textEdit;
             textEdit.range = textEditRange;
             textEdit.newText = "import " + pkg + "." + sym.name + "\n";
-            completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
-            completion.sortType = SortType::AUTO_IMPORT_SYM;
-            result.completions.push_back(completion);
+            item.additionalTextEdits = std::vector<TextEdit>{textEdit};
+            item.sortType = SortType::AUTO_IMPORT_SYM;
+            result.completions.push_back(item);
         });
-}
-
-void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg,
-    const lsp::Symbol &sym, const lsp::CompletionItem &completionItem, Range textEditRange)
-{
-    if (sym.name == "Interop" && pkg == "ohos.ark_interop_macro") {
-        CodeCompletion completion;
-        auto astKind = sym.kind;
-        completion.deprecated = sym.isDeprecated;
-        completion.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
-        completion.name = sym.name;
-        completion.label = completionItem.label;
-        completion.insertText = completionItem.insertText;
-        completion.detail = "import " + pkg;
-        ark::TextEdit textEdit;
-        textEdit.range = textEditRange;
-        textEdit.newText = "import ohos.ark_interop_macro.*\nimport ohos.ark_interop.*\n";
-        completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
-        completion.sortType = SortType::AUTO_IMPORT_SYM;
-        result.completions.push_back(completion);
-        return;
-    }
 }
 
 void CompletionImpl::NormalParseImpl(
@@ -416,7 +391,7 @@ void CompletionImpl::NormalParseImpl(
     // e.g. func is, class case, enum in, ...
     // expect cases like : func param decl, enum constructor
     if (KeywordCompleter::keyWordKinds.count(curToken.kind) &&
-        KeywordCompleter::declKeyWordKinds.count(FindPreFirstValidTokenKind(input, index))) {
+        KeywordCompleter::declKeyWordKinds.count(::findPreFirstValidTokenKind(input, index))) {
         return;
     }
 
@@ -432,7 +407,7 @@ void CompletionImpl::NormalParseImpl(
         return;
     }
 
-    AutoImportPackageComplete(input, result, prefix);
+    AutoImportPackageComplete(input, result);
 }
 
 std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start, int end)

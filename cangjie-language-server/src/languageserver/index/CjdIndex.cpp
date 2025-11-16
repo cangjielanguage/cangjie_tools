@@ -61,24 +61,20 @@ void CjdIndexer::LoadAllCJDResource()
     std::vector<std::string> cjdPaths;
     cjdPaths.emplace_back(stdCjdPath);
     cjdPaths.emplace_back(ohosCjdPath);
-    std::map<int, std::vector<std::string>> fileMap;
     for (auto &cjdPath: cjdPaths) {
         if (!enablePackaged) {
             for (auto &modulePath: FileUtil::GetAllDirsUnderCurrentPath(cjdPath)) {
                 // just handle the level-1 subdirectory
                 if (IsFirstSubDir(cjdPath, modulePath)) {
-                    ReadCJDSource(modulePath, modulePath, fileMap);
+                    ReadCJDSource(modulePath, modulePath);
                 }
             }
         } else {
             for (const auto &packagedCjdFile :
                 FileUtil::GetAllFilesUnderCurrentPath(cjdPath, "d")) {
-                ReadPackagedCjdResource(cjdPath, packagedCjdFile, fileMap);
+                ReadPackagedCjdResource(cjdPath, packagedCjdFile);
             }
         }
-    }
-    if (CompilerCangjieProject::GetUseDB()) {
-        CompilerCangjieProject::GetInstance()->GetBgIndexDB()->UpdateFile(fileMap);
     }
     Trace::Log("LoadAllCJDResource end");
 }
@@ -132,7 +128,6 @@ void CjdIndexer::BuildCJDIndex()
             shard.refs = sc.GetReferenceMap();
             shard.relations = sc.GetRelations();
             shard.extends = sc.GetSymbolExtendMap();
-            shard.crossSymbos = sc.GetCrossSymbolMap();
             cacheManager->StoreIndexShard(package, shardIdentifier, shard);
             thrdPool->TaskCompleted(taskId);
             Trace::Log("finish execute task ", package);
@@ -140,6 +135,7 @@ void CjdIndexer::BuildCJDIndex()
         thrdPool->AddTask(taskId, dependencies, task);
     }
     thrdPool->WaitUntilAllTasksComplete();
+    Trace::Log("All tasks are completed in full compilation");
     Trace::Log("BuildCJDIndex end");
 }
 
@@ -157,22 +153,8 @@ SymbolLocation CjdIndexer::GetSymbolDeclaration(SymbolID id, const std::string& 
     return loc;
 }
 
-CommentGroups CjdIndexer::GetSymbolComments(SymbolID id, const std::string& fullPkgName)
-{
-    CommentGroups comments;
-    if (auto found = pkgSymsMap.find(fullPkgName); found != pkgSymsMap.end()) {
-        for (auto &sym: found->second) {
-            if (sym.id == id) {
-                comments = sym.comments;
-                break;
-            }
-        }
-    }
-    return comments;
-}
-
 void CjdIndexer::ReadCJDSource(const std::string &rootPath, const std::string &modulePath,
-                               std::map<int, std::vector<std::string>> &fileMap, const std::string &parentPkg)
+                               const std::string &parentPkg)
 {
     std::string dirName = FileUtil::GetDirName(rootPath);
     std::string currentPkg = parentPkg.empty() ? dirName : parentPkg + "." + dirName;
@@ -184,25 +166,15 @@ void CjdIndexer::ReadCJDSource(const std::string &rootPath, const std::string &m
         auto filePath = NormalizePath(JoinPath(rootPath, file));
         LowFileName(filePath);
         pkgMap[currentPkg]->bufferCache.emplace(filePath, GetFileContents(filePath));
-
-        auto id = GetFileIdForDB(filePath);
-        std::vector<std::string> fileInfo;
-        fileInfo.emplace_back(filePath);
-        fileInfo.emplace_back("");
-        fileInfo.emplace_back("");
-        auto digest = Digest(filePath);
-        fileInfo.emplace_back(digest);
-        fileMap.insert(std::make_pair(id, fileInfo));
     }
     for (auto &childPath: FileUtil::GetAllDirsUnderCurrentPath(rootPath)) {
         if (FileUtil::IsDir(childPath)) {
-            ReadCJDSource(childPath, modulePath, fileMap, currentPkg);
+            ReadCJDSource(childPath, modulePath, currentPkg);
         }
     }
 }
 
-void CjdIndexer::ReadPackagedCjdResource(const std::string& rootPath, const std::string& filePath,
-    std::map<int, std::vector<std::string>> &fileMap)
+void CjdIndexer::ReadPackagedCjdResource(const std::string& rootPath, const std::string& filePath)
 {
     auto pkgName = FileUtil::GetFileBase(FileUtil::GetFileBase(filePath));
     auto normalizedPath = NormalizePath(JoinPath(rootPath, filePath));
@@ -210,22 +182,12 @@ void CjdIndexer::ReadPackagedCjdResource(const std::string& rootPath, const std:
     auto ModuleName = pkgName.substr(0, pkgName.find_first_of('.'));
     pkgMap[pkgName] = std::make_unique<DPkgInfo>(rootPath, rootPath, ModuleName, callback);
     pkgMap[pkgName]->bufferCache.emplace(normalizedPath, GetFileContents(normalizedPath));
-
-    auto id = GetFileIdForDB(normalizedPath);
-    std::vector<std::string> fileInfo;
-    fileInfo.emplace_back(normalizedPath);
-    fileInfo.emplace_back("");
-    fileInfo.emplace_back("");
-    auto digest = Digest(normalizedPath);
-    fileInfo.emplace_back(digest);
-    fileMap.insert(std::make_pair(id, fileInfo));
 }
 
 void CjdIndexer::BuildIndexFromCache()
 {
     Trace::Log("BuildIndexFromCache Start");
     std::string cjdIndexDir = JoinPath(JoinPath(cjdCachePath, ".cache"), "index");
-    std::map<int, std::vector<std::string>> fileMap;
     for (auto& idxFile:
             FileUtil::GetAllFilesUnderCurrentPath(cjdIndexDir, "idx")) {
         auto package = FileUtil::GetFileBase(FileUtil::GetFileBase(idxFile));
@@ -235,51 +197,8 @@ void CjdIndexer::BuildIndexFromCache()
             Trace::Log("BuildIndexFromCache failed", package);
             return;
         }
-        {
-            std::unique_lock<std::mutex> indexLock(mtx);
-            (void) pkgSymsMap.insert_or_assign(package, indexCache->get()->symbols);
-        }
-
-        // update db file table
-        if (!CompilerCangjieProject::GetUseDB() || indexCache->get()->symbols.empty()) {
-            continue;
-        }
-        const auto& sym = indexCache->get()->symbols[0];
-        std::string absName = FileStore::NormalizePath(sym.location.fileUri);
-        std::string curDigest = Digest(absName);
-        auto id = GetFileIdForDB(absName);
-        std::string oldDigest = CompilerCangjieProject::GetInstance()->GetBgIndexDB()->GetFileDigest(id);
-        if (curDigest == oldDigest) {
-            continue;
-        }
-        std::vector<std::string> fileInfo;
-        fileInfo.emplace_back(absName);
-        fileInfo.emplace_back("");
-        fileInfo.emplace_back("");
-        fileInfo.emplace_back(curDigest);
-        fileMap.insert(std::make_pair(id, fileInfo));
-
-        // check is contain macrocall file
-        std::string macroCallFile = FileStore::NormalizePath(JoinPath(sym.location.fileUri, "macrocall"));
-        if (!FileExist(macroCallFile)) {
-            continue;
-        }
-        std::string curMacroCallDigest = Digest(macroCallFile);
-        auto macroCallId = GetFileIdForDB(absName);
-        std::string oldMacroCallDigest =
-            CompilerCangjieProject::GetInstance()->GetBgIndexDB()->GetFileDigest(macroCallId);
-        if (curMacroCallDigest == oldMacroCallDigest) {
-            continue;
-        }
-        std::vector<std::string> macroCallFileInfo;
-        macroCallFileInfo.emplace_back(macroCallFile);
-        macroCallFileInfo.emplace_back("");
-        macroCallFileInfo.emplace_back("");
-        macroCallFileInfo.emplace_back(curMacroCallDigest);
-        fileMap.insert(std::make_pair(macroCallId, macroCallFileInfo));
-    }
-    if (CompilerCangjieProject::GetUseDB()) {
-        CompilerCangjieProject::GetInstance()->GetBgIndexDB()->UpdateFile(fileMap);
+        std::unique_lock<std::mutex> indexLock(mtx);
+        (void) pkgSymsMap.insert_or_assign(package, indexCache->get()->symbols);
     }
     Trace::Log("BuildIndexFromCache End");
 }
@@ -327,7 +246,7 @@ void CjdIndexer::GenerateValidFile()
         Trace::Log("Create cjd index files valid file failed");
     }
     validFile << GetValidCode();
-    if (validFile.fail()) {
+    if (!validFile.fail()) {
         Trace::Log("Write cjd index files valid file failed");
     }
     validFile.close();

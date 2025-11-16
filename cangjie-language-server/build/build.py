@@ -47,7 +47,6 @@ IS_MACOS = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
 JSON_GIT = "https://gitcode.com/openharmony/third_party_json.git"
 FLATBUFFER_GIT = "https://gitcode.com/openharmony/third_party_flatbuffers.git"
-SQLITE_GIT = "https://gitcode.com/openharmony/third_party_sqlite.git"
 
 def resolve_path(path):
     if os.path.isabs(path):
@@ -85,28 +84,6 @@ def generate_flat_header():
     header_path = os.path.join(flatbuffers_build_dir, "index_generated.h")
     new_header_path = os.path.join(flatbuffers_dir, "include", "index_generated.h")
     shutil.copy(header_path, new_header_path)
-
-def download_sqlite(args):
-    cmd = ["git", "clone", "-b", "OpenHarmony-v6.0-Release", "--depth=1", SQLITE_GIT, "sqlite3"]
-    subprocess.run(cmd, cwd=THIRDPARTY_DIR, check=True)
-
-def build_sqlite_amalgamation():
-    sqlite_dir = os.path.join(THIRDPARTY_DIR, "sqlite3")
-    amalgamation_dir = os.path.join(sqlite_dir, "amalgamation")
-    if not os.path.exists(amalgamation_dir):
-        os.makedirs(amalgamation_dir)
-    shell_c_file = os.path.join(sqlite_dir, "src", "shell.c")
-    sqlite3_c_file = os.path.join(sqlite_dir, "src", "sqlite3.c")
-    sqlite3_h_file = os.path.join(sqlite_dir, "include", "sqlite3.h")
-    sqlite3ext_h_file = os.path.join(sqlite_dir, "include", "sqlite3ext.h")
-    new_shell_c_file = os.path.join(amalgamation_dir, "shell.c")
-    nwe_sqlite3_c_file = os.path.join(amalgamation_dir, "sqlite3.c")
-    nwe_sqlite3_h_file = os.path.join(amalgamation_dir, "sqlite3.h")
-    nwe_sqlite3ext_h_file = os.path.join(amalgamation_dir, "sqlite3ext.h")
-    shutil.copy(shell_c_file, new_shell_c_file)
-    shutil.copy(sqlite3_c_file, nwe_sqlite3_c_file)
-    shutil.copy(sqlite3_h_file, nwe_sqlite3_h_file)
-    shutil.copy(sqlite3ext_h_file, nwe_sqlite3ext_h_file)
 
 def prepare_cangjie(args):
     cangjie_sdk_path = resolve_path(os.getenv("CANGJIE_HOME"))
@@ -148,9 +125,6 @@ def prepare_build(args):
     if not os.path.exists(os.path.join(THIRDPARTY_DIR, "flatbuffers")):
         download_flatbuffers(args)
         generate_flat_header()
-    if not os.path.exists(os.path.join(THIRDPARTY_DIR, "sqlite3")):
-        download_sqlite(args)
-        build_sqlite_amalgamation()
 
 def get_generator():
     generator = "Unix Makefiles"
@@ -233,7 +207,6 @@ def clean(args):
     output build-lsp
     third_party/json-v3.11.3
     third_party/flatbuffers
-    third_party/sqlite3
     src/lib
     """
     print("start clean")
@@ -244,7 +217,7 @@ def clean(args):
             delete_folder(os.path.join(HOME_DIR, folder))
     if os.path.exists(THIRDPARTY_DIR):
         delete_folder(THIRDPARTY_DIR)
-    third_party_folders = ["json-v3.11.3", "flatbuffers", "sqlite3"]
+    third_party_folders = ["json-v3.11.3", "flatbuffers"]
     for folder in third_party_folders:
         folder = os.path.join(THIRDPARTY_DIR, folder)
         if os.path.exists(folder):

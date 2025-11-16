@@ -181,7 +181,7 @@ void ArkASTWorker::RunWithAST(const std::string &name,
                 CompilerCangjieProject::GetInstance()->CompilerOneFile(
                     this->callback->path, this->callback->GetContentsByFile(this->callback->path));
                 this->callback->UpdateDocNeedReparse(this->callback->path,
-                    this->callback->GetVersionByFile(this->callback->path), false);
+                    this->callback->GetVersionByFile(this->callback->path), false);                    
                 this->callback->isRenameDefined = false;
                 this->callback->path = "";
             }
@@ -237,9 +237,7 @@ void ArkASTWorker::RunWithASTCache(
             ParseInputs(file, this->callback->GetContentsByFile(file), this->callback->GetVersionByFile(file));
         std::string absName = Cangjie::FileUtil::Normalize(file);
         auto fullPkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(file);
-        bool shouldIncrementCompile = Options::GetInstance().IsOptionSet("test")
-                                 ? !CompilerCangjieProject::GetInstance()->pLRUCache->HasCache(fullPkgName)
-                                 : !CompilerCangjieProject::GetInstance()->GetArkAST(file);
+        bool shouldIncrementCompile = !CompilerCangjieProject::GetInstance()->pLRUCache->HasCache(fullPkgName);
         if (shouldIncrementCompile) {
             CompilerCangjieProject::GetInstance()->IncrementOnePkgCompile(absName, inputs.contents);
         }
@@ -255,12 +253,12 @@ void ArkASTWorker::RunWithASTCache(
         Logger::Instance().CleanKernelLog(std::this_thread::get_id());
         ArkAST *ast = CompilerCangjieProject::GetInstance()->GetParseArkAST(file);
         if (!ast) { return; }
-        ArkAST *astCache = CompilerCangjieProject::GetInstance()->GetArkAST(file);
-        if (!astCache) {
-            return;
-        }
         {
             std::unique_lock<std::recursive_mutex> lck(CompilerCangjieProject::GetInstance()->fileCacheMtx);
+            ArkAST *astCache = CompilerCangjieProject::GetInstance()->GetArkAST(file);
+            if (!astCache) {
+                return;
+            }
             ast->semaCache = astCache;
             action(InputsAndAST{inputs, ast, "", false});
         }
@@ -277,14 +275,6 @@ void ArkASTWorker::RunWithASTCache(
             } else {
                 isCompleteRunning = false;
             }
-        }
-        if (CompilerCangjieProject::GetUseDB()) {
-            lsp::BackgroundIndexDB *indexDB = CompilerCangjieProject::GetInstance()->GetBgIndexDB();
-            if (!indexDB) {
-                return;
-            }
-            auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
-            dbCache.EraseThreadCache();
         }
     };
 

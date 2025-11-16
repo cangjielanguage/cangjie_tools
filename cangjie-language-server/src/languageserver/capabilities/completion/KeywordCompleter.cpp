@@ -70,20 +70,16 @@ std::vector<CodeSnippet> KeywordCompleter::codeSnippetList = {
     {"IfAvailable", "IfAvailable(level: , {=> }, {=> })",
         "IfAvailable(${1:level: ,} {=>\n\t$2\n}, {=>\n\t$3\n})"},
     {"IfAvailable", "IfAvailable(syscap: , {=> }, {=> })",
-        "IfAvailable(${1:syscap: ,} {=>\n\t$2\n}, {=>\n\t$3\n})"},
-    {"prop", "prop name: T {get(){val}}", "prop ${0:name}: ${1:T} {\n\tget() {\n\t\t${3:val}\n\t}\n}"},
-    {"prop", "prop name: T {get(){val} set(v){}}",
-        "prop ${0:name}: ${1:T} {\n\tget() {\n\t\t${3:val}\n\t}\n\tset(v) {\n\t}\n}"},
+        "IfAvailable(${1:syscap: ,} {=>\n\t$2\n}, {=>\n\t$3\n})"}
 };
 
 std::vector<std::string> KeywordCompleter::keyWordFromLSP = {"true", "false", "When"};
 
-void KeywordCompleter::AddKeyWord(
-    const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition)
+void KeywordCompleter::AddKeyWord(const char *tokens[], int size, ark::CompletionResult &result)
 {
     for (int i = 0; i < size; i++) {
         std::string token(tokens[i]);
-        if (token.empty() || !isalpha(token[0]) || !condition(token.c_str())) {
+        if (token.empty() || !isalpha(token[0])) {
             continue;
         }
         CodeCompletion item;
@@ -117,11 +113,9 @@ void KeywordCompleter::AddKeyWordByLSP(ark::CompletionResult &result)
 
 void KeywordCompleter::Complete(ark::CompletionResult &result)
 {
-    AddKeyWord(Cangjie::TOKENS, static_cast<int>(sizeof(Cangjie::TOKENS) / sizeof(Cangjie::TOKENS[0])), result,
-        [](const char *token) { return !IsExperimental(token); });
+    AddKeyWord(Cangjie::TOKENS, static_cast<int>(sizeof(Cangjie::TOKENS) / sizeof(Cangjie::TOKENS[0])), result);
     AddKeyWord(Cangjie::ANNOTATION_TOKENS,
-        static_cast<int>(sizeof(Cangjie::ANNOTATION_TOKENS) / sizeof(Cangjie::ANNOTATION_TOKENS[0])), result,
-        [](const char *) { return true; });
+        static_cast<int>(sizeof(Cangjie::ANNOTATION_TOKENS) / sizeof(Cangjie::ANNOTATION_TOKENS[0])), result);
     AddKeyWordByLSP(result);
 }
 } // namespace ark

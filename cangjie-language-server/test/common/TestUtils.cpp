@@ -7,60 +7,6 @@
 #include "TestUtils.h"
 #include "SingleInstance.h"
 
-namespace {
-bool CheckCommandArguments(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                            std::string &reason, int i)
-{
-    if (!exp[i].command->arguments.begin()->extraOptions.empty() && !act[i].command->arguments.begin()->extraOptions.empty()) {
-        const auto& expMap = exp[i].command->arguments.begin()->extraOptions;
-        const auto& actMap = act[i].command->arguments.begin()->extraOptions;
-        auto expIt = expMap.find("ErrorCode");
-        auto actIt = actMap.find("ErrorCode");
-        if (expIt == expMap.end() && actIt == actMap.end()) {
-            return true;
-        } else if (expIt == expMap.end() || actIt == actMap.end()) {
-            reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
-            return false;
-        } else if (expIt->second != actIt->second) {
-            reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
-            return false;
-        }
-    }
-    return true;
-}                           
-
-bool CheckCodeActionCommand(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                            std::string &reason, int i)
-{
-    if (exp[i].command->command != act[i].command->command) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.command is different";
-        return false;
-    }
-    if (exp[i].command->title != act[i].command->title) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.title is different";
-        return false;
-    }
-    if (exp[i].command->arguments.size() != act[i].command->arguments.size()) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments count is different";
-        return false;
-    }
-    if (exp[i].command->arguments.begin()->range != act[i].command->arguments.begin()->range) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.range count is different";
-        return false;
-    }
-    bool extraCheck = (!exp[i].command->arguments.begin()->extraOptions.empty() && act[i].command->arguments.begin()->extraOptions.empty())
-                        || (exp[i].command->arguments.begin()->extraOptions.empty() && !act[i].command->arguments.begin()->extraOptions.empty());
-    if (extraCheck) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
-        return false;
-    }
-    if (!CheckCommandArguments(exp, act, reason, i)) {
-        return false;
-    }
-    return true;
-}
-}
-
 namespace TestUtils {
 using namespace Cangjie::FileUtil;
 
@@ -157,136 +103,6 @@ bool SemanticTokensFormat::operator<(const SemanticTokensFormat &right) const
     return false;
 }
 
-std::vector<ark::CodeAction> CreateCodeActionStruct(const nlohmann::json& exp)
-{
-    std::vector<ark::CodeAction> result;
-    ark::CodeAction item;
-    if (!exp.contains("result")) {
-        return result;
-    }
-
-    if (!exp["result"].empty()) {
-        for (int i = 0; i < exp["result"].size(); i++) {
-            item.kind = exp["result"][i].value("kind", "");
-            item.title = exp["result"][i].value("title", "");
-            item.command = CreateCommandStruct(exp["result"][i]["command"]);
-            result.push_back(item);
-        }
-    }
-    return result;
-}
-
-bool CompareCodeAction(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                        std::string &reason, int i)
-{
-    if (exp[i].kind != act[i].kind) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " kind is different";
-        return false;
-    }
-    if (exp[i].title != act[i].title) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " title is different";
-        return false;
-    }
-
-    if (exp[i].command.has_value() && act[i].command.has_value()) {
-        if (!CheckCodeActionCommand(exp, act, reason, i)) {
-            return false;
-        }
-    } else if (!exp[i].command.has_value() || !act[i].command.has_value()) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command is different";
-        return false;
-    }
-    return true;
-}
-
-bool CheckCodeActionResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string &reason)
-{
-    if (!expect.contains("result") || !actual.contains("result")) {
-        reason = "expect or actual has no result";
-        return false;
-    }
-
-    std::vector<ark::CodeAction> exp = CreateCodeActionStruct(expect);
-    std::vector<ark::CodeAction> act = CreateCodeActionStruct(actual);
-
-    std::sort(exp.begin(), exp.end(), [](const ark::CodeAction &a, const ark::CodeAction &b) {
-        return a.title < b.title;
-    });
-    std::sort(act.begin(), act.end(), [](const ark::CodeAction &a, const ark::CodeAction &b) {
-        return a.title < b.title;
-    });
-
-    if (!CheckResultCount(exp, act, false)) {
-        reason = "expect and actual CodeAction number is different";
-        return false;
-    }
-
-    for (int i = 0; i < exp.size(); i++) {
-        if (!CompareCodeAction(exp, act, reason, i)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-ark::ApplyWorkspaceEditParams CreateApplyEditStruct(const nlohmann::json& exp)
-{
-    ark::ApplyWorkspaceEditParams result;
-    if (!exp.contains("params")) {
-        return result;
-    }
-
-    if (exp["params"]["edit"]["changes"].empty()) {
-        return result;
-    }
-
-    for (const auto &[key, value] : exp["params"]["edit"]["changes"].items()) {
-        std::vector<ark::TextEdit> textEdits;
-        for (const auto& item : value) {
-            ark::TextEdit textEdit;
-            textEdit.range = CreateRangeStruct(item["range"]);
-            textEdit.newText = item["newText"];
-            textEdits.push_back(std::move(textEdit));
-        }
-        result.edit.changes[key] = textEdits;
-    }
-    return result;
-}
-
-bool CheckApplyEditResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string &reason)
-{
-    if (!expect.contains("params") || !actual.contains("params")) {
-        reason = "expect or actual has no params";
-        return false;
-    }
-
-    ark::ApplyWorkspaceEditParams exp = CreateApplyEditStruct(expect);
-    ark::ApplyWorkspaceEditParams act = CreateApplyEditStruct(actual);
-    if (exp.edit.changes.size() != act.edit.changes.size()) {
-        reason = "the expect and actual changes size is different";
-        return false;
-    }
-
-    for (const auto &[key, value] : exp.edit.changes) {
-        auto actValue = act.edit.changes[key];
-        if (value.size() != actValue.size()) {
-            reason = "the expect and actual changes.textEdit size is different";
-            return false;
-        }
-        for (int i = 0; i < value.size(); i++) {
-            if (value[i].newText != actValue[i].newText) {
-                reason = "the expect and actual changes.textEdit newText is different";
-                return false;
-            }
-            if (value[i].range != actValue[i].range) {
-                reason = "the expect and actual changes.textEdit range is different";
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 ark::Command CreateCommandStruct(const nlohmann::json &exp) {
     ark::Command result;
     if (exp.contains("command")) {
@@ -306,12 +122,6 @@ ark::Range CreateRangeStruct(const nlohmann::json &exp) {
         result.end.column = exp["range"]["end"].value("character", -1);
         result.end.line = exp["range"]["end"].value("line", -1);
     }
-    if (exp.contains("selection")) {
-        result.start.column = exp["selection"]["start"].value("character", -1);
-        result.start.line = exp["selection"]["start"].value("line", -1);
-        result.end.column = exp["selection"]["end"].value("character", -1);
-        result.end.line = exp["selection"]["end"].value("line", -1);
-    }
     return result;
 }
 
@@ -324,10 +134,6 @@ std::set<ark::ExecutableRange> CreateExecutableRangeStruct(const nlohmann::json 
     executableRange.className = exp.value("className", "");
     executableRange.functionName = exp.value("functionName", "");
     executableRange.range = CreateRangeStruct(exp);
-    executableRange.tweakId = exp.value("tweakID", "");
-    if (exp.contains("ErrorCode")) {
-        executableRange.extraOptions.emplace("ErrorCode", exp.value("ErrorCode", ""));
-    }
     result.insert(executableRange);
     return result;
 }

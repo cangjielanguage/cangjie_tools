@@ -33,10 +33,7 @@ public:
 
 private:
 
-    std::pair<Ptr<Decl>, Ptr<Decl>> CompleteCurrentPackages(const ArkAST &input, const Position pos,
-                                                            CompletionEnv &env);
-
-    Ptr<Decl> CompleteCurrentPackagesOnSema(const ArkAST &input, const Position pos, CompletionEnv &env);                                                            
+    Ptr<Decl> CompleteCurrentPackages(const ArkAST &input, const Position pos, CompletionEnv &env);
 
     void FillingDeclsInPackage(const std::string &packageName,
                                CompletionEnv &env,
@@ -45,10 +42,6 @@ private:
     bool DealDeclInCurrentPackage(Ptr<Decl> decl, CompletionEnv &env);
 
     void AddImportPkgDecl(const ArkAST &input, CompletionEnv &env);
-
-    bool CheckCompletionInParse(Ptr<Decl> decl);
-
-    bool CheckIfOverrideComplete(Ptr<Decl> topLevelDecl, Ptr<Decl>& decl, const Position& pos, TokenKind kind);
 
     CompletionResult &result;
 

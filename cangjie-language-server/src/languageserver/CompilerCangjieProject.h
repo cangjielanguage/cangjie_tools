@@ -28,15 +28,13 @@
 #include "common/Callbacks.h"
 #include "common/FileStore.h"
 #include "common/LRUCache/LRUCache.h"
-#include "index/BackgroundIndexDB.h"
-#include "index/IndexDatabase.h"
 #include "index/IndexStorage.h"
 #include "index/MemIndex.h"
 #include "logger/Logger.h"
 
 namespace ark {
 const unsigned int TEST_LRU_SIZE = 8;
-const unsigned int LRU_SIZE = 1;
+const unsigned int LRU_SIZE = 3;
 
 class CompilerCangjieProject;
 
@@ -87,15 +85,7 @@ public:
     std::mutex fileMtx;
     std::atomic_bool isIdentical = true;
     static CompilerCangjieProject *GetInstance();
-    static bool GetUseDB()
-    {
-        return useDB;
-    }
-    static void SetUseDB(const bool flag)
-    {
-        useDB = flag;
-    }
-    static void InitInstance(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
+    static void InitInstance(Callbacks *cb);
     void UpdateBuffCache(const std::string &file);
     void GetRealPath(std::string &path);
     std::string GetFilePathByID(const std::string &curFilePath, unsigned int fileID);
@@ -174,6 +164,8 @@ public:
                       std::unordered_map<std::string, bool>& isVisited);
 
     std::vector<std::string> GetIncTopologySort(const std::string &pkgName);
+
+    void ReportDiagForCirclePackages(const std::vector<std::vector<std::string>> &cycles);
 
     void ReportCircularDeps(const std::vector<std::vector<std::string>> &cycles);
 
@@ -353,21 +345,9 @@ public:
     // Set condition compile to cangjie compiler
     std::unordered_map<std::string, std::string> GetConditionCompile(const std::string& packageName,
         const std::string &moduleName) const;
-
-    std::unordered_map<std::string, std::string> GetConditionCompile() const;
-
     std::vector<std::string> GetConditionCompilePaths() const;
 
     void GetDiagCurEditFile(const std::string &file);
-
-    lsp::SymbolIndex *GetIndex() const
-    {
-        if (useDB) {
-            return backgroundIndexDb.get();
-        } else {
-            return memIndex.get();
-        }
-    }
 
     lsp::MemIndex *GetMemIndex() const
     {
@@ -394,11 +374,6 @@ public:
         return model->UpdateUsageFrequency(item);
     }
 
-    lsp::BackgroundIndexDB *GetBgIndexDB() const
-    {
-        return backgroundIndexDb.get();
-    };
-
     bool CheckNeedCompiler(const std::string &fileName);
 
     void SubmitTasksToPool(const std::unordered_set<std::string> &tasks);
@@ -407,7 +382,7 @@ public:
 
     void IncrementTempPkgCompile(const std::string &basicString);
 
-    void IncrementTempPkgCompileNotInSrc(const std::string &fullPkgName);
+    void IncrementTempPkgCompileNotInSrc(const std::string &basicString);
 
     void EraseOtherCache(const std::string &fullPkgName);
 
@@ -433,11 +408,6 @@ public:
     std::string GetModulesHome()
     {
         return modulesHome;
-    }
-
-    std::unordered_map<std::string, std::string> GetFullPkgNameToPathMap()
-    {
-        return fullPkgNameToPath;
     }
 
     std::string GetContentByFile(const std::string& filePath)
@@ -468,10 +438,9 @@ public:
 
     std::unique_ptr<LSPCompilerInstance> GetCIForDotComplete(const std::string &filePath, Position pos,
                                                              std::string &contents);
-    void StoreAllPackagesCache();
 
 private:
-    CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
+    explicit CompilerCangjieProject(Callbacks *cb);
 
     bool InitCache(const std::unique_ptr<LSPCompilerInstance> &lspCI, const std::string &pkgForPath,
                    bool isInModule = true);
@@ -507,8 +476,6 @@ private:
 
     bool LoadASTCache(const std::string &package);
 
-    void StorePackageCache(const std::string& pkgName);
-
     std::string modulesHome;
     std::string stdLibPath;
     std::string cangjiePath;
@@ -518,7 +485,7 @@ private:
     Callbacks *callback = nullptr;
 
     std::vector<std::string> macroLibs;
-    // global condition compile
+    // cangjie condition compile
     std::unordered_map<std::string, std::string> passedWhenKeyValue;
     // module condition compile
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> moduleCondition;
@@ -540,7 +507,6 @@ private:
     std::unique_ptr<lsp::MemIndex> memIndex = std::make_unique<lsp::MemIndex>();
     std::unique_ptr<SortModel> model = std::make_unique<SortModel>();
 
-    std::unique_ptr<lsp::BackgroundIndexDB> backgroundIndexDb;
     std::unordered_map<std::string, std::string> fullPkgNameToPath;  // key: fullPkgName
     std::unordered_map<std::string, std::string> pathToFullPkgName;  // key: package path
     std::mutex cimapMtx;
@@ -551,7 +517,6 @@ private:
     std::unordered_map<std::string, std::unique_ptr<PkgInfo>> pkgInfoMapNotInSrc; // key: dirPath for Cangjie file
     // key: fullPackageName, value: PackageSpec's modifier
     std::unordered_map<std::string, Modifier> pkgToModMap;
-    static bool useDB;
 };
 } // namespace ark
 

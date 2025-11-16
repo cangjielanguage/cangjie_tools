@@ -10,9 +10,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "CjoManager.h"
 #include "CompilerCangjieProject.h"
-#include "DependencyGraph.h"
 #include "cangjie/Driver/TempFileManager.h"
 #include "common/Utils.h"
 #ifdef __linux__
@@ -58,11 +56,11 @@ LSPCompilerInstance::LSPCompilerInstance(ark::Callbacks *cb, CompilerInvocation 
                              &importManager, false);
 }
 
-std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstreamPkgs()
+void LSPCompilerInstance::UpdateUpstreamPkgs()
 {
     const auto packages = GetSourcePackages();
     if (packages.empty()) {
-        return {};
+        return;
     }
 
     std::string curModule;
@@ -73,19 +71,11 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
     }
 
     std::set<std::string> depPkgs;
-    std::unordered_map<std::string, ark::EdgeType> depPkgsEdges;
-    std::unordered_map<TokenKind, ark::EdgeType> edgeKindMap = {
-        {TokenKind::PUBLIC, ark::EdgeType::PUBLIC},
-        {TokenKind::PROTECTED, ark::EdgeType::PROTECTED},
-        {TokenKind::INTERNAL, ark::EdgeType::INTERNEL},
-        {TokenKind::PRIVATE, ark::EdgeType::PRIVATE}
-    };
     for (const auto &file : packages[0]->files) {
         for (auto &import : file->imports) {
             if (import->IsImportMulti()) {
                 continue;
             }
-            TokenKind modifier = import->modifier ? import->modifier->modifier : TokenKind::PRIVATE;
             // Get real dependent package.
             auto [package, orPackage] = ::GetFullPackageNames(*import);
             package = Denoising(package);
@@ -95,9 +85,6 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
             }
             std::string realDep = (package.size() > orPackage.size()) ? package : orPackage;
             if (pkgNameForPath.empty() || realDep.empty()) {
-                if (depPkgsEdges.find(realDep) == depPkgsEdges.end() || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
-                    depPkgsEdges[realDep] = edgeKindMap[modifier];
-                }
                 depPkgs.insert(realDep);
                 continue;
             }
@@ -105,19 +92,15 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
             if (curModule != realModule && depends.count(realModule) == 0) {
                 continue;
             }
-            if (depPkgsEdges.find(realDep) == depPkgsEdges.end() || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
-                depPkgsEdges[realDep] = edgeKindMap[modifier];
-            }
             depPkgs.insert(realDep);
         }
     }
     upstreamPkgs = depPkgs;
-    return depPkgsEdges;
 }
 
 void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &prePkgName)
 {
-    (void)UpdateUpstreamPkgs();
+    UpdateUpstreamPkgs();
     {
         std::unique_lock<std::shared_mutex> lck(mtx);
         if (pkgNameForPath.empty() && !invocation.globalOptions.packagePaths.empty()) {
@@ -171,8 +154,8 @@ void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &pr
 void LSPCompilerInstance::UpdateDepGraph(
     const std::unique_ptr<ark::DependencyGraph> &graph, const std::string &fullPkgName)
 {
-    auto edges = UpdateUpstreamPkgs();
-    graph->UpdateDependencies(fullPkgName, upstreamPkgs, edges);
+    UpdateUpstreamPkgs();
+    graph->UpdateDependencies(fullPkgName, upstreamPkgs);
 }
 
 void LSPCompilerInstance::PreCompileProcess()
@@ -348,12 +331,10 @@ bool LSPCompilerInstance::CompileAfterParse(
     std::vector<uint8_t> data;
     MarkBrokenDecls(*packages[0]);
     (void)ExportAST(false, data, *packages[0]);
-    auto oldData = cjoManager->GetData(pkgNameForPath);
-    bool changed = cjoManager->CheckChanged(pkgNameForPath, data);
     cjoData.data = data;
     cjoData.status = ark::DataStatus::FRESH;
     cjoManager->SetData(pkgNameForPath, cjoData);
-    return changed;
+    return true;
 }
 
 std::vector<std::string> LSPCompilerInstance::GetTopologySort()

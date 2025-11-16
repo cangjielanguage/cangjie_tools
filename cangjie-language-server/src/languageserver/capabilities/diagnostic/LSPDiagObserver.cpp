@@ -38,20 +38,11 @@ DiagLSPSeverity GetSeverity(DiagSeverity l)
     }
 }
 
-void SetDiagMessage(Cangjie::Diagnostic &diagnostic, DiagnosticToken &diagToken)
-{
-    if (diagnostic.rKind == DiagKindRefactor::module_read_file_to_buffer_failed) {
-        diagToken.message = "Empty file can not be compiled";
-    } else if (diagnostic.rKind == DiagKindRefactor::sema_mismatched_types ||
-               diagnostic.rKind == DiagKindRefactor::sema_mismatched_types_because) {
-        diagToken.message = diagnostic.GetErrorMessage() + " " + diagnostic.mainHint.str;
-    } else {
-        diagToken.message = diagnostic.GetErrorMessage();
-    }
-}
-
 void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
 {
+    if (!callback) {
+        return;
+    }    
     // LSP client can't process negative
     if (!diagnostic.IsValid() || diagnostic.rKind == DiagKindRefactor::package_multiple_package_declarations ||
         diagnostic.rKind == DiagKindRefactor::package_unsupport_save) {
@@ -88,7 +79,18 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
     diagToken.range = {{start.fileID, start.line - 1, start.column - 1}, {end.fileID, end.line - 1, end.column - 1}};
     diagToken.source = "Cangjie";
     diagToken.code = static_cast<int>(diagnostic.GetDiagKind());
-    SetDiagMessage(diagnostic, diagToken);
+    // Temporary solution:
+    // kernel does not support empty file compilation. This diagnosis is added to avoid doing codegen in preview server.
+    // because The codegen will not be triggered if diagnosis is not null.
+    // this diagnostic is added in lsp code, when file context is empty
+    if (diagnostic.rKind == DiagKindRefactor::module_read_file_to_buffer_failed) {
+        diagToken.message = "Empty file can not be compiled";
+    } else if (diagnostic.rKind == DiagKindRefactor::sema_mismatched_types ||
+               diagnostic.rKind == DiagKindRefactor::sema_mismatched_types_because) {
+        diagToken.message = diagnostic.GetErrorMessage() + " " + diagnostic.mainHint.str;
+    } else {
+        diagToken.message = diagnostic.GetErrorMessage();
+    }
     diagToken.category = diagnostic.GetDiagKind();
     if (diagnostic.rKind == DiagKindRefactor::sema_unused_import) {
         diagToken.tags = {1};
@@ -104,7 +106,7 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
     if (isRefactor) {
         diagToken.diaFix->isAutoImport = true;
     }
-    
+
     // Add diagnostic details
     // If the position is incorrect, the error cause is located in the current position.
     std::vector<DiagnosticRelatedInformation> relatedInformation;

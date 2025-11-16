@@ -673,10 +673,6 @@ namespace test::common {
 #ifdef _WIN32
         std::string cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true < " +
                               p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
-        if (useDb) {
-            cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true --cache-path=" +
-                      cachePath + " < " + p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
-        }
 
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
@@ -739,10 +735,6 @@ namespace test::common {
         std::string cmd =
             p->pathPwd + "/LSPServer --test --enable-log true < " + p->testFolder + "_freopen.in > " +
             p->testFolder + "_freopen.out";
-        if (useDb) {
-            cmd =  p->pathPwd + "/LSPServer --test --enable-log true --cache-path=" + cachePath + " < " +
-                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
-        }
 
         int retryCount = 0;
         // 3 times
@@ -2199,75 +2191,6 @@ namespace test::common {
         } else {
             reason = "CallHierarchyIncomingCall and CallHierarchyOutgoingCall cannot be compared with each other.";
             return false;
-        }
-        return true;
-    }
-
-    ark::FindOverrideMethodResult CreateOverrideMethodsResult(const nlohmann::json& exp)
-    {
-        ark::FindOverrideMethodResult result;
-        if (!exp.contains("result")) {
-            return result;
-        }
-        for (int i = 0; i < exp["result"].size(); i++) {
-            ark::OverrideMethodsItem item;
-            item.kind = exp["result"][i].value("kind", "");
-            item.identifier = exp["result"][i].value("identifier", "");
-            item.package =  exp["result"][i].value("fullPackageName", "");
-            if (exp["result"].contains("data")) {
-                for (int j = 0; j < exp["result"]["data"].size(); j++) {
-                    ark::OverrideMethodInfo info;
-                    info.deprecated = exp["result"]["data"][i].value("deprecated", false);
-                    info.insertText = exp["result"]["data"][i].value("insertText", "");
-                    info.isProp = exp["result"]["data"][i].value("isProp", false);
-                    info.signatureWithRet = exp["result"]["data"][i].value("signatureWithRet", "");
-                    item.overrideMethodInfos.emplace_back(info);
-                }
-            }
-            result.overrideMethods.emplace_back(item);
-        }
-        return result;
-    }
-
-    bool CheckOverrideMethodsResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string& reason)
-    {
-        if (!expect.contains("result") || !actual.contains("result")) {
-            reason = "expect or actual nlohmann::json hasn't member 'result' ";
-            return false;
-        }
-        auto exp = CreateOverrideMethodsResult(expect);
-        auto act = CreateOverrideMethodsResult(actual);
-        if (act.overrideMethods.size() != exp.overrideMethods.size()) {
-            reason = "the expect and actual have different amount of super types";
-            return false;
-        }
-
-        for (auto& expTy : exp.overrideMethods) {
-            auto found = std::find_if(act.overrideMethods.begin(), act.overrideMethods.end(),
-                                                    [&expTy](ark::OverrideMethodsItem& item){
-                                        return expTy.identifier ==  item.identifier && expTy.package == item.package;
-                                    });
-            if (found == act.overrideMethods.end()) {
-                reason = expTy.package + "." + expTy.identifier + "in expect but not in actual";
-                return false;
-            }
-
-            if (expTy.overrideMethodInfos.size() != found->overrideMethodInfos.size()) {
-                reason = expTy.package + "." + expTy.identifier + "has different amount of override methods";
-                return false;
-            }
-
-            for (auto& expMethod: expTy.overrideMethodInfos) {
-                if (!std::any_of(found->overrideMethodInfos.begin(), found->overrideMethodInfos.end(),
-                                [&expMethod](ark::OverrideMethodInfo& item) {
-                            return expMethod.deprecated == item.deprecated && expMethod.isProp == item.isProp &&
-                                expMethod.signatureWithRet == item.signatureWithRet &&
-                                expMethod.insertText == item.insertText;
-                        })) {
-                    reason = expTy.package + "." + expTy.identifier + "has different override method:" + expMethod.insertText;
-                    return false;
-                }
-            }
         }
         return true;
     }
