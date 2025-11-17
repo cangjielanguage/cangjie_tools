@@ -251,7 +251,8 @@ void CompletionImpl::FasterComplete(
     // Import Spec: import pkg.[item]
     // Fully qualified Type: xxx.[item]
     if (prefix == ".") {
-        auto chainedName = GetChainedNameComplex(input, firstTokIdxInLine, index - 1);
+        int possibleChainedBegin = GetChainedPossibleBegin(input, firstTokIdxInLine);
+        auto chainedName = GetChainedNameComplex(input, possibleChainedBegin, index - 1);
         auto curLineTokens = GetLineTokens(input.tokens, pos.line);
         if (IsMultiImport(curLineTokens)) {
             chainedName = chainedName.empty() ? GetMultiImportPrefix(curLineTokens)
@@ -435,6 +436,40 @@ void CompletionImpl::NormalParseImpl(
     AutoImportPackageComplete(input, result, prefix);
 }
 
+int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdxInLine)
+{
+    if (firstTokIdxInLine >= input.tokens.size() || firstTokIdxInLine < 0) {
+        return firstTokIdxInLine;
+    }
+    if (input.tokens[firstTokIdxInLine].kind != TokenKind::DOT) {
+        return firstTokIdxInLine;
+    }
+    int qualifyPreTokenIdx = firstTokIdxInLine - 1;
+    if (qualifyPreTokenIdx < 0) {
+        return firstTokIdxInLine;
+    }
+    int preLineFirstIdx = GetFirstTokenOnCurLine(input.tokens, input.tokens[qualifyPreTokenIdx].Begin().line);
+    if (preLineFirstIdx == -1) {
+        return firstTokIdxInLine;
+    }
+    Token preLineFirstToken = input.tokens[preLineFirstIdx];
+    while (preLineFirstIdx >= 0 && preLineFirstIdx - 1 >= 0
+        && (input.tokens[preLineFirstIdx - 1].kind == TokenKind::NL
+            || preLineFirstToken.kind == TokenKind::DOT)) {
+        preLineFirstIdx--;
+        preLineFirstIdx = GetFirstTokenOnCurLine(input.tokens, input.tokens[preLineFirstIdx].Begin().line);
+        if (preLineFirstIdx == -1) {
+            break;
+        }
+        preLineFirstToken = input.tokens[preLineFirstIdx];
+    }
+    int begin = GetFirstTokenOnCurLine(input.tokens, input.tokens[preLineFirstIdx].Begin().line);
+    if (begin == -1) {
+        return firstTokIdxInLine;
+    }
+    return begin;
+}
+
 std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start, int end)
 {
     bool isInvalid = start > end || start < 0 || static_cast<unsigned int>(end) >= input.tokens.size();
@@ -457,6 +492,9 @@ std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start
     bool hasDot = true;
     bool skipQuest = false;
     for (i = static_cast<unsigned int>(end); i >= static_cast<unsigned int>(start); --i) {
+        if (input.tokens[i].kind == TokenKind::NL) {
+            continue;
+        }
         if (skipQuest) {
             skipQuest = false;
             continue;

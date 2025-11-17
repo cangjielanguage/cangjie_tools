@@ -1323,55 +1323,24 @@ bool IsValidIdentifier(const std::string& identifier)
 
 bool DeleteCharForPosition(std::string& text, int row, int column)
 {
-    if (row < 1 || column < 1) {
-        return false;
-    }
-
-    std::vector<std::string> lines;
-    size_t start = 0;
-    size_t end = text.find('\n');
-    size_t skip = 2;
-    while (end != std::string::npos) {
-        if (end > 0 && text[end - 1] == '\r') {
-            size_t length = end - start - 1;
-            if (length < 0) {
-                return false;
+    if (row < 1 || column < 1) return false;
+    int r = 1, c = 1;
+    for (size_t i = 0; i < text.length(); i++) {
+        if (r == row && c == column) {
+            text.erase(i, 1);
+            return true;
+        }
+        if (text[i] == '\n' || text[i] == '\r') {
+            r++;
+            c = 1;
+            if (text[i] == '\r' && i + 1 < text.length() && text[i + 1] == '\n') {
+                i++;
             }
-            lines.push_back(text.substr(start, end - start - 1));
-            start = end + skip;
         } else {
-            size_t length = end - start;
-            if (length < 0) {
-                return false;
-            }
-            lines.push_back(text.substr(start, end - start));
-            start = end + 1;
+            c++;
         }
-        end = text.find('\n', start);
     }
-    if (start > text.size()) {
-        return false;
-    }
-    lines.push_back(text.substr(start));
-    if (static_cast<size_t>(row - 1) >= lines.size()) {
-        return false;
-    }
-
-    std::string& line = lines[row - 1];
-    if (static_cast<size_t>(column - 1) >= line.size()) {
-        return false;
-    }
-    line.erase(column - 1, 1);
-    std::string result;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (i != 0) {
-            result += '\n';
-        }
-        result += lines[i];
-    }
-    text = result;
-
-    return true;
+    return false;
 }
 
 uint64_t GenTaskId(const std::string &packageName)

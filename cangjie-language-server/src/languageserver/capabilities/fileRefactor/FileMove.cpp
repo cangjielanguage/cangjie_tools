@@ -476,7 +476,7 @@ std::string FileMove::GetRealImportSymName(const lsp::Symbol &sym)
 
 bool FileMove::IsValidExportSym(const lsp::Symbol &sym, const std::string &exportedPkg)
 {
-    if (sym.location.end.IsZero()) {
+    if (sym.location.end.IsZero() && sym.name != "init") {
         return false;
     }
     if (sym.scope == exportedPkg) {
@@ -492,7 +492,7 @@ bool FileMove::IsValidExportSym(const lsp::Symbol &sym, const std::string &expor
 
 bool FileMove::IsValidExportSym(const lsp::Symbol &sym, const std::string &exportedPkg, const std::string &fullPkgSym)
 {
-    if (sym.location.end.IsZero()) {
+    if (sym.location.end.IsZero() && sym.name != "init") {
         return false;
     }
     if (fullPkgSym == exportedPkg + CONSTANTS::DOT + sym.name) {
