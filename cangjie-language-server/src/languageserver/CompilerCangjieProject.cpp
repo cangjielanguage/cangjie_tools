@@ -344,6 +344,8 @@ bool CompilerCangjieProject::UpdateDependencies(
             auto mod = GetPackageSpecMod(ci->GetSourcePackages()[0]->files[0]->package.get());
             (void)pkgToModMap.insert_or_assign(fullPkgName, mod);
         }
+    } else {
+        (void)pkgToModMap.insert_or_assign(fullPkgName, ark::Modifier::UNDEFINED);
     }
     if (!redefined) {
         for (const auto &file : packages[0]->files) {

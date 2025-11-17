@@ -87,7 +87,7 @@ void ArkServer::FindDocumentHighlights(const std::string &file, const TextDocume
         
         if (inputAST.useASTCache) {
             std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
-            UpdateModifierDiag(inputAST, diagnostics);
+            UpdateModifierDiag(inputAST, diagnostics, file);
             callback->ReadyForDiagnostics(file, inputAST.inputs.version, diagnostics);
         }
 
@@ -613,13 +613,14 @@ void ArkServer::FindDocumentLink(const std::string &file, const Callback<ValueOr
         ValueOrError val(ValueOrErrorCheck::VALUE, jsonValue);
         reply(val);
         std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
-        UpdateModifierDiag(inputAST, diagnostics);
+        UpdateModifierDiag(inputAST, diagnostics, file);
         callback->ReadyForDiagnostics(file, inputAST.inputs.version, diagnostics);
     };
     arkScheduler->RunWithAST("DocumentLink", file, action);
 }
 
-void ArkServer::UpdateModifierDiag(const InputsAndAST &inputAST, std::vector<DiagnosticToken> &diagnostics) const
+void ArkServer::UpdateModifierDiag(const InputsAndAST &inputAST,
+    std::vector<DiagnosticToken> &diagnostics, const std::string &file) const
 {
     if (!inputAST.ast || !inputAST.ast->file || !inputAST.ast->file->curPackage) {
         return;
@@ -633,7 +634,9 @@ void ArkServer::UpdateModifierDiag(const InputsAndAST &inputAST, std::vector<Dia
                    "the access level of child package can't be higher than that of parent package";
         });
         if (it != diagnostics.end()) {
+            DiagnosticToken removeDiag = std::move(*it);
             diagnostics.erase(it);
+            callback->RemoveDiagnostic(file, removeDiag);
         }
     }
 }
