@@ -64,6 +64,8 @@ public:
     static void CodeComplete(const ArkAST &input, Cangjie::Position pos,
                              CompletionResult &result, std::string &prefix);
 
+    static int GetChainedPossibleBegin(const ArkAST &input, int firstTokIdxInLine);
+
     static std::string GetChainedNameComplex(const ArkAST &input, int start, int end);
 
     static bool IsPreambleComplete(const ArkAST &input, const TokenKind firstTokenKind,

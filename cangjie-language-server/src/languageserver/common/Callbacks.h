@@ -36,6 +36,7 @@ public:
     virtual std::vector<DiagnosticToken> GetDiagsOfCurFile(std::string) = 0;
     virtual void UpdateDiagnostic(std::string, DiagnosticToken) = 0;
     virtual void RemoveDiagOfCurPkg(const std::string &dirName) = 0;
+    virtual void RemoveDiagnostic(std::string, DiagnosticToken) = 0;
     virtual void ReadyForDiagnostics(std::string, int64_t, std::vector <DiagnosticToken>) = 0;
     virtual std::string GetContentsByFile(const std::string &file) = 0;
     virtual int64_t GetVersionByFile(const std::string &file) = 0;

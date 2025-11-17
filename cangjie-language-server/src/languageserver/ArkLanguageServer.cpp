@@ -1156,6 +1156,15 @@ void ArkLanguageServer::UpdateDiagnostic(std::string file, DiagnosticToken diagT
     (void)fixItsMap[file].emplace(diagToken);
 }
 
+void ArkLanguageServer::RemoveDiagnostic(std::string file, DiagnosticToken diagToken)
+{
+    std::lock_guard<std::mutex> lock(fixItsMutex);
+    auto fileIt = fixItsMap.find(file);
+    if (fileIt != fixItsMap.end()) {
+        fileIt->second.erase(diagToken);
+    }
+}
+
 void ArkLanguageServer::PublishDiagnostics(const PublishDiagnosticsParams &params)
 {
     std::stringstream log;
