@@ -122,7 +122,8 @@ public:
 
     Cangjie::Position AlterPosition(const std::string &file, const TextDocumentPositionParams &params) const;
 
-    void UpdateModifierDiag(const InputsAndAST &inputAST, std::vector<DiagnosticToken> &diagnostics) const;
+    void UpdateModifierDiag(const InputsAndAST &inputAST,
+        std::vector<DiagnosticToken> &diagnostics, const std::string &file) const;
 
     void FindOverrideMethods(const std::string &file,
                                        const OverrideMethodsParams &params, const Callback<ValueOrError> &reply) const;
