@@ -846,7 +846,6 @@ public class GlobalConfig {
     public var scriptList: ArrayList<ScriptConfig> = ArrayList<ScriptConfig>()
     public var cjPathList: ArrayList<String> = ArrayList<String>()
     public var cLibLinkMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
-    public var crossCLibLinkMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
     public var ldPath: HashSet<String> = HashSet<String>()
     public var overrideCompileOption: String = ""
     public var nativeOverrideOption: String = ""

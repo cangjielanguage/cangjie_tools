@@ -328,13 +328,6 @@ class DepModel {
         }
         this.isCrossBin = false
 
-        if (!this.buildCheckTargetFfi(tomlInfo)) {
-            return FAILED_BUILD_CHECK_RESULT
-        }
-        if (!crossCompileTarget.isEmpty() && !this.buildCheckCrossFFi(tomlInfo)) {
-            return FAILED_BUILD_CHECK_RESULT
-        }
-
         tomlInfo.pkg.validPkgMap = getAllPkgs(tomlInfo.pkg.actualSources, tomlInfo.pkg.name)
 
         let (processSuccess, mockUsedInDependentPackages) = this.processAllPkgs(tomlInfo)
@@ -360,12 +353,6 @@ class DepModel {
 
     func buildCheckCrossBinDep(tomlInfo: TomlInfo): Bool {
         return buildCheckBinDependencies(tomlInfo, crossCompileTarget, this.crossBinDepMap)
-    }
-    func buildCheckTargetFfi(tomlInfo: TomlInfo): Bool {
-        return buildCheckFfi(tomlInfo, targetConfigName, tomlInfo.ffi.cLibs, this.globalConfig.isDebug)
-    }
-    func buildCheckCrossFFi(tomlInfo: TomlInfo): Bool {
-        return buildCheckFfi(tomlInfo, crossCompileTarget, tomlInfo.crossFfi.cLibs, this.globalConfig.isDebug)
     }
 
     func buildCheckBinDependencies(tomlInfo: TomlInfo, targetName: String, deps: HashMap<String, BinDeps>): Bool {
@@ -655,23 +642,23 @@ class DepModel {
         if (!fileExists(depCachePath)) {
             return
         }
- 
+
         var buf = String.fromUtf8(File.readFrom(depCachePath))
         var dm = DataModel.fromJson(JsonValue.fromStr(buf))
- 
+
         match (dm) {
-            case data: DataModelStruct => 
+            case data: DataModelStruct =>
                 this.binDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("bin"))
                 this.pkgBuildDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-build"))
                 this.pkgTestDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-test"))
-            
-            case _ => 
+
+            case _ =>
                 throw Exception("this data is not DataModelStruct")
                 eprintln("Warning: load ${depCachePath} failed\n")
                 return
         }
     }
- 
+
     // update incremental cache of bin-dependencies and pkg-dependencies
     func updateDepIncrementalCache(): Unit {
         let binCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
@@ -1044,10 +1031,6 @@ class DepModel {
         var jsonData = ArrayList<String>()
         jsonData.add(tomlInfo.pkg.name)
         for ((k, v) in tomlInfo.ffi.cLibs) {
-            jsonData.add(k)
-            jsonData.add(v)
-        }
-        for ((k, v) in tomlInfo.crossFfi.cLibs) {
             jsonData.add(k)
             jsonData.add(v)
         }

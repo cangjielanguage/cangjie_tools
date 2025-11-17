@@ -180,7 +180,6 @@ public class ResolveItem <: Serializable<ResolveItem> {
     public let forcedRequires = HashSet<String>()
     public var requireDoublePkgs: ArrayList<(String, String)> = ArrayList<(String, String)>()
     public var cLibs: HashMap<String, String> = HashMap<String, String>()
-    public var crossCLibs: HashMap<String, String> = HashMap<String, String>()
     public var srcDir: String = ""
     public var buildFlag: Bool = false
     public var nativePlatform: Bool = false // When cross-compiling, don't need to compile native platform by default
@@ -202,7 +201,6 @@ public class ResolveItem <: Serializable<ResolveItem> {
         this.linkOption = toml.pkg.linkOption
         this.nativeLinkOption = toml.pkg.nativeLinkOption
         this.cLibs = toml.ffi.cLibs
-        this.crossCLibs = toml.crossFfi.cLibs
         this.srcDir = toml.pkg.srcDir.value
         this.modulePath = toml.pkg.path
         this.version = toml.pkg.version
@@ -251,7 +249,6 @@ func serializeResolve(r: ResolveItem): DataModel {
         .add(field<HashSet<String>>("requires", r.requires))
         .add(field<HashSet<String>>("std-requires", r.stdRequires))
         .add(field<HashMap<String, String>>(C_LIBS, r.cLibs))
-        .add(field<HashMap<String, String>>("cross_c_libs", r.crossCLibs))
         .add(field<Bool>("hasTestFiles", r.hasTestFiles))
         .add(field<Bool>("hasProdFiles", r.hasProdFiles))
         .add(field<Bool>("hasTestsInProdFiles", r.hasTestsInProdFiles))
@@ -282,7 +279,6 @@ func deserializeResolve(dm: DataModel): ResolveItem {
     result.requires = HashSet<String>.deserialize(dms.get("requires"))
     result.stdRequires = HashSet<String>.deserialize(dms.get("std-requires"))
     result.cLibs = HashMap<String, String>.deserialize(dms.get(C_LIBS))
-    result.crossCLibs = HashMap<String, String>.deserialize(dms.get("cross_c_libs"))
     result.hasProdFiles = Bool.deserialize((dms.get("hasProdFiles") as DataModelBool) ?? DataModelBool(false))
     result.hasTestFiles = Bool.deserialize((dms.get("hasTestFiles") as DataModelBool) ?? DataModelBool(false))
     result.hasTestsInProdFiles = Bool.deserialize(
@@ -307,13 +303,13 @@ public func loadHistoryFile(filePath: String): Option<ModuleResolve> {
 
 public func configureModuleResolveData(targetDir: String, nativeDir: String, resolve: ModuleResolve,
     macroDep!: HashSet<String> = HashSet<String>()):
-        (HashSet<String>, HashMap<String, ArrayList<String>>, HashMap<String, ArrayList<String>>, ArrayList<String>) {
+        (HashSet<String>, HashMap<String, ArrayList<String>>, ArrayList<String>) {
     let ldPath: HashSet<String> = getLdPathConfig(targetDir, nativeDir, resolve, macroDep: macroDep)
-    let (cLibLinkMap, crossCLibLinkMap) = getClibLink(resolve.resolves)
+    let cLibLinkMap = getClibLink(resolve.resolves)
     let cjPathList = ArrayList<String>()
     cjPathList.add(all: getPackageRequires(resolve.binDeps))
     cjPathList.add(all: getPackageRequires(resolve.crossBinDeps))
-    return (ldPath, cLibLinkMap, crossCLibLinkMap, cjPathList)
+    return (ldPath, cLibLinkMap, cjPathList)
 }
 
 @When[os == "macOS" && arch == "aarch64"]
@@ -358,9 +354,6 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
         for ((_, path) in v.cLibs) {
             ldPath.add(path)
         }
-        for ((_, path) in v.crossCLibs) {
-            ldPath.add(path)
-        }
         // Set LD_LIBRARY_PATH for native dynamic deps of macro packages
         if (!crossCompileTarget.isEmpty() && macroDep.contains(v.fullName) && v.outputType == Dynamic) {
             var path: Path = Path(nativeDir).join(v.rootPkgName)
@@ -391,23 +384,18 @@ func getPackageRequires(binDeps: HashMap<String, BinDeps>): ArrayList<String> {
 }
 
 // Store cLibLink information for each module.
-func getClibLink(items: ArrayList<ResolveItem>): (HashMap<String, ArrayList<String>>, HashMap<String, ArrayList<String>>) {
+func getClibLink(items: ArrayList<ResolveItem>): HashMap<String, ArrayList<String>> {
     let nameSet = HashSet<String>()
     let cLibLinkMap = HashMap<String, ArrayList<String>>()
-    let crossCLibLinkMap = HashMap<String, ArrayList<String>>()
     for (v in items) {
         if (nameSet.contains(v.rootPkgName)) {
             continue
         }
 
         let allOptions = ArrayList<String>()
-        let crossOptions = ArrayList<String>()
 
         for ((name, path) in v.cLibs) {
             allOptions.add(all: getForeignStr(name, path), at: 0)
-        }
-        for ((name, path) in v.crossCLibs) {
-            crossOptions.add(all: getForeignStr(name, path), at: 0)
         }
 
         nameSet.add(v.rootPkgName)
@@ -415,11 +403,8 @@ func getClibLink(items: ArrayList<ResolveItem>): (HashMap<String, ArrayList<Stri
         if (!allOptions.isEmpty()) {
             cLibLinkMap[v.rootPkgName] = allOptions
         }
-        if (!crossOptions.isEmpty()) {
-            crossCLibLinkMap[v.rootPkgName] = crossOptions
-        }
     }
-    return (cLibLinkMap, crossCLibLinkMap)
+    return cLibLinkMap
 }
 
 func getForeignStr(name: String, path: String): ArrayList<String> {

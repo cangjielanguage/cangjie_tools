@@ -41,11 +41,10 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
         }
     }
 
-    let (ldPath, cLibLinkMap, crossCLibLinkMap, cjPathList) = configureModuleResolveData(
+    let (ldPath, cLibLinkMap, cjPathList) = configureModuleResolveData(
         buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir, curResolveData,
         macroDep: buildConfig.pkgRequireByMacro)
     buildConfig.globalConfig.cLibLinkMap = cLibLinkMap.clone()
-    buildConfig.globalConfig.crossCLibLinkMap = crossCLibLinkMap.clone()
     buildConfig.globalConfig.ldPath.add(all: ldPath)
     buildConfig.globalConfig.cjPathList.add(all: cjPathList)
 
@@ -958,16 +957,10 @@ func makeDylibCommand(fullName: String, buildConfig: BuildConfig, isNativeForCro
     return res
 }
 
-func appendCLibLinkStr(buildConfig: BuildConfig, cLibNameList: ArrayList<String>, res: ArrayList<String>, isCross: Bool): Unit {
-    var cLibLinkStr = ArrayList<String>()
-    if (isCross) {
-        cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.crossCLibLinkMap, cLibNameList)
-    } else {
-        cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.cLibLinkMap, cLibNameList)
-    }
+func appendCLibLinkStr(buildConfig: BuildConfig, cLibNameList: ArrayList<String>, res: ArrayList<String>): Unit {
+    let cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.cLibLinkMap, cLibNameList)
     var index: Int64 = 0
     var cLibPathSet: HashSet<String> = HashSet<String>()
-    var cLibNameSet: HashSet<String> = HashSet<String>()
     while (index < cLibLinkStr.size) {
         if (cLibLinkStr[index] == "-L") {
             if (!cLibPathSet.contains(cLibLinkStr[index + 1])) {
@@ -976,12 +969,6 @@ func appendCLibLinkStr(buildConfig: BuildConfig, cLibNameList: ArrayList<String>
                 cLibPathSet.add(cLibLinkStr[index + 1])
             }
             index += 2
-        } else if (cLibLinkStr[index].startsWith("-l")) {
-            if (!cLibNameSet.contains(cLibLinkStr[index])) {
-                res.add(cLibLinkStr[index])
-                cLibNameSet.add(cLibLinkStr[index])
-            }
-            index += 1
         } else {
             res.add(cLibLinkStr[index])
             index += 1
@@ -996,7 +983,7 @@ func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNati
         buildConfig.superPkgSubMap) // Record dependent package names
 
     if (linkSort.size == 0) {
-        appendCLibLinkStr(buildConfig, cLibNameList, res, buildConfig.isCrossCompile && !isNativeForCross)
+        appendCLibLinkStr(buildConfig, cLibNameList, res)
         return res
     }
 
@@ -1037,7 +1024,7 @@ func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNati
     binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, linkSort, buildConfig.isLto), at: 0)
     binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, linkSort, buildConfig.isLto), at: 0)
     res.add(all: binOptions)
-    appendCLibLinkStr(buildConfig, cLibNameList, res, buildConfig.isCrossCompile && !isNativeForCross)
+    appendCLibLinkStr(buildConfig, cLibNameList, res)
 
     return res
 }
@@ -1095,7 +1082,7 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
         binDepSet.add(all: getDepSet(depName, buildConfig.requiresMap, buildConfig.superPkgSubMap))
     }
 
-    allOptions.add(all: getForcedBinDep(buildConfig, binDepSet, cLibNameList, isNativeForCross))
+    allOptions.add(all: getForcedBinDep(buildConfig, binDepSet, cLibNameList))
 
     var compileTarget: String = targetConfigName
     if (!crossCompileTarget.isEmpty() && !isNativeForCross) {
@@ -1115,32 +1102,25 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
 }
 
 @When[os == "Linux" || os == "Windows"]
-func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>,
-    isNativeForCross: Bool): ArrayList<String> {
+func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
     binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, buildConfig.isLto), at: 0)
     binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, buildConfig.isLto), at: 0)
-    appendCLibLinkStr(buildConfig, cLibNameList, binOptions, buildConfig.isCrossCompile && !isNativeForCross)
+    appendCLibLinkStr(buildConfig, cLibNameList, binOptions)
     return binOptions
 }
 
 @When[os == "macOS"]
-func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>,
-    isNativeForCross: Bool): ArrayList<String> {
+func getForcedBinDep(buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
     if (crossCompileTarget.contains("ohos")) {
         binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, buildConfig.isLto), at: 0)
         binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, buildConfig.isLto), at: 0)
-        appendCLibLinkStr(buildConfig, cLibNameList, binOptions, buildConfig.isCrossCompile && !isNativeForCross)
+        appendCLibLinkStr(buildConfig, cLibNameList, binOptions)
     } else {
         binOptions.add(all: getForcedBinDepPath(buildConfig.binDepMap, binDepSet, buildConfig.isLto), at: 0)
         binOptions.add(all: getForcedBinDepPath(buildConfig.crossBinDepMap, binDepSet, buildConfig.isLto), at: 0)
-        var cLibLinkStr = ArrayList<String>()
-        if (isNativeForCross) {
-            cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.crossCLibLinkMap, cLibNameList)
-        } else {
-            cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.cLibLinkMap, cLibNameList)
-        }
+        let cLibLinkStr = getcLibLinkStr(buildConfig.globalConfig.cLibLinkMap, cLibNameList)
 
         var libName = ""
         var libPath = ""
@@ -1187,7 +1167,6 @@ func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, com
         var pathSet = HashSet<String>()
         var linkArr = ArrayList<String>()
         var index = 0
-        var optionsNameSet = HashSet<String>()
         while (index < allOptions.size) {
             if (allOptions[index] != "-L") {
                 res.add("--link-options=-force_load ${allOptions[index]}")
@@ -1199,10 +1178,7 @@ func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, com
                 linkArr.add(allOptions[index + 1])
                 pathSet.add(allOptions[index + 1])
             }
-            if (!optionsNameSet.contains(allOptions[index + 2])) {
-                linkArr.add(allOptions[index + 2])
-                optionsNameSet.add(allOptions[index + 2])
-            }
+            linkArr.add(allOptions[index + 2])
             index += 3
         }
         res.add(all: linkArr)
