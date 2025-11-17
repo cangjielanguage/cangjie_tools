@@ -46,30 +46,3 @@ git clone -b OpenHarmony-v6.0-Release --depth 1 https://gitcode.com/openharmony/
 ```
 
 构建项目时，则直接使用 cangjie-language-server/third_party/json-v3.11.3 目录源码进行构建。
-
-## SQLite
-
-### 代码来源说明
-
-SQLite 是一种采用C语言编写的SQL数据库引擎，仓颉语言服务工具使用 SQLite 进行索引的存储和读取。
-
-该仓被仓颉语言服务工具源码依赖，开源版本为 [SQLite OpenHarmony-v6.0-Release](https://gitcode.com/openharmony/third_party_sqlite/tags/OpenHarmony-v6.0-Release)。
-
-### 构建说明
-
-本仓库通过 CMake 直接使用 SQLite 的源码。
-
-开发者也可以手动下载 [sqlite](sqlite) 源码，命令如下：
-
-```shell
-mkdir -p cangjie-language-server/third_party/sqlite3
-cd cangjie-language-server/third_party/sqlite3
-git clone -b OpenHarmony-v6.0-Release --depth 1 https://gitcode.com/openharmony/third_party_sqlite.git ./
-mkdir -p amalgamation
-cp src/shell.c amalgamation/
-cp src/sqlite3.c amalgamation/
-cp include/sqlite3.h amalgamation/
-cp include/sqlite3ext.h amalgamation/
-```
-
-构建项目时，则直接使用 cangjie-language-server/third_party/sqlite3 目录源码进行构建。
