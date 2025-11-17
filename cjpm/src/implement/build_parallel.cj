@@ -349,7 +349,7 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
 
             if (resolve.isMultiplatform) {
                 for (source in resolve.packagePath._sources) {
-                    let finalSpecificPath = Path(finalPath).join(source.outputSuffix).join(resolve.rootPkgName).toString()
+                    let finalSpecificPath = Path(finalPath).join(source.outputSuffix).toString()
                     if (!createDirectory(finalSpecificPath)) {
                         return false
                     }

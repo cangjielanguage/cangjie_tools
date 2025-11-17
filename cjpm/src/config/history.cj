@@ -363,7 +363,7 @@ public func getLdPathConfig(targetDir: String, nativeDir: String, resolve: Modul
             var pathToAdd = getPath(targetDir, swapOrgName(v.rootPkgName))
             if (v.isMultiplatform) {
                 let source = v.packagePath.product
-                ldPath.add(Path(pathToAdd).join(source.outputSuffix).join(swapOrgName(v.rootPkgName)).toString())
+                ldPath.add(Path(pathToAdd).join(source.outputSuffix).toString())
             } else {
                 ldPath.add(pathToAdd)
             }

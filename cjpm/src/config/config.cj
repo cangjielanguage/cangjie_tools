@@ -517,7 +517,7 @@ public struct PackageList {
                 for (source in reversed) {
                     let finalFeatures = it.featureDeducer.addFeature(features).collect()
                     if (finalFeatures.contains(all: source.features)) {
-                        return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
+                        return Some((it.fullName, getPath(source.outputSuffix.toString())))
                     }
                 }
                 return None<(String, String)>

@@ -632,7 +632,7 @@ func getRootPackageDir(pkgInfo: PkgTestInfo, targetDir: String) {
     let pkgRootName = swapOrgName(pkgInfo.fqname.value.split(".")[0])
     if (pkgInfo.packagePath.isMultiplatform) {
         let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
-        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix, pkgRootName)
+        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix)
     } else {
         return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName)
     }
@@ -657,7 +657,7 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     if (pkgInfo.packagePath.isMultiplatform) {
         let rootName = getRootPkgName(pkgInfo.fqname.value)
         let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
-        let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+        let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix)
         cmdList.add(all: ["--import-path", cjopath])
     }
 
@@ -1103,7 +1103,7 @@ class DummyTestFile {
         if (pkgDesc.srcDir.isMultiplatform) {
             let rootName = getRootPkgName(fqname.value)
             let suffix = pkgDesc.srcDir.product.outputSuffix.toString()
-            let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+            let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix)
             cmdList.add(all: ["--import-path", cjopath])
         } else {
             cmdList.add(all: ["--import-path", testConfig.globalConfig.targetDir])

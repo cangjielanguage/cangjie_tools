@@ -701,10 +701,7 @@ func getMultiplatformPipeline(resolveConfig: ResolveConfig, buildConfig: BuildCo
     var prevStageCjo = None<String>
     for (source in resolveConfig.packagePath._sources) {
         let options = ArrayList<String>()
-        let outputPath = match (resolveConfig.outputType) {
-            case Exe => getPath(resolveConfig.targetPath, source.outputSuffix.toString())
-            case _ => getPath(resolveConfig.targetPath, source.outputSuffix.toString(), resolveConfig.rootPkgName)
-        }
+        let outputPath = getPath(resolveConfig.targetPath, source.outputSuffix.toString())
         if (state.isExperimental) {
             options.add("--experimental")
         }
