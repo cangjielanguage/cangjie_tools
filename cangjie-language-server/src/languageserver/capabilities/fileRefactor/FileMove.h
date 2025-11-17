@@ -21,7 +21,7 @@ public:
     static void FileMoveRefactor(const ArkAST *ast, FileRefactorRespParams &result, const std::string &file, const std::string &selectedElement, const std::string &target);
 
 private:
-    static void FindFileRefactor(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string & targetPath, FileRefactorRespParams &result);
+    static void FindFileRefactor(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string &targetPath, FileRefactorRespParams &result);
 
     static void DealMoveFile(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string &targetPath, FileRefactor &refactor);
 
@@ -54,6 +54,8 @@ private:
     static bool ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targetPkg, std::string moveFile);
 
     static std::string GetTargetPath(std::string file);
+
+    static bool isInvalidImport(Ptr<ImportSpec> fileImport);
 
     static std::unordered_map<std::string, std::unique_ptr<Cangjie::LSPCompilerInstance>> ciMap;
 

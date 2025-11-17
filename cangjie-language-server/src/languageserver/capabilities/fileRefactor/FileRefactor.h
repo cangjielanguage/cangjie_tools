@@ -118,6 +118,19 @@ private:
         std::string refactorFullSym, std::string originFullSym);
 
     bool ContainFullPkgImport();
+
+    void CollectImports(std::vector<Ptr<ImportSpec>> &multiImports, std::vector<Ptr<ImportSpec>> &deleteMultiImports,
+        const std::string &uri);
+
+    void DeleteMoveFileSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, std::vector<Ptr<ImportSpec>> &deleteMultiImports,
+        const std::string &uri);
+
+    void DeleteRefFileSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, const std::string &uri);
+
+    void DeleteReExportSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, const std::string &uri);
 };
 
 using RefactorFunc = void (ark::FileRefactor::*)();
