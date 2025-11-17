@@ -93,7 +93,6 @@
 |----------------------|---------------------|-----------------------|------|--------------|
 | flatbuffers          | Apache License V2.0 | 仓颉语言服务对索引数据进行序列化和反序列化 | 语言服务 | 集成到仓颉二进制发布包中 |
 | JSON for Modern C++  | MIT License         | 仓颉语言服务用于报文解析和封装       | 语言服务、静态检查 | 集成到仓颉二进制发布包中 |
-| SQLite               | Public Domain       | 仓颉语言服务使用数据库存储索引数据     | 语言服务 | 集成到仓颉二进制发布包中 |
 
 构建方式参见[仓颉SDK集成构建指导书](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README_zh.md)。更多软件依赖，参见[环境准备](https://gitcode.com/Cangjie/cangjie_build/blob/dev/docs/env_zh.md)。开源组件依赖部分可参考[第三方开源软件说明](./third_party/README.md)。
 
