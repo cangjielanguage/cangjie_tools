@@ -13,10 +13,9 @@ namespace ark {
 namespace lsp {
 enum class RefKind : uint8_t {
     UNKNOWN = 0,
-    DECLARATION = 1 << 0,
-    DEFINITION = 1 << 1,
-    REFERENCE = 1 << 2,
-    ALL = DEFINITION | REFERENCE | DECLARATION
+    DEFINITION = 1,
+    REFERENCE = 1 << 1,
+    ALL = DEFINITION | REFERENCE
 };
 
 inline RefKind operator&(RefKind a, RefKind b)
@@ -29,7 +28,6 @@ struct Ref {
     RefKind kind = RefKind::UNKNOWN;
     SymbolID container{};
     bool isCjoRef{false};
-    bool isSuper{false};
 };
 
 using RefSlab = std::map<SymbolID, std::vector<Ref>>;

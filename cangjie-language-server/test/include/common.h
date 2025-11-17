@@ -19,12 +19,7 @@ enum TestType {
     Completion,
     DocumentSymbol,
     SignatureHelp,
-    CallHierarchy,
-    CrossLanguageDefinition,
-    OverrideMethods,
-    CodeAction,
-    ApplyEdit,
-    FileReference
+    CallHierarchy
 };
 
 struct TextDocumentEditInfo {
@@ -180,8 +175,4 @@ namespace test::common {
     bool IsMacroExpandTest(const std::string &rootUri);
     
     bool IsMacroExpandTest(const std::string &rootUri);
-
-    ark::FindOverrideMethodResult CreateOverrideMethodsResult(const nlohmann::json& exp);
-
-    bool CheckOverrideMethodsResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string& reason);
 }

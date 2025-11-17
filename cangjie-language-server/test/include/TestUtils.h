@@ -66,14 +66,6 @@ namespace TestUtils {
         return exp.size() == act.size();
     }
 
-    std::vector<ark::CodeAction> CreateCodeActionStruct(const nlohmann::json& exp);
-
-    bool CheckCodeActionResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string &reason);
-
-    ark::ApplyWorkspaceEditParams CreateApplyEditStruct(const nlohmann::json& exp);
-
-    bool CheckApplyEditResult(const nlohmann::json& expect, const nlohmann::json& actual, std::string &reason);
-    
     ark::Command CreateCommandStruct(const nlohmann::json &exp);
     
     ark::Range CreateRangeStruct(const nlohmann::json &exp);

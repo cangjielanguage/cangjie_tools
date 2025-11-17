@@ -27,8 +27,6 @@ public:
         if (context && context->curPackage && !context->curPackage->files.empty() && context->curPackage->files[0]) {
             curFilePath = context->curPackage->files[0]->filePath;
             packageNameForPath = GetPkgNameFromNode(context->curPackage->files[0].get());
-            auto moduleName = Utils::SplitQualifiedName(packageNameForPath).front();
-            syscap.SetIntersectionSet(moduleName);
         }
         InitMap();
     }
@@ -165,12 +163,8 @@ private:
 
     Ptr<Decl> FindTopDecl(const ArkAST &input, const std::string &prefix, CompletionEnv &env,
                           const Position &pos);
-
     void CompleteCandidate(const Position &pos, const std::string &prefix, CompletionEnv &env,
                            Candidate &declOrTy);
-
-    Position GetMacroNodeNextPosition(
-        const std::unique_ptr<ArkAST> &arkAst, const Ptr<NameReferenceExpr> &semaCacheExpr) const;
 
     /**
      * complete macro-modified field in macro node, ex:
@@ -205,8 +199,6 @@ private:
     std::set<std::string> usedPkg = {};
 
     bool isEnumCtor = false;
-
-    SyscapCheck syscap;
 };
 
 using FindFunc = void (ark::DotCompleterByParse::*)(

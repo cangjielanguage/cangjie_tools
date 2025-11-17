@@ -10,11 +10,11 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "../languageserver/index/Symbol.h"
 #include "CompletionType.h"
-#include "ProtocolContent.h"
 #include "WorkSpaceSymbolType.h"
 #include "cangjie/Basic/Position.h"
 
@@ -23,7 +23,15 @@
  * see https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/#baseProtocol
  */
 namespace ark {
-
+enum class ErrorCode {
+    PARSE_ERROR = -32700,
+    INVALID_REQUEST = -32600,
+    METHOD_NOT_FOUND = -32601,
+    SERVER_NOT_INITIALIZED = -32002,
+    UNKNOWN_ERROR_CODE = -32001,
+    // Customized error code. (>= -31999 or <= -32900)
+    INVALID_RENAME_FOR_MACRO_CALL_FILE = -31999
+};
 
 class MessageErrorDetail {
 public:
@@ -34,6 +42,48 @@ public:
 
     MessageErrorDetail(std::string message, ErrorCode code) : message(std::move(message)), code(code) {}
     ~MessageErrorDetail() {}
+};
+
+// Sync document changes strategy for language server
+enum class TextDocumentSyncKind {
+    // Documents not be synced at any time.
+    SK_NONE = 0,
+
+    // Smart sync, Documents are synced using the full content on open.
+    // After only incremental updates to the document.
+    SK_INCREMENTAL = 2,
+};
+
+enum class HighlightKind {
+    FILE_H = 1,
+    MODULE_H = 2,
+    NAMESPACE_H = 3,
+    PACKAGE_H = 4,
+    CLASS_H = 5,
+    METHOD_H = 6,
+    PROPERTY_H = 7,
+    FIELD_H = 8,
+    CONSTRUCTOR_H = 9,
+    ENUM_H = 10,
+    INTERFACE_H = 11,
+    FUNCTION_H = 12,
+    VARIABLE_H = 13,
+    CONSTANT_H = 14,
+    NUMBER_H = 16,
+    BOOLEAN_H = 17,
+    ARRAY_H = 18,
+    OBJECT_H = 19,
+    KEY_H = 20,
+    MISSING_H = 21,
+    ENUMMEMBER_H = 22,
+    STRUCT_H = 23,
+    EVENT_H = 24,
+    OPERATOR_H = 25,
+    TYPEPARAMETER_H = 26,
+    COMMENT_H = 27,
+    RECORD_H = 28,
+    TRAIT_H = 29,
+    INACTIVECODE_H
 };
 
 struct TextDocumentIdentifier {
@@ -48,23 +98,6 @@ struct TextDocumentPositionParams {
     Cangjie::Position position;
 
     ~TextDocumentPositionParams() = default;
-};
-
-struct CrossLanguageJumpParams {
-    std::string packageName;
-
-    std::string name;
-
-    std::string outerName;
-
-    bool isCombined = false;
-
-    ~CrossLanguageJumpParams() = default;
-};
-
-struct OverrideMethodsParams: public TextDocumentPositionParams {
-    // Is extend type
-    bool isExtend = false;
 };
 
 // TypeHierarchy response
@@ -126,9 +159,9 @@ bool FromJSON(const nlohmann::json &params, CallHierarchyItem &reply);
 
 bool FromJSON(const nlohmann::json &params, TextDocumentPositionParams &reply);
 
-bool FromJSON(const nlohmann::json &params, CrossLanguageJumpParams &reply);
-
-bool FromJSON(const nlohmann::json &params, OverrideMethodsParams &reply);
+enum class SignatureHelpTriggerKind {
+    END = 4
+};
 
 bool FromJSON(const nlohmann::json &params, CompletionContext &reply);
 
@@ -222,6 +255,15 @@ struct CompletionList {
     std::vector<CompletionItem> items{};
 };
 
+enum class FileChangeType {
+    // The instruction file was created.
+    CREATED = 1,
+    // The instruction file was changed.
+    CHANGED = 2,
+    // The instruction file was deleted.
+    DELETED = 3,
+};
+
 struct FileWatchedEvent {
     TextDocumentIdentifier textDocument;
     FileChangeType type;
@@ -270,10 +312,6 @@ struct ExecutableRange {
     std::string className;
     std::string functionName;
     Range range;
-    // used for refactor
-    std::string tweakId;
-    // used for refactor
-    std::map<std::string, std::string> extraOptions;
 
     bool operator<(const ExecutableRange &rhs) const
     {
@@ -287,10 +325,7 @@ struct Command {
     std::string title;
     std::string command;
     std::set<ExecutableRange> arguments;
-    const static std::string APPLY_EDIT_COMMAND;
 };
-
-bool ToJSON(const Command &params, nlohmann::json &reply);
 
 struct CodeLens {
     Range range;
@@ -306,6 +341,10 @@ struct CodeLens {
 bool ToJSON(const ExecutableRange &params, nlohmann::json &reply);
 
 bool ToJSON(const CodeLens &params, nlohmann::json &reply);
+
+enum class DocumentHighlightKind {
+    TEXT = 1,
+};
 
 struct DocumentHighlight {
     Range range;
@@ -387,6 +426,25 @@ struct SemanticTokensParams {
 
 struct SemanticTokens {
     std::vector<int> data;
+};
+
+enum class SemanticTokenTypes {
+    COMMENT_T = 0,
+    KEYWORD_T = 1,
+    NUMBER_T = 3,
+    OPERATOR_T = 5,
+    NAMESPACE_T = 6,
+    TYPE_T = 7,
+    STRUCT_T = 8,
+    CLASS_T = 9,
+    INTERFACE_T = 10,
+    ENUM_T = 11,
+    TYPE_PARAMETER_T = 12,
+    FUNCTION_T = 13,
+    PROPERTY_T = 15,
+    MACRO_T = 16,
+    VARIABLE_T = 17,
+    LABEL_T = 19
 };
 
 bool FromJSON(const nlohmann::json &params, SemanticTokensParams &reply);
@@ -479,11 +537,7 @@ struct CompletionTip {
 
 bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply);
 
-bool FromJSON(const nlohmann::json &params, DiagnosticToken &result);
-
 bool ToJSON(const DiagnosticRelatedInformation &info, nlohmann::json &reply);
-
-bool FromJSON(const nlohmann::json &param, DiagnosticRelatedInformation &info);
 
 struct DiagnosticCompare {
     bool operator()(const DiagnosticToken &lhs, const DiagnosticToken &rhs) const
@@ -509,12 +563,6 @@ struct CodeAction {
     std::string title = "";
 
     std::string kind = "";
-
-    const static std::string QUICKFIX_KIND;
-
-    const static std::string REFACTOR_KIND;
-
-    const static std::string INFO_KIND;
 
     std::optional<std::vector<DiagnosticToken>> diagnostics;
 
@@ -579,52 +627,6 @@ struct DocumentSymbol {
 bool FromJSON(const nlohmann::json &params, DocumentSymbolParams &dsReply);
 
 bool ToJSON(const DocumentSymbol &item, nlohmann::json &result);
-
-struct CodeActionContext {
-    std::vector<DiagnosticToken> diagnostics;
-
-    std::optional<std::vector<std::string>> only;
-};
-
-bool FromJSON(const nlohmann::json &params, CodeActionContext &reply);
-
-struct CodeActionParams {
-    TextDocumentIdentifier textDocument;
-
-    Range range;
-
-    CodeActionContext context;
-};
-
-bool FromJSON(const nlohmann::json &params, CodeActionParams &reply);
-
-struct TweakArgs {
-    URIForFile file;
-
-    Range selection;
-
-    std::string tweakID;
-
-    std::map<std::string, std::string> extraOptions;
-};
-
-bool FromJSON(const nlohmann::json &params, TweakArgs &reply);
-
-bool ToJSON(const TweakArgs &item, nlohmann::json &reply);
-
-struct ExecuteCommandParams {
-    std::string command;
-
-    nlohmann::json arguments;
-};
-
-bool FromJSON(const nlohmann::json &params, ExecuteCommandParams &reply);
-
-struct ApplyWorkspaceEditParams {
-    WorkspaceEdit edit;
-};
-
-bool ToJSON(const ApplyWorkspaceEditParams &item, nlohmann::json &reply);
 
 class MessageHeaderEndOfLine {
 public:

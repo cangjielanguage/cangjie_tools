@@ -170,7 +170,7 @@ bool PrepareRename::IsFromMacroCallFile(Ptr<Decl> decl)
         }
     }
     // deal decl in .macroCall
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
     if (!index) {
         return true;
     }

@@ -14,7 +14,7 @@ std::vector<SymbolInformation> GetWorkspaceSymbols(const std::string &query)
 {
     Logger &logger = Logger::Instance();
     logger.LogMessage(MessageType::MSG_LOG, "GetWorkspaceSymbols in.");
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
     std::vector<SymbolInformation> result;
     if (!index || query.empty()) {
         return result;

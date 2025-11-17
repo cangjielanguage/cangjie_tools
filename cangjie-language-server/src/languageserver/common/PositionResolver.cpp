@@ -60,7 +60,7 @@ std::string Char32ToUTF8(const std::basic_string<char32_t>& str)
     return conv.to_bytes(str);
 }
 
-int GetFirstTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, int declLine)
+int GetFirstTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, const int declLine)
 {
     if (tokens.empty()) {
         return -1;
@@ -86,7 +86,7 @@ int GetFirstTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, int declLi
     return -1;
 }
 
-int GetLastTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, int declLine)
+int GetLastTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, const int declLine)
 {
     if (tokens.empty()) {
         return -1;
@@ -161,7 +161,7 @@ std::vector<std::string> Split(const std::string &str, const std::string &patter
     return result;
 }
 
-bool PositionInCurToken(int line, int column, const Cangjie::Token &token)
+bool PositionInCurToken(const int line, const int column, const Cangjie::Token &token)
 {
     std::string lastString;
     if (token.kind == Cangjie::TokenKind::MULTILINE_STRING ||
@@ -236,7 +236,7 @@ bool IsMultiLine(const Cangjie::Token &token)
 }
 
 int RedundantCharacterOfMultiLineString(const std::vector<Cangjie::Token> &tokens, const Cangjie::Position &pos,
-                                        int preBegin)
+                                        const int preBegin)
 {
     std::string lastString;
     if (!IsUTF8(lastString) || preBegin < 0) {

@@ -132,7 +132,7 @@ void RenameImpl::RenameByIndex(lsp::SymbolID id, DocumentChanges &documentChange
 {
     std::unordered_set<lsp::SymbolID> relationIds;
     lsp::SymbolID topId = id;
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetMemIndex();
     if (!index) {
         return;
     }
@@ -167,9 +167,6 @@ void RenameImpl::RenameByIndex(lsp::SymbolID id, DocumentChanges &documentChange
 
     lsp::RefsRequest refsRequest{relationIds, lsp::RefKind::REFERENCE};
     index->Refs(refsRequest, [&documentChanges, &newName, &range](const lsp::Ref &ref) {
-        if (ref.isSuper) {
-            return;
-        }
         std::string file = ref.location.fileUri;
         TextEdit t{TransformFromChar2IDE({ref.location.begin, ref.location.end}), newName};
         if (range != t.range) {

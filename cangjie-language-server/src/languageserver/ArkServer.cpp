@@ -5,16 +5,14 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "ArkServer.h"
-#include <cangjie/Utils/ConstantsUtils.h>
-#include <cangjie/Utils/FileUtil.h>
-#include <string>
 #include <utility>
-
-#include "capabilities/definition/CrossLanguangeDefinition.h"
-#include "capabilities/documentSymbol/DocumentSymbolImpl.h"
-#include "capabilities/hover/HoverImpl.h"
+#include <string>
+#include <cangjie/Utils/FileUtil.h>
+#include <cangjie/Utils/ConstantsUtils.h>
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
+#include "capabilities/hover/HoverImpl.h"
 #include "capabilities/signatureHelp/SignatureHelpImpl.h"
+#include "capabilities/documentSymbol/DocumentSymbolImpl.h"
 #include "capabilities/typeHierarchy/TypeHierarchyImpl.h"
 #include "capabilities/workspaceSymbol/FindSymbols.h"
 #include "common/Constants.h"
@@ -285,37 +283,6 @@ void ArkServer::FindReferences(const std::string &file,
     arkScheduler->RunWithAST("References", file, action);
 }
 
-void ArkServer::FindFileReferences(const std::string &file, const Callback<ValueOrError> &reply) const
-{
-    auto action = [file, reply = std::move(reply), this](const InputsAndAST& inputAST) {
-        ReferencesResult result;
-        std::string unixPath = PathWindowsToLinux(file);
-        if (inputAST.ast == nullptr) {
-            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-            reply(value);
-            return;
-        }
-        FindReferencesImpl::FindFileReferences(*(inputAST.ast), result);
-        nlohmann::json jsonValue;
-        for (auto &iter : result.References) {
-            nlohmann::json temp;
-            if (unixPath.compare(URI::Resolve(iter.uri.file)) == 0) {
-                continue;
-            }
-            temp["uri"] = iter.uri.file;
-            temp["range"]["start"]["line"] = iter.range.start.line;
-            temp["range"]["start"]["character"] = iter.range.start.column;
-            temp["range"]["end"]["line"] = iter.range.end.line;
-            temp["range"]["end"]["character"] = iter.range.end.column;
-            (void)jsonValue.push_back(temp);
-        }
-        ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
-        reply(value);
-    };
-
-    arkScheduler->RunWithAST("FileReferences", file, action);
-}
-
 void ArkServer::FindWorkspaceSymbols(const std::string &query, const Callback<ValueOrError> &reply) const
 {
     auto action = [query, reply = std::move(reply)](const InputsAndAST &) {
@@ -422,26 +389,6 @@ void ArkServer::LocateSymbolAt(const std::string &file,
         reply(value);
     };
     arkScheduler->RunWithAST("Definition", file, action);
-}
-
-void ArkServer::LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
-{
-    CrossSymbolsResult result{};
-    bool ret = CrossLanguangeDefinition::getCrossSymbols(params, result);
-    nlohmann::json jsonValue;
-    if (ret) {
-        for (auto &iter : result.locations) {
-            nlohmann::json temp;
-            temp["uri"] = iter.uri.file;
-            temp["range"]["start"]["line"] = iter.range.start.line;
-            temp["range"]["start"]["character"] = iter.range.start.column;
-            temp["range"]["end"]["line"] = iter.range.end.line;
-            temp["range"]["end"]["character"] = iter.range.end.column;
-            (void)jsonValue.push_back(temp);
-        }
-    }
-    ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
-    reply(value);
 }
 
 void ArkServer::FindDocumentLink(const std::string &file, const Callback<ValueOrError> &reply) const
@@ -737,12 +684,6 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
     auto action = [this, file, type, docMgr](const InputsAndAST &input) {
         if (type == FileChangeType::CHANGED) {
             Logger::Instance().LogMessage(MessageType::MSG_WARNING, "enter the scenario not supported ");
-            if (docMgr->GetDoc(file).version == -1) {
-                Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
-                const std::string &contents = GetFileContents(file);
-                int64_t version = docMgr->AddDoc(file, 0, contents);
-                AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
-            }
             return;
         }
         if (type == FileChangeType::CREATED) {
@@ -755,7 +696,6 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
         if (type == FileChangeType::DELETED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "delete the file:  " + file);
             CompilerCangjieProject::GetInstance()->IncrementForFileDelete(file);
-            CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({file});
             this->callback->RemoveDocByFile(input.inputs.fileName);
         }
         if (!FileUtil::FileExist(input.onEditFile)) {
@@ -808,46 +748,6 @@ void ArkServer::FindDocumentSymbol(const DocumentSymbolParams &params, const Cal
     arkScheduler->RunWithAST("DocumentSymbol", file, action);
 }
 
-void ArkServer::FindOverrideMethods(const std::string &file,
-                               const OverrideMethodsParams &params, const Callback<ValueOrError> &reply) const
-{
-    auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
-        Cangjie::Position pos = AlterPosition(file, params);
-        if (pos == INVALID_POSITION) {
-            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-            reply(value);
-            return;
-        }
-        FindOverrideMethodResult result;
-        if (inputAST.ast == nullptr) {
-            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-            reply(value);
-            return;
-        }
-        FindOverrideMethodsImpl::FindOverrideMethods(*(inputAST.ast), result, pos, params.isExtend);
-        nlohmann::json jsonValue;
-        for (auto item: result.overrideMethods) {
-            nlohmann::json overrideItem;
-            overrideItem["importItem"] = item.package + CONSTANTS::DOT + item.identifier;
-            overrideItem["fullPackageName"] = item.package;
-            overrideItem["identifier"] = item.identifier;
-            overrideItem["kind"] = item.kind;
-            for (auto method: item.overrideMethodInfos) {
-                nlohmann::json jsonItem;
-                jsonItem["deprecated"] = method.deprecated;
-                jsonItem["isProp"] = method.isProp;
-                jsonItem["signatureWithRet"] = method.signatureWithRet;
-                jsonItem["insertText"] = method.insertText;
-                overrideItem["data"].push_back(jsonItem);
-            }
-            jsonValue.push_back(overrideItem);
-        }
-        ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
-        reply(value);
-    };
-    arkScheduler->RunWithAST("OverrideMethods", file, action);
-}
-
 Cangjie::Position ArkServer::AlterPosition(const std::string &file,
                                            const TextDocumentPositionParams &params) const
 {
@@ -860,119 +760,5 @@ Cangjie::Position ArkServer::AlterPosition(const std::string &file,
             params.position.line,
             params.position.column
     };
-}
-
-static std::vector<std::unique_ptr<Tweak::Selection>> CreateTweakSelection(const InputsAndAST &inputAST,
-    const std::string &file, Range range, std::map<std::string, std::string> extraOptions)
-{
-    std::vector<std::unique_ptr<Tweak::Selection>> result;
-
-    SelectionTree::CreateEach(*inputAST.ast, file, range.start,
-        range.end, [&](SelectionTree selectionTree) {
-            // cannot tweak:
-            // if selected range is not GLOBAL_VAR/MEMBER_VAR/GLOBAL_FUNC_BODY/MEMBER_FUNC_BODY/EXTEND_FUNC_BODY
-            if (!selectionTree.root() || selectionTree.SelectedScope() == SelectionTree::Scope::UNKNOWN) {
-                return false;
-            }
-            auto tweakSelection =
-                std::make_unique<Tweak::Selection>(*inputAST.ast, range, std::move(selectionTree), extraOptions);
-
-            result.push_back(std::move(tweakSelection));
-            return true;
-        });
-    return std::move(result);
-}
-
-void ArkServer::EnumerateTweaks(const std::string &file, Range range, const Callback<std::vector<TweakRef>> &cb) const
-{
-    auto action = [file, range, cb = std::move(cb)]
-        (const InputsAndAST &inputAST) mutable {
-            std::vector<TweakRef> res;
-            if (!inputAST.ast) {
-                cb(std::move(res));
-                return;
-            }
-
-            // update pos fileID
-            range.start.fileID = inputAST.ast->fileID;
-            range.end.fileID = inputAST.ast->fileID;
-
-            // check current token is the kind which required in function CheckTokenKind(TokenKind)
-            range.start = PosFromIDE2Char(range.start);
-            PositionIDEToUTF8(inputAST.ast->tokens, range.start, *inputAST.ast->file);
-            range.end = PosFromIDE2Char(range.end);
-            PositionIDEToUTF8(inputAST.ast->tokens, range.end, *inputAST.ast->file);
-
-            // get Selections by range
-            // visit all Tweaks check tweak available
-            auto selections =
-                CreateTweakSelection(inputAST, file, range, std::map<std::string, std::string>());
-            if (selections.empty()) {
-                cb(std::move(res));
-                return;
-            }
-            std::unordered_set<std::string> preparedTweaks;
-            auto deduplicatingFilter = [&preparedTweaks](const Tweak &tweak) {
-                return !preparedTweaks.count(tweak.Id());
-            };
-            for (const auto &selection : selections) {
-                if (!selection) {
-                    continue;
-                }
-                for (const auto &tweak
-                    : Tweak::PrepareTweaks(*selection, deduplicatingFilter)) {
-                    if (!tweak) {
-                        continue;
-                    }
-                    res.push_back({tweak->Id(), tweak->Title(), tweak->Kind(),
-                        tweak->ExtraOptions()});
-                    preparedTweaks.insert(tweak->Id());
-                }
-            }
-            cb(std::move(res));
-        };
-    arkScheduler-> RunWithAST("EnumerateTweaks", file, std::move(action));
-}
-
-void ArkServer::ApplyTweak(const std::string &file, Range selection, const std::string &id,
-    std::map<std::string, std::string> extraOptions, const Callback<Tweak::Effect> &cb)
-{
-    auto action = [file, selection, id, extraOptions, cb = std::move(cb), this]
-        (const InputsAndAST &inputAST) mutable {
-            Tweak::Effect effect;
-            if (!inputAST.ast || !inputAST.ast->sourceManager) {
-                return cb(std::move(effect));
-            }
-
-            selection.start.fileID = inputAST.ast->fileID;
-            selection.end.fileID = inputAST.ast->fileID;
-
-            selection.start = PosFromIDE2Char(selection.start);
-            PositionIDEToUTF8(inputAST.ast->tokens, selection.start, *inputAST.ast->file);
-            selection.end = PosFromIDE2Char(selection.end);
-            PositionIDEToUTF8(inputAST.ast->tokens, selection.end, *inputAST.ast->file);
-
-            auto selections = CreateTweakSelection(inputAST, file, selection, extraOptions);
-            if (selections.empty()) {
-                return cb(std::move(effect));
-            }
-            for (const auto &sel : selections) {
-                if (!sel) {
-                    continue;
-                }
-                auto tweak = Tweak::PrepareTweak(id, *sel);
-                if (!tweak.has_value() || !tweak.value()) {
-                    continue;
-                }
-                auto effectOpt = tweak.value()->Apply(*sel);
-                if (effectOpt.has_value()) {
-                    effect = effectOpt.value();
-                    break;
-                }
-            }
-
-            return cb(std::move(effect));
-        };
-    arkScheduler->RunWithAST("ApplyTweak", file, std::move(action));
 }
 } // namespace ark

@@ -47,7 +47,6 @@ struct DPkgInfo : public PkgInfo {
         : PkgInfo(pkgPath, curModulePath, curModuleName, callback)
     {
         compilerInvocation->globalOptions.compileCjd = true;
-        compilerInvocation->globalOptions.enableAddCommentToAst = true;
     }
 };
 
@@ -88,8 +87,6 @@ public:
 
     SymbolLocation GetSymbolDeclaration(SymbolID id, const std::string& fullPkgName);
 
-    CommentGroups GetSymbolComments(SymbolID id, const std::string& fullPkgName);
-
     std::unordered_map<std::string, std::unique_ptr<DPkgInfo>> &GetPkgMap()
     {
         return pkgMap;
@@ -108,12 +105,11 @@ public:
 
 private:
     void ReadCJDSource(const std::string &rootPath, const std::string &modulePath,
-                       std::map<int, std::vector<std::string>> &fileMap, const std::string &parentPkg = "");
+                       const std::string &parentPkg = "");
 
     void LoadAllCJDResource();
 
-    void ReadPackagedCjdResource(const std::string& rootPath, const std::string& filePath,
-        std::map<int, std::vector<std::string>> &fileMap);
+    void ReadPackagedCjdResource(const std::string& rootPath, const std::string& filePath);
 
     void ParsePackageDependencies();
 

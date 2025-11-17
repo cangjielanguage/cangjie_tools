@@ -13,7 +13,6 @@ find_package(Threads)
 link_directories(${FLATBUFFERS_BINARY_DIR})
 set(JSON_INCLUDE_DIR ../third_party/json-v3.11.3/include)
 include_directories(${JSON_INCLUDE_DIR})
-include_directories(../third_party/sqlite3/amalgamation)
 # include head file of GTEST
 include_directories(${GTEST_INCLUDE_DIR})
 # include head file of common
@@ -49,9 +48,6 @@ add_subdirectory(featureTest/typeHierarchy)
 add_subdirectory(featureTest/breakpoints)
 add_subdirectory(featureTest/callHierarchy)
 add_subdirectory(featureTest/codeLens)
-add_subdirectory(featureTest/crossLanguageDefinition)
-add_subdirectory(featureTest/overrideMethods)
-add_subdirectory(featureTest/findFileReference)
 
 # Add test main file
 add_executable(gtest_LSPServer_test main.cpp)
@@ -70,7 +66,6 @@ target_link_libraries(gtest_LSPServer_test
     CompletionTest
     GoToDefinitionTest
     ReferenceTest
-    FileReferenceTest
     RenameTest
     SemanticHighlightTest
     HoverTest
@@ -82,11 +77,8 @@ target_link_libraries(gtest_LSPServer_test
     BreakpointsTest
     CallHierarchyTest
     CodeLensTest
-    CrossLanguageDefinitionTest
-    OverrideMethodsTest
     Common
     libflatbuffers.a
-    sqlite3
     ffi
     -lcangjie-lsp
     ${CMAKE_DL_LIBS}
