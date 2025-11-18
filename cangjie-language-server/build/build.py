@@ -20,6 +20,9 @@ import sys
 from subprocess import PIPE
 from pathlib import Path
 from enum import Enum
+import concurrent.futures
+import re
+import json
 
 HOME_DIR = os.path.dirname(Path(__file__).resolve().parent)
 BUILD_DIR = os.path.join(HOME_DIR, "build-lsp")
@@ -290,6 +293,69 @@ def get_run_test_command(cangjie_sdk_path):
         result.extend([env_path, "&&", test_path])
     return result
 
+def get_test_list(cangjie_sdk_path):
+    gtest_file = "gtest_LSPServer_test"
+    env_file = "envsetup.sh"
+    if IS_WINDOWS:
+        gtest_file = "gtest_LSPServer_test.exe"
+        env_file = "envsetup.bat"
+    env_path = os.path.join(resolve_path(cangjie_sdk_path), env_file)
+    test_path = os.path.join(OUTPUT_DIR, gtest_file)    
+    
+    if not IS_WINDOWS:
+        list_command = ["bash", "-c", f"source {env_path} && {test_path} --gtest_list_tests"]
+    else:
+        list_command = [env_path, "&&", f"{test_path} --gtest_list_tests"]
+    
+    try:
+        result = subprocess.run(list_command, cwd=OUTPUT_DIR, capture_output=True, text=True)
+        test_list_output = result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to get test list: {e}")
+        exit(1)
+    
+    parallel_test_suites = []
+    serial_test_suites = []
+    for line in test_list_output.split('\n'):
+        # 测试套名称通常在行首，没有缩进
+        if line and not line.startswith(' ') and '.' in line:
+            test_suite = line.split('.')[0]
+            if '/' in test_suite and test_suite not in parallel_test_suites:
+                parallel_test_suites.append(test_suite)
+            elif test_suite not in serial_test_suites:
+                serial_test_suites.append(test_suite)
+    
+    print(f"Found {len(parallel_test_suites)} parallel test suites: {parallel_test_suites}")
+    print(f"Found {len(serial_test_suites)} serial test suites: {serial_test_suites}")
+    return parallel_test_suites, serial_test_suites
+
+def run_single_test_suite(cangjie_sdk_path, test_suite):
+    env_file = "envsetup.sh"
+    gtest_file = "gtest_LSPServer_test"
+    if IS_WINDOWS:
+        env_file = "envsetup.bat"
+        gtest_file = "gtest_LSPServer_test.exe"
+    
+    env_path = os.path.join(resolve_path(cangjie_sdk_path), env_file)
+    test_path = os.path.join(OUTPUT_DIR, gtest_file)
+    test_report_name = f"result_{test_suite}.json"
+    if '/' in test_report_name:
+        test_report_name = test_report_name.replace('/', '.')
+
+    if not IS_WINDOWS:
+        command = ["bash", "-c", f"source {env_path} && {test_path} --gtest_filter={test_suite}* --gtest_output=json:{test_report_name}"]
+    else:
+        command = [env_path, "&&", f"{test_path} --gtest_filter={test_suite}* --gtest_output=json:{test_report_name}"]
+    
+    try:
+        result = subprocess.run(command, cwd=OUTPUT_DIR, check=True)
+        if result.returncode == 0:
+            return True, test_suite, result.stdout, result.stderr
+        else:
+            return False, test_suite, result.stdout, result.stderr
+    except Exception as e:
+        return False, test_suite, None, str(e)
+
 def test(args):
     print("start run test")
     cangjie_sdk_path = resolve_path(os.getenv("CANGJIE_HOME"))
@@ -299,12 +365,89 @@ def test(args):
     if not os.path.exists(OUTPUT_DIR):
         print("no output/bin path")
         return
-    commands = get_run_test_command(cangjie_sdk_path)
-    output = subprocess.run(commands, cwd=OUTPUT_DIR, check=True)
-    if output.returncode != 0:
-        print("test failed with return code:", output.returncode)
+    
+    parallel_test_suites, serial_test_suites = get_test_list(cangjie_sdk_path)
+    
+    max_workers = args.jobs if hasattr(args, 'jobs') and args.jobs > 0 else min(32, len(parallel_test_suites) + len(serial_test_suites))
+    
+    failed_suites = []
+    
+    # Run parallel and serial test suites concurrently
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as main_executor:
+        # Submit parallel test suites task
+        parallel_future = main_executor.submit(run_parallel_tests, cangjie_sdk_path, parallel_test_suites, max_workers)
+        # Submit serial test suites task
+        serial_future = main_executor.submit(run_serial_tests, cangjie_sdk_path, serial_test_suites)
+        
+        # Collect results from both
+        parallel_failed = parallel_future.result()
+        serial_failed = serial_future.result()
+        
+        failed_suites.extend(parallel_failed)
+        failed_suites.extend(serial_failed)
+    
+    if failed_suites:
+        print('\n=== Test Summary ===')
+        total_suites = len(parallel_test_suites) + len(serial_test_suites)
+        print(f'Total suites: {total_suites}, Passed: {total_suites - len(failed_suites)}, Failed: {len(failed_suites)}')
+        print('Failed test suites:')
+        failed_count = 0
+        for suite in failed_suites:
+            print(f'  - {suite}')
+            test_report_name = f"result_{suite}.json"
+            if '/' in test_report_name:
+                test_report_name = test_report_name.replace('/', '.')
+            result_path = os.path.join(OUTPUT_DIR, test_report_name)
+            if not os.path.exists(result_path):
+                print(f'result file {test_report_name} not found.')
+                continue
+            with open(result_path, 'r') as json_name:
+                json_to_dict = json.load(json_name)
+                if len(json_to_dict['testsuites']) == 0:
+                    continue
+                failed_count += json_to_dict['failures']
+                for testsuite in json_to_dict['testsuites'][0]['testsuite']:
+                    if 'failures' in testsuite.keys(): 
+                        fail_test = testsuite['classname'] + '.' + testsuite['name']
+                        if 'value_param' in testsuite:
+                            fail_test = fail_test + ', where GetParam() = ' + testsuite['value_param']
+                        print(f'[ FAILED ] {fail_test}')
+        print(f'\nTest failed: {failed_count}')
         exit(1)
+    else:
+        print("All test suites passed")
+    
     print("end run test")
+
+def run_parallel_tests(cangjie_sdk_path, parallel_test_suites, max_workers):
+    """Run parallel test suites concurrently"""
+    failed_suites = []
+    if parallel_test_suites:
+        print(f"Running {len(parallel_test_suites)} parallel test suites concurrently...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # submit tasks
+            future_to_suite = {
+                executor.submit(run_single_test_suite, cangjie_sdk_path, suite): suite 
+                for suite in parallel_test_suites
+            }
+            
+            # collect results
+            for future in concurrent.futures.as_completed(future_to_suite):
+                success, suite, stdout, stderr = future.result()
+                if not success:
+                    failed_suites.append(suite)
+    return failed_suites
+
+def run_serial_tests(cangjie_sdk_path, serial_test_suites):
+    """Run serial test suites sequentially"""
+    failed_suites = []
+    if serial_test_suites:
+        print(f"Running {len(serial_test_suites)} serial test suites sequentially...")
+        for suite in serial_test_suites:
+            success, suite, stdout, stderr = run_single_test_suite(cangjie_sdk_path, suite)
+            if not success:
+                failed_suites.append(suite)
+    return failed_suites
 
 def main():
     """build entry"""
