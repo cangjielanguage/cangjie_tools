@@ -14,7 +14,7 @@ import stdx.serialization.serialization.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
 
-public let REPO_CONFIG_FILE_NAME = "cjpm-config.toml"
+public let REPO_CONFIG_FILE_NAME = "cangjie-repo.toml"
 
 public class RepositoryInfo <: Serializable<RepositoryInfo> {
     public RepositoryInfo(
@@ -49,8 +49,8 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
     public var isValid: Bool = true
 
     public init() {
-        this.repository.add("local", RepositoryInfo())
-        this.repository["local"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
+        this.repository.add("cache", RepositoryInfo())
+        this.repository["cache"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
         this.repository.add("home", RepositoryInfo())
     }
 
@@ -68,9 +68,9 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
         var result = SettingsConfig()
         result.repository = HashMap<String, RepositoryInfo>.deserialize((dms.get("repository") as DataModelStruct) ?? DataModelStruct())
 
-        if (!result.repository.contains("local")) {
-            result.repository.add("local", RepositoryInfo())
-            result.repository["local"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
+        if (!result.repository.contains("cache")) {
+            result.repository.add("cache", RepositoryInfo())
+            result.repository["cache"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
         }
 
         if (!result.repository.contains("home")) {
@@ -96,14 +96,14 @@ public func readConfigToml(file: Path): SettingsConfig {
         return res
     }
 
-    if (res.repository.contains("local") && !res.repository["local"].path.isEmpty()) {
+    if (res.repository.contains("cache") && !res.repository["cache"].path.isEmpty()) {
         // Convert the path to an absolute path when path is relative path
-        res.repository["local"].path = getPath(file.parent.toString(), res.repository["local"].path)
+        res.repository["cache"].path = getPath(file.parent.toString(), res.repository["cache"].path)
     }
 
-    if (res.repository.contains("local") && res.repository["local"].path.isEmpty()) {
-        // when path of [repository.local] is empty, set $HOME/.cjpm or %USERPROFILE%/.cjpm as repository local path
-        res.repository["local"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
+    if (res.repository.contains("cache") && res.repository["cache"].path.isEmpty()) {
+        // when path of [repository.cache] is empty, set $HOME/.cjpm or %USERPROFILE%/.cjpm as repository cache path
+        res.repository["cache"].path = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
     }
 
     return res
@@ -125,15 +125,15 @@ public func loadConfigInfo(): SettingsConfig {
         res = readConfigToml(Path(cj_home).join("tools").join("config").join(REPO_CONFIG_FILE_NAME))
         let globalCjpmConfig = getVariable("CJPM_CONFIG") ?? return res
         println("Warning: the functionality of 'CJPM_CONFIG' will be deprecated, " +
-            "please unset 'CJPM_CONFIG' and use cjpm-config.toml to set the repository local path")
-        res.repository["local"].path = globalCjpmConfig
+            "please unset 'CJPM_CONFIG' and use cangjie-repo.toml to set the repository cache path")
+        res.repository["cache"].path = globalCjpmConfig
         return res
     }
 
     let globalCjpmConfig = getVariable("CJPM_CONFIG") ?? return res
     println("Warning: the functionality of 'CJPM_CONFIG' will be deprecated, " +
-            "please unset 'CJPM_CONFIG' and use cjpm-config.toml to set the repository local path")
-    res.repository["local"].path = globalCjpmConfig
+            "please unset 'CJPM_CONFIG' and use cangjie-repo.toml to set the repository cache path")
+    res.repository["cache"].path = globalCjpmConfig
 
     return res
 }

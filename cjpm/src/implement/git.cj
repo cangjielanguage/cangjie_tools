@@ -83,7 +83,7 @@ public class GitCli {
 }
 
 func getGitStoragePath(): Path {
-    return Path(FINAL_CJPM_CONFIG_INFO.repository["local"].path).join("git")
+    return Path(FINAL_CJPM_CONFIG_INFO.repository["cache"].path).join("git")
 }
 
 public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
