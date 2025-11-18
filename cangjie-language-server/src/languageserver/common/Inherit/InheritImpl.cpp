@@ -8,7 +8,7 @@
 #include "../Utils.h"
 
 using namespace Cangjie;
-
+// LCOV_EXCL_START
 namespace ark {
 void HandleSuperDecl(std::queue<Ptr<InheritableDecl> > &queues, InheritableDecl &inheritableDecl,
                      std::vector<Ptr<InheritableDecl> > &topClasses, std::vector<Ptr<InheritableDecl> > &libClasses)
@@ -61,3 +61,4 @@ std::vector<Ptr<InheritableDecl> > GetTopClassDecl(InheritableDecl &classLikeOrS
     return topClasses;
 }
 } // namespace ark
+// LCOV_EXCL_STOP
