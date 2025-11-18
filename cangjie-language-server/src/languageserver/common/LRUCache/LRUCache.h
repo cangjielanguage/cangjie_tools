@@ -138,7 +138,7 @@ public:
     void SetForFullCompiler(const std::string &key, std::unique_ptr<Cangjie::LSPCompilerInstance> &value)
     {
         std::unique_lock<std::shared_mutex> lock(mtx);
-        if (lruHashMap.size() <= size) {
+        if (lruHashMap.size() < size) {
             (void) lruList.emplace_front(key, std::move(value));
             lruHashMap[key] = lruList.begin();
         } else {

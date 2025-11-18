@@ -1325,13 +1325,7 @@ bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
         lsp::CjdIndexer::InitInstance(callback, stdCjdPathOption, ohosCjdPathOption, cjdCachePathOption);
     }
     FullCompilation();
-    auto taskId = GenTaskId("delete_cjd_indexer");
-    auto deleteTask = [this, taskId]() {
-        thrdPool->TaskCompleted(taskId);
-        lsp::CjdIndexer::DeleteInstance();
-    };
-    thrdPool->AddTask(taskId, {}, deleteTask);
-    lsp::IndexDatabase::ReleaseMemory();
+    ReleaseMemoryAsync();
     Logger::Instance().CleanKernelLog(std::this_thread::get_id());
     // init fileCache packageInstance
     for (const auto &item : pLRUCache->GetMpKey()) {
@@ -1344,6 +1338,27 @@ bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
         ReportCircularDeps(cycles.first);
     }
     return true;
+}
+
+void CompilerCangjieProject::ReleaseMemoryAsync() {
+    auto taskId = GenTaskId("delete_cjd_indexer");
+    auto deleteTask = [this, taskId]() {
+        thrdPool->TaskCompleted(taskId);
+        lsp::CjdIndexer::DeleteInstance();
+        lsp::IndexDatabase::ReleaseMemory();
+        for (auto& pkgCI: CIMap) {
+            pkgCI.second.reset();
+        }
+        for (auto& pkgNotInSrcCI: CIMapNotInSrc) {
+            pkgNotInSrcCI.second.reset();
+        }
+#ifdef __linux__
+        (void) malloc_trim(0);
+#elif __APPLE__
+        (void) malloc_zone_pressure_relief(malloc_default_zone(), 0);
+#endif  
+    };
+    thrdPool->AddTask(taskId, {}, deleteTask);
 }
 
 CompilerCangjieProject *CompilerCangjieProject::GetInstance()
