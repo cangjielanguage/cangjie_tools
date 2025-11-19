@@ -303,17 +303,7 @@ void SymbolCollector::Build(const Package &package)
             if (Utils::In(node->astKind, G_IGNORE_KINDS)) {
                 return VisitAction::WALK_CHILDREN;
             }
-            if (auto decl = DynamicCast<Decl *>(node)) {
-                CreateBaseOrExtendSymbol(*decl, filePath);
-                UpdateScope(*decl);
-            } else if (auto ref = DynamicCast<NameReferenceExpr *>(node)) {
-                CreateRef(*ref, filePath);
-            } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
-                CreateNamedArgRef(*ce);
-            } else if (auto type = DynamicCast<Type *>(node)) {
-                CreateTypeRef(*type, filePath);
-            }
-            CollectCrossScopes(node);
+            CollectNode(node, filePath);
             return VisitAction::WALK_CHILDREN;
         };
 
@@ -1699,5 +1689,20 @@ void SymbolCollector::CollectCompletionItem(const Decl &decl, Symbol &declSym)
     if (!varSignature.empty() && !varInsert.empty()) {
         declSym.completionItems.push_back({varSignature, varInsert});
     }
+}
+
+void SymbolCollector::CollectNode(Ptr<Node> node, const std::string& filePath)
+{
+    if (auto decl = DynamicCast<Decl *>(node)) {
+        CreateBaseOrExtendSymbol(*decl, filePath);
+        UpdateScope(*decl);
+    } else if (auto ref = DynamicCast<NameReferenceExpr *>(node)) {
+        CreateRef(*ref, filePath);
+    } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
+        CreateNamedArgRef(*ce);
+    } else if (auto type = DynamicCast<Type *>(node)) {
+        CreateTypeRef(*type, filePath);
+    }
+    CollectCrossScopes(node);
 }
 } // namespace ark::lsp

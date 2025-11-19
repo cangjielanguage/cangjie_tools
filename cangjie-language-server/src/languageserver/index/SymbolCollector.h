@@ -234,6 +234,8 @@ private:
 
     static void CollectCompletionItem(const Decl &decl, Symbol &declSym);
 
+    void CollectNode(Ptr<Node> node, const std::string& filePath);
+
     // Only toplevel and member decls (except extend decl).
     std::unordered_map<Ptr<const Decl>, SymbolID> declToSymIdMap;
 

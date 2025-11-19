@@ -377,23 +377,14 @@ void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const
 void CompletionImpl::NormalParseImpl(
     const ArkAST &input, const Cangjie::Position &pos, CompletionResult &result, int index, std::string &prefix)
 {
-    int firstTokenIndexOnLine = GetFirstTokenOnCurLine(input.tokens, pos.line);
-    TokenKind afterFirstTokenKind = TokenKind::INIT;
     TokenKind beforePrefixKind = TokenKind::INIT;
-    TokenKind firstTokenKind = TokenKind::INIT;
-    if (firstTokenIndexOnLine != -1) {
-        firstTokenKind = input.tokens[firstTokenIndexOnLine].kind;
-        if (static_cast<unsigned int>(firstTokenIndexOnLine + 1) < input.tokens.size()) {
-            afterFirstTokenKind = input.tokens[firstTokenIndexOnLine + 1].kind;
-        }
-    }
     if (index > 0) {
         beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 1)].kind;
     }
 
     // if package name has org name, check beforePrefixKind and change token position
-    if (beforePrefixKind == TokenKind::DOUBLE_COLON && index > 2) {
-        beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 3)].kind;
+    if (beforePrefixKind == TokenKind::DOUBLE_COLON && index >= 3) { // package org :: is three tokens
+        beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 3)].kind; // package org :: is three tokens
     }
 
     auto &importManager =

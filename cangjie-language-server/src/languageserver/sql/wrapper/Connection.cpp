@@ -66,7 +66,6 @@ void Connection::loadExtension(const std::filesystem::path &File)
     char *ErrMsg = nullptr;
     ScopeExit FreeErrMsg = [&]() noexcept { sqlite3_free(ErrMsg); };
     int RC = sqlite3_load_extension(DB, File.string().c_str(), nullptr, &ErrMsg);
-
     if (RC != SQLITE_OK) {
 #ifndef NO_EXCEPTIONS
         throw Exception(RC, "Failed to load extension from \"" + File.string() + "\"" +
