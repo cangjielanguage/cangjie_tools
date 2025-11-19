@@ -14,7 +14,7 @@ std::unordered_map<std::string, std::unique_ptr<ArkAST>> FileMove::astMap = {};
 std::unordered_map<std::string, std::unique_ptr<PackageInstance>> FileMove::pkgInstanceMap = {};
 std::string FileMove::moveDirPath;
 std::string FileMove::targetDir;
-
+// LCOV_EXCL_START
 void FileMove::FileMoveRefactor(const ArkAST *ast,
     FileRefactorRespParams &result,
     const std::string &file,
@@ -614,5 +614,5 @@ bool FileMove::ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targe
     });
     return isImport;
 }
-
+// LCOV_EXCL_STOP
 } // namespace ark

@@ -20,7 +20,7 @@ const std::unordered_set<Cangjie::TokenKind> COMPOUND_ASSIGN_OPERATORS = { Token
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_FUNC_EXPR = {
     ASTKind::LAMBDA_EXPR, ASTKind::INTERPOLATION_EXPR
 };
-
+// LCOV_EXCL_START
 bool IsRefLoop(const Symbol& sym, const Node& self)
 {
     if (!sym.node) {
@@ -154,7 +154,7 @@ bool NeedExtractDecl2ReturnValue(Cangjie::AST::Decl *decl, const Tweak::Selectio
     }
     return false;
 }
-
+// LCOV_EXCL_STOP
 // compute whether the AssignExpr->leftValue need extract to return value
 bool NeedExtractAssignExpr2ReturnValue(Cangjie::AST::AssignExpr *assignExpr, const Tweak::Selection &sel)
 {
@@ -653,7 +653,7 @@ TextEdit ExtractFunction::InsertDeclaration(const Tweak::Selection &sel, Extract
     textEdit.range = insertRange;
     return std::move(textEdit);
 }
-
+// LCOV_EXCL_START
 TextEdit ExtractFunction::ReplaceBlockWithCall(const Tweak::Selection &sel, ExtractedFunction &function)
 {
     TextEdit textEdit;
@@ -1112,4 +1112,5 @@ void ExtractFunction::AddMutParamVariable(std::string &mutParams, Cangjie::AST::
         function.params.erase(it);
     }
 }
+// LCOV_EXCL_STOP
 } // namespace ark

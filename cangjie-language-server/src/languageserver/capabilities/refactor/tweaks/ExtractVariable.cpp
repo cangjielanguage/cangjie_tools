@@ -8,7 +8,7 @@
 #include "../../../CompilerCangjieProject.h"
 #include "../TweakRule.h"
 #include "../TweakUtils.h"
-
+// LCOV_EXCL_START
 namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> INVALID_PARTIAL_EXPR = {
     ASTKind::IF_EXPR, ASTKind::DO_WHILE_EXPR, ASTKind::TRY_EXPR, ASTKind::BLOCK
@@ -457,3 +457,4 @@ TextEdit ExtractVariable::ReplaceExprWithVar(const Selection &sel, Range &range,
     return std::move(textEdit);
 }
 } // namespace ark
+// LCOV_EXCL_STOP

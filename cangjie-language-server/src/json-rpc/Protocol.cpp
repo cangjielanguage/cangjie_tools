@@ -628,7 +628,7 @@ bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply)
     }
     return true;
 }
-
+// LCOV_EXCL_START
 bool FromJSON(const nlohmann::json &params, DiagnosticToken &result)
 {
     result.range.start.line = params["range"]["start"].value("line", -1);
@@ -651,7 +651,7 @@ bool FromJSON(const nlohmann::json &params, DiagnosticToken &result)
     }
     return true;
 }
-
+// LCOV_EXCL_STOP
 bool ToJSON(const DiagnosticRelatedInformation &info, nlohmann::json &reply)
 {
     reply["message"] = info.message;

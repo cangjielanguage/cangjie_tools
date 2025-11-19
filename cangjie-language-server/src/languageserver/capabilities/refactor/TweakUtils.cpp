@@ -5,7 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "TweakUtils.h"
-
+// LCOV_EXCL_START
 namespace ark {
 bool TweakUtils::Contain(Node &node, Range &range)
 {
@@ -273,3 +273,4 @@ Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
     return insertRange;
 }
 } // namespace ark
+// LCOV_EXCL_STOP

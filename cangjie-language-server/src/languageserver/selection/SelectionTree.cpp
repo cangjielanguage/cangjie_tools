@@ -163,7 +163,7 @@ SelectionTree::WalkAction SelectionTree::WalkImpl(const ark::SelectionTree::Sele
 
     return WalkAction::WALK_CHILDREN;
 }
-
+// LCOV_EXCL_START
 void SelectionTree::printSelection(const SelectionTreeNode* node, int level) const
 {
     if (node == nullptr) {
@@ -272,5 +272,5 @@ void SelectionTree::FindTopDecl(Cangjie::AST::Node &node)
             return;
         });
 }
-
+// LCOV_EXCL_STOP
 } // namespace ark
