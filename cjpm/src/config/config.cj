@@ -10,6 +10,7 @@ import std.collection.*
 import std.fs.*
 import std.sync.*
 import std.env.*
+import std.deriving.Derive
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import cjpm.util.*
@@ -46,6 +47,7 @@ private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
     ]
 )
 
+@Derive[Equatable]
 public enum OutputType <: Serializable<OutputType> & ToString {
     | Static
     | Dynamic
@@ -108,18 +110,6 @@ public enum OutputType <: Serializable<OutputType> & ToString {
             case _ => throw CliFailError("tried to deserialize OutputType not from the DataModelString")
         }
         return fromString(dmstr.getValue())
-    }
-}
-
-extend OutputType <: Equatable<OutputType> {
-    public operator func ==(other: OutputType) {
-        match ((this, other)) {
-            case (Static, Static) => true
-            case (Dynamic, Dynamic) => true
-            case (Exe, Exe) => true
-            case (Unknown(l), Unknown(r)) => l == r
-            case _ => false
-        }
     }
 }
 
