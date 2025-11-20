@@ -76,6 +76,7 @@ table Symbol {
   completion_items:[CompletionItem];
   comments:CommentGroups;  
   syscap:string;
+  pkg_modifier:uint8;
 }
 
 table Ref {

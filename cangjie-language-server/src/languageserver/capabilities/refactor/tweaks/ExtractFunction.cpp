@@ -623,12 +623,14 @@ TextEdit ExtractFunction::InsertDeclaration(const Tweak::Selection &sel, Extract
     TextEdit textEdit;
     Position insertPosition;
     Ptr<Cangjie::AST::Node> targetScope = sel.selectionTree.TopDecl();
-    if ((!targetScope || targetScope->astKind == ASTKind::VAR_DECL || targetScope->astKind == ASTKind::FUNC_DECL)
-        && !sel.arkAst->file->decls.empty()) {
+    if (!targetScope && !sel.arkAst->file->decls.empty()) {
         auto lastDecl = sel.arkAst->file->decls.back().get();
         if (lastDecl) {
             insertPosition = lastDecl->end;
         }
+    }
+    if (targetScope && (targetScope->astKind == ASTKind::VAR_DECL || targetScope->astKind == ASTKind::FUNC_DECL)) {
+        insertPosition = targetScope->end;
     }
     if (targetScope && targetScope->astKind != ASTKind::VAR_DECL && targetScope->astKind != ASTKind::FUNC_DECL) {
         Position lastCharStart = {targetScope->end.fileID, targetScope->end.line, targetScope->end.column - 1};

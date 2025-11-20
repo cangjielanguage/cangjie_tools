@@ -157,6 +157,7 @@ public:
     std::vector<CompletionItem> completionItems;
     // store syscap for auto import completion
     std::string syscap;
+    Modifier pkgModifier{Modifier::PUBLIC};
 
     AST::CommentGroups comments;
 

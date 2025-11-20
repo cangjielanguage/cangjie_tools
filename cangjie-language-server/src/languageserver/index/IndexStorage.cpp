@@ -187,6 +187,7 @@ void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
     if (sym->syscap() != nullptr) {
         res.syscap = sym->syscap()->str();
     }
+    res.pkgModifier = Modifier(sym->pkg_modifier());
 }
 
 void ReadRefLocation(Ref &res, const IdxFormat::Ref *ref)
@@ -327,7 +328,8 @@ auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
     return IdxFormat::CreateSymbol(builder, sym.id, name, scope, loc, decl_loc,
                                    static_cast<uint16_t>(sym.kind), sig, ret, sym.isMemberParam,
                                    static_cast<uint8_t>(sym.modifier), sym.isCjoSym, sym.isDeprecated,
-                                   module, macro, completion_items, comments, syscap);
+                                   module, macro, completion_items, comments, syscap,
+                                   static_cast<uint8_t>(sym.pkgModifier));
 }
 
 auto StoreRef(flatbuffers::FlatBufferBuilder &builder, const Ref &ref)
