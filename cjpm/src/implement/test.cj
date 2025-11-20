@@ -692,6 +692,9 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     if (!deleteFile(pkgInfo.outLogFile)) {
         return false
     }
+    if (!deleteFile(pkgInfo.errLogFile)) {
+        return false
+    }
 
     let envBuilder = EnvironmentBuilder()
     envBuilder.prepend(LD_PATH, testConfig.globalConfig.ldPath)
