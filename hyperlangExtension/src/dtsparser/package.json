@@ -2,5 +2,8 @@
   "dependencies": {
     "typescript": "npm:typescript@4.9.5"
   },
-  "type":""
+  "type":"",
+    "scripts": {
+    "postinstall": "node ./download-binary.js"
+  }
 }
