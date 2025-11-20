@@ -1187,7 +1187,7 @@ src
 
 - 无关配置，一定会被打包的文件：项目根目录下的 `cjpm.toml`, `README.md` 和 `README_zh.md`
 - 无关配置，一定不会被打包的文件：
-    - 项目根目录下的 `cjpm.lock` 和 `cjpm-config.toml`
+    - 项目根目录下的 `cjpm.lock` 和 `cangjie-repo.toml`
     - 编译产物目录和构建脚本产物目录
     - 所有二进制文件
 - 除了上述文件范围，其他的文件遵循以下规则：
@@ -1898,21 +1898,21 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
 
 ## 项目管理配置文件说明
 
-项目管理配置文件 `cjpm-config.toml` 用来配置中心仓地址、本地仓路径等内容，`cjpm` 主要通过此文件对接中心仓，管理从中心仓下载的依赖模块。
+项目管理配置文件 `cangjie-repo.toml` 用来配置中心仓地址、本地仓路径等内容，`cjpm` 主要通过此文件对接中心仓，管理从中心仓下载的依赖模块。
 
-`cjpm-config.toml` 可配置在三个位置，执行 `cjpm` 命令时，会按照从上到下的优先级读取：
+`cangjie-repo.toml` 可配置在三个位置，执行 `cjpm` 命令时，会按照从上到下的优先级读取：
 
-- 执行命令的当前 `cjpm` 模块目录下，与 `cjpm.toml` 同级的 `cjpm-config.toml`；
-- 用户空间目录下 `.cjpm` 目录内的 `cjpm-config.toml`，`Linux/macOS` 中为 `$HOME/.cjpm`，`Windows` 中为 `%USERPROFILE%/.cjpm`；
-- 仓颉 sdk 目录下的 `tools/config/cjpm-config.toml`。
+- 执行命令的当前 `cjpm` 模块目录下，与 `cjpm.toml` 同级的 `cangjie-repo.toml`；
+- 用户空间目录下 `.cjpm` 目录内的 `cangjie-repo.toml`，`Linux/macOS` 中为 `$HOME/.cjpm`，`Windows` 中为 `%USERPROFILE%/.cjpm`；
+- 仓颉 sdk 目录下的 `tools/config/cangjie-repo.toml`。
 
-读取到一个有效的 `cjpm-config.toml` 后，`cjpm` 会使用该文件作为本次命令执行的配置，并忽略更低优先级的配置文件。
+读取到一个有效的 `cangjie-repo.toml` 后，`cjpm` 会使用该文件作为本次命令执行的配置，并忽略更低优先级的配置文件。
 
 配置文件格式如下所示：
 
 ```toml
-[repository.local]
-  path = "/path/to/local/repository"
+[repository.cache]
+  path = "/path/to/repository/cache"
 
 [repository.home]
   registry = "central/repo/url"
@@ -1922,7 +1922,7 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
 配置内容说明如下：
 
 - `repository.home` 用于配置中心仓 url 和用户的个人 token，`cjpm` 会与 `registry` 字段中的中心仓地址进行交互，交互请求中会附带用户 token 信息。
-- `repository.local` 用于配置存放从中心仓和 git 下载的源码模块的本地路径，不配置时默认为用户空间目录下的 `.cjpm` 目录。确定本地路径后，git 源码模块会下载到该路径的 `git` 目录下，中心仓源码模块会下载到 `repository/source` 目录下。
+- `repository.cache` 用于配置存放从中心仓和 git 下载的源码模块的本地路径，不配置时默认为用户空间目录下的 `.cjpm` 目录。确定本地路径后，git 源码模块会下载到该路径的 `git` 目录下，中心仓源码模块会下载到 `repository/source` 目录下。
 
 ## 配置和缓存文件夹
 
@@ -1930,8 +1930,8 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
 
 > **注意：**
 >
-> - 该配置功能等同于 `cjpm-config.toml` 中的 `repository.local`。该配置仅在无有效 `cjpm-config.toml` 配置或是有效配置为仓颉 `sdk` 中的 `tools/config/cjpm-config.toml` 时才会生效。
-> - 该配置会在未来被废弃，请使用 `cjpm-config.toml` 代替。
+> - 该配置功能等同于 `cangjie-repo.toml` 中的 `repository.cache`。该配置仅在无有效 `cangjie-repo.toml` 配置或是有效配置为仓颉 `sdk` 中的 `tools/config/cangjie-repo.toml` 时才会生效。
+> - 该配置会在未来被废弃，请使用 `cangjie-repo.toml` 代替。
 
 ## 仓颉包管理规格说明
 

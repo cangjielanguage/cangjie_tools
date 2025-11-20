@@ -230,7 +230,7 @@ func compressCjp(bundleConfig: BundleConfig, tomlInfo: TomlInfo, metaData: MetaD
  * 2. Binary files should not be bundled;
  * 3. Files matched with any rules in 'package.exclude' should not be bundled;
  * 4. Files matched with any rules in 'package.include' should be bundled; if 'package.include' is empty, all files will be matched;
- * 5. cjpm.lock, cjpm-config.toml, target directory and script-cache directory should not be bundled.
+ * 5. cjpm.lock, cangjie-repo.toml, target directory and script-cache directory should not be bundled.
  */
 func getBundleFileList(dir: String, fileSet: HashSet<String>, bundleConfig: BundleConfig, tomlInfo: TomlInfo): Unit {
     // deal with files
@@ -252,7 +252,7 @@ func getBundleFileList(dir: String, fileSet: HashSet<String>, bundleConfig: Bund
             continue
         }
 
-        // cjpm.lock && cjpm-config.toml
+        // cjpm.lock && cangjie-repo.toml
         if ((fileRelativePath == LOCK_FILE_NAME) || (fileRelativePath == REPO_CONFIG_FILE_NAME)) {
             continue
         }

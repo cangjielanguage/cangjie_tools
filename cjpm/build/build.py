@@ -115,7 +115,7 @@ def build(build_type, target, rpath=None):
         shutil.copy(os.path.join(CURRENT_DIR, 'bin', 'cjpm', 'cjpm.exe'), os.path.join(CURRENT_DIR, '..', 'dist'))
     else:
         shutil.copy(os.path.join(CURRENT_DIR, 'bin', 'cjpm', 'cjpm'), os.path.join(CURRENT_DIR, '..', 'dist'))
-    shutil.copy(os.path.join(CURRENT_DIR, '..', 'config', 'cjpm-config.toml'), os.path.join(CURRENT_DIR, '..', 'dist'))
+    shutil.copy(os.path.join(CURRENT_DIR, '..', 'config', 'cangjie-repo.toml'), os.path.join(CURRENT_DIR, '..', 'dist'))
 
     print("Successfully build cjpm!")
     return 0
@@ -133,7 +133,7 @@ def install(prefix):
             shutil.copy(os.path.join(CURRENT_DIR, '..', 'dist', 'cjpm'), os.path.abspath(prefix))
         if os.path.exists(os.path.join(CURRENT_DIR, '..', 'dist', 'cjpm.exe')):
             shutil.copy(os.path.join(CURRENT_DIR, '..', 'dist', 'cjpm.exe'), os.path.abspath(prefix))
-        shutil.copy(os.path.join(CURRENT_DIR, '..', 'dist', 'cjpm-config.toml'), os.path.abspath(prefix))
+        shutil.copy(os.path.join(CURRENT_DIR, '..', 'dist', 'cangjie-repo.toml'), os.path.abspath(prefix))
 
     print("Successfully install cjpm!")
     return 0

@@ -30,16 +30,16 @@ public class Depot {
 
     public func loadConfiguration(): Bool {
         if (!FINAL_CJPM_CONFIG_INFO.repository.contains("home")) {
-            eprintln("Error: get data of [repository.home] failed, please check if cjpm-config.toml is set up correctly")
+            eprintln("Error: get data of [repository.home] failed, please check if cangjie-repo.toml is set up correctly")
             return false
         }
 
         this.baseUrl = FINAL_CJPM_CONFIG_INFO.repository["home"].registry
         this.token = FINAL_CJPM_CONFIG_INFO.repository["home"].token
-        this.localRepo = Path(FINAL_CJPM_CONFIG_INFO.repository["local"].path).join("repository").toString()
+        this.localRepo = Path(FINAL_CJPM_CONFIG_INFO.repository["cache"].path).join("repository").toString()
 
         if (baseUrl.isEmpty()) {
-            eprintln("Error: get registry of [repository.home] failed, please check if cjpm-config.toml is set up correctly")
+            eprintln("Error: get registry of [repository.home] failed, please check if cangjie-repo.toml is set up correctly")
             return false
         }
 
@@ -149,7 +149,7 @@ public class Depot {
         try {
             // save
             if (!createDirectory(repositoryPath)) {
-                return (false, "${name}-${version} load failed with error while uncompressing and saving local repository")
+                return (false, "${name}-${version} load failed with error while uncompressing and saving repository cache")
             }
             File.writeTo(cjpTempPath, buffer.toArray())
 
@@ -158,7 +158,7 @@ public class Depot {
             return (true, "${name}-${version} load success")
         } catch (e: Exception) {
             eprintln(e.message)
-            return (false, "${name}-${version} load failed with error while uncompressing and saving local repository")
+            return (false, "${name}-${version} load failed with error while uncompressing and saving repository cache")
         } finally {
             // delete cjp
             deleteFile(cjpTempPath.toString())
