@@ -1583,14 +1583,14 @@ dberr_no OpenIndexDatabase(IndexDatabase &db, const std::string &file,
     return db.Initialize([dbfile = file, dbOpts = std::move(opts)] {
         if (dbOpts.openInMemory) {
             return (sqldb::memdb)(
-                dbfile, sqldb::OpenURI | (dbOpts.openReadOnly ? sqldb::OpenReadOnly
-                                                          : (sqldb::OpenCreate |
-                                                             sqldb::OpenReadWrite)));
+                dbfile, (unsigned int)sqldb::OpenURI | (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
+                                                          : ((unsigned int)sqldb::OpenCreate |
+                                                             (unsigned int)sqldb::OpenReadWrite)));
         } else {
             return (sqldb::open)(
-                dbfile, sqldb::OpenURI | (dbOpts.openReadOnly ? sqldb::OpenReadOnly
-                                                        : (sqldb::OpenCreate |
-                                                           sqldb::OpenReadWrite)));
+                dbfile, (unsigned int)sqldb::OpenURI | (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
+                                                        : ((unsigned int)sqldb::OpenCreate |
+                                                           (unsigned int)sqldb::OpenReadWrite)));
         }
     });
 }
