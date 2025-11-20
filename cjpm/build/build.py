@@ -47,20 +47,33 @@ def build(build_type, target, rpath=None):
     is_linux = platform.system() == "Linux"
     is_macos = platform.system() == "Darwin"
     is_cross_windows = False
+    is_cross_ohos = False
+    toolchain = ""
 
     if target != "native" and not is_linux:
-        print("error: cross compile is only supported from Linux to windows-x86_64.", file=sys.stderr)
+        print("error: cross compile is only supported from Linux to windows-x86_64/ohos-x86_64/ohos-aarch64.", file=sys.stderr)
         return 1
     if target == "windows-x86_64" and is_linux:
         is_cross_windows = True
         is_linux = False
+    if is_linux:
+        if target == "ohos-x86_64":
+            target = "x86_64-linux-ohos"
+            is_cross_ohos = True
+            is_linux = False
+            toolchain = f"--toolchain={os.environ['CANGJIE_HOME']}/lib/linux_ohos_x86_64_cjnative"
+        elif target == "ohos-aarch64":
+            target = "aarch64-linux-ohos"
+            is_cross_ohos = True
+            is_linux = False
+            toolchain = f"--toolchain={os.environ['CANGJIE_HOME']}/lib/linux_ohos_aarch64_cjnative"
 
     # Set rpath
     rpath_set_option = ""
     if rpath:
         if is_macos:
             rpath_set_option = f"--link-options=\"-rpath {rpath}\""
-        elif is_linux:
+        elif is_linux or is_cross_ohos:
             rpath_set_option = f"--link-options=\"--disable-new-dtags -rpath={rpath}\""
 
     # Set common compile option
@@ -95,6 +108,8 @@ def build(build_type, target, rpath=None):
             returncode = check_call(f"{cjc} {common_option} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
         if is_cross_windows:
             returncode = check_call(f"{cjc} --target=x86_64-windows-gnu {common_option} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
+        if is_cross_ohos:
+            returncode = check_call(f"{cjc} --target={target} {toolchain} {common_option} -p {os.path.join(CURRENT_DIR, '..', 'src', src)} --import-path {os.environ['CANGJIE_STDX_PATH']} --output-type=staticlib --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o libcjpm.{src}.a")
         if returncode != 0:
             return returncode
 
@@ -107,6 +122,8 @@ def build(build_type, target, rpath=None):
         returncode = check_call(f"{cjc} --target=x86_64-windows-gnu {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
     if is_windows:
         returncode = check_call(f"{cjc} {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
+    if is_cross_ohos:
+        returncode = check_call(f"{cjc} --target={target} {toolchain} {common_option} {rpath_set_option} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
 
     if returncode != 0:
         return returncode
