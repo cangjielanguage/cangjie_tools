@@ -999,23 +999,8 @@ func parallelCompileTests(
     testPkgsMap: HashMap<PackageFqName, PkgDescTest>,
     testConfig: TestConfig
 ): Bool {
-    let queue = LinkedBlockingQueue<(String, String)>()
-    let logFuture = spawn {
-        =>
-        var count: Int64 = testPkgsMap.size
-        var logFlag: Bool = true
-        while (count > 0) {
-            let (outLogFile, errLogFile) = queue.remove()
-            count--
-            if (fileExists(outLogFile) && !loadLogAndPrint(outLogFile, false)) {
-                logFlag = false
-            }
-            if (fileExists(errLogFile) && !loadLogAndPrint(errLogFile, true)) {
-                logFlag = false
-            }
-        }
-        return logFlag
-    }
+    let logger = BoundedFileLogger(testPkgsMap.size)
+    logger.start()
 
     var testFlag: Bool = true
     let testLogPath: Path = Path(testConfig.globalConfig.targetDir).join(".test-logs")
@@ -1041,7 +1026,7 @@ func parallelCompileTests(
             )
             let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
             sem.release()
-            queue.add((pkgInfo.outLogFile, pkgInfo.errLogFile))
+            logger.log(pkgInfo.outLogFile, pkgInfo.errLogFile)
             return flag
         })
     }
@@ -1068,7 +1053,7 @@ func parallelCompileTests(
         }
     }
 
-    if (!logFuture.get()) {
+    if (!logger.unsafeWait()) {
         testFlag = false
     }
     return testFlag
