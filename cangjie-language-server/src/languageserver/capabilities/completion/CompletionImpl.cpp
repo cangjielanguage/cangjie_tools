@@ -207,7 +207,8 @@ void CompletionImpl::FasterComplete(
     if (!input.packageInstance) { return; }
     auto &importManager =
         needImport ? input.packageInstance->importManager : input.semaCache->packageInstance->importManager;
-    DotCompleterByParse dotCompleter(*(input.semaCache->packageInstance->ctx), result, importManager);
+    DotCompleterByParse dotCompleter(*(input.semaCache->packageInstance->ctx), result, importManager,
+        input.semaCache->file->filePath);
 
     // Completion action implement by DotCompleter.
     // Interpolation String: "${obja.b}"

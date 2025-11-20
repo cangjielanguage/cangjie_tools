@@ -21,11 +21,11 @@
 namespace ark {
 class DotCompleterByParse {
 public:
-    DotCompleterByParse(Cangjie::ASTContext &ctx, CompletionResult &res, Cangjie::ImportManager &importManager)
-        : context(&ctx), result(res), importManager(&importManager)
+    DotCompleterByParse(Cangjie::ASTContext &ctx, CompletionResult &res, Cangjie::ImportManager &importManager,
+    const std::string& curFilePath)
+        : context(&ctx), result(res), importManager(&importManager), curFilePath(curFilePath)
     {
         if (context && context->curPackage && !context->curPackage->files.empty() && context->curPackage->files[0]) {
-            curFilePath = context->curPackage->files[0]->filePath;
             packageNameForPath = GetPkgNameFromNode(context->curPackage->files[0].get());
             auto moduleName = Utils::SplitQualifiedName(packageNameForPath).front();
             syscap.SetIntersectionSet(moduleName);
