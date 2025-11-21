@@ -76,7 +76,7 @@ Local build process:
     python3 build.py build -t release
     ```
 
-    Currently supports `debug` and `release` build types, specified via `-t` or `--build-type`.
+    Currently supports `debug`, `release` and `relwithdebinfo` build types, specified via `-t` or `--build-type`.
 
 4. Install to target directory:
 

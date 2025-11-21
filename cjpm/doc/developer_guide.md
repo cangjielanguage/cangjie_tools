@@ -101,7 +101,7 @@ The build process is as follows:
     python3 build.py build -t release --target windows-x86_64  (for Linux-to-Windows)
     ```
 
-    Developers must specify the build type with `-t, --build-type`, with options being `debug/release`.
+    Developers must specify the build type with `-t, --build-type`, with options being `debug/release/relwithdebinfo`.
 
     After successful compilation, the `cjpm` executable will be generated in the `cjpm/dist/` directory.
 
@@ -132,7 +132,7 @@ The build process is as follows:
 The `build` function of `build.py` provides the following additional options:
 - `--target TARGET`: Specifies the target platform for compilation (default: `native`). Currently, only cross-compiling `windows-x86_64` artifacts from `linux` is supported via `--target windows-x86_64`.
 - `--set-rpath RPATH`: Specifies the `rpath` path.
-- `-t, --build-type BUILD_TYPE`: Specifies the build type (`debug/release`).
+- `-t, --build-type BUILD_TYPE`: Specifies the build type (`debug/release/relwithdebinfo`).
 - `-h, --help`: Displays help information for the `build` function.
 
 Additionally, `build.py` provides the following extra functionalities:

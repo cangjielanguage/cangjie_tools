@@ -142,7 +142,7 @@ def generate_cmake_defs(args):
 def build(args):
     if args.build_type is None:
         LOG.error(
-            "please specify the build type. Supported options are: release and debug."
+            "please specify the build type. Supported options are: release, debug and relwithdebinfo."
         )
         return
 
@@ -236,6 +236,7 @@ class BuildType(Enum):
 
     debug = "Debug"
     release = "Release"
+    relwithdebinfo = "RelWithDebInfo"
 
     def __str__(self):
         return self.name
