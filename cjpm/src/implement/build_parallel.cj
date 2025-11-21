@@ -199,9 +199,15 @@ class ParallelBuilder {
                     return false
                 }
 
+
+
+                let cjcCalls = constructCjcInvocations(task)
+                let envBuilder = EnvironmentBuilder()
+                envBuilder.prepend(LD_PATH, this.buildConfig.globalConfig.ldPath)
+
                 var flag: Bool = true
-                if (!runTask(task, this.buildConfig.globalConfig.ldPath)) {
-                    flag = false
+                for (callArgs in cjcCalls where flag) {
+                    flag = runTask(task, callArgs, envBuilder) 
                 }
                 sem.release()
                 logger.log(task.outLogFile, task.errLogFile)
@@ -241,10 +247,7 @@ class ParallelBuilder {
         return delLog
     }
 
-    func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>): Bool {
-        let envBuilder = EnvironmentBuilder()
-        envBuilder.prepend(LD_PATH, ldPath)
-
+    private func constructCjcInvocations(resolveConfig: ResolveConfig): ArrayList<ArrayList<String>> {
         let cjcCalls = ArrayList<ArrayList<String>>()
         if (resolveConfig.isMultiplatform) {
             cjcCalls.add(all: getMultiplatformPipeline(resolveConfig, this.buildConfig))
@@ -253,72 +256,66 @@ class ParallelBuilder {
             args.add(all: getTypeCommand(resolveConfig, this.buildConfig))
             cjcCalls.add(args)
         }
+        return cjcCalls
+    }
 
+    func runTask(resolveConfig: ResolveConfig, args: ArrayList<String>, envBuilder: EnvironmentBuilder): Bool {
         var execCmdFlag: Bool = true
-        for (args in cjcCalls) {
-            if (!execCmdFlag) {
+        CUR_PARALLEL_SIZE.fetchAdd(1)
+        if (!futJudge(args)) {
+            let jobs = calculateParallel(CUR_PARALLEL_SIZE.load())
+            args.add("-j${jobs}", at: 0)
+        }
+
+        let env = getVariables()
+        let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
+        if (this.buildConfig.isVerbose) {
+            let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
+            if (!createAndWriteFile(resolveConfig.outLogFile, verbose, mode: Append)) {
                 return false
             }
-            execCmdFlag = false
-            CUR_PARALLEL_SIZE.fetchAdd(1)
-            if (!futJudge(args)) {
-                calculateParallel(CUR_PARALLEL_SIZE.load(), args)
-            }
+        }
 
-            let env = getVariables()
-            let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
-            if (this.buildConfig.isVerbose) {
-                let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
-                if (!createAndWriteFile(resolveConfig.outLogFile, verbose, mode: Append)) {
-                    return false
-                }
-            }
+        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+            addStartTime(resolveConfig.fullName, commandStr)
+        }
 
-            if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-                addStartTime(resolveConfig.fullName, commandStr)
-            }
-            var outFile: File
-            var errFile: File
-            var outFilePath: String = String()
-            var errFilePath: String = String()
-            try {
-                outFilePath = resolveConfig.outLogFile
-                errFilePath = resolveConfig.errLogFile
-                outFile = File(resolveConfig.outLogFile, OpenMode.Append)
-                errFile = File(resolveConfig.errLogFile, OpenMode.Append)
-            } catch (e: Exception) {
-                eprintln(e.message)
-                eprintln("Error: create '${outFilePath}' failed")
-                return false
-            }
-            try {
-                if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
-                    if (returnCode == 0) {
-                        execCmdFlag = true
-                        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-                            moveCjcProfToCjpmDir(resolveConfig, buildConfig.globalConfig.compilePerformanceTargetDir)
-                        }
-                    } else {
-                        execCmdFlag = false
-                        errFile.write("Error: failed to compile package `${resolveConfig.fullName}`, return code is ${returnCode}\n".toArray())
-                        if (resolveConfig.isMultiplatform) {
-                            errFile.write("${SourceLocationsPrinter(resolveConfig.packagePath, resolveConfig.features, project: resolveConfig.fullName)}".toArray())
-                        }
+        let outFilePath = resolveConfig.outLogFile
+        let errFilePath = resolveConfig.errLogFile
+        let (outFile, errFile) = try {
+            (File(outFilePath, OpenMode.Append), File(errFilePath, OpenMode.Append))
+        } catch (e: Exception) {
+            eprintln(e.message)
+            eprintln("Error: create '${outFilePath}' failed")
+            return false
+        }
+
+        try {
+            if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
+                execCmdFlag = (returnCode == 0)
+                if (execCmdFlag) {
+                    if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+                        moveCjcProfToCjpmDir(resolveConfig, buildConfig.globalConfig.compilePerformanceTargetDir)
                     }
                 } else {
-                    errFile.write("Error: failed to compile package `${resolveConfig.fullName}` with exception occurred\n".toArray())
+                    errFile.write("Error: failed to compile package `${resolveConfig.fullName}`, return code is ${returnCode}\n".toArray())
+                    if (resolveConfig.isMultiplatform) {
+                        errFile.write("${SourceLocationsPrinter(resolveConfig.packagePath, resolveConfig.features, project: resolveConfig.fullName)}".toArray())
+                    }
                 }
-            } catch (e: Exception) {
-                eprintln("Error: failed to write error log into ${errFilePath}: ${e.message}")
-                execCmdFlag = false
+            } else {
+                errFile.write("Error: failed to compile package `${resolveConfig.fullName}` with exception occurred\n".toArray())
             }
-            CUR_PARALLEL_SIZE.fetchSub(1)
-            outFile.close()
-            errFile.close()
+        } catch (e: Exception) {
+            eprintln("Error: failed to write error log into ${errFilePath}: ${e.message}")
+            execCmdFlag = false
+        }
+        CUR_PARALLEL_SIZE.fetchSub(1)
+        outFile.close()
+        errFile.close()
 
-            if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-                addEndTime(resolveConfig.fullName)
-            }
+        if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
+            addEndTime(resolveConfig.fullName)
         }
         return execCmdFlag
     }
@@ -484,7 +481,7 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
     return parallelResult
 }
 
-func calculateParallel(currentParalla: Int64, args: ArrayList<String>): Unit {
+func calculateParallel(currentParalla: Int64): Int64 {
     var thisParallelSize = currentParalla
     let totalParallelSize = maxParallelSize
 
@@ -493,7 +490,7 @@ func calculateParallel(currentParalla: Int64, args: ArrayList<String>): Unit {
     } else {
         thisParallelSize = 2 * totalParallelSize / currentParalla
     }
-    args.add("-j${thisParallelSize}", at: 0)
+    return thisParallelSize
 }
 
 func futJudge(args: ArrayList<String>): Bool {
