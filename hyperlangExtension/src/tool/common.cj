@@ -868,4 +868,10 @@ public class CommandLineArg {
     public var is3rd: Bool = true
     public var directoryPath: String = ""
     public var tsPath: String = ""
+    public var bindings2C: Bool = false
+    public var clangArgs: String = ""
+}
+
+public enum InputType {
+    ARKTS | C
 }

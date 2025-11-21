@@ -92,6 +92,7 @@ function fetchUrl(currentUrl, options = {}) {
 
                 writeStream.on('finish', () => {
                     process.stdout.write('\n');
+                    fs.chmodSync(DOWNLOAD_FILE, 0o755);
                     console.log(`write success: ${DOWNLOAD_FILE}`);
                 });
                 break;
