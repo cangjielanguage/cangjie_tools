@@ -23,6 +23,7 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
     public var pathDepInGit: Bool = false
     public var isSimpleConfig: Bool = false
     public var importedPath: String = ""
+    public var importedModuleName: String = ""
 
     public init() {}
 
@@ -84,7 +85,7 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
                 return ""
             }
             return "  - ${this.path.getOrThrow()}\n  - ${other.path.getOrThrow()}"
-        } else {
+        } else if (this.isGitDep()) {
             let sameBranchSpecified = this.branch == other.branch
             let sameTagSpecified = this.tag == other.tag
             // for commitId it is ok to have one of them unspecified because it can be saved only in lock file
@@ -94,6 +95,11 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
                 sameBranchSpecified && sameTagSpecified
             if (this.isGitDep() && !sameGitSpecified) {
                 return "  - incompatible git dependency"
+            }
+            return ""
+        } else {
+            if (this.version != other.version) {
+                return "  - incompatible central repository dependency"
             }
             return ""
         }
@@ -108,9 +114,8 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
     }
 
     // If dependencies a and b with the same name are compatible, a and b must satisfy:
-    // 1. both are repository dependencies
-    // 2. one of them is repository dependency, and another is local/git dependency
-    // 3. both are local or git dependency, and with the same content
+    // 1. one of them is repository dependency, and another is local/git dependency
+    // 2. both are local, git or repository dependency, and with the same content
     // Arguments: (isReplaced, errInfo)
     public func isAlternative(other: DepInfo): (Bool, String) {
         if (this.outputType.isSome() && other.outputType.isSome() && this.outputType != other.outputType) {
@@ -140,7 +145,7 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
             if (other.isPathDep() || other.isGitDep()) {
                 return (true, "")
             } else {
-                return (versionCompare(this.version.getOrThrow(), other.version.getOrThrow()), "")
+                return (false, this.isSameDep(other))
             }
         }
     }
@@ -189,12 +194,8 @@ extend<T> Option<T> {
 public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: String, modulePath: String): Bool {
     var checkFlag: Bool = true
     for ((name, v) in requires) {
-        if (let Some(val) <- v.version) {
-            if (v.isSimpleConfig && !centralVersionCheck(name, val, errLoc)) {
-                checkFlag = false
-            } else if (!v.isSimpleConfig && !versionCheck(val, errLoc)) {
-                checkFlag = false
-            }
+        if (let Some(val) <- v.version && !centralVersionCheck(name, val, errLoc)) {
+            checkFlag = false
         }
 
         let checkList: Array<((String, String) -> Bool, ?String)> = if (name.contains("::")) {
@@ -213,7 +214,7 @@ public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: S
             }
         }
 
-        if (!verifyDependencyField(v, errLoc)) {
+        if (!verifyDependencyField(v, name, modulePath)) {
             checkFlag = false
         }
 
@@ -226,19 +227,4 @@ public func verifyDependencyConfig(requires: HashMap<String, DepInfo>, errLoc: S
         }
     }
     return checkFlag
-}
-
-func verifyDependencyField(dep: DepInfo, errLoc: String): Bool {
-    let isPathDep = dep.path.isSome()
-    let isGitDep = dep.git.isSome()
-    let isRepoDep = dep.version.isSome()
-    if (!isPathDep && !isGitDep && !isRepoDep) {
-        eprintln("Error: one of 'git' or 'path' or 'version' fields must exist in ${errLoc}")
-        return false
-    }
-    if ((isPathDep && isGitDep) || (isPathDep && isRepoDep) || (isGitDep && isRepoDep)) {
-        eprintln("Error: only one of 'git' or 'path' or 'version' fields can exist in ${errLoc}")
-        return false
-    }
-    return true
 }

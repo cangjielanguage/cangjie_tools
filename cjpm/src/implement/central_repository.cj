@@ -52,6 +52,9 @@ public func setRepoRoot(installConfig: InstallConfig, artifact: String): Bool {
             return true
         }
         if (let Some(depot) <- Depot.new()) {
+            if (!depot.updateIndex(name, org)) {
+                return false
+            }
             let (result, output) = depot.download(name, org, params[1])
             if (!result) {
                 eprintln("Error: ${output}")

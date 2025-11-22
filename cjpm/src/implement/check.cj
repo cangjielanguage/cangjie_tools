@@ -23,23 +23,24 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
         return (dm, false, false)
     }
 
-    let (checkSuccessful, mockUsed) = dm.resolve(globalConfig.rootPath, lockFile.requires)
+    let (checkSuccessful, mockUsed) = dm.resolve(globalConfig.rootPath, lockFile.requires, isScriptDep)
     if (!checkSuccessful) {
         return (dm, false, mockUsed)
     }
 
+    let depMap = dm.depAnalysisEngine.getDepMap()
     // Don't lock path dependencies since it would only cause problems for transitive path dependencies
-    dm.depMap.removeIf {_, v => v.path.isSome()}
+    depMap.removeIf {_, v => v.path.isSome()}
 
     if (!isScriptDep) {
         var lockFilePath: String = Path(globalConfig.rootPath).join(LOCK_FILE_NAME).toString()
         // Overwrite file only if we have meaningful changes in case field serialization order got changed
-        if (lockFile.requires != dm.depMap || !fileExists(lockFilePath)) {
+        if (lockFile.requires != depMap || !fileExists(lockFilePath)) {
             if (!lockFile.requires.isEmpty() && !deleteFile(lockFilePath)) {
                 return (dm, false, mockUsed)
             }
 
-            if (!creatLockFile(globalConfig.rootPath, ModuleLock(dm.depMap, lockFile.scripts))) {
+            if (!creatLockFile(globalConfig.rootPath, ModuleLock(depMap, lockFile.scripts))) {
                 return (dm, false, mockUsed)
             }
         }

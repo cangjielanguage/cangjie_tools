@@ -11,6 +11,8 @@ import std.fs.*
 import cjpm.config.*
 import cjpm.util.Result
 
+public let SCRIPT_DEPENDENCIES_MARK: String = "-build-script-"
+
 public func runScript(scriptConfig: ScriptConfig, step: BuildScriptStep, command: String): Bool {
     if (scriptConfig.isEmpty()) {
         return true
@@ -174,8 +176,17 @@ public func runMultiScriptPost(globalConfig: GlobalConfig): Bool {
 func getDepPath(modulePath: String, depName: String, depInfo: DepInfo): Option<String> {
     if (let Some(depPath) <- depInfo.path) {
         return getPath(modulePath, depPath)
+    } else if (let Some(version) <- depInfo.version) {
+        return "${modulePath}${SCRIPT_DEPENDENCIES_MARK}${depName}-${version}"
+    } else {
+        return if (let Some((path, commit, _)) <- downloadGitDep(depName, depInfo)) {
+            depInfo.commitId = commit
+            getCanonicalPath(path)
+        } else {
+            eprintln("Error: failed to retrieve git dependency ${depName}")
+            Option.None
+        }
     }
-    return getOnlineDepPath(modulePath, depName, depInfo)
 }
 
 func getScriptDeps(scriptConfig: ScriptConfig): HashMap<String, DepInfo> {

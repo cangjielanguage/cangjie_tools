@@ -53,7 +53,7 @@ const WINDOWS_LOCAL_FILE_REGEX = "^[A-Za-z]:.+$"
 const URL_WITH_SPACE = "^.*\\s+.*$"
 
 // Default organization name
-const DEFAULT_ORGANIZATION = "default"
+public const DEFAULT_ORGANIZATION: String = "default"
 
 // Black-list of module/organization name while bundling
 let BLACK_NAME_LIST = HashSet<String>([
@@ -98,9 +98,9 @@ public class IndexDep <: Serializable<IndexDep> {
         }
         IndexDep(
             String.deserialize((dms.get(INDEX_DEP_NAME) as DataModelString) ?? DataModelString("")),
-            String.deserialize((dms.get(INDEX_DEP_NAME) as DataModelString) ?? DataModelString("")),
-            Option<String>.deserialize(dms.get(INDEX_DEP_NAME)),
-            Option<String>.deserialize(dms.get(INDEX_DEP_NAME))
+            String.deserialize((dms.get(INDEX_DEP_REQUIRE) as DataModelString) ?? DataModelString("")),
+            Option<String>.deserialize(dms.get(INDEX_DEP_TARGET)),
+            Option<String>.deserialize(dms.get(INDEX_DEP_TYPE))
         )
     }
 }
