@@ -343,6 +343,16 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
         if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
             return true;
         }
+        auto relation = GetPackageRelation(curPkgName, symPackage);
+        bool isPkgAccess =
+            sym.pkgModifier == Modifier::PUBLIC
+            || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
+                                                          || sym.pkgModifier == Modifier::PROTECTED))
+            || (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED)
+            || (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
+        if (!isPkgAccess) {
+            return true;
+        }
         // filter symbols that are already in the NormalComplete
         if (sym.id != 0 && normalCompleteCount < normalCompleteSyms.size() && normalCompleteSyms.count(sym.id)) {
             normalCompleteCount++;
@@ -357,7 +367,6 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
         if (sym.scope.find(':') != std::string::npos) {
             return true;
         }
-        auto relation = GetPackageRelation(curPkgName, symPackage);
         // filter by modifier
         bool isAccessible =
             sym.modifier == Modifier::PUBLIC
@@ -399,6 +408,16 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const std::string &curPkgName, 
         if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
             return true;
         }
+        auto relation = GetPackageRelation(curPkgName, symPackage);
+        bool isPkgAccess =
+            sym.pkgModifier == Modifier::PUBLIC
+            || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
+                                                          || sym.pkgModifier == Modifier::PROTECTED))
+            || (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED)
+            || (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
+        if (!isPkgAccess) {
+            return true;
+        }
         // filter imported syms
         if (importDeclCount < importDeclSyms.size() && importDeclSyms.count(sym.id)) {
             importDeclCount++;
@@ -408,7 +427,6 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const std::string &curPkgName, 
         if (sym.scope.find(':') != std::string::npos) {
             return true;
         }
-        auto relation = GetPackageRelation(curPkgName, symPackage);
         // filter by modifier
         bool isAccessible =
             sym.modifier == Modifier::PUBLIC

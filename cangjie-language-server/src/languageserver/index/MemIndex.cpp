@@ -190,6 +190,15 @@ void MemIndex::FindImportSymsOnCompletion(
         }
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
         for (const auto &sym : pkgSyms.second) {
+            bool isPkgAccess =
+                sym.pkgModifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
+                                                              || sym.pkgModifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
+            if (!isPkgAccess) {
+                break;
+            }
             // filter symbols that not dependent by curModule
             if (!sym.isCjoSym && !curModuleDeps.count(sym.curModule)) {
                 continue;
@@ -295,6 +304,15 @@ void MemIndex::FindImportSymsOnQuickFix(const std::string &curPkgName, const std
         }
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
         for (const auto &sym : pkgSyms.second) {
+            bool isPkgAccess =
+                sym.pkgModifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
+                                                              || sym.pkgModifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
+            if (!isPkgAccess) {
+                break;
+            }
             // filter diff name
             if (sym.name != identifier) {
                 continue;

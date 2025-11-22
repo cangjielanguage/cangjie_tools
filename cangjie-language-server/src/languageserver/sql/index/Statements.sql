@@ -132,6 +132,7 @@ SQL(InsertSymbol,
     :Modifier,
     :Deprecated,
     :Syscap,
+    :PkgModifier,
     :CurModule,
     :MacroCallFileURI,
     :MacroCallStartLine,
@@ -147,6 +148,7 @@ SQL(MultiInsertSymbolsHead,
 
 SQL(MultiInsertSymbolsValue,
   (
+    ?,
     ?,
     ?,
     ?,
@@ -234,7 +236,7 @@ SQL(MultiInsertCompletionsValue,
 );
 
 SQL(SelectCompletions,
-  SELECT symbols.ID, symbols.Name, symbols.Modifier, symbols.Kind, symbols.DefinitionFileURI, symbols.Scope, symbols.Cjosym, symbols.Deprecated, symbols.Syscap,
+  SELECT symbols.ID, symbols.Name, symbols.Modifier, symbols.Kind, symbols.DefinitionFileURI, symbols.Scope, symbols.Cjosym, symbols.Deprecated, symbols.Syscap, symbols.PkgModifier,
          completions.*
   FROM symbols
   JOIN completions ON symbols.ID = completions.SymbolID

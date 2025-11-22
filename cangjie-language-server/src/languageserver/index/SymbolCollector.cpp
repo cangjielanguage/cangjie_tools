@@ -132,6 +132,22 @@ ark::lsp::Modifier GetDeclModifier(const Decl &decl)
     return ark::lsp::Modifier::UNDEFINED;
 }
 
+ark::lsp::Modifier GetPackageModifier(AccessLevel pkgAccess)
+{
+    switch (pkgAccess) {
+        case AccessLevel::PUBLIC:
+            return ark::lsp::Modifier::PUBLIC;
+        case AccessLevel::PROTECTED:
+            return ark::lsp::Modifier::PROTECTED;
+        case AccessLevel::INTERNAL:
+            return ark::lsp::Modifier::INTERNAL;
+        case AccessLevel::PRIVATE:
+            return ark::lsp::Modifier::PRIVATE;
+        default:
+            return ark::lsp::Modifier::PUBLIC;
+    }
+}
+
 ark::lsp::CommentGroups GetDeclComments(const Decl &decl)
 {
     if (!decl.comments.IsEmpty()) {
@@ -280,9 +296,10 @@ void SymbolCollector::Build(const Package &package)
     Preamble(package);
     std::unordered_set<Ptr<InheritableDecl>> inheritableDecls;
     (void)scopes.emplace_back(&package, package.fullPackageName + ":");
+    AccessLevel pkgAccess = package.accessible;
     for (auto &file : package.files) {
         auto filePath = file->curFile->filePath;
-        auto collectPre = [this, &inheritableDecls, &filePath](auto node) {
+        auto collectPre = [this, &inheritableDecls, &filePath, &pkgAccess](auto node) {
             if (auto invocation = node->GetConstInvocation()) {
                 CreateMacroRef(*node, *invocation);
             }
@@ -303,7 +320,7 @@ void SymbolCollector::Build(const Package &package)
             if (Utils::In(node->astKind, G_IGNORE_KINDS)) {
                 return VisitAction::WALK_CHILDREN;
             }
-            CollectNode(node, filePath);
+            CollectNode(node, filePath, pkgAccess);
             return VisitAction::WALK_CHILDREN;
         };
 
@@ -353,17 +370,17 @@ void SymbolCollector::CollectCrossScopes(Ptr<Node> node)
     }
 }
 
-void SymbolCollector::CreateBaseOrExtendSymbol(const Decl &decl, const std::string &filePath)
+void SymbolCollector::CreateBaseOrExtendSymbol(const Decl &decl, const std::string &filePath, AccessLevel pkgAccess)
 {
     auto inSupportBaseSym = IsGlobalOrMemberOrItsParam(decl) || IsLocalFuncOrLambda(decl);
     if (inSupportBaseSym) {
-        CreateBaseSymbol(decl, filePath);
+        CreateBaseSymbol(decl, filePath, pkgAccess);
     }  else if (IsExtendDecl(decl)) {
         CreateExtend(decl, filePath);
     }
 }
 
-void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &filePath)
+void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &filePath, AccessLevel pkgAccess)
 {
     if (!decl.curFile) {
         return;
@@ -433,6 +450,7 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     if (auto vd = DynamicCast<const VarDecl *>(&decl)) {
         declSym.isMemberParam = vd->isMemberParam;
     }
+    declSym.pkgModifier = GetPackageModifier(pkgAccess);
     if (!loc.IsZeroLoc()) {
         UpdatePos(declSym.location, decl, filePath);
     }
@@ -1691,10 +1709,10 @@ void SymbolCollector::CollectCompletionItem(const Decl &decl, Symbol &declSym)
     }
 }
 
-void SymbolCollector::CollectNode(Ptr<Node> node, const std::string& filePath)
+void SymbolCollector::CollectNode(Ptr<Node> node, const std::string& filePath, AccessLevel pkgAccess)
 {
     if (auto decl = DynamicCast<Decl *>(node)) {
-        CreateBaseOrExtendSymbol(*decl, filePath);
+        CreateBaseOrExtendSymbol(*decl, filePath, pkgAccess);
         UpdateScope(*decl);
     } else if (auto ref = DynamicCast<NameReferenceExpr *>(node)) {
         CreateRef(*ref, filePath);
