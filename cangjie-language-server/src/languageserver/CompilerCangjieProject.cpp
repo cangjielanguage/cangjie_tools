@@ -284,6 +284,7 @@ void CompilerCangjieProject::IncrementCompile(const std::string &filePath, const
         Trace::Elog("InitCache Failed");
     }
 
+    ReportCombinedCycles();
     if (cycles.second) {
         ReportCircularDeps(cycles.first);
     }
@@ -1333,6 +1334,7 @@ bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
             return false;
         }
     }
+    ReportCombinedCycles();
     auto cycles = graph->FindCycles();
     if (cycles.second) {
         ReportCircularDeps(cycles.first);
@@ -1470,6 +1472,44 @@ void CompilerCangjieProject::ReportCircularDeps(const std::vector<std::vector<st
             }
         }
     }
+}
+
+void CompilerCangjieProject::ReportCombinedCycles()
+{
+    auto pkgs = GetKeys(fullPkgNameToPath);
+    for (auto pkg : pkgs) {
+        std::string curModule = SplitFullPackage(pkg).first;
+        if (curModule == pkg || !GetModuleCombined(curModule)) {
+            continue;
+        }
+        auto dependencies = graph->GetDependencies(pkg);
+        if (dependencies.find(curModule) == dependencies.end()) {
+            continue;
+        }
+        std::string combinedCirclePkgName = curModule.append(" ").append(pkg);
+        const auto &dirPath = fullPkgNameToPath[pkg];
+        std::vector<std::string> files = GetAllFilesUnderCurrentPath(dirPath, CANGJIE_FILE_EXTENSION, false);
+        if (files.empty()) {
+            continue;
+        }
+        callback->RemoveDiagOfCurPkg(pkgInfoMap[pkg]->packagePath);
+        std::ostringstream diagMessage;
+        diagMessage << "packages " << combinedCirclePkgName
+                    << " are in circular dependencies (because of combined module '"
+                    << curModule << "').";
+        for (const auto &file: files) {
+            const auto &filePath = FileStore::NormalizePath(JoinPath(dirPath, file));
+            DiagnosticToken dt;
+            dt.category = LSP_ERROR_CODE;
+            dt.code = LSP_ERROR_CODE;
+            dt.message = diagMessage.str();
+            dt.range = {{0, 0, 0}, {0, 0, 1}};
+            dt.severity = 1;
+            dt.source = "Cangjie";
+            callback->UpdateDiagnostic(filePath, dt);
+        }
+    }
+
 }
 
 void CompilerCangjieProject::EmitDiagsOfFile(const std::string &filePath)
@@ -2065,4 +2105,20 @@ std::unordered_set<std::string> CompilerCangjieProject::GetOneModuleDirectDeps(c
     return res;
 }
 
+bool CompilerCangjieProject::GetModuleCombined(const std::string &curModule)
+{
+    auto found = moduleManager->combinedMap.find(curModule);
+    if (found != moduleManager->combinedMap.end()) {
+        return found->second;
+    }
+    return false;
+}
+
+bool CompilerCangjieProject::IsCombinedSym(const std::string &curModule, const std::string &curPkg,
+    const std::string &symPkg)
+{
+    bool isCombinedModule = GetModuleCombined(curModule);
+    bool isRootPkg = curModule == curPkg;
+    return isCombinedModule && symPkg == curModule && !isRootPkg;
+}
 } // namespace ark

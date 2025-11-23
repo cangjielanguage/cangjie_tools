@@ -224,7 +224,9 @@ void MemIndex::FindImportSymsOnCompletion(
                                                           || sym.modifier == ark::lsp::Modifier::PROTECTED))
                 || (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED)
                 || (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
-            if (isAccessible) {
+            // filter root pkg symbols if cur module is combined
+            if (isAccessible
+                && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgSyms.first)) {
                 for (const auto &completionItem : sym.completionItems) {
                     callback(pkgSyms.first, sym, completionItem);
                 }
@@ -337,7 +339,9 @@ void MemIndex::FindImportSymsOnQuickFix(const std::string &curPkgName, const std
                                                               || sym.modifier == ark::lsp::Modifier::PROTECTED))
                 || (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED)
                 || (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
-            if (isAccessible) {
+            // filter root pkg symbols if cur module is combined
+            if (isAccessible
+                && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgSyms.first)) {
                 callback(pkgSyms.first, sym);
             }
         }
