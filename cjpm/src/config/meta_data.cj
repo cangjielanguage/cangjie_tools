@@ -67,6 +67,15 @@ let BLACK_NAME_LIST = HashSet<String>([
     "with"
 ])
 
+// List of category
+let CATEGORY_SET = HashSet<String>([
+    "network", "database driver", "data encapsulation and transfer", "data analysis", "database framework",
+    "object storage", "distributed", "task scheduling", "security", "utility", "logging", "algorithm",
+    "audio and video", "character encoding", "image processing", "developer tools", "animation", "infrastructure",
+    "geographic information", "ui", "scientific computing", "programming framework", "data monitoring",
+    "circuit breaker and downgrading", "message queue"
+])
+
 // Dependencies in index
 public class IndexDep <: Serializable<IndexDep> {
     public IndexDep(
@@ -294,6 +303,7 @@ public class MetaData <: Serializable<MetaData> {
         flag = this.checkUrl(this.homepage, META_HOMEPAGE) && flag
         flag = this.checkUrl(this.documentation, META_DOCUMENTATION) && flag
         flag = this.index.addDependencies(tomlInfo) && flag
+        flag = this.checkCategory() && flag
         return flag
     }
 
@@ -304,6 +314,23 @@ public class MetaData <: Serializable<MetaData> {
             return false
         }
         return true
+    }
+
+    func checkCategory(): Bool {
+        var flag = true
+        for (index in 0..this.category.size) {
+            let lowerCat = this.category[index].toAsciiLower()
+            if (!CATEGORY_SET.contains(lowerCat)) {
+                eprintln("Error: category '${this.category[index]}' is invalid, please check cjpm documentation for valid category names")
+                flag = false
+            } else {
+                this.category[index] = this.category[index].toAsciiTitle().replace(" And ", " and ")
+                if (this.category[index] == "Ui") {
+                    this.category[index] = "UI"
+                }
+            }
+        }
+        return flag
     }
 }
 

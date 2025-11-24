@@ -13,6 +13,8 @@ public const BUILD_SCRIPT_DIR: String = "build-script-cache"
 public const BUILD_SCRIPT_CACHE: String = ".script-hash"
 public const BUILD_SCRIPT_LOG: String = "script-log"
 
+public let SCRIPT_DEPENDENCIES_MARK: String = "-build-script-"
+
 public enum BuildScriptStep <: ToString & Equatable<BuildScriptStep> {
     | Pre
     | Post
