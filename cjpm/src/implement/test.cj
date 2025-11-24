@@ -136,7 +136,7 @@ public func doTest(unparseArgs: Array<String>, testConfig: TestConfig): Bool {
         testConfig.testModule = HashSet<String>(dm.globalConfig.rootName)
     } else if (!testConfig.testModule.isEmpty()) {
         for (testModuleName in testConfig.testModule) {
-            if (!dm.depPathMap.contains(testModuleName)) {
+            if (!dm.depAnalysisEngine.finalDepMap.contains(testModuleName)) {
                 eprintln("Error: cannot find module '${testModuleName}' of option '--module'")
                 return false
             }

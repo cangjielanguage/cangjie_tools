@@ -9,26 +9,6 @@ package cjpm.implement
 import std.fs.*
 import cjpm.config.*
 
-func getOnlineDepPath(modulePath: String, depName: String, depInfo: DepInfo): Option<String> {
-    var depPath = ""
-    if (depInfo.isCenterRepoDep()) {
-        let (loadFlag, sourcePath) = processRepoDependencyModule(depName, depInfo.version.getOrThrow(), modulePath)
-        if (!loadFlag) {
-            return Option.None
-        }
-        depPath = sourcePath
-    } else {
-        depPath = depInfo.path ?? if (let Some((path, commit, _)) <- downloadGitDep(depName, depInfo)) {
-            depInfo.commitId = commit
-            path
-        } else {
-            eprintln("Error: failed to retrieve git dependency ${depName}")
-            return Option.None
-        }
-    }
-    return getCanonicalPath(depPath)
-}
-
 func freshGitPathDep(depInfo: DepInfo, globalConfig: GlobalConfig): Unit {
     if (depInfo.isPathDep()) {
         let (url, commitId) = globalConfig.gitStack.top() ?? ("", "")

@@ -14,6 +14,10 @@ import stdx.net.http.*
 import stdx.net.tls.common.*
 import stdx.net.tls.*
 import stdx.compress.*
+import stdx.crypto.digest.*
+import stdx.encoding.hex.*
+import stdx.serialization.serialization.*
+import stdx.encoding.json.*
 import cjpm.config.*
 
 let tcpSocketConnector = {
@@ -141,6 +145,47 @@ public class Depot {
             buffer.add(all: buf[..i])
         } while (i != 0)
 
+        // check sha256sum
+        try {
+            let sha256Instance = SHA256()
+            sha256Instance.write(buffer.toArray())
+            let sha256sum = toHexString(sha256Instance.finish())
+            let indexPath = this.getIndex(name, org)
+            if (indexPath.isEmpty()) {
+                return (false, "index error while downloading ${name}-${version} ${orgStr}")
+            }
+
+            var indexRawData = String.fromUtf8(File.readFrom(indexPath))
+            var indexIter = indexRawData.lines()
+
+            var checkSumFlag = false
+            while (true) {
+                match (indexIter.next()) {
+                    case Some(indexStr) =>
+                        try {
+                            let index: ArtifactIndex = ArtifactIndex.deserialize(DataModel.fromJson(JsonValue.fromStr(indexStr)))
+                            if (index.version != version) {
+                                continue
+                            }
+                            if (index.sha256sum != sha256sum) {
+                                return (false, "package was broken while downloading ${name}-${version} ${orgStr}")
+                            }
+                            checkSumFlag = true
+                            break
+                        } catch (e: Exception) {
+                            return (false, "index was broken while downloading ${name}-${version} ${orgStr}")
+                        }
+                    case None => break
+                }
+            }
+
+            if (!checkSumFlag) {
+                return (false, "cannot find index data while downloading ${name}-${version} ${orgStr}")
+            }
+        } catch (e: Exception) {
+            return (false, "failed to check sha256 check-sum while downloading ${name}-${version} ${orgStr}")
+        }
+
         // save, uncompress and delete cjp file
         let repositoryPath = Path(this.localRepo).join("source").
             join(if (org.isEmpty()) { "default" } else { org }).
@@ -163,5 +208,90 @@ public class Depot {
             // delete cjp
             deleteFile(cjpTempPath.toString())
         }
+    }
+
+    // update local index for one module with output
+    public func updateIndexWithOutput(name: String, org: String): (Bool, String) {
+        let firstLevel = name[..2]
+        let secondLevel = if (name.size > 3) { name[2..4] } else { name[2..3] }
+        var indexUrl = baseUrl + "/index/${firstLevel}/${secondLevel}/${name}"
+        var orgStr = ""
+        if (!org.isEmpty()) {
+            indexUrl += "?organization=${org}"
+            orgStr = " from organization '${org}'"
+        }
+
+        // building client
+        var tlsConfig = TlsClientConfig()
+        tlsConfig.verifyMode = TrustAll
+        let client = ClientBuilder().connector(tcpSocketConnector).noProxy().tlsConfig(tlsConfig).build()
+
+        // building https request
+        let request = HttpRequestBuilder().method("GET").url(indexUrl).build()
+        let resp = client.send(request)
+        client.close()
+
+        // verify response code
+        match (resp.status) {
+            case 200 => ()
+            case 400 =>
+                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: invalid parameters")
+            case 401 =>
+                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: authentication failed")
+            case 403 =>
+                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: permission denied")
+            case 404 =>
+                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: file does not exist")
+            case s where (s >= 500) =>
+                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: server error")
+            case _ =>
+                return (false, "index of module '${name}'${orgStr} load failed, unknown error with status ${resp.status}")
+        }
+
+        let buf = Array<UInt8>(1024, repeat: 0)
+        let buffer = ArrayList<UInt8>()
+        var i = 0
+        do {
+            i = resp.body.read(buf)
+            buffer.add(all: buf[..i])
+        } while (i != 0)
+
+        // save index file
+        let indexDir = Path(this.localRepo).join("index").
+            join(if (org.isEmpty()) { "default" } else { org }).
+            join(firstLevel).
+            join(secondLevel).
+            toString()
+        let indexPath = Path(indexDir).join(name)
+        if (!createDirectory(indexDir)) {
+            return (false, "cannot save index file for module '${name}'${orgStr}")
+        }
+        File.writeTo(indexPath, buffer.toArray())
+
+        return (true, "")
+    }
+
+    // update local index for one module
+    public func updateIndex(name: String, org: String): Bool {
+        let (flag, output) = this.updateIndexWithOutput(name, org)
+        if (!flag) {
+            eprintln("Error: ${output}")
+        }
+        return flag
+    }
+
+    // get index file
+    public func getIndex(name: String, org: String): String {
+        let firstLevel = name[..2]
+        let secondLevel = if (name.size > 3) { name[2..4] } else { name[2..3] }
+        let indexPath = Path(this.localRepo).join("index").
+            join(if (org.isEmpty()) { "default" } else { org }).
+            join(firstLevel).
+            join(secondLevel).
+            join(name).toString()
+        if (fileExists(indexPath)) {
+            return indexPath
+        }
+        return ""
     }
 }

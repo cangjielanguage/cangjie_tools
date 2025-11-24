@@ -14,9 +14,15 @@ import cjpm.util.Result
 // Regexp root package name.
 let EXAMPLE_ROOT_PACKAGE_NAME: String = "cjDemo"
 let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
+// Basic string for version.
+let FORMAT_OF_VERSION: String = "(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])"
 // Regexp version.
-public let REGEXP_VERTION: String = "^(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
+public let REGEXP_VERTION: String = "^${FORMAT_OF_VERSION}$"
 let EXAMPLE_MODULE_VERSION: String = "1.0.0"
+// Regexp repo-dependency require.
+let REGEXP_REQUIRE_UNIT: String = "((${FORMAT_OF_VERSION})|((\\(|([\\(\\[]\\s*${FORMAT_OF_VERSION}))\\s*,\\s*(\\)|(${FORMAT_OF_VERSION}\\s*[\\)\\]]))))"
+let REGEXP_DEP_REQUIRE: String = "^(\\s*${REGEXP_REQUIRE_UNIT}\\s*(,\\s*${REGEXP_REQUIRE_UNIT}\\s*)*)$"
+// Regexp version.
 let REGEXP_NAME_VERSION: String = "^(_*[a-zA-Z][_a-zA-Z0-9]*::)?(_*[a-zA-Z][_a-zA-Z0-9]*)-(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])$"
 public let EXAMPLE_NAME_VERSION: String = "cjModDemo-1.0.0"
 let EXAMPLE_CJC_VERSION: String = "1.0.0"
@@ -119,15 +125,15 @@ public func nameVersionCheck(text: String): Bool {
 
 // Check central dependencies version in cjpm.toml.
 func centralVersionCheck(name: String, text: String, path: String): Bool {
-    if (text.isEmpty()) {
+    if (name.isEmpty()) {
         eprintln("Error: name of dependency from central repository in ${path} can't be empty")
         return false
     }
-    let matched = Regex(REGEXP_VERTION)
+    let matched = Regex(REGEXP_DEP_REQUIRE)
     match (matched.find(text)) {
         case Some(_) => return true
         case None => eprintln("Error: version '${text}' for central repository dependency '${name}' in ${path} " +
-            "is wrong, the example is '${EXAMPLE_MODULE_VERSION}'")
+            "is wrong, the example is '1.2.3', '[1.2.3, 1.4.5)' or '(, 1.0.0), [2.0.0, )'")
     }
     return false
 }
