@@ -42,7 +42,8 @@ Options:
   -d <directory>        The absolute path of the directory containing d.ts or d.ets file (required if -i is not used)
   -o <directory>        The directory to save the binding code (optional, defaults to the current directory)
   -c                    Generate C to Cangjie bindings
-  --clang-args           The parameters that will be directly passed to clang
+  --clang-args          The parameters that will be directly passed to clang
+  --no-detect-include-path  Disable automatic include path detection
   -j <file>             The absolute path of the d.ts or d.ets file analyzer (optional)
   --module-name <name>  Customize the generated Cangjie package name (optional)
   --lib                 Generate bindings for third-party library (optional)
@@ -68,6 +69,7 @@ main(args: Array<String>) {
         Long("module-name", RequiredValue),
         Long("clang-args", RequiredValue),
         Long("lib", NoValue),
+        Long("no-detect-include-path", NoValue),
         Long("help", NoValue),
         Short(r'r', RequiredValue),
         Short(r'i', RequiredValue),
@@ -163,11 +165,19 @@ func generateCangjieBindingsForC(moduleName: String, filePath: String, outDir: S
 
     let outputFileName = getFileName(filePath).replace(".h", ".cj")
 
-    println("The command is: ./src/dtsparser/node_modules/.bin/cjbind --auto-cstring --array-pointers-in-args --no-layout-test -p " + 
+    let result = if (cla.autoDect) {"--no-detect-include-path"} else {""}
+    println("The command is: ./src/dtsparser/node_modules/.bin/cjbind --auto-cstring --array-pointers-in-args --no-layout-test " + result + " -p " + 
         moduleName + " -o " + outDir + outputFileName + " " + filePath + " -- " + cla.clangArgs)
-    execute("./src/dtsparser/node_modules/.bin/cjbind", "--auto-cstring", "--array-pointers-in-args", "--no-layout-test",
-        "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
-    )
+    if (cla.autoDect) {
+        execute("./src/dtsparser/node_modules/.bin/cjbind", "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path","--no-detect-include-path",
+            "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
+        )
+
+    } else {
+        execute("./src/dtsparser/node_modules/.bin/cjbind", "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path",
+            "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
+        )
+    }
 }
 
 func parseCommandLine(pa: ParsedArguments): Unit {
@@ -181,6 +191,7 @@ func parseCommandLine(pa: ParsedArguments): Unit {
     cla.jsASTPath = (pa.options.get("j") ?? analysisFilePath) //  ArkTS文件分析器路径
     cla.cjModuleName = (pa.options.get("module-name") ?? "")
     cla.is3rd = pa.options.contains("lib")
+    cla.autoDect = pa.options.contains("no-detect-include-path")
     cla.bindings2C = pa.options.contains("c")
     cla.clangArgs = (pa.options.get("clang-args") ?? "")
     println("clangArgs: " + cla.clangArgs)

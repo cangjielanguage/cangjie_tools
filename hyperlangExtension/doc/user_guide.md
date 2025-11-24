@@ -1,33 +1,43 @@
 # HLE Tool User Guide
 
-## Overview
+## Introduction
 
-`HLE (HyperlangExtension)` is an automated code template generation tool for Cangjie-to-ArkTS interoperability calls.
-The tool takes ArkTS interface declaration files (e.g., files with `.d.ts` or `.d.ets` extensions) as input and outputs a directory containing a `BUILD.gn` file and an `src` folder. The `src` folder contains generated interoperability code in `.cj` files. The tool also outputs a JSON file containing all information from the ArkTS files.
+`HLE (HyperlangExtension)` is a tool for automatically generating interoperability code templates for Cangjie calling ArkTS or C language.
+The input of this tool is the interface declaration file of ArkTS or C language, such as files ending with .d.ts, .d.ets or .h, and the output is a cj file, which stores the generated interoperability code. If the generated code is a glue layer code from ArkTS to Cangjie, the tool will also output a json file containing all the information of the ArkTS file.
 
-## Usage Instructions
+## Instructions
 
-### Parameter Definitions
+### Parameter Meaning
 
-| Parameter       | Description                                      | Type       | Notes                |
-| --------------- | ------------------------------------------------ | ---------- | -------------------- |
-| `-i`            | Absolute path to input `.d.ts` or `.d.ets` file  | Optional   | Mutually exclusive or combinable with `-d`         |
-| `-r`            | Absolute path to TypeScript compiler             | Required   |                      |
-| `-d`            | Absolute path to directory containing input `.d.ts` or `.d.ets` files | Optional   | Mutually exclusive or combinable with `-i`         |
-| `-o`            | Output directory for interoperability code       | Optional   | Defaults to current directory |
-| `-j`            | Path to analyze `.d.ts` or `.d.ets` files       | Optional   |                      |
-| `--module-name` | Custom Cangjie package name                      | Optional   |                      |
-| `--lib`         | Generate third-party library code               | Optional   |                      |
-| `--help`        | Help option                                      | Optional   |                      |
+| Parameter           | Meaning                                       | Parameter Type | Description                  |
+| ------------------- | --------------------------------------------- | -------------- | ---------------------------- |
+| `-i`                | Absolute path of d.tsj, d.ets or .h file input | Optional       | Choose one from `-d` or both |
+| `-r`                | Absolute path of typescript compiler          | Required       |                              |
+| `-d`                | Absolute path of the folder where d.ts, d.ets or .h file input is located | Optional       | Choose one from `-i` or both |
+| `-o`                | Directory to save the output interoperability code | Optional       | Output to the current directory by default |
+| `-j`                | Path to analyze d.t or d.ets files            | Optional       |                              |
+| `--module-name`     | Custom generated Cangjie package name         | Optional       |                              |
+| `--lib`             | Generate third-party library code             | Optional       |                              |
+| `-c`                | Generate C to Cangjie binding code             | Optional       |                              |
+| `--clang-args`      | Parameters that will be directly passed to clang | Optional       |                              |
+| `--no-detect-include-path` | Disable automatic include path detection    | Optional       |                              |
+| `--help`            | Help option                                   | Optional       |                              |
 
 ### Command Line
 
-Use the following command to generate interface glue layer code:
+You can use the following command to generate ArkTS to Cangjie binding code:
+
 ```sh
-main -i /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
+main  -i  /path/to/test.d.ts  -o  out  –j  /path/to/analysis.js --module-name=ohos.hilog
 ```
 
-On Windows environments, file paths do not support the "\\" symbol—only "/" is supported:
+In the Windows environment, the file directory currently does not support the symbol "\\", only "/" is supported.
 ```sh
-main -i /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
+main -i  /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
+```
+
+You can use the following command to generate C to Cangjie binding code:
+
+```sh
+./target/bin/main -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
 ```

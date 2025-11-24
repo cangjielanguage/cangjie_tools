@@ -870,6 +870,7 @@ public class CommandLineArg {
     public var tsPath: String = ""
     public var bindings2C: Bool = false
     public var clangArgs: String = ""
+    public var autoDect: Bool = false
 }
 
 public enum InputType {
