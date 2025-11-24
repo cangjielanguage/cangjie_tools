@@ -1395,6 +1395,7 @@ func getExeOutputName(fullName: String, buildConfig: BuildConfig): String {
 }
 
 func addStdLibsLink(compileTarget: String): ?ArrayList<String> {
+    let isTargetLinux = compileTarget.contains("linux")
     let cjHome = getVariable("CANGJIE_HOME") ?? return None
     let runtimePath = Path(cjHome).join("runtime").join("lib").toString()
     if (directoryExists(runtimePath)) {
@@ -1422,11 +1423,15 @@ func addStdLibsLink(compileTarget: String): ?ArrayList<String> {
         // add links
         if (!libSet.isEmpty()) {
             let res = ArrayList<String>()
-            res.add("--link-options=--as-needed")
+            if (isTargetLinux) {
+                res.add("--link-options=--as-needed")
+            }
             for (lib in libSet) {
                 res.add("-l:${lib}")
             }
-            res.add("--link-options=--no-as-needed")
+            if (isTargetLinux) {
+                res.add("--link-options=--no-as-needed")
+            }
             return res
         }
     }
