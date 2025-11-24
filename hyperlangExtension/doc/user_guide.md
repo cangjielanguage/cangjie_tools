@@ -19,6 +19,7 @@ The input of this tool is the interface declaration file of ArkTS or C language,
 | `--module-name`     | Custom generated Cangjie package name         | Optional       |                              |
 | `--lib`             | Generate third-party library code             | Optional       |                              |
 | `-c`                | Generate C to Cangjie binding code             | Optional       |                              |
+| `-b`                | Specify the directory of the cjbind binary             | Optional       |                              |
 | `--clang-args`      | Parameters that will be directly passed to clang | Optional       |                              |
 | `--no-detect-include-path` | Disable automatic include path detection    | Optional       |                              |
 | `--help`            | Help option                                   | Optional       |                              |
