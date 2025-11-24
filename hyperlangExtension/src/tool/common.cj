@@ -871,6 +871,7 @@ public class CommandLineArg {
     public var bindings2C: Bool = false
     public var clangArgs: String = ""
     public var autoDect: Bool = false
+    public var bindingsPath: String = ""
 }
 
 public enum InputType {
