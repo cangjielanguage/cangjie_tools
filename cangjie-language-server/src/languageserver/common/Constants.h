@@ -42,6 +42,7 @@ namespace CONSTANTS {
     const std::string PATH_OPTION = "path_option";
     const std::string DEFAULT_ROOT_PACKAGE = "default";
     const std::string SRC_PATH = "src_path";
+    const std::string COMBINED = "combined";
     const std::string IMPORT = "import";
     const std::string AS = "as";
     const std::string WHITE_SPACE = " ";

@@ -177,6 +177,8 @@ public:
 
     void ReportCircularDeps(const std::vector<std::vector<std::string>> &cycles);
 
+    void ReportCombinedCycles();
+
     std::vector<std::vector<std::string>> ResolveDependence();
 
     void TarjanForSCC(SCCParam& sccParam,
@@ -426,6 +428,10 @@ public:
     std::unordered_set<std::string> GetOneModuleDeps(const std::string &curModule);
 
     std::unordered_set<std::string> GetOneModuleDirectDeps(const std::string &curModule);
+
+    bool GetModuleCombined(const std::string &curModule);
+
+    bool IsCombinedSym(const std::string &curModule, const std::string &curPkg, const std::string &symPkg);
 
     std::string GetWorkSpace()
     {

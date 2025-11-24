@@ -374,7 +374,9 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
                                                        || sym.modifier == Modifier::PROTECTED))
             || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
             || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
-        if (isAccessible) {
+        // filter root pkg symbols if cur module is combined
+        if (isAccessible
+            && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, symPackage)) {
             callback(symPackage, sym, completion);
         }
         return true;
@@ -434,7 +436,9 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const std::string &curPkgName, 
                                                        || sym.modifier == Modifier::PROTECTED))
             || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
             || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
-        if (isAccessible) {
+        // filter root pkg symbols if cur module is combined
+        if (isAccessible
+            && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, symPackage)) {
             callback(symPackage, sym);
         }
         return true;

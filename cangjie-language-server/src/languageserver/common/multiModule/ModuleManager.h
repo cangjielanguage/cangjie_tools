@@ -46,6 +46,8 @@ public:
     std::unordered_map<std::string, std::unordered_set<std::string>> requireAllPackages;
     // key: moduleName, value: modulePaths with same moduleName
     std::unordered_map<std::string, std::vector<std::string>> duplicateModules;
+    // key: moduleName, value: cur module is combined
+    std::unordered_map<std::string, bool> combinedMap;
 };
 } // namespace ark
 
