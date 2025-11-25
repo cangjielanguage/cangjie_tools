@@ -710,7 +710,9 @@ class DepModel {
             }
             if (!isPackageExist(pkgInfo.libName, pkgInfo.libPath, false, "", pkgInfo.isMacroPackage) &&
                 isSuperPackageExist(pkgInfo.libName, pkgInfo.libPath, this.isCrossBin)) {
-                this.superPkgSubMap.add(pkgInfo.libName, pkgInfo.libName.split(".")[0])
+                synchronized(this.packageMtx) {
+                    this.superPkgSubMap.add(pkgInfo.libName, pkgInfo.libName.split(".")[0])
+                }
             }
             pkgInfo.isDyLib = isDyLibExist(pkgInfo.libName, pkgInfo.libPath, this.isCrossBin)
         } else {
