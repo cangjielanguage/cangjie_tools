@@ -77,17 +77,12 @@ public func doTest(unparseArgs: Array<String>, testConfig: TestConfig): Bool {
         return false
     }
 
-    if (!replaceEnvforScriptDir(tomlInfo, Path(DIR_CURRENT).join(CONFIG_FILE_NAME).toString())) {
+    if (!replaceEnvforScriptDir(tomlInfo, Path(DIR_CURRENT))) {
         return false
     }
-    var configScriptFileDir: String
-    if (tomlInfo.isPkgConfig) {
-        configScriptFileDir = tomlInfo.pkg.scriptDir
-    } else {
-        configScriptFileDir = tomlInfo.workspace.scriptDir
-    }
-    testConfig.globalConfig.scriptDir = getOriginScriptDirectory(testConfig.globalConfig.scriptDir,
-        testConfig.globalConfig.rootPath, configScriptFileDir) ?? return false
+    let configScriptFileDir = getScriptDirValue(tomlInfo)
+    testConfig.globalConfig.scriptDir = getScriptDirectory(testConfig.globalConfig.scriptDir,
+        testConfig.globalConfig.rootPath, configScriptFileDir, true) ?? return false
 
     var scriptConfig: ScriptConfig = ScriptConfig()
     if (!testConfig.globalConfig.isSkipScript) {

@@ -354,7 +354,12 @@ class DepModel {
     func moduleCheck(path: String, tomlInfo: TomlInfo): BuildCheckResult {
         if (!this.globalConfig.isSkipScript && (path != this.globalConfig.modulePath) &&
             (this.globalConfig.resolveType != RESOLVE_CHECK)) {
-            var scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
+            if (fileExists(Path(path).join(BUILD_SCRIPT_NAME)) && !directoryExists(this.globalConfig.scriptDir)){
+                if (!createDirectory(this.globalConfig.scriptDir)) {
+                    return FAILED_BUILD_CHECK_RESULT
+                }
+            }
+            let scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
                 this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
             if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
                 return FAILED_BUILD_CHECK_RESULT
@@ -362,7 +367,12 @@ class DepModel {
             this.globalConfig.scriptList.add(scriptConfig)
         }
         if (COMMON_INFO.inWorkspace && !this.globalConfig.isSkipScript && (this.globalConfig.resolveType != RESOLVE_CHECK)) {
-            var scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
+            if (fileExists(Path(path).join(BUILD_SCRIPT_NAME)) && !directoryExists(this.globalConfig.scriptDir)){
+                if (!createDirectory(this.globalConfig.scriptDir)) {
+                    return FAILED_BUILD_CHECK_RESULT
+                }
+            }
+            let scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
                 this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
             if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
                 return FAILED_BUILD_CHECK_RESULT

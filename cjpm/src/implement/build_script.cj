@@ -107,14 +107,8 @@ public func makeScriptConfig(modulePath: String, debug: Bool, verbose: Bool, cro
     }
 
     let tomlInfo: TomlInfo = loadModuleFile(modulePath) ?? return Option.None
-    var configScriptFileDir: String = DIR_CURRENT
-    if (tomlInfo.isPkgConfig) {
-        configScriptFileDir = tomlInfo.pkg.scriptDir
-    } else {
-        configScriptFileDir = tomlInfo.workspace.scriptDir
-    }
-    var scriptPath: String = getOriginScriptDirectory(DIR_CURRENT,
-        modulePath, configScriptFileDir) ??
+    let configScriptFileDir = getScriptDirValue(tomlInfo)
+    var scriptPath: String = getScriptDirectory(DIR_CURRENT, modulePath, configScriptFileDir, true) ??
         return ScriptConfig()
 
     return makeScriptConfigByToml(scriptPath, modulePath, tomlInfo, debug, verbose, cross)

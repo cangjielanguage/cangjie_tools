@@ -143,20 +143,20 @@ public func replaceEnvforTargetDir(tomlInfo: TomlInfo, path: String): Bool {
     return true
 }
 
-public func getOriginScriptDirectory(oriScriptDir: String, rootPath: String, configFileDir: String): Option<String> {
+public func getScriptDirectory(oriScriptDir: String, rootPath: String, configFileDir: String, needCreate: Bool): Option<String> {
     var scriptDir: String = oriScriptDir
     
     if (!configFileDir.isEmpty()) {
             scriptDir = configFileDir
     }
-    
+    scriptDir = replaceEnvVars(scriptDir)
 
     if (!safeCheck(getCanonicalPath(rootPath), "current path") ||
         !safeCheck(scriptDir, Path(rootPath).join(CONFIG_FILE_NAME).toString())) {
         return Option.None
     }
     scriptDir = getPath(rootPath,scriptDir)
-    if (!createDirectory(scriptDir)) {
+    if (needCreate && fileExists(Path(rootPath).join(BUILD_SCRIPT_NAME)) && !createDirectory(scriptDir)) {
         return Option.None
     }
 
@@ -167,20 +167,30 @@ public func getOriginScriptDirectory(oriScriptDir: String, rootPath: String, con
     return scriptDir
 }
 
-public func replaceEnvforScriptDir(tomlInfo: TomlInfo, path: String): Bool {
+public func replaceEnvforScriptDir(tomlInfo: TomlInfo, path: Path): Bool {
+    let configPath = path.join(CONFIG_FILE_NAME).toString()
+    let scriptDir = getScriptDirValue(tomlInfo)
+
+    if (!scriptDir.isEmpty() && !checkEnvVars(scriptDir, configPath)) {
+        return false
+    }
+
     if (tomlInfo.isPkgConfig) {
-        if (!tomlInfo.pkg.scriptDir.isEmpty() && !checkEnvVars(tomlInfo.pkg.scriptDir, path)) {
-            return false
-        }
-        tomlInfo.pkg.scriptDir = replaceEnvVars(tomlInfo.pkg.scriptDir)
+        tomlInfo.pkg.scriptDir = replaceEnvVars(scriptDir)
     } else {
-        if (!tomlInfo.workspace.scriptDir.isEmpty() && !checkEnvVars(tomlInfo.workspace.scriptDir, path)) {
-            return false
-        }
-        tomlInfo.workspace.scriptDir = replaceEnvVars(tomlInfo.workspace.scriptDir)
+        tomlInfo.workspace.scriptDir = replaceEnvVars(scriptDir)
     }
     return true
 }
+
+public func getScriptDirValue(tomlInfo: TomlInfo): String {
+    if (tomlInfo.isPkgConfig) {
+        return tomlInfo.pkg.scriptDir
+    } else {
+        return tomlInfo.workspace.scriptDir
+    }
+}
+
 // extract options from string, such as: ( -a  --ab="a bc" -g --bc "c d" ) -> [-a,--ab,"a bc",-g,--bc,"c d"]
 public func extractOptionByString(input: String): ArrayList<String> {
     if (input.isEmpty()) {
