@@ -5,3 +5,11 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 void test(int arr[3]);
+
+char *strcat1(char dest[100], const char src[50], int n);
+
+int ret[3];
+
+int arr[3] = {1, 2, 3};
+
+char* str[] = {"cang", "jie"};

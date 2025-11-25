@@ -4,11 +4,8 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-int num = 42;
-int* ptr = &num;
+typedef unsigned char Byte;
 
-// float* floatPtr = nullptr;
+Byte byte1 = 'a', byte2 = 'b';
 
-void* malloc(int a);
-
-typedef int (*callback_func)(int, int);
+typedef unsigned char byte;

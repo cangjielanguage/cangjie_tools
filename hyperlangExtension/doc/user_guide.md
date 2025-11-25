@@ -19,7 +19,7 @@ The input of this tool is the interface declaration file of ArkTS or C language,
 | `--module-name`     | Custom generated Cangjie package name         | Optional       |                              |
 | `--lib`             | Generate third-party library code             | Optional       |                              |
 | `-c`                | Generate C to Cangjie binding code             | Optional       |                              |
-| `-b`                | Specify the directory of the cjbind binary             | Optional       |                              |
+| `-b`                | Specify the path of the cjbind binary             | Optional       |                              |
 | `--clang-args`      | Parameters that will be directly passed to clang | Optional       |                              |
 | `--no-detect-include-path` | Disable automatic include path detection    | Optional       |                              |
 | `--help`            | Help option                                   | Optional       |                              |
@@ -41,4 +41,10 @@ You can use the following command to generate C to Cangjie binding code:
 
 ```sh
 ./target/bin/main -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
+```
+
+The `-b` parameter is used to specify the path of the cjbind binary, with the default value being "./src/dtsparser/node_modules/.bin/cjbind". During [Build Preparation](./developer_guide.md#build-preparation), the cjbind binary will be downloaded to the "./src/dtsparser/node_modules/.bin/" directory. You can specify a different cjbind path by using the `-b` parameter. Here is an example command:
+
+```sh
+./target/bin/main -b ./src/dtsparser/node_modules/.bin/cjbind -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
 ```

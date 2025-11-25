@@ -18,18 +18,13 @@ public struct Point {
     public let a: Int32
     public let b: Int32
     public let __cjbind_anon_1: _cjbind_ty_1
-    public let __cjbind_anon_2: _cjbind_ty_1
     public let z: Int32
-    public let __cjbind_anon_3: _cjbind_ty_1
 
-    public init(a: Int32, b: Int32, __cjbind_anon_1: _cjbind_ty_1, __cjbind_anon_2: _cjbind_ty_1, z: Int32,
-        __cjbind_anon_3: _cjbind_ty_1) {
+    public init(a: Int32, b: Int32, __cjbind_anon_1: _cjbind_ty_1, z: Int32) {
         this.a = a
         this.b = b
         this.__cjbind_anon_1 = __cjbind_anon_1
-        this.__cjbind_anon_2 = __cjbind_anon_2
         this.z = z
-        this.__cjbind_anon_3 = __cjbind_anon_3
     }
 }
 
@@ -52,5 +47,55 @@ public struct Point3D {
         this.x = x
         this.y = y
         this.z = z
+    }
+}
+
+@C
+public struct people {
+    public let a: person
+    public let b: person
+    public let height: VArray<Int32, $2>
+    public let total: Int32
+
+    public init(a: person, b: person, height: VArray<Int32, $2>, total: Int32) {
+        this.a = a
+        this.b = b
+        this.height = height
+        this.total = total
+    }
+}
+
+@C
+public struct S {
+    public let a: VArray<Int32, $2>
+    public let b: VArray<Int32, $0>
+
+    public init(a: VArray<Int32, $2>, b: VArray<Int32, $0>) {
+        this.a = a
+        this.b = b
+    }
+}
+
+@C
+public struct Data {
+    public let a: Int32
+    public let b: Int32
+
+    public init(a: Int32, b: Int32) {
+        this.a = a
+        this.b = b
+    }
+}
+
+foreign func getData(a: Int32, b: Int32): Data
+
+@C
+public struct teststruct {
+    public let i8: Int32
+    public let ui8: UInt32
+
+    public init(i8: Int32, ui8: UInt32) {
+        this.i8 = i8
+        this.ui8 = ui8
     }
 }
