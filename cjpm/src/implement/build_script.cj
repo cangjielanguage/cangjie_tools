@@ -11,8 +11,6 @@ import std.fs.*
 import cjpm.config.*
 import cjpm.util.Result
 
-public let SCRIPT_DEPENDENCIES_MARK: String = "-build-script-"
-
 public func runScript(scriptConfig: ScriptConfig, step: BuildScriptStep, command: String): Bool {
     if (scriptConfig.isEmpty()) {
         return true
