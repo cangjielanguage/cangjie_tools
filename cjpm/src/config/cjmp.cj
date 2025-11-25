@@ -828,8 +828,10 @@ extend Path <: ConfigString<Path> {
     public static func typename(): String {
         "path"
     }
-    public static func parse(_: ParseContext<Path>, value: String): Result<Path, Array<CJMPError>> {
-        Ok(Path(value))
+    public static func parse(ctx: ParseContext<Path>, value: String): Result<Path, Array<CJMPError>> {
+        if (value.isEmpty()) {
+            Err([ErrorWrapper(ctx.location, "value of type `path` cannot be empty")])
+        } else { Ok(Path(value)) }
     }
 }
 
