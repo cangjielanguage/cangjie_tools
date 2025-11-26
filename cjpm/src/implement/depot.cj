@@ -33,14 +33,14 @@ public class Depot {
     public var localRepo: String = ""
 
     public func loadConfiguration(): Bool {
-        if (!FINAL_CJPM_CONFIG_INFO.repository.contains("home")) {
+        if (!FINAL_CJPM_CONFIG_INFO.repository.contains(REPO_HOME_NAME)) {
             eprintln("Error: get data of [repository.home] failed, please check if cangjie-repo.toml is set up correctly")
             return false
         }
 
-        this.baseUrl = FINAL_CJPM_CONFIG_INFO.repository["home"].registry
-        this.token = FINAL_CJPM_CONFIG_INFO.repository["home"].token
-        this.localRepo = Path(FINAL_CJPM_CONFIG_INFO.repository["cache"].path).join("repository").toString()
+        this.baseUrl = FINAL_CJPM_CONFIG_INFO.repository[REPO_HOME_NAME].registry
+        this.token = FINAL_CJPM_CONFIG_INFO.repository[REPO_HOME_NAME].token
+        this.localRepo = Path(FINAL_CJPM_CONFIG_INFO.repository[REPO_CACHE_NAME].path).join("repository").toString()
 
         if (baseUrl.isEmpty()) {
             eprintln("Error: get registry of [repository.home] failed, please check if cangjie-repo.toml is set up correctly")
