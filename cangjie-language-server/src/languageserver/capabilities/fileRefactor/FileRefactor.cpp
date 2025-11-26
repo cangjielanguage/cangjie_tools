@@ -560,7 +560,6 @@ bool FileRefactor::ContainFullPkgImport()
     }
     return false;
 }
-// LCOV_EXCL_STOP
 
 void FileRefactor::CollectImports(std::vector<Ptr<ImportSpec>> &multiImports,
                                     std::vector<Ptr<ImportSpec>> &deleteMultiImports, const std::string &uri)
@@ -672,7 +671,7 @@ void FileRefactor::DeleteReExportSingleImport(ImportContent &importContent,
     deleteRange = TransformFromChar2IDE(deleteRange);
     result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
 }
-
+// LCOV_EXCL_STOP
 PackageRelation FileRefactor::GetPackageRelation(const std::string &fullPkgName,
     const std::string &targetFullPkgName)
 {

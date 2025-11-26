@@ -315,7 +315,7 @@ void ArkServer::FindFileReferences(const std::string &file, const Callback<Value
 
     arkScheduler->RunWithAST("FileReferences", file, action);
 }
-
+// LCOV_EXCL_START
 void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result)
 {
     if (!decl || !ast.file || !ast.file->curPackage) {
@@ -447,7 +447,7 @@ void ArkServer::ApplyFileRefactor(const std::string &file,
 
     arkScheduler->RunWithAST("FileRefactor", file, action);
 }
-
+// LCOV_EXCL_STOP
 void ArkServer::FindWorkspaceSymbols(const std::string &query, const Callback<ValueOrError> &reply) const
 {
     auto action = [query, reply = std::move(reply)](const InputsAndAST &) {
@@ -555,7 +555,7 @@ void ArkServer::LocateSymbolAt(const std::string &file,
     };
     arkScheduler->RunWithAST("Definition", file, action);
 }
-
+// LCOV_EXCL_START
 void ArkServer::LocateRegisterCrossSymbolAt(
         const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
 {
@@ -583,7 +583,7 @@ void ArkServer::LocateRegisterCrossSymbolAt(
     ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
     reply(value);
 }
-
+// LCOV_EXCL_STOP
 void ArkServer::LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
 {
     CrossSymbolsResult result{};

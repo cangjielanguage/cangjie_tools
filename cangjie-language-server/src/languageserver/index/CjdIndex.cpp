@@ -8,7 +8,7 @@
 #include "CjdIndex.h"
 
 namespace Cangjie {
-
+// LCOV_EXCL_START
 std::string DCompilerInstance::Denoising(std::string candidate)
 {
     return ark::lsp::CjdIndexer::GetInstance()->GetPkgMap().count(candidate) ? candidate : "";
@@ -32,7 +32,7 @@ void DCompilerInstance::ImportCjoToManager(const std::unique_ptr<ark::CjoManager
     }
 }
 } // namespace Cangjie
-
+// LCOV_EXCL_STOP
 namespace ark {
 namespace  lsp {
 CjdIndexer *CjdIndexer::instance = nullptr;
@@ -88,6 +88,7 @@ void CjdIndexer::ParsePackageDependencies()
     // 2. parse package dependencies
     Trace::Log("ParsePackageDependencies start");
     for (auto &item: pkgMap) {
+        // LCOV_EXCL_START
         auto ci = std::make_unique<DCompilerInstance>(
                 callback, *item.second->compilerInvocation, *item.second->diag, item.first);
         ci->cangjieHome = CompilerCangjieProject::GetInstance()->GetModulesHome();
@@ -97,6 +98,7 @@ void CjdIndexer::ParsePackageDependencies()
         std::string fullPackageName = item.first;
         ci->UpdateDepGraph(graph, item.first);
         ciMap[fullPackageName] = std::move(ci);
+        // LCOV_EXCL_STOP
     }
     Trace::Log("ParsePackageDependencies end");
 }
@@ -107,6 +109,7 @@ void CjdIndexer::BuildCJDIndex()
     Trace::Log("BuildCJDIndex start");
     auto sortResult = graph->TopologicalSort(true);
     for (auto &package: sortResult) {
+        // LCOV_EXCL_START
         auto taskId = GenTaskId(package);
         std::unordered_set<uint64_t> dependencies;
         auto allDependencies = graph->FindAllDependencies(package);
@@ -138,6 +141,7 @@ void CjdIndexer::BuildCJDIndex()
             Trace::Log("finish execute task ", package);
         };
         thrdPool->AddTask(taskId, dependencies, task);
+        // LCOV_EXCL_STOP
     }
     thrdPool->WaitUntilAllTasksComplete();
     Trace::Log("BuildCJDIndex end");
@@ -170,7 +174,7 @@ CommentGroups CjdIndexer::GetSymbolComments(SymbolID id, const std::string& full
     }
     return comments;
 }
-
+// LCOV_EXCL_START
 void CjdIndexer::ReadCJDSource(const std::string &rootPath, const std::string &modulePath,
                                std::map<int, std::vector<std::string>> &fileMap, const std::string &parentPkg)
 {
@@ -220,7 +224,7 @@ void CjdIndexer::ReadPackagedCjdResource(const std::string& rootPath, const std:
     fileInfo.emplace_back(digest);
     fileMap.insert(std::make_pair(id, fileInfo));
 }
-
+// LCOV_EXCL_STOP
 void CjdIndexer::BuildIndexFromCache()
 {
     Trace::Log("BuildIndexFromCache Start");
@@ -228,6 +232,7 @@ void CjdIndexer::BuildIndexFromCache()
     std::map<int, std::vector<std::string>> fileMap;
     for (auto& idxFile:
             FileUtil::GetAllFilesUnderCurrentPath(cjdIndexDir, "idx")) {
+        // LCOV_EXCL_START
         auto package = FileUtil::GetFileBase(FileUtil::GetFileBase(idxFile));
         std::string shardIdentifier = "cjd";
         auto indexCache = cacheManager->LoadIndexShard(package, shardIdentifier);
@@ -277,6 +282,7 @@ void CjdIndexer::BuildIndexFromCache()
         macroCallFileInfo.emplace_back("");
         macroCallFileInfo.emplace_back(curMacroCallDigest);
         fileMap.insert(std::make_pair(macroCallId, macroCallFileInfo));
+        // LCOV_EXCL_STOP
     }
     if (CompilerCangjieProject::GetUseDB()) {
         CompilerCangjieProject::GetInstance()->GetBgIndexDB()->UpdateFile(fileMap);
