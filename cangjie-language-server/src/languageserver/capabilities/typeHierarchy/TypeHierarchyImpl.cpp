@@ -189,7 +189,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &resul
         item.symbolId = sym.id;
         results.emplace_back(item);
     });
-    // LCOV_EXCL_START
+    // LCOV_EXCL_STOP
 }
 
 // subtypes entrance

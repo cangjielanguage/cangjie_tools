@@ -804,7 +804,7 @@ dberr_no IndexDatabase::GetRelations(
         });
     return true;
 }
-// LCOV_EXCL_STOP
+
 dberr_no IndexDatabase::GetCallRelations(
     const SymbolID &subjectID, CallRelationKind kind,
     std::function<bool(const CallRelation &rel)> callback)
