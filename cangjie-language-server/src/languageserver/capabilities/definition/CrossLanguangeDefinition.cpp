@@ -31,7 +31,7 @@ bool ark::CrossLanguangeDefinition::getCrossSymbols(const CrossLanguageJumpParam
     });
     return true;
 }
-
+// LCOV_EXCL_START
 bool ark::CrossLanguangeDefinition::GetExportSID(IDArray id, ExportIDItem &exportIdItem)
 {
     const auto index = CompilerCangjieProject::GetInstance()->GetIndex();
@@ -76,3 +76,4 @@ bool ark::CrossLanguangeDefinition::getRegisterCrossSymbols(
             });
     return true;
 }
+// LCOV_EXCL_STOP

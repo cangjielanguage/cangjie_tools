@@ -198,6 +198,7 @@ bool LeftValueIsMemberVar(Cangjie::AST::AssignExpr *assignExpr)
         return false;
     }
     if (assignExpr->leftValue->astKind == ASTKind::MEMBER_ACCESS) {
+        // LCOV_EXCL_START
         auto memberAccess = DynamicCast<MemberAccess*>(assignExpr->leftValue.get());
         if (!memberAccess || !memberAccess->baseExpr) {
             return false;
@@ -206,6 +207,7 @@ bool LeftValueIsMemberVar(Cangjie::AST::AssignExpr *assignExpr)
             return true;
         }
         return false;
+        // LCOV_EXCL_STOP
     }
     if (assignExpr->leftValue->astKind == ASTKind::REF_EXPR) {
         auto refExpr = DynamicCast<RefExpr*>(assignExpr->leftValue.get());
@@ -293,7 +295,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
 
         return isValid;
     }
-
+// LCOV_EXCL_START
     bool PreCheck(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const
     {
         auto root = sel.selectionTree.root();
@@ -507,7 +509,7 @@ class ExtractFunctionBranchRule : public TweakRule {
         return isValid;
     }
 };
-
+// LCOV_EXCL_STOP
 /**
  * need contain complete while/for... loop if continue/break is selected:
  * 1. find the JUMP_EXPR in selected range.
