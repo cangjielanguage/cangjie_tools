@@ -690,7 +690,7 @@ void DotCompleterByParse::FindMatchExpr(Ptr<Node> node, const Position &pos, std
     if (!pMatchExpr) { return; }
     // matchExpr->(selector, matchCase)
     if (pMatchExpr->selector && Contain(pMatchExpr->selector.get(), pos)) {
-        isInclude = false;
+        DeepFind(pMatchExpr->selector.get(), pos, scopeName, isInclude);
         return;
     }
     for (auto &mc : pMatchExpr->matchCases) {
