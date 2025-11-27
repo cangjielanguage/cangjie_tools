@@ -958,8 +958,10 @@ void ItemResolverUtil::ResolveFuncLikeDeclInsert(std::string &detail, const T &d
     bool isEnumConstruct = false;
     if (!decl.TestAttr(Cangjie::AST::Attribute::ENUM_CONSTRUCTOR)) {
         numParm = AddGenericInsertByDecl(detail, decl.GetGeneric()) + 1;
-        if ((decl.identifier.Val().compare("init") == 0 && decl.astKind == ASTKind::FUNC_DECL ||
-             decl.astKind == ASTKind::PRIMARY_CTOR_DECL) && decl.outerDecl != nullptr) {
+        bool isConstructor = (decl.identifier.Val().compare("init") == 0 && 
+            decl.astKind == ASTKind::FUNC_DECL || decl.astKind == ASTKind::PRIMARY_CTOR_DECL) &&
+            decl.outerDecl != nullptr;
+        if (isConstructor) {
             std::string temp = "";
             numParm = AddGenericInsertByDecl(temp, decl.outerDecl->GetGeneric()) + 1;
         }
@@ -974,7 +976,8 @@ void ItemResolverUtil::ResolveFuncLikeDeclInsert(std::string &detail, const T &d
     }
     // append params
     bool firstParams = true;
-    if (decl.funcBody == nullptr || decl.funcBody->paramLists.empty()) { return; }
+    bool invalidFuncBody = decl.funcBody == nullptr || decl.funcBody->paramLists.empty();
+    if (invalidFuncBody) { return; }
     auto paramList = decl.funcBody->paramLists[0].get();
     for (auto &param : paramList->params) {
         if (!firstParams) {
