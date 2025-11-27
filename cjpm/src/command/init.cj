@@ -78,8 +78,8 @@ class InitCommand <: Handle {
         let (newType, typeFlag) = getArgValue(argMap, "--type")
         if (typeFlag) {
             let outputType = OutputType.fromString(newType)
-            if (let Unknown(s) <- outputType) {
-                eprintln("Error: unknown command '--type=${s}' for cjpm init")
+            if (!outputType.isValid) {
+                eprintln("Error: unknown command '--type=${outputType}' for cjpm init")
                 return false
             }
             this.outputType = outputType

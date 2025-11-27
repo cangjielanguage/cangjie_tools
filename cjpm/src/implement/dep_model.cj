@@ -952,8 +952,8 @@ class DepModel {
                 continue
             }
 
-            if(let Unknown(str) <- v.outputType) {
-                if (!str.isEmpty()) {
+            if(!v.outputType.isValid) {
+                if (let str <- v.outputType.toString() && !str.isEmpty()) {
                     eprintln("Error: the output-type '${str}' is invalid which is listed" +
                         " in 'package-configuration' field at ${getPath(pkg.path, CONFIG_FILE_NAME)}")
                     checkFlag = false

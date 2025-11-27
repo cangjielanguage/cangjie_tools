@@ -24,8 +24,8 @@ public func makeTargetDylibName(fileName: String, target: String): String {
     }
 }
 
-public func makeTargetExeName(exeName: String): String {
-    if (crossCompileTarget.contains("mingw32") || crossCompileTarget.contains("windows-gnu")) {
+public func makeTargetExeName(exeName: String, target: String): String {
+    if (target.contains("mingw32") || target.contains("windows-gnu")) {
         if (!exeName.endsWith(".exe")) {
             return "${exeName}.exe"
         }

@@ -8,12 +8,28 @@ package cjpm.util
 
 import std.collection.*
 
-public interface ArrayListExtends<T> {
+
+public interface AddIfSome<T> {
     func addIfSome(value: Option<T>): Unit
     func addIfSome(all!: Iterable<Option<T>>): Unit
 }
 
-extend <T> ArrayList<T> <: ArrayListExtends<T> { 
+extend <T> ArrayList<T> <: AddIfSome<T> { 
+    public func addIfSome(element: Option<T>): Unit {
+        if (let Some(v) <- element) {
+            this.add(v)
+        }
+    }
+
+    public func addIfSome(all!: Iterable<Option<T>>): Unit {
+        let result = all |> filterMap { it: Option<T> => it } |> collectArray
+        if (result.size != 0) {
+            this.add(all: result)
+        }
+    }
+}
+
+extend <T> HashSet<T> <: AddIfSome<T> { 
     public func addIfSome(element: Option<T>): Unit {
         if (let Some(v) <- element) {
             this.add(v)

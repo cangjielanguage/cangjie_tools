@@ -525,14 +525,17 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
     }
 
     // The suffix should be of a product source set
-    func changeProduct(newval: Bool): CJMPPackageInfo {
+    func changeProduct(newval: Bool, isMultiplatform: Bool): CJMPPackageInfo {
+        let outputSuffix = if (isMultiplatform) {
+            makeOutputSuffix(sourceSetDir, product: newval)
+        } else { Path("") }
         CJMPPackageInfo(
             sourceSetDir,
             srcDir,
             features,
             newval,
             configuredProduct: configuredProduct,
-            outputSuffix: makeOutputSuffix(sourceSetDir, product: newval)
+            outputSuffix: outputSuffix
         )
     }
 
@@ -574,7 +577,7 @@ public struct CJMPSource <: Serializable<CJMPSource> {
 
     public init(modulePath: String, srcDir: String) {
         assertion { exists(getPath(modulePath, srcDir)) }
-        this._sources = [CJMPPackageInfo(Path(srcDir), Path(getPath(modulePath, srcDir)), HashSet(), true, outputSuffix: Path("."))]
+        this._sources = [CJMPPackageInfo(Path(srcDir), Path(getPath(modulePath, srcDir)), HashSet(), true, outputSuffix: Path(""))]
         this._isMultiplatform = false
     }
 
@@ -604,7 +607,7 @@ public struct CJMPSource <: Serializable<CJMPSource> {
                     if (!dirMap.contains(dirname)) {
                         dirMap[dirname] = ArrayList()
                     }
-                    dirMap[dirname].add(
+                    let packageInfo = if (this._isMultiplatform) {
                         CJMPPackageInfo(
                             source.sourceSetDir,
                             it.path,
@@ -612,7 +615,17 @@ public struct CJMPSource <: Serializable<CJMPSource> {
                             source.product,
                             configuredProduct: source.configuredProduct
                         )
-                    )
+                    } else {
+                        CJMPPackageInfo(
+                            source.sourceSetDir,
+                            it.path,
+                            source.features,
+                            source.product,
+                            configuredProduct: source.configuredProduct,
+                            outputSuffix: Path("")
+                        )
+                    }
+                    dirMap[dirname].add(packageInfo)
                 }
         }
 
@@ -621,7 +634,7 @@ public struct CJMPSource <: Serializable<CJMPSource> {
             assertion { dirs.size > 0 }
             if (latestSourceSet[dirname] != this._sources.size - 1) {
                 let latest = dirs[dirs.size - 1]
-                dirs[dirs.size - 1] = latest.changeProduct(true)
+                dirs[dirs.size - 1] = latest.changeProduct(true, this._isMultiplatform)
             }
             var new = CJMPSource(dirs) 
             new._isMultiplatform = this._isMultiplatform
@@ -1226,9 +1239,6 @@ public class SourceLocations {
         let products = globalSourceSet |> filter { it => it.product } |> collectArray
         if (products.size > 1) {
             return Err("Cannot compile multiple product source sets\n${SourceLocationsPrinter(result, globalFeatures)}")
-        }
-        if (globalSourceSet.size > 2) {
-            return Err("Multiple stage multiplatform build is not yet supported\n${SourceLocationsPrinter(result, globalFeatures)}")
         }
         if (sourceSets.size == 0) {
             return Err("No source set was selected\n${SourceLocationsPrinter(result, globalFeatures)}")

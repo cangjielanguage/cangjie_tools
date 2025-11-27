@@ -317,18 +317,23 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
         }
     }
 
-    var resolveConfig: ResolveConfig = ResolveConfig()
-    resolveConfig.fullName = "build-script"
-    resolveConfig.targetDir = buildConfig.globalConfig.targetDir
-    resolveConfig.isCrossCompile = buildConfig.isCrossCompile
-    resolveConfig.target = if (resolveConfig.isCrossCompile) {
-        targetConfigName
-    } else { crossCompileTarget }
-    resolveConfig.outputType = Exe
-    resolveConfig.requirePkgs = requires
-    resolveConfig.stdRequirePkgs = stdRequires
-    buildConfig.requiresMap.add(resolveConfig.fullName, requires)
-    return getDepLinkCommand(resolveConfig, buildConfig)
+    let target = if (buildConfig.isCrossCompile) { targetConfigName } else { crossCompileTarget }
+    let requireTasks = requires.iterator().map { it => TaskIdentifier(it, target, "") } |> collectHashSet
+    let taskId = TaskIdentifier("build-script", target, "")
+    let compileTask: CompileTask = CompileTask(
+        id: taskId,
+        fullName: "build-script",
+        targetDir: buildConfig.globalConfig.targetDir,
+        isCrossCompile: buildConfig.isCrossCompile,
+        target: target,
+        outputType: Exe,
+        requireTasks: requireTasks,
+        isDebug: buildConfig.isDebug,
+        isCov: buildConfig.isCov,
+        mockSupported: buildConfig.mockSupported,
+    )
+    buildConfig.requiresMap.add(compileTask.fullName, requires)
+    return getDepLinkCommand(compileTask, buildConfig)
 }
 
 func getEnvMap(ldPath: HashSet<String>): HashMap<String, String> {
