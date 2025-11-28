@@ -458,6 +458,10 @@ void CompletionEnv::DealMatchExpr(Ptr<Node> node, const Position pos)
         if (auto target = Ty::GetDeclPtrOfTy(symbols[0]->node->ty)) {
             matchSelector = target->identifier;
         }
+
+        if (Contain(pMatchExpr->selector.get(), pos)) {
+            DeepComplete(pMatchExpr->selector.get(), pos);
+        }
     }
     for (auto &matchCase : pMatchExpr->matchCases) {
         if (Contain(matchCase.get(), pos)) {
