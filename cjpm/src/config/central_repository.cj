@@ -99,8 +99,9 @@ public func readConfigToml(file: Path): SettingsConfig {
     }
 
     if (res.repository.contains(REPO_CACHE_NAME) && !res.repository[REPO_CACHE_NAME].path.isEmpty()) {
-        // Convert the path to an absolute path when path is relative path
-        res.repository[REPO_CACHE_NAME].path = getPath(file.parent.toString(), res.repository[REPO_CACHE_NAME].path)
+        // Replace env vars and convert the path to an absolute path when path is relative path
+        res.repository[REPO_CACHE_NAME].path = getPath(file.parent.toString(), replaceEnvVars(res.repository[REPO_CACHE_NAME].path))
+
     }
 
     if (res.repository.contains(REPO_CACHE_NAME) && res.repository[REPO_CACHE_NAME].path.isEmpty()) {
