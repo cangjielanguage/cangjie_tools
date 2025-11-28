@@ -382,7 +382,7 @@ public:
 
     void IncrementTempPkgCompile(const std::string &basicString);
 
-    void IncrementTempPkgCompileNotInSrc(const std::string &basicString);
+    void IncrementTempPkgCompileNotInSrc(const std::string &fullPkgName);
 
     void EraseOtherCache(const std::string &fullPkgName);
 

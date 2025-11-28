@@ -42,6 +42,8 @@ const unsigned int HARDWARE_CONCURRENCY_COUNT = std::thread::hardware_concurrenc
 const unsigned int MAX_THREAD_COUNT = HARDWARE_CONCURRENCY_COUNT > EXTRA_THREAD_COUNT ?
                                       HARDWARE_CONCURRENCY_COUNT - EXTRA_THREAD_COUNT : 1;
 const unsigned int PROPER_THREAD_COUNT = MAX_THREAD_COUNT == 1 ? MAX_THREAD_COUNT : (MAX_THREAD_COUNT >> 1);
+const unsigned int DIAGNOSTIC_CODE = 503;
+const unsigned int DIAGNOSTIC_CATEGORY = 503;
 
 CompilerCangjieProject *CompilerCangjieProject::instance = nullptr;
 
@@ -1352,8 +1354,8 @@ void CompilerCangjieProject::ReportCircularDeps(const std::vector<std::vector<st
             callback->RemoveDiagOfCurPkg(pkgInfoMap[pkg]->packagePath);
             for (const auto &file : found->files) {
                 DiagnosticToken dt;
-                dt.category = 503;
-                dt.code = 503;
+                dt.category = DIAGNOSTIC_CATEGORY;
+                dt.code = DIAGNOSTIC_CODE;
                 dt.message = "packages " + circlePkgName + "are in circular dependencies.";
                 dt.range = {{file->begin.fileID, 0, 0}, {file->begin.fileID, 0, 1}};
                 dt.severity = 1;
@@ -1469,8 +1471,8 @@ bool CompilerCangjieProject::CheckPackageModifier(const File &needCheckedFile, c
             if (curMod != Modifier::UNDEFINED && parentMod != Modifier::UNDEFINED &&
                 static_cast<int>(parentMod) < static_cast<int>(curMod)) {
                 DiagnosticToken dt;
-                dt.category = 503;
-                dt.code = 503;
+                dt.category = DIAGNOSTIC_CATEGORY;
+                dt.code = DIAGNOSTIC_CODE;
                 dt.message = "the access level of child package can't be higher than that of parent package";
                 Position begin = {needCheckedFile.package->begin.fileID, needCheckedFile.package->begin.line - 1,
                                   needCheckedFile.package->begin.column - 1};
