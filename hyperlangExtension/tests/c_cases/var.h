@@ -4,11 +4,22 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-int num = 42;
-int* ptr = &num;
+char ch = 'a';
 
-// float* floatPtr = nullptr;
+int a = 0;
 
-void* malloc(int a);
+unsigned int b = 0;
 
-typedef int (*callback_func)(int, int);
+short c = 0;
+
+unsigned short d = 0;
+
+long f = 0;
+
+unsigned long g = 0;
+
+float x = 1.0;
+
+double e = 1.0;
+
+const int MAX = 10;

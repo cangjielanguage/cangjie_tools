@@ -28,6 +28,9 @@ const OS = OS_WINDOWS
 @When[os != "Windows"]
 const OS = OS_OTHERS
 public const analysisFilePath: String = "./src/dtsparser/analysis.js"
+@When[os == "Windows"]
+public const cBindingsPath: String = "./src/dtsparser/node_modules/.bin/cjbind.exe"
+@When[os != "Windows"]
 public const cBindingsPath: String = "./src/dtsparser/node_modules/.bin/cjbind"
 let mtx = Mutex()
 let cla = CommandLineArg()
@@ -172,12 +175,12 @@ func generateCangjieBindingsForC(moduleName: String, filePath: String, outDir: S
     println("The command is: ${cla.bindingsPath} --auto-cstring --array-pointers-in-args --no-layout-test " + result + " -p " + 
         moduleName + " -o " + outDir + outputFileName + " " + filePath + " -- " + cla.clangArgs)
     if (cla.autoDect) {
-        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path","--no-detect-include-path",
+        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path",
             "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
         )
 
     } else {
-        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path",
+        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test",
             "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
         )
     }

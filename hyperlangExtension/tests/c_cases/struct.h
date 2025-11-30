@@ -25,3 +25,34 @@ typedef struct {
     long long y;
     long long z;
 } Point3D;
+
+Point3D p;
+
+struct people {
+    struct person a;
+    struct person b;
+    int height[2];
+    int total;
+};
+
+struct S {
+    int a[2];
+    int b[0];
+};
+
+struct Data
+{
+    int a;
+    int b;
+};
+
+struct Data getData(int a, int b);
+
+typedef struct {
+    int i8;
+    unsigned int ui8;
+} teststruct;
+
+teststruct struct1 = {1, 1};
+
+

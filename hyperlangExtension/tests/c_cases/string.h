@@ -5,3 +5,11 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 void test(char* a);
+
+char* str = "Hello World\n";
+
+char* testfunc1();
+
+char* testfunc2(char* a, char* b);
+
+int testfunc3(char* a, char* b, char* c, char* d, char* e);

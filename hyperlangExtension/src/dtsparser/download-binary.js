@@ -11,9 +11,9 @@ const { execSync } = require('child_process');
 
 const RELEASE_TAG = 'v1.0.0';
 const BINARY_URLS = {
-    linux: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.2.7/cjbind-linux-x64',
-    win32: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.2.7/cjbind-windows-x64.exe',
-    darwin: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.2.7/cjbind-darwin-arm64'
+    linux: 'https://gitcode.com/anancds123/cjbind/releases/download/v0.2.7/cjbind-linux-x64',
+    win32: 'https://gitcode.com/anancds123/cjbind/releases/download/v0.2.7/cjbind-windows-x64.exe',
+    darwin: 'https://gitcode.com/anancds123/cjbind/releases/download/v0.2.7/cjbind-darwin-arm64'
 };
 
 
