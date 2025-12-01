@@ -13,6 +13,8 @@ import cjpm.util.Result
 
 // Regexp root package name.
 let EXAMPLE_ROOT_PACKAGE_NAME: String = "cjDemo"
+let EXAMPLE_ORG_NAME: String = "cjOrg"
+let EXAMPLE_NAME_WITH_ORG: String = "cjOrg::cjDemo"
 let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
 // Basic string for version.
 let FORMAT_OF_VERSION: String = "(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])"
@@ -44,7 +46,7 @@ public func nameCheck(text: String, path: String): Bool {
         eprintln("Error: the 'name' field in ${path} can't be empty")
         return false
     }
-    var matched = Regex(REGEXP_CONDITON_VALUE)
+    let matched = Regex(REGEXP_CONDITON_VALUE)
     match (matched.find(text)) {
         case Some(_) => return true
         case None => eprintln("Error: the 'name' field '${text}' in ${path} is wrong, " +
@@ -53,20 +55,43 @@ public func nameCheck(text: String, path: String): Bool {
     return false
 }
 
-// Check root package organization name in cjpm.toml
-public func organizationNameCheck(text: String, path: String): Bool {
-    let organizationNameArr = text.split("::")
-    if (organizationNameArr.size != 2) {
-        eprintln("Error: the 'name' file in ${path} is invalid")
+// Check root package organization in cjpm.toml.
+public func organizationCheck(text: String, path: String): Bool {
+    if (text.size == 0) {
+        return true
+    }
+    let matched = Regex(REGEXP_CONDITON_VALUE)
+    match (matched.find(text)) {
+        case Some(_) => return true
+        case None => eprintln("Error: the 'organization' field '${text}' in ${path} is wrong, " +
+            "the example is '${EXAMPLE_ORG_NAME}'")
+    }
+    return false
+}
+
+// Analyse the package name, split org and name
+public func analyzingPackageName(pkgName: String): (String, String) {
+    if (pkgName.contains("::")) {
+        let tomlNameArr= pkgName.split("::", 2)
+        return (tomlNameArr[0], tomlNameArr[tomlNameArr.size - 1]) 
+    }
+    return ("", pkgName)
+}
+
+public func dependenciesNameCheck(text: String, path: String): Bool {
+    let (org, name) = analyzingPackageName(text)
+    if (name.size == 0) {
+        eprintln("Error: the name of dependency in ${path} can't be empty")
         return false
     }
 
     let matched = Regex(REGEXP_CONDITON_VALUE)
-    if (matched.find(organizationNameArr[0]).isSome() && matched.find(organizationNameArr[organizationNameArr.size - 1]).isSome()) {
+    if ((org.isEmpty() || matched.find(org).isSome()) && matched.find(name).isSome()) {
         return true
     }
-    eprintln("Error: the 'name' field '${text}' in ${path} is wrong, " +
-        "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}'")
+    
+    eprintln("Error: the name of dependency '${text}' in ${path} is wrong, " +
+        "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}' or '${EXAMPLE_NAME_WITH_ORG}'")
     return false
 }
 

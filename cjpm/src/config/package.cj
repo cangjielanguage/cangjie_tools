@@ -159,10 +159,14 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
             return false
         }
     }
-
-    let tomlNameArr = cfg.pkg.name.split(":")
+    let name = if (!cfg.pkg.organization.isEmpty()) {
+        cfg.pkg.name.removePrefix(cfg.pkg.organization + "::")
+    } else {
+        cfg.pkg.name
+    }
     let checkList: Array<((String, String) -> Bool, ?String)> = [
-        (nameCheck, tomlNameArr[tomlNameArr.size - 1]),
+        (nameCheck, name),
+        (organizationCheck, cfg.pkg.organization),
         (cjcVersionCheck, cfg.pkg.cjcVersion),
         (versionCheck, cfg.pkg.version),
         (safeCheck, cfg.pkg.compileOption),
@@ -172,7 +176,7 @@ public func verifyPackageField(cfg: TomlInfo, path: String): Bool {
         (safeCheck, cfg.pkg.scriptDir),
         (verifyLinkOption, cfg.pkg.linkOption)
     ]
-    if (!verifyAll(configFilePath, checkList)) {
+    if (!verifyAll("'package' field at ${configFilePath}", checkList)) {
         return false
     }
 

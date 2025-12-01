@@ -509,7 +509,7 @@ func verifyAll<T>(location: String, checkList: T): Bool where T <: Iterable<((St
     var result = true
     for ((check, v) in checkList) {
         if (let Some(val) <- v) {
-            result &&= check(val, location)
+            result = check(val, location) && result
         }
     }
 

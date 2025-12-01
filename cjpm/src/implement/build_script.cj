@@ -27,6 +27,15 @@ public func runScript(scriptConfig: ScriptConfig, step: BuildScriptStep, command
 
 public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInfo: TomlInfo, debug: Bool,
     verbose: Bool, cross: Bool): Option<ScriptConfig> {
+    var scriptConfig: ScriptConfig = ScriptConfig()
+    if (!fileExists(Path(modulePath).join(BUILD_SCRIPT_NAME))) {
+        if (fileExists(Path(modulePath).join(BUILD_SCRIPT_NAME).toString() + ".bak")) {
+            scriptConfig.isRelocated = true
+        } else {
+            return scriptConfig
+        }
+    }
+    
     let (flag, errlog) = tomlInfo.isCompatible()
     if (!flag) {
         eprintln("Error: ${errlog} at ${Path(modulePath).join(CONFIG_FILE_NAME).toString()}")
@@ -39,7 +48,9 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
 
     if (tomlInfo.isPkgConfig) {
         if (tomlInfo.pkg.name.contains("::")) {
-            if (!organizationNameCheck(tomlInfo.pkg.name, Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
+            if (!organizationCheck(tomlInfo.pkg.organization, Path(modulePath).join(CONFIG_FILE_NAME).toString()) &&
+                !nameCheck(tomlInfo.pkg.name.removePrefix(tomlInfo.pkg.organization + "::"),
+                    Path(modulePath).join(CONFIG_FILE_NAME).toString())) {
                 return Option.None
             }
             moduleName = tomlInfo.pkg.name.split("::")[1]
@@ -48,15 +59,6 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
                 return Option.None
             }
             moduleName = tomlInfo.pkg.name
-        }
-    }
-
-    var scriptConfig: ScriptConfig = ScriptConfig()
-    if (!fileExists(Path(modulePath).join(BUILD_SCRIPT_NAME))) {
-        if (fileExists(Path(modulePath).join(BUILD_SCRIPT_NAME).toString() + ".bak")) {
-            scriptConfig.isRelocated = true
-        } else {
-            return scriptConfig
         }
     }
 
