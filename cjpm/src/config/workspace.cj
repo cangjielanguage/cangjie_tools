@@ -341,7 +341,8 @@ public func verifyTargetDir(rootPath: String, dir: String): Bool {
     COMMON_INFO.targetDir = replaceEnvVars(dir)
     return true
 }
-public func verifyScriptDir(rootPath: String, dir: String): Bool {
+
+public func setScriptDir(rootPath: String, dir: String): Bool {
     if (dir.isEmpty()) {
         return true
     }
@@ -351,6 +352,7 @@ public func verifyScriptDir(rootPath: String, dir: String): Bool {
     COMMON_INFO.scriptDir = replaceEnvVars(dir)
     return true
 }
+
 public func searchModuleFromWorkspace(tomlInfo: TomlInfo, rootPkgName: String, prePath: String): String {
     for (mem in tomlInfo.workspace.members) {
         let eachMember = replaceEnvVars(mem)

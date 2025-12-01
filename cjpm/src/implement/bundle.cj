@@ -161,7 +161,7 @@ func checkBuildTest(bundleConfig: BundleConfig, tomlInfo: TomlInfo): Bool {
 func makeTarball(bundleConfig: BundleConfig, tomlInfo: TomlInfo, metaData: MetaData): Bool {
     bundleConfig.currentDir = getCanonicalPath(DIR_CURRENT)
     bundleConfig.targetDir = getOriginTargetDirectory(TARGET, DIR_CURRENT, "", tomlInfo.pkg.targetDir, true) ?? return false
-    bundleConfig.scriptDir = getOriginScriptDirectory(BUILD_SCRIPT_DIR, bundleConfig.currentDir, tomlInfo.pkg.scriptDir) ?? return false
+    bundleConfig.scriptDir = getScriptDirectory(BUILD_SCRIPT_DIR, bundleConfig.currentDir, tomlInfo.pkg.scriptDir, false) ?? return false
 
     // make tarball
     printBundle("cjpm bundle: making tarball of source code...", bundleConfig.isVerbose)
