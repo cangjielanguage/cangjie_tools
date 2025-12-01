@@ -1041,32 +1041,7 @@
 {"codeLens":{"testFile":"LSP_CodeLens_ClassTestCase.test","id":"9"}}
 {"codeLens":{"testFile":"LSP_CodeLens_FuncTestCase.test","id":"9"}}
 
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_func.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_class.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_interface.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_class_func.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_class_var.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_interface_func.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_interface_var.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_Invisible.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_func_lambda_001.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_func_lambda_002.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_func_ref_001.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_func_ref_002.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_ref.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_ref_func_ref.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_ref_func_lambda.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_lambda_func_ref.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_lambda_func_lambda.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_class_lambda.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_ref_class_ref.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_ref_class_lambda.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_lambda_class_ref.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_lambda_class_lambda.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_lambda_func_lambda.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_lambda_func_ref.test","id":"6","useDB":true}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_ref_func_ref.test","id":"6"}}
-{"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_register_module_ref_func_lambda.test","id":"6","useDB":true}}
+
 
 
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Interface_Visiable_001.test","id":"43"}}
