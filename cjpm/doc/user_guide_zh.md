@@ -1990,7 +1990,7 @@ aoo = { path = "${DEPENDENCY_PATH}/aoo" }
 配置内容说明如下：
 
 - `repository.home` 用于配置中心仓 url 和用户的个人 token，`cjpm` 会与 `registry` 字段中的中心仓地址进行交互，交互请求中会附带用户 token 信息。
-- `repository.cache` 用于配置存放从中心仓和 git 下载的源码模块的本地路径，不配置时默认为用户空间目录下的 `.cjpm` 目录。确定本地路径后，git 源码模块会下载到该路径的 `git` 目录下，中心仓源码模块会下载到 `repository/source` 目录下。
+- `repository.cache` 用于配置存放从中心仓和 git 下载的源码模块的本地路径，可以用环境变量配置字段值,参考[环境变量配置](#环境变量配置)，不配置时默认为用户空间目录下的 `.cjpm` 目录。确定本地路径后，git 源码模块会下载到该路径的 `git` 目录下，中心仓源码模块会下载到 `repository/source` 目录下。
 
 ## 配置和缓存文件夹
 

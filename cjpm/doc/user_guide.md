@@ -1362,9 +1362,39 @@ The list of fields that support environment variable configuration is as follows
     - The `path` field for local dependencies in the build script dependency list `script-dependencies`
     - The `path-option` and `package-option` fields in the binary dependency field `bin-dependencies`
 
+## Project Management Configuration File Specification
+
+The project management configuration file, `cangjie-repo.toml`, is utilized to configure settings including the central repository URL and local repository cache. The cjpm tool primarily leverages this file to interface with the central repository and manage dependency modules downloaded from the central repository.
+
+The `cangjie-repo.toml` file can be configured in three locations. When executing the `cjpm` command, it reads the configuration files in the following priority order from highest to lowest:
+
+- A `cangjie-repo.toml` file located alongside `cjpm.toml`: In the current `cjpm` module directory where the command is executed.
+- A `cangjie-repo.toml` file under the `.cjpm` directory of user's home directory.
+  - For `Linux/macOS`: `$HOME/.cjpm`
+  - For `Windows`: `%USERPROFILE%/.cjpm`
+- A `cangjie-repo.toml` file in the Cangjie SDK directory at the path `tools/config/cangjie-repo.toml`.
+
+Upon successfully locating a valid `cangjie-repo.toml` file, `cjpm` will utilize this file as the configuration source for the current command execution and will disregard all configuration files of lower precedence.
+
+The configuration file format is as follows:
+
+```toml
+[repository.cache]
+  path = "/path/to/repository/cache"
+
+[repository.home]
+  registry = "central/repo/url"
+  token = "user-token"
+```
+
+The configuration content is described as follows:
+
+- `repository.home` is used to configure the central repository URL and the user's personal token. The `cjpm` tool interacts with the central repository address specified in the `registry` field, and all interaction requests will include the user's token information for authentication.
+- `repository.cache` is used to configure the local path for storing source code modules downloaded from the central repository or Git. If not configured, it defaults to the `.cjpm` directory in the user's home directory. Once the local path is determined, Git source code modules are downloaded to the `git` subdirectory under this path. Central repository source code modules are downloaded to the `repository/source` subdirectory under this path.
+
 ## Configuration and Cache Directories
 
-The storage path for files downloaded by `cjpm` via `git` can be specified using the `CJPM_CONFIG` environment variable. If not specified, the default location is `$HOME/.cjpm` on `Linux/macOS` and `%USERPROFILE%/.cjpm` on `Windows`.
+The storage path for files downloaded by `cjpm` via `git` can be specified using the `CJPM_CONFIG` environment variable. Environment variables can be used to configure field values, Refer to[Environment Variable Configuration](#Environment-Variable-Configuration), If not specified, the default location is `$HOME/.cjpm` on `Linux/macOS` and `%USERPROFILE%/.cjpm` on `Windows`.
 
 ## Cangjie Package Management Specification
 
