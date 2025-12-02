@@ -235,12 +235,20 @@ func parseMultipleFiles(moduleNameTemp: String): Bool {
     }
 
     // collect parent properties and methods in the whole module
-    let gconfigArray = ArrayList<GlobalConfig>()
+    let gconfigMap = TreeMap<String, GlobalConfig>()  // TreeMap auto-sorts by key
+    
     for (_ in 0..gconfigList.size) {
         let gconfig = gconfigList.remove().getOrThrow()
+        gconfigMap[gconfig.module] = gconfig
+    }
+
+    // Build sorted gconfigArray from TreeMap for deterministic ordering
+    let gconfigArray = ArrayList<GlobalConfig>()
+    for ((_, gconfig) in gconfigMap) {
         gconfigArray.add(gconfig)
     }
 
+    // Collect parent properties/methods in deterministic order
     for (gconfig in gconfigArray) {
         gconfig.gconfigArray = gconfigArray
         gconfig.collectParentPropertiesAndMethods()
@@ -574,7 +582,11 @@ func dfs(contents: JsonValue, track: ArrayList<String>, transform: Transform): U
 
     //解析symbols
     match (dms.get("symbols")) {
-        case symbols: DataModelStruct => transform.symbols = HashMap<String, String>.deserialize(symbols)
+        case symbols: DataModelStruct => 
+            let tmpMap = HashMap<String, String>.deserialize(symbols)
+            for ((k, v) in tmpMap) {
+                transform.symbols[k] = v
+            }
         case _ => ()
     }
 

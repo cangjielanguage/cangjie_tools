@@ -33,7 +33,8 @@ public class TransObject {
     public init(objectType: ObjectType, gconfig: GlobalConfig) {
         this.arkProperties = objectType.properties
         this.arkParentsProperties = objectType.parentsProperties
-        sort<Property>(arkProperties, stable: true)
+        sort<Property>(this.arkProperties, stable: true)
+        sort<Property>(this.arkParentsProperties, stable: true)
         this.arkMethods = objectType.methods
         this.arkParentsMethods = objectType.parentsMethods
         this.arkComment = objectType.comment

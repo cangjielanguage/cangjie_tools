@@ -29,8 +29,8 @@ public class GlobalConfig {
     public var requiredUnionMembers = ArrayList<(String, TsType, ArrayList<String>)>() 
     public var requiredAnonymousInterfaces = ArrayList<ObjectType>() 
     private var count = AtomicInt64(0)
-    private var cacheUnions: HashMap<String, TsType> = HashMap<String, TsType>()
-    private var cacheAnonymousInterfaces: HashMap<String, TsType> = HashMap<String, TsType>()
+    private var cacheUnions: TreeMap<String, TsType> = TreeMap<String, TsType>()
+    private var cacheAnonymousInterfaces: TreeMap<String, TsType> = TreeMap<String, TsType>()
 
     public init(cjModuleNameArg: String, is3rdArg: Bool,
         typeDeclFileArg!: String = "") {

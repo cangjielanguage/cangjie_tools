@@ -11,7 +11,7 @@ The input of this tool is the interface declaration file of ArkTS or C language,
 
 | Parameter           | Meaning                                       | Parameter Type | Description                  |
 | ------------------- | --------------------------------------------- | -------------- | ---------------------------- |
-| `-i`                | Absolute path of d.tsj, d.ets or .h file input | Optional       | Choose one from `-d` or both |
+| `-i`                | Absolute path of d.ts, d.ets or .h file input | Optional       | Choose one from `-d` or both |
 | `-r`                | Absolute path of typescript compiler          | Required       |                              |
 | `-d`                | Absolute path of the folder where d.ts, d.ets or .h file input is located | Optional       | Choose one from `-i` or both |
 | `-o`                | Directory to save the output interoperability code | Optional       | Output to the current directory by default |

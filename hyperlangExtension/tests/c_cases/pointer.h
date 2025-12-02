@@ -9,6 +9,5 @@ int* ptr = &num;
 
 // float* floatPtr = nullptr;
 
-void* malloc(int a);
-
 typedef int (*callback_func)(int, int);
+void* testPointer(int a);

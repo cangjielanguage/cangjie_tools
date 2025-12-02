@@ -56,3 +56,13 @@ typedef struct {
 teststruct struct1 = {1, 1};
 
 
+struct Point1 {
+    struct {
+        int x;
+        int y;
+    } test1;
+    struct {
+        int m;
+        int n;
+    } test2;
+};

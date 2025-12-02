@@ -63,9 +63,9 @@ public class NameSpace {
     public var types: ArrayList<TypeType> = ArrayList<TypeType>()
     public var consts: ArrayList<VariableType> = ArrayList<VariableType>()
     public var enums: ArrayList<EnumType> = ArrayList<EnumType>()
-    public var interfaces: HashMap<String, ObjectType> = HashMap<String, ObjectType>()
-    public var classes: HashMap<String, ObjectType> = HashMap<String, ObjectType>()
-    public var childrenMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
+    public var interfaces: TreeMap<String, ObjectType> = TreeMap<String, ObjectType>()
+    public var classes: TreeMap<String, ObjectType> = TreeMap<String, ObjectType>()
+    public var childrenMap: TreeMap<String, ArrayList<String>> = TreeMap<String, ArrayList<String>>()
     public var methods: ArrayList<MethodType> = ArrayList<MethodType>()
     public var spacePath: String = "" //记录namespace层级关系
 
@@ -90,7 +90,7 @@ public class Transform {
     public var variables: ArrayList<String> = ArrayList<String>()
     public var namespaces: ArrayList<NameSpace> = ArrayList<NameSpace>()
     public var importInfo: ArrayList<String> = ArrayList<String>()
-    public var symbols: HashMap<String, String> = HashMap<String, String>()
+    public var symbols: TreeMap<String, String> = TreeMap<String, String>()
     public var typeParameters: ArrayList<TypeParameter> = ArrayList<TypeParameter>()
 
     public init() {}
