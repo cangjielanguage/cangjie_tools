@@ -450,7 +450,7 @@ func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit
     }
 
     for (fullName in buildConfig.packageList.macros) {
-        buildConfig.pkgRequireByMacro.add(all: getDepSet(fullName, buildConfig.requiresMap, 
+        buildConfig.pkgRequireByMacro.add(all: getDepSet(fullName, buildConfig.requiresMap,
             buildConfig.superPkgSubMap, isForMacroRequire: true))
     }
 
@@ -924,10 +924,13 @@ func makeStaticlibCommand(fullName: String, isLto: Bool, ltoValue: String): Arra
     return res
 }
 
+// add bin-dependencies links to build arguments
 func appendOptionForBindep(binDepMap: HashMap<String, BinDeps>, linkPkgs: HashSet<String>, isLto: Bool): ArrayList<String> {
-    let binOptions = ArrayList<String>()
-    let libPathSet = HashSet<String>()
+    let linkerOptions = ArrayList<String>()     // -l or lto libs
+    let libPathOptions = ArrayList<String>()    // -L path
+    let moduleLinkerSet = HashSet<String>()
     for ((_, eachModuleDepMap) in binDepMap) {
+        let moduleLinkerOptions = ArrayList<String>()
         for (index in (eachModuleDepMap.packageRequiresSort.size - 1)..=0 : -1) {
             let depName = eachModuleDepMap.packageRequiresSort[index]
             if (!linkPkgs.contains(depName)) {
@@ -938,19 +941,31 @@ func appendOptionForBindep(binDepMap: HashMap<String, BinDeps>, linkPkgs: HashSe
                 continue
             }
             let linkArray: ArrayList<String> = linkPackage(info.libName, info.libPath, isLto)
+
+            // size == 1 when isLto
             if (linkArray.size <= 1) {
-                binOptions.add(all: linkArray)
+                moduleLinkerOptions.add(all: linkArray)
                 continue
             }
-            if (libPathSet.contains(info.libPath)) {
-                binOptions.add(linkArray[linkArray.size - 1])
-            } else {
-                binOptions.add(all: linkArray)
-                libPathSet.add(info.libPath)
+
+            // size == 3 when !isLto: -L path -llib
+            if (!libPathOptions.contains(linkArray[1])) {
+                libPathOptions.add(linkArray[0])
+                libPathOptions.add(linkArray[1])
             }
+            moduleLinkerOptions.add(linkArray[2])
+        }
+
+        // deal with module-level duplication
+        let moduleLinkerStr = String.join(moduleLinkerOptions.toArray())
+        if (!moduleLinkerSet.contains(moduleLinkerStr)) {
+            moduleLinkerSet.add(moduleLinkerStr)
+            linkerOptions.add(all: moduleLinkerOptions)
         }
     }
-    return binOptions
+
+    libPathOptions.add(all: linkerOptions)
+    return libPathOptions
 }
 
 func getcLibLinkStr(cLibLinkMap: HashMap<String, ArrayList<String>>, cLibNameList: ArrayList<String>): ArrayList<String> {
@@ -1080,7 +1095,7 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
     }
     appendCLibLinkStr(buildConfig, cLibNameList, res, buildConfig.isCrossCompile && !isNativeForCross)
     res.add("--lto=${buildConfig.ltoValue}")
-    
+
     return res
 }
 
