@@ -6,8 +6,8 @@
 
 #include "DataflowRuleGSER03Checker.h"
 #include "cangjie/AST/Types.h"
-#include "cangjie/CHIR/Package.h"
-#include "cangjie/CHIR/Visitor/Visitor.h"
+#include "cangjie/CHIR/IR/Package.h"
+#include "cangjie/CHIR/Utils/Visitor/Visitor.h"
 #include "common/CommonFunc.h"
 
 namespace Cangjie::CodeCheck {
