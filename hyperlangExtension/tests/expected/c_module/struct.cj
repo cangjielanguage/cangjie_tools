@@ -1,4 +1,8 @@
-// cjbind 0.2.7 生成，请勿编辑, DO NOT EDIT
+// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 package my_module
 
@@ -97,5 +101,42 @@ public struct teststruct {
     public init(i8: Int32, ui8: UInt32) {
         this.i8 = i8
         this.ui8 = ui8
+    }
+}
+
+@C
+public struct _cjbind_ty_2 {
+    public let x: Int32
+    public let y: Int32
+
+    public init(x: Int32, y: Int32) {
+        this.x = x
+        this.y = y
+    }
+}
+
+@C
+public struct _cjbind_ty_3 {
+    public let m: Int32
+    public let n: Int32
+
+    public init(m: Int32, n: Int32) {
+        this.m = m
+        this.n = n
+    }
+}
+
+@C
+public struct Point1 {
+    public let __cjbind_anon_1: _cjbind_ty_2
+    public let test1: _cjbind_ty_2
+    public let __cjbind_anon_2: _cjbind_ty_3
+    public let test2: _cjbind_ty_3
+
+    public init(__cjbind_anon_1: _cjbind_ty_2, test1: _cjbind_ty_2, __cjbind_anon_2: _cjbind_ty_3, test2: _cjbind_ty_3) {
+        this.__cjbind_anon_1 = __cjbind_anon_1
+        this.test1 = test1
+        this.__cjbind_anon_2 = __cjbind_anon_2
+        this.test2 = test2
     }
 }

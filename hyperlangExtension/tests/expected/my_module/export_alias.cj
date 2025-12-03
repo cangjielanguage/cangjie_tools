@@ -107,29 +107,6 @@ public enum MyNumericEnum <: ToString & Equatable < MyNumericEnum > {
 
 /***********OBJECT***********/
 
-/*interface MyInterface {
-    }*/
-
-public open class MyInterface {
-    
-    protected MyInterface() { }
-    
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        
-        obj.toJSValue()
-    }
-    
-    public static func fromJSValue(context: JSContext, input: JSValue): MyInterface {
-        let obj = input.asObject()
-        MyInterface(
-        
-        )
-    }
-    
-}
-
 /*interface ExportedInterface {
     }*/
 
@@ -176,22 +153,27 @@ public open class I3 {
     
 }
 
-/*class MyClass {
+/*interface MyInterface {
     }*/
 
-public class MyClass {
+public open class MyInterface {
     
-    protected MyClass(var arkts_object: JSObject) { }
+    protected MyInterface() { }
     
     
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        
+        obj.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MyClass {
-        MyClass(input.asObject())
+    public static func fromJSValue(context: JSContext, input: JSValue): MyInterface {
+        let obj = input.asObject()
+        MyInterface(
+        
+        )
     }
+    
 }
 
 /*class ExportedClass {
@@ -209,6 +191,24 @@ public class ExportedClass {
     
      static func fromJSValue(context: JSContext, input: JSValue): ExportedClass {
         ExportedClass(input.asObject())
+    }
+}
+
+/*class MyClass {
+    }*/
+
+public class MyClass {
+    
+    protected MyClass(var arkts_object: JSObject) { }
+    
+    
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): MyClass {
+        MyClass(input.asObject())
     }
 }
 

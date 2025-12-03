@@ -16,31 +16,6 @@ import std.collection.{ HashMap }
 
 
 
-/*class ExportKeyword DeclareKeyword PushReporter {
-    getTags(t12: Callback<Record<string, any>>): void
-    }*/
-
-public class PushReporter {
-    
-    protected PushReporter(var arkts_object: JSObject) { }
-    
-    
-    /**
-	 * @brief getTags(t12: Callback<Record<string, any>>): void
-	 */
-    public static func getTags(t12: Callback<HashMap<String, JSValue/* FIXME: `any` */>>): Unit {
-        jsObjApiCall < Unit >(getClassConstructorObj("my_module_test", "PushReporter"),  "getTags", { ctx =>[t12.toJSValue(ctx)] })
-    }
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-     static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
-        PushReporter(input.asObject())
-    }
-}
-
 /*class ExportKeyword DeclareKeyword MessagePackage {
     StaticKeywordidt: idt_struct;
     }*/
@@ -71,6 +46,31 @@ public class MessagePackage {
     
      static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
+    }
+}
+
+/*class ExportKeyword DeclareKeyword PushReporter {
+    getTags(t12: Callback<Record<string, any>>): void
+    }*/
+
+public class PushReporter {
+    
+    protected PushReporter(var arkts_object: JSObject) { }
+    
+    
+    /**
+	 * @brief getTags(t12: Callback<Record<string, any>>): void
+	 */
+    public static func getTags(t12: Callback<HashMap<String, JSValue/* FIXME: `any` */>>): Unit {
+        jsObjApiCall < Unit >(getClassConstructorObj("my_module_test", "PushReporter"),  "getTags", { ctx =>[t12.toJSValue(ctx)] })
+    }
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
+        PushReporter(input.asObject())
     }
 }
 

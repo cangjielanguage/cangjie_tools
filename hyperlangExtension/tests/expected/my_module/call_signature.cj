@@ -17,59 +17,6 @@ public const when = 0/* FIXME: Initialization is required */
 
 /***********OBJECT***********/
 
-/*interface DeclareKeyword when {
-    afterReturn(value: any): any
-    afterReturnNothing(): undefined
-    afterAction(action: any): any
-    afterThrow(e_msg: string): String
-    (argMatchers?: any): when
-    }*/
-
-public open class when {
-    
-    protected when(public var arkts_object: JSObject) { }
-    
-    
-    /**
-	 * @brief afterReturn(value: any): any
-	 */
-    public func afterReturn(value: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
-        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterReturn", { ctx =>[value] }) {
-            ctx, info => info
-        }
-    }
-    /**
-	 * @brief afterReturnNothing(): undefined
-	 */
-    public func afterReturnNothing(): JSValue/* FIXME: `undefined` */ {
-        jsObjApiCall < JSValue/* FIXME: `undefined` */ >( arkts_object, "afterReturnNothing", emptyArg) {
-            ctx, info => info
-        }
-    }
-    /**
-	 * @brief afterAction(action: any): any
-	 */
-    public func afterAction(action: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
-        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterAction", { ctx =>[action] }) {
-            ctx, info => info
-        }
-    }
-    /**
-	 * @brief afterThrow(e_msg: string): String
-	 */
-    public func afterThrow(e_msg: String): String {
-        jsObjApiCall < String >( arkts_object, "afterThrow", { ctx =>[e_msg.toJSValue(ctx)] })
-    }
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-    public open  static func fromJSValue(context: JSContext, input: JSValue): when {
-        when(input.asObject())
-    }
-}
-
 /*interface ExportKeyword VerificationMode {
     times(count: Number): void
     never(): void
@@ -120,6 +67,59 @@ public open class VerificationMode {
     
     public open  static func fromJSValue(context: JSContext, input: JSValue): VerificationMode {
         VerificationMode(input.asObject())
+    }
+}
+
+/*interface DeclareKeyword when {
+    afterReturn(value: any): any
+    afterReturnNothing(): undefined
+    afterAction(action: any): any
+    afterThrow(e_msg: string): String
+    (argMatchers?: any): when
+    }*/
+
+public open class when {
+    
+    protected when(public var arkts_object: JSObject) { }
+    
+    
+    /**
+	 * @brief afterReturn(value: any): any
+	 */
+    public func afterReturn(value: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterReturn", { ctx =>[value] }) {
+            ctx, info => info
+        }
+    }
+    /**
+	 * @brief afterReturnNothing(): undefined
+	 */
+    public func afterReturnNothing(): JSValue/* FIXME: `undefined` */ {
+        jsObjApiCall < JSValue/* FIXME: `undefined` */ >( arkts_object, "afterReturnNothing", emptyArg) {
+            ctx, info => info
+        }
+    }
+    /**
+	 * @brief afterAction(action: any): any
+	 */
+    public func afterAction(action: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterAction", { ctx =>[action] }) {
+            ctx, info => info
+        }
+    }
+    /**
+	 * @brief afterThrow(e_msg: string): String
+	 */
+    public func afterThrow(e_msg: String): String {
+        jsObjApiCall < String >( arkts_object, "afterThrow", { ctx =>[e_msg.toJSValue(ctx)] })
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    public open  static func fromJSValue(context: JSContext, input: JSValue): when {
+        when(input.asObject())
     }
 }
 

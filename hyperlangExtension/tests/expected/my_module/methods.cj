@@ -152,6 +152,38 @@ public enum EMStr <: ToString & Equatable < EMStr > {
 
 
 /***********OBJECT***********/
+// 类实现接口
+/*interface Drivable {
+    start(): void
+    stop(): void
+    }*/
+
+public open class Drivable {
+    
+    protected Drivable(public var arkts_object: JSObject) { }
+    
+    
+    /**
+	 * @brief start(): void
+	 */
+    public func start(): Unit {
+        jsObjApiCall < Unit >( arkts_object, "start", emptyArg)
+    }
+    /**
+	 * @brief stop(): void
+	 */
+    public func stop(): Unit {
+        jsObjApiCall < Unit >( arkts_object, "stop", emptyArg)
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Drivable {
+        Drivable(input.asObject())
+    }
+}
 
 /*interface IM {
     f1(): void
@@ -237,36 +269,145 @@ public open class IM {
         IM(input.asObject())
     }
 }
-// 类实现接口
-/*interface Drivable {
-    start(): void
-    stop(): void
+// 继承类
+/*class DeclareKeyword Animal {
+    name: String;
+    constructor(name: string): void
+    move(distance: number): void
     }*/
 
-public open class Drivable {
+public open class Animal {
     
-    protected Drivable(public var arkts_object: JSObject) { }
-    
-    
+    protected Animal(public var arkts_object: JSObject) { }
     /**
-	 * @brief start(): void
+	 * @brief constructor(name: string): void
 	 */
-    public func start(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "start", emptyArg)
+    public init(name: String) {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
+            clazz.new(name.toJSValue(__ctx)).asObject()
+        }
     }
+    public init() {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
+            clazz.new().asObject()
+        }
+    }
+    
+    public mut prop name: String {
+        get() {
+            checkThreadAndCall < String >(getMainContext()) {
+                ctx: JSContext => String.fromJSValue(ctx, arkts_object["name"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["name"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
     /**
-	 * @brief stop(): void
+	 * @brief move(distance: number): void
 	 */
-    public func stop(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "stop", emptyArg)
+    public func move(distance: Float64): Unit {
+        jsObjApiCall < Unit >( arkts_object, "move", { ctx =>[distance.toJSValue(ctx)] })
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Drivable {
-        Drivable(input.asObject())
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Animal {
+        Animal(input.asObject())
+    }
+}
+
+/*class DeclareKeyword AnimalProtect {
+    ProtectedKeywordname: String;
+    makeSound(): void
+    }*/
+
+public class AnimalProtect {
+    
+    protected AnimalProtect(var arkts_object: JSObject) { }
+    
+    // 受保护属性
+    public mut prop name: String {
+        get() {
+            checkThreadAndCall < String >(getMainContext()) {
+                ctx: JSContext => String.fromJSValue(ctx, arkts_object["name"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["name"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
+    /**
+	 * @brief makeSound(): void
+	 */
+	// 受保护方法
+    public func makeSound(): Unit {
+        jsObjApiCall < Unit >( arkts_object, "makeSound", emptyArg)
+    }
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): AnimalProtect {
+        AnimalProtect(input.asObject())
+    }
+}
+// 泛型成员
+/*class DeclareKeyword Box {
+    value: T;
+    getValue(): T
+    }*/
+
+public class Box<T> where T <: JSInteropType<T> {
+    
+    protected Box(var arkts_object: JSObject) { }
+    
+    // 属性
+    public mut prop value: T {
+        get() {
+            checkThreadAndCall < T >(getMainContext()) {
+                ctx: JSContext => T.fromJSValue(ctx, arkts_object["value"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["value"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
+    /**
+	 * @brief getValue(): T
+	 */
+	// 方法
+    public func getValue(): T {
+        jsObjApiCall < T >( arkts_object, "getValue", emptyArg) {
+            ctx, info => T.fromJSValue(ctx, info)
+        }
+    }
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): Box<T> {
+        Box(input.asObject())
     }
 }
 
@@ -467,53 +608,37 @@ public class CM {
         CM(input.asObject())
     }
 }
-
-/*class DeclareKeyword TE {
-    constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
-    f1(): void
-    f1(result: string | Promise<string>): Promise<String>
+// 重载方法
+/*class DeclareKeyword Calculator {
+    add(x: number, y: number): number
+    add(x: string, y: string): String
+    add(x: any, y: any): any
     }*/
 
-public class TE {
+public class Calculator {
     
-    protected TE(var arkts_object: JSObject) { }
-    /**
-  * @brief constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
-  */
-    public init(callback: AsyncCallback<String>, param1!:?Array<UInt8> = None, param2!:?Array<String> = None) {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
-            clazz.new(jsCallback,(param1?.toJSValue(__ctx)) ?? __ctx.undefined().toJSValue(), toJSArray < String >(__ctx, param2, { __ctx, item => item.toJSValue(ctx) })).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
-            clazz.new().asObject()
-        }
-    }
+    protected Calculator(var arkts_object: JSObject) { }
+    
     
     /**
-	 * @brief f1(): void
+	 * @brief add(x: number, y: number): number
 	 */
-    public func f1(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "f1", emptyArg)
+	// 方法重载
+    public func add(x: Float64, y: Float64): Float64 {
+        jsObjApiCall < Float64 >( arkts_object, "add", { ctx =>[x.toJSValue(ctx), y.toJSValue(ctx)] })
     }
     /**
-	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 * @brief add(x: string, y: string): String
 	 */
-    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result.toJSValue(ctx)] }) {
-            ctx, info => info
-        }
+    public func add(x: String, y: String): String {
+        jsObjApiCall < String >( arkts_object, "add", { ctx =>[x.toJSValue(ctx), y.toJSValue(ctx)] })
     }
     /**
-	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 * @brief add(x: any, y: any): any
 	 */
-    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result] }) {
+	// 实现
+    public func add(x: JSValue/* FIXME: `any` */, y: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "add", { ctx =>[x, y] }) {
             ctx, info => info
         }
     }
@@ -522,102 +647,8 @@ public class TE {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): TE {
-        TE(input.asObject())
-    }
-}
-// 构造函数
-/*class DeclareKeyword Greeter {
-    constructor(greeting: string): void
-    }*/
-
-public class Greeter {
-    
-    protected Greeter(var arkts_object: JSObject) { }
-    /**
-	 * @brief constructor(greeting: string): void
-	 */
-    public init(greeting: String) {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
-            clazz.new(greeting.toJSValue(__ctx)).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
-            clazz.new().asObject()
-        }
-    }
-    
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-     static func fromJSValue(context: JSContext, input: JSValue): Greeter {
-        Greeter(input.asObject())
-    }
-}
-
-/*class DeclareKeyword Person {
-    }*/
-
-public class Person {
-    
-    protected Person(var arkts_object: JSObject) { }
-    
-    
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-     static func fromJSValue(context: JSContext, input: JSValue): Person {
-        Person(input.asObject())
-    }
-}
-
-/*class DeclareKeyword AnimalProtect {
-    ProtectedKeywordname: String;
-    makeSound(): void
-    }*/
-
-public class AnimalProtect {
-    
-    protected AnimalProtect(var arkts_object: JSObject) { }
-    
-    // 受保护属性
-    public mut prop name: String {
-        get() {
-            checkThreadAndCall < String >(getMainContext()) {
-                ctx: JSContext => String.fromJSValue(ctx, arkts_object["name"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["name"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    /**
-	 * @brief makeSound(): void
-	 */
-	// 受保护方法
-    public func makeSound(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "makeSound", emptyArg)
-    }
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-     static func fromJSValue(context: JSContext, input: JSValue): AnimalProtect {
-        AnimalProtect(input.asObject())
+     static func fromJSValue(context: JSContext, input: JSValue): Calculator {
+        Calculator(input.asObject())
     }
 }
 
@@ -662,75 +693,6 @@ public class Car {
         Car(input.asObject())
     }
 }
-// 泛型成员
-/*class DeclareKeyword Box {
-    value: T;
-    getValue(): T
-    }*/
-
-public class Box<T> where T <: JSInteropType<T> {
-    
-    protected Box(var arkts_object: JSObject) { }
-    
-    // 属性
-    public mut prop value: T {
-        get() {
-            checkThreadAndCall < T >(getMainContext()) {
-                ctx: JSContext => T.fromJSValue(ctx, arkts_object["value"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["value"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    /**
-	 * @brief getValue(): T
-	 */
-	// 方法
-    public func getValue(): T {
-        jsObjApiCall < T >( arkts_object, "getValue", emptyArg) {
-            ctx, info => T.fromJSValue(ctx, info)
-        }
-    }
-    
-    func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-     static func fromJSValue(context: JSContext, input: JSValue): Box<T> {
-        Box(input.asObject())
-    }
-}
-// 抽象类
-/*class DeclareKeyword FirstContextualKeyword Shape {
-    getArea(): number
-    }*/
-
-public open class Shape {
-    
-    protected Shape(public var arkts_object: JSObject) { }
-    
-    
-    /**
-	 * @brief getArea(): number
-	 */
-	// 抽象方法
-    public func getArea(): Float64 {
-        jsObjApiCall < Float64 >( arkts_object, "getArea", emptyArg)
-    }
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Shape {
-        Shape(input.asObject())
-    }
-}
 
 /*class DeclareKeyword Car1 {
     start(): void
@@ -763,63 +725,6 @@ public class Car1 <: Drivable {
         Car1(input.asObject())
     }
 }
-// 继承类
-/*class DeclareKeyword Animal {
-    name: String;
-    constructor(name: string): void
-    move(distance: number): void
-    }*/
-
-public open class Animal {
-    
-    protected Animal(public var arkts_object: JSObject) { }
-    /**
-	 * @brief constructor(name: string): void
-	 */
-    public init(name: String) {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
-            clazz.new(name.toJSValue(__ctx)).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass(__ctx)
-            clazz.new().asObject()
-        }
-    }
-    
-    public mut prop name: String {
-        get() {
-            checkThreadAndCall < String >(getMainContext()) {
-                ctx: JSContext => String.fromJSValue(ctx, arkts_object["name"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["name"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    /**
-	 * @brief move(distance: number): void
-	 */
-    public func move(distance: Float64): Unit {
-        jsObjApiCall < Unit >( arkts_object, "move", { ctx =>[distance.toJSValue(ctx)] })
-    }
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        arkts_object.toJSValue()
-    }
-    
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Animal {
-        Animal(input.asObject())
-    }
-}
 // Dog.d.ts
 /*class DeclareKeyword Dog {
     bark(): void
@@ -845,47 +750,39 @@ public class Dog <: Animal {
         Dog(input.asObject())
     }
 }
-// 重载方法
-/*class DeclareKeyword Calculator {
-    add(x: number, y: number): number
-    add(x: string, y: string): String
-    add(x: any, y: any): any
+// 构造函数
+/*class DeclareKeyword Greeter {
+    constructor(greeting: string): void
     }*/
 
-public class Calculator {
+public class Greeter {
     
-    protected Calculator(var arkts_object: JSObject) { }
-    
-    
+    protected Greeter(var arkts_object: JSObject) { }
     /**
-	 * @brief add(x: number, y: number): number
+	 * @brief constructor(greeting: string): void
 	 */
-	// 方法重载
-    public func add(x: Float64, y: Float64): Float64 {
-        jsObjApiCall < Float64 >( arkts_object, "add", { ctx =>[x.toJSValue(ctx), y.toJSValue(ctx)] })
-    }
-    /**
-	 * @brief add(x: string, y: string): String
-	 */
-    public func add(x: String, y: String): String {
-        jsObjApiCall < String >( arkts_object, "add", { ctx =>[x.toJSValue(ctx), y.toJSValue(ctx)] })
-    }
-    /**
-	 * @brief add(x: any, y: any): any
-	 */
-	// 实现
-    public func add(x: JSValue/* FIXME: `any` */, y: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
-        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "add", { ctx =>[x, y] }) {
-            ctx, info => info
+    public init(greeting: String) {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
+            clazz.new(greeting.toJSValue(__ctx)).asObject()
         }
     }
+    public init() {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass(__ctx)
+            clazz.new().asObject()
+        }
+    }
+    
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): Calculator {
-        Calculator(input.asObject())
+     static func fromJSValue(context: JSContext, input: JSValue): Greeter {
+        Greeter(input.asObject())
     }
 }
 
@@ -939,66 +836,21 @@ public class MyClass {
     }
 }
 
-/*class ExportKeyword DeclareKeyword UMConfig {
-    appKey?: String;
-    channel?: String;
-    enableLog?: boolean;
+/*class DeclareKeyword Person {
     }*/
 
-public class UMConfig {
+public class Person {
     
-    protected UMConfig(var arkts_object: JSObject) { }
+    protected Person(var arkts_object: JSObject) { }
     
-    
-    public mut prop appKey: ?String {
-        get() {
-            checkThreadAndCall < ?String >(getMainContext()) {
-                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["appKey"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["appKey"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    public mut prop channel: ?String {
-        get() {
-            checkThreadAndCall < ?String >(getMainContext()) {
-                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["channel"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["channel"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    public mut prop enableLog: ?Bool {
-        get() {
-            checkThreadAndCall < ?Bool >(getMainContext()) {
-                ctx: JSContext => Option < Bool >.fromJSValue(ctx, arkts_object["enableLog"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["enableLog"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
     
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): UMConfig {
-        UMConfig(input.asObject())
+     static func fromJSValue(context: JSContext, input: JSValue): Person {
+        Person(input.asObject())
     }
 }
 
@@ -1077,6 +929,154 @@ public class RecordTest {
     
      static func fromJSValue(context: JSContext, input: JSValue): RecordTest {
         RecordTest(input.asObject())
+    }
+}
+// 抽象类
+/*class DeclareKeyword FirstContextualKeyword Shape {
+    getArea(): number
+    }*/
+
+public open class Shape {
+    
+    protected Shape(public var arkts_object: JSObject) { }
+    
+    
+    /**
+	 * @brief getArea(): number
+	 */
+	// 抽象方法
+    public func getArea(): Float64 {
+        jsObjApiCall < Float64 >( arkts_object, "getArea", emptyArg)
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    public open  static func fromJSValue(context: JSContext, input: JSValue): Shape {
+        Shape(input.asObject())
+    }
+}
+
+/*class DeclareKeyword TE {
+    constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
+    f1(): void
+    f1(result: string | Promise<string>): Promise<String>
+    }*/
+
+public class TE {
+    
+    protected TE(var arkts_object: JSObject) { }
+    /**
+  * @brief constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
+  */
+    public init(callback: AsyncCallback<String>, param1!:?Array<UInt8> = None, param2!:?Array<String> = None) {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
+            clazz.new(jsCallback,(param1?.toJSValue(__ctx)) ?? __ctx.undefined().toJSValue(), toJSArray < String >(__ctx, param2, { __ctx, item => item.toJSValue(ctx) })).asObject()
+        }
+    }
+    public init() {
+        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+            __ctx =>
+            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass(__ctx)
+            clazz.new().asObject()
+        }
+    }
+    
+    /**
+	 * @brief f1(): void
+	 */
+    public func f1(): Unit {
+        jsObjApiCall < Unit >( arkts_object, "f1", emptyArg)
+    }
+    /**
+	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 */
+    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result.toJSValue(ctx)] }) {
+            ctx, info => info
+        }
+    }
+    /**
+	 * @brief f1(result: string | Promise<string>): Promise<String>
+	 */
+    public func f1(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, result: string|Promise<String>): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result] }) {
+            ctx, info => info
+        }
+    }
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): TE {
+        TE(input.asObject())
+    }
+}
+
+/*class ExportKeyword DeclareKeyword UMConfig {
+    appKey?: String;
+    channel?: String;
+    enableLog?: boolean;
+    }*/
+
+public class UMConfig {
+    
+    protected UMConfig(var arkts_object: JSObject) { }
+    
+    
+    public mut prop appKey: ?String {
+        get() {
+            checkThreadAndCall < ?String >(getMainContext()) {
+                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["appKey"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["appKey"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
+    public mut prop channel: ?String {
+        get() {
+            checkThreadAndCall < ?String >(getMainContext()) {
+                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["channel"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["channel"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
+    public mut prop enableLog: ?Bool {
+        get() {
+            checkThreadAndCall < ?Bool >(getMainContext()) {
+                ctx: JSContext => Option < Bool >.fromJSValue(ctx, arkts_object["enableLog"])
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["enableLog"] = v.toJSValue(ctx)
+            }
+        }
+        
+    }
+    
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+     static func fromJSValue(context: JSContext, input: JSValue): UMConfig {
+        UMConfig(input.asObject())
     }
 }
 

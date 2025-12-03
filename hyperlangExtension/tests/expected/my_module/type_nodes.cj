@@ -222,6 +222,46 @@ public open class AutoGenType8 {
     
 }
 /***********OBJECT***********/
+
+/*interface ArrayTypesI {
+    arr10: Array<Error>;
+    arr20: number[];
+    arr11?: Array<Error>;
+    arr21?: number[];
+    }*/
+
+public open class ArrayTypesI {
+    
+    protected ArrayTypesI(private var arr10: Array<JSValue/* FIXME: `Error` */>,
+    private var arr20: Array<Float64>,
+    private var arr11!: Option<Array<JSValue/* FIXME: `Error` */>> = None,
+    private var arr21!: Option<Array<Float64>> = None) { }
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["arr10"] = toJSArray < JSValue/* FIXME: `Error` */ >(context, arr10, { ctx: JSContext, val: JSValue/* FIXME: `Error` */ => val })
+        obj["arr20"] = toJSArray < Float64 >(context, arr20)
+        if(let Some(v) <- arr11) {
+            obj["arr11"] = toJSArray < JSValue/* FIXME: `Error` */ >(context, v, { ctx: JSContext, val: JSValue/* FIXME: `Error` */ => val })
+        }
+        if(let Some(v) <- arr21) {
+            obj["arr21"] = toJSArray < Float64 >(context, v)
+        }
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): ArrayTypesI {
+        let obj = input.asObject()
+        ArrayTypesI(
+        fromJSArray < JSValue/* FIXME: `Error` */ >(context, obj["arr10"], { ctx: JSContext, val: JSValue => val }),
+        fromJSArray < Float64 >(context, obj["arr20"]),
+        arr11: fromJSArrayOption < JSValue/* FIXME: `Error` */ >(context, obj["arr11"], { ctx: JSContext, val: JSValue => val }),
+        arr21: fromJSArrayOption < Float64 >(context, obj["arr21"])
+        )
+    }
+    
+}
 // These interfaces are used for testing type syntax of the typescript compiler.
 // Properties are named after the syntax kinds as in tsc.
 /*interface BasicTypes {
@@ -283,104 +323,6 @@ public open class BasicTypes {
         obj["anyKeyword"],
         obj["unknownKeyword"],
         obj["neverKeyword"]
-        )
-    }
-    
-}
-
-/*interface FunctionTypes {
-    functionType1: () => void;
-    functionType10: <V>(arg: V) => void;
-    functionType11: <V, W extends String>(arg: V) => W;
-    functionType12: <V = object, W extends String = '123' | '345'>(arg: V) => W;
-    functionType20: (...a: number[]) => void;
-    functionType30: (a?: number) => void;
-    }*/
-
-public open class FunctionTypes {
-    
-    protected FunctionTypes(private var functionType1: () -> Unit,
-    private var functionType10: (arg: JSValue/* FIXME: `V` */) -> Unit/* FIXME: `<V>(arg: V) => void` */,
-    private var functionType11: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
-    private var functionType12: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
-    private var functionType20: (a: Array<Float64>) -> Unit,
-    private var functionType30: (a: ?Float64) -> Unit) { }
-    
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["functionType1"] = context.function({ ctx, _ =>
-            functionType1()
-            ctx.undefined().toJSValue()
-        }).toJSValue()
-        obj["functionType10"] = context.function({ ctx, info =>
-            let p0 = info[0]
-            functionType10(p0)
-            ctx.undefined().toJSValue()
-        }).toJSValue()
-        obj["functionType11"] = context.function({ ctx, info =>
-            let p0 = info[0]
-            let ret = functionType11(p0)
-            ret.toJSValue(ctx)
-        }).toJSValue()
-        obj["functionType12"] = context.function({ ctx, info =>
-            let p0 = info[0]
-            let ret = functionType12(p0)
-            ret.toJSValue(ctx)
-        }).toJSValue()
-        obj["functionType20"] = context.function({ ctx, info =>
-            let p0 = fromJSArray < Float64 >(ctx, info[0])
-            functionType20(p0)
-            ctx.undefined().toJSValue()
-        }).toJSValue()
-        obj["functionType30"] = context.function({ ctx, info =>
-            let p0 = Float64.fromJSValue(ctx, info[0])
-            functionType30(p0)
-            ctx.undefined().toJSValue()
-        }).toJSValue()
-        obj.toJSValue()
-    }
-    
-    public static func fromJSValue(context: JSContext, input: JSValue): FunctionTypes {
-        let obj = input.asObject()
-        FunctionTypes(
-        { =>
-            checkThreadAndCall < Unit >(context, { _ =>
-                obj["functionType1"].asFunction().call()
-            })
-        },
-        { arg: JSValue/* FIXME: `V` */ =>
-            checkThreadAndCall < Unit >(context, { ctx =>
-                let arg0 = arg
-                obj["functionType10"].asFunction().call([arg0])
-            })
-        },
-        { arg: JSValue/* FIXME: `V` */ =>
-            checkThreadAndCall < W >(context, { ctx =>
-                let arg0 = arg
-                let ret = obj["functionType11"].asFunction().call([arg0])
-                W.fromJSValue(ctx, ret)
-            })
-        },
-        { arg: JSValue/* FIXME: `V` */ =>
-            checkThreadAndCall < W >(context, { ctx =>
-                let arg0 = arg
-                let ret = obj["functionType12"].asFunction().call([arg0])
-                W.fromJSValue(ctx, ret)
-            })
-        },
-        { a: Array<Float64> =>
-            checkThreadAndCall < Unit >(context, { ctx =>
-                let arg0 = toJSArray < Float64 >(ctx, a)
-                obj["functionType20"].asFunction().call([arg0])
-            })
-        },
-        { a:?Float64 =>
-            checkThreadAndCall < Unit >(context, { ctx =>
-                let arg0 = a.toJSValue(ctx)
-                obj["functionType30"].asFunction().call([arg0])
-            })
-        }
         )
     }
     
@@ -494,6 +436,132 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
     
 }
 
+/*interface FunctionTypes {
+    functionType1: () => void;
+    functionType10: <V>(arg: V) => void;
+    functionType11: <V, W extends String>(arg: V) => W;
+    functionType12: <V = object, W extends String = '123' | '345'>(arg: V) => W;
+    functionType20: (...a: number[]) => void;
+    functionType30: (a?: number) => void;
+    }*/
+
+public open class FunctionTypes {
+    
+    protected FunctionTypes(private var functionType1: () -> Unit,
+    private var functionType10: (arg: JSValue/* FIXME: `V` */) -> Unit/* FIXME: `<V>(arg: V) => void` */,
+    private var functionType11: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
+    private var functionType12: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
+    private var functionType20: (a: Array<Float64>) -> Unit,
+    private var functionType30: (a: ?Float64) -> Unit) { }
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["functionType1"] = context.function({ ctx, _ =>
+            functionType1()
+            ctx.undefined().toJSValue()
+        }).toJSValue()
+        obj["functionType10"] = context.function({ ctx, info =>
+            let p0 = info[0]
+            functionType10(p0)
+            ctx.undefined().toJSValue()
+        }).toJSValue()
+        obj["functionType11"] = context.function({ ctx, info =>
+            let p0 = info[0]
+            let ret = functionType11(p0)
+            ret.toJSValue(ctx)
+        }).toJSValue()
+        obj["functionType12"] = context.function({ ctx, info =>
+            let p0 = info[0]
+            let ret = functionType12(p0)
+            ret.toJSValue(ctx)
+        }).toJSValue()
+        obj["functionType20"] = context.function({ ctx, info =>
+            let p0 = fromJSArray < Float64 >(ctx, info[0])
+            functionType20(p0)
+            ctx.undefined().toJSValue()
+        }).toJSValue()
+        obj["functionType30"] = context.function({ ctx, info =>
+            let p0 = Float64.fromJSValue(ctx, info[0])
+            functionType30(p0)
+            ctx.undefined().toJSValue()
+        }).toJSValue()
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): FunctionTypes {
+        let obj = input.asObject()
+        FunctionTypes(
+        { =>
+            checkThreadAndCall < Unit >(context, { _ =>
+                obj["functionType1"].asFunction().call()
+            })
+        },
+        { arg: JSValue/* FIXME: `V` */ =>
+            checkThreadAndCall < Unit >(context, { ctx =>
+                let arg0 = arg
+                obj["functionType10"].asFunction().call([arg0])
+            })
+        },
+        { arg: JSValue/* FIXME: `V` */ =>
+            checkThreadAndCall < W >(context, { ctx =>
+                let arg0 = arg
+                let ret = obj["functionType11"].asFunction().call([arg0])
+                W.fromJSValue(ctx, ret)
+            })
+        },
+        { arg: JSValue/* FIXME: `V` */ =>
+            checkThreadAndCall < W >(context, { ctx =>
+                let arg0 = arg
+                let ret = obj["functionType12"].asFunction().call([arg0])
+                W.fromJSValue(ctx, ret)
+            })
+        },
+        { a: Array<Float64> =>
+            checkThreadAndCall < Unit >(context, { ctx =>
+                let arg0 = toJSArray < Float64 >(ctx, a)
+                obj["functionType20"].asFunction().call([arg0])
+            })
+        },
+        { a:?Float64 =>
+            checkThreadAndCall < Unit >(context, { ctx =>
+                let arg0 = a.toJSValue(ctx)
+                obj["functionType30"].asFunction().call([arg0])
+            })
+        }
+        )
+    }
+    
+}
+
+/*interface InferredTypes {
+    inferred1: number & String;
+    inferred10: ReturnType<typeof setTimeout>;
+    }*/
+
+public open class InferredTypes {
+    
+    protected InferredTypes(private var inferred1: JSValue/* FIXME: `number & string` */,
+    private var inferred10: ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>) { }
+    
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["inferred1"] = inferred1
+        obj["inferred10"] = inferred10.toJSValue(context)
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): InferredTypes {
+        let obj = input.asObject()
+        InferredTypes(
+        obj["inferred1"],
+        ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>.fromJSValue(context, obj["inferred10"])
+        )
+    }
+    
+}
+
 /*interface NestedTypes {
     nested10: {
 		x: { value: number; unit: String; } | number;
@@ -574,34 +642,6 @@ public open class Optionals {
     
 }
 
-/*interface InferredTypes {
-    inferred1: number & String;
-    inferred10: ReturnType<typeof setTimeout>;
-    }*/
-
-public open class InferredTypes {
-    
-    protected InferredTypes(private var inferred1: JSValue/* FIXME: `number & string` */,
-    private var inferred10: ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>) { }
-    
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["inferred1"] = inferred1
-        obj["inferred10"] = inferred10.toJSValue(context)
-        obj.toJSValue()
-    }
-    
-    public static func fromJSValue(context: JSContext, input: JSValue): InferredTypes {
-        let obj = input.asObject()
-        InferredTypes(
-        obj["inferred1"],
-        ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>.fromJSValue(context, obj["inferred10"])
-        )
-    }
-    
-}
-
 /*interface UnsupportedTypes {
     unsupported10: { [123]: String; };
     unsupported20: { ['234']: number; };
@@ -629,46 +669,6 @@ public open class UnsupportedTypes {
         AutoGenType6.fromJSValue(context, obj["unsupported10"]),
         AutoGenType7.fromJSValue(context, obj["unsupported20"]),
         AutoGenType8.fromJSValue(context, obj["unsupported30"])
-        )
-    }
-    
-}
-
-/*interface ArrayTypesI {
-    arr10: Array<Error>;
-    arr20: number[];
-    arr11?: Array<Error>;
-    arr21?: number[];
-    }*/
-
-public open class ArrayTypesI {
-    
-    protected ArrayTypesI(private var arr10: Array<JSValue/* FIXME: `Error` */>,
-    private var arr20: Array<Float64>,
-    private var arr11!: Option<Array<JSValue/* FIXME: `Error` */>> = None,
-    private var arr21!: Option<Array<Float64>> = None) { }
-    
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["arr10"] = toJSArray < JSValue/* FIXME: `Error` */ >(context, arr10, { ctx: JSContext, val: JSValue/* FIXME: `Error` */ => val })
-        obj["arr20"] = toJSArray < Float64 >(context, arr20)
-        if(let Some(v) <- arr11) {
-            obj["arr11"] = toJSArray < JSValue/* FIXME: `Error` */ >(context, v, { ctx: JSContext, val: JSValue/* FIXME: `Error` */ => val })
-        }
-        if(let Some(v) <- arr21) {
-            obj["arr21"] = toJSArray < Float64 >(context, v)
-        }
-        obj.toJSValue()
-    }
-    
-    public static func fromJSValue(context: JSContext, input: JSValue): ArrayTypesI {
-        let obj = input.asObject()
-        ArrayTypesI(
-        fromJSArray < JSValue/* FIXME: `Error` */ >(context, obj["arr10"], { ctx: JSContext, val: JSValue => val }),
-        fromJSArray < Float64 >(context, obj["arr20"]),
-        arr11: fromJSArrayOption < JSValue/* FIXME: `Error` */ >(context, obj["arr11"], { ctx: JSContext, val: JSValue => val }),
-        arr21: fromJSArrayOption < Float64 >(context, obj["arr21"])
         )
     }
     
