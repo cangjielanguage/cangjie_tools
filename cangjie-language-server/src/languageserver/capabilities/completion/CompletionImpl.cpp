@@ -216,6 +216,22 @@ void CompletionImpl::FasterComplete(
         return;
     }
 
+    // Named parameter completion
+    // Only attempt when not in dot completion mode (i.e., prefix is not "." and previous token is not DOT)
+    bool isDotContext = (prefix == ".") ||
+                        (index > 0 && input.tokens[static_cast<unsigned int>(index - 1)].kind == Cangjie::TokenKind::DOT);
+
+    if (!isDotContext) {
+        size_t originalSize = result.completions.size();
+        NamedParameterComplete(input, pos, result, index, prefix);
+
+        // If named parameter completions were successfully generated, return directly without proceeding
+        // to normal completion, giving higher priority to named parameters
+        if (result.completions.size() > originalSize) {
+            return;
+        }
+    }
+
     int firstTokIdxInLine = GetFirstTokenOnCurLine(input.tokens, pos.line);
     Token prevTokOfPrefix = Token(TokenKind::INIT);
     Token firstTokInLine = Token(TokenKind::INIT);
@@ -351,6 +367,178 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             completion.sortType = SortType::AUTO_IMPORT_SYM;
             result.completions.push_back(completion);
         });
+}
+
+void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix, std::unordered_set<std::string> usedNamedParams, int positionalsUsed, std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists, int paramIndex)
+{
+    for (const auto &paramList : paramLists) {
+        if (!paramList) {
+            continue;
+        }
+
+        for (const auto &param : paramList->params) {
+            if (!param) {
+                paramIndex++;
+                continue;
+            }
+
+            std::string paramName = param->identifier;
+
+            // 1. Check '!' (named parameter definition flag)
+            bool isNamedParamDef = (param->notMarkPos.line != 0 || param->notMarkPos.column != 0);
+
+            // 2. Check if already satisfied by positional parameters (only for non-named parameters)
+            if (!isNamedParamDef && paramIndex < positionalsUsed) {
+                // If it's a non-named parameter (no !) and has been consumed by previous positional parameters, skip
+                paramIndex++;
+                continue;
+            }
+
+            // 3. Filter out already used as named parameters or already suggested by other overloads
+            if (usedNamedParams.count(paramName) || suggestedParamNames.count(paramName)) {
+                paramIndex++;
+                continue;
+            }
+
+            // 4. Filter by prefix
+            if (paramName.size() < prefix.size() || paramName.find(prefix) != 0) {
+                paramIndex++;
+                continue;
+            }
+
+            // 5. Construct completion item (and record suggested names to prevent duplicate additions from other overloads)
+            suggestedParamNames.insert(paramName);
+
+            ark::CodeCompletion completion;
+            completion.name = paramName;
+            completion.label = paramName;
+            completion.kind = ark::CompletionItemKind::CIK_VARIABLE;
+            completion.detail = "Named Argument";
+            completion.insertText = paramName + ": ";
+            completion.sortType=SortType::KEYWORD;
+
+            if (isNamedParamDef) {
+                result.completions.push_back(completion);
+            }
+            paramIndex++;
+        }
+    }
+}
+
+void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cangjie::Position &pos,
+                                            ark::CompletionResult &result, int index, const std::string &prefix)
+{
+    // 1. Must have semantic cache
+    if (!input.semaCache) {
+        return;
+    }
+
+    // 2. Backtrack to find the current function call's left parenthesis '('
+    int balance = 0;
+    int lparenIndex = -1;
+
+    // Start scanning from the previous token of the current token
+    int startIndex = index - 1;
+    if (startIndex < 0) {
+        return;
+    }
+
+    for (int i = startIndex; i >= 0; --i) {
+        auto kind = input.tokens[i].kind;
+        if (kind == Cangjie::TokenKind::RPAREN || kind == Cangjie::TokenKind::RSQUARE || kind == Cangjie::TokenKind::RCURL) {
+            balance++;
+        } else if (kind == Cangjie::TokenKind::LPAREN || kind == Cangjie::TokenKind::LSQUARE || kind == Cangjie::TokenKind::LCURL) {
+            if (balance > 0) {
+                balance--;
+            } else if (kind == Cangjie::TokenKind::LPAREN) {
+                // Found the left parenthesis of the current level
+                lparenIndex = i;
+                break;
+            } else {
+                // Found other opening brackets, stop
+                return;
+            }
+        } else if (kind == Cangjie::TokenKind::SEMI) {
+            // Encountered semicolon, exceeded function call scope
+            return;
+        }
+    }
+
+    if (lparenIndex <= 0) {
+        return; // Not found or left parenthesis is the first token
+    }
+
+    // 3. Get all overloads of the function
+    int funcNameIndex = lparenIndex - 1;
+    ark::Token funcToken = input.tokens[funcNameIndex];
+
+    std::vector<Cangjie::AST::FuncDecl*> funcDeclsWithOverride;
+
+    auto decls = input.semaCache->GetOverloadDecls(funcToken);
+    for (auto &decl : decls) {
+        auto *funcDecl = dynamic_cast<Cangjie::AST::FuncDecl*>(decl.get());
+        if (funcDecl) {
+            funcDeclsWithOverride.push_back(funcDecl);
+        }
+    }
+
+    if (funcDeclsWithOverride.empty()) {
+        return;
+    }
+
+    // 4. Analyze current parameter input status
+    // 4.1 Collect already used named parameters
+    std::unordered_set<std::string> usedNamedParams;
+    for (int i = lparenIndex + 1; i < index; ++i) {
+        // Heuristic rule: Identifier followed immediately by Colon (:)
+        if (input.tokens[i].kind == Cangjie::TokenKind::IDENTIFIER &&
+            (i + 1 < input.tokens.size()) &&
+            input.tokens[i+1].kind == Cangjie::TokenKind::COLON) {
+            usedNamedParams.insert(input.tokens[i].Value());
+        }
+    }
+
+    // 4.2 Count consumed positional arguments
+    int positionalsUsed = 0;
+    for (int i = lparenIndex + 1; i < index; ++i) {
+        if (input.tokens[i].kind == Cangjie::TokenKind::COMMA) {
+            positionalsUsed++;
+        }
+    }
+    // If the cursor is after the left parenthesis and the token before the cursor is not a comma,
+    // then the currently typed argument also counts as a consumed position.
+    if (index > lparenIndex + 1 && input.tokens[index - 1].kind != Cangjie::TokenKind::COMMA) {
+        positionalsUsed++;
+    }
+
+    // Used for deduplication across overloads
+    std::unordered_set<std::string> suggestedParamNames;
+
+    // 5. Iterate through all function overloads and their parameters
+    for (auto *funcDecl : funcDeclsWithOverride) {
+        if (!funcDecl->funcBody) {
+            continue;
+        }
+
+        // Calculate the total number of parameters for the current overload
+        const auto &paramLists = funcDecl->funcBody->paramLists;
+        int totalParamCount = 0;
+        for (const auto &pList : paramLists) {
+            if (pList) {
+                totalParamCount += pList->params.size();
+            }
+        }
+
+        // If the number of consumed positional arguments exceeds the total number of parameters
+        // in this overload, this overload does not match, skip it.
+        if (totalParamCount < positionalsUsed) {
+            continue;
+        }
+
+        int paramIndex = 0;
+
+        GenerateNamedArgumentCompletion(result, prefix, usedNamedParams, positionalsUsed, suggestedParamNames, paramLists, paramIndex);
+    }
 }
 
 void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg,

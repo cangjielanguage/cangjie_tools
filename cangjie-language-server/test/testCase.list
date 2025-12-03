@@ -223,6 +223,7 @@
 {"completion":{"testFile":"LSP_Completion_Override_005.test","id":"31"}}
 {"completion":{"testFile":"LSP_Completion_Private_Topdecl.test","id":"5"}}
 {"completion":{"testFile":"LSP_Completion_2025090945008.test","id":"11"}}
+{"completion":{"testFile":"LSP_Completion_NamedParam_001.test","id":"35"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}

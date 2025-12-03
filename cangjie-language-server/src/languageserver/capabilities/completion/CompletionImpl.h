@@ -80,6 +80,9 @@ public:
     static std::unordered_set<std::string> externalImportSym;
 
 private:
+    static void NamedParameterComplete(const ark::ArkAST &input, const Cangjie::Position &pos,
+                            ark::CompletionResult &result, int index, const std::string &prefix);
+
     static void FasterComplete(const ArkAST &input, Cangjie::Position pos,
                               CompletionResult &result, int index, std::string &prefix);
 
@@ -88,8 +91,13 @@ private:
 
     static void AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix);
 
+    static void GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix,
+                        std::unordered_set<std::string> usedNamedParams, int positionalsUsed,
+                        std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists,
+                        int paramIndex);
+
     static void HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg, const lsp::Symbol &sym,
-        const lsp::CompletionItem &completionItem, Range textEditRange);
+                                            const lsp::CompletionItem &completionItem, Range textEditRange);
 };
 } // namespace ark
 

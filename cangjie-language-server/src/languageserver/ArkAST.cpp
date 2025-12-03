@@ -337,6 +337,32 @@ Ptr<Decl> ArkAST::GetDeclByPosition(const Cangjie::Position &pos) const
     return GetDeclByPosition(pos, syms, decls);
 }
 
+std::vector<Ptr<Decl>> ArkAST::GetOverloadDecls(const ark::Token token) const
+{
+    std::vector<Ptr<Decl>> myVector;
+    std::string funcName = token.Value();
+    Position pos = token.Begin();
+    std::string query = "_ = (" + std::to_string(pos.fileID) + ", "
+                        + std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
+    auto posSyms = SearchContext(packageInstance->ctx, query);
+    if (posSyms.empty() || funcName.empty()) {
+        return myVector;
+    }
+    std::string curScopeName = ScopeManagerApi::GetScopeNameWithoutTail(posSyms[0]->scopeName);
+    for (; !curScopeName.empty(); curScopeName = ScopeManagerApi::GetParentScopeName(curScopeName)) {
+        query = "scope_name: " + curScopeName + "&& name: " + funcName;
+        auto syms = SearchContext(packageInstance->ctx, query);
+        for (auto it:syms) {
+            if (it && !it->name.empty() && it->name == funcName) {
+                Node &node = *it->node;
+                auto *funcDecl = dynamic_cast<Cangjie::AST::FuncDecl*>(&node);
+                myVector.push_back(funcDecl);
+            }
+        }
+    }
+    return myVector;
+}
+
 Ptr<Node> ArkAST::GetNodeBySymbols(const ark::ArkAST& nowAst, Ptr<Node> node, const std::vector<Symbol*>& syms,
     const std::string& query, const size_t index) const
 {
