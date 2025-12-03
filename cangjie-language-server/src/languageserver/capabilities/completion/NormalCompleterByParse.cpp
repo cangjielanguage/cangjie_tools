@@ -46,6 +46,20 @@ void SetAfterAT(const ark::ArkAST &input, ark::CompletionEnv& env, int curTokenI
     }
 }
 
+std::string TrimDollonPkgName(const std::string &subPkgName)
+{
+    auto found = subPkgName.find_first_of(CONSTANTS::DOUBLE_COLON);
+    if (found != std::string::npos) {
+        return subPkgName.substr(found + CONSTANTS::DOUBLE_COLON.size());
+    }
+    return subPkgName;
+}
+
+bool startsWith(const std::string& str, const std::string prefix)
+{
+    return (str.rfind(prefix, 0) == 0);
+}
+
 std::unordered_set<TokenKind> overrideFlag = {TokenKind::RCURL, TokenKind::IDENTIFIER, TokenKind::INTEGER_LITERAL};
 }
 
@@ -347,7 +361,7 @@ void NormalCompleterByParse::FillingDeclsInPackage(const std::string &packageNam
     }
 }
 
-void NormalCompleterByParse::CompleteModuleName(const std::string &curModule)
+void NormalCompleterByParse::CompleteModuleName(const std::string &curModule, bool afterDoubleColon)
 {
     CompletionEnv env;
     for (const auto &item : Cangjie::LSPCompilerInstance::cjoLibraryMap) {
@@ -357,12 +371,16 @@ void NormalCompleterByParse::CompleteModuleName(const std::string &curModule)
         if (!IsFullPackageName(item)) {
             continue;
         }
-        env.AccessibleByString(SplitFullPackage(item).first, "moduleName");
+        std::string packageName = SplitFullPackage(item).first;
+        if (afterDoubleColon) {
+            packageName = TrimDollonPkgName(packageName);
+        }
+        env.AccessibleByString(packageName, "moduleName");
     }
     env.OutputResult(result);
 }
 
-void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input)
+void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool afterDoubleColon)
 {
     if (!input.file || input.file->filePath.empty()) {
         return;
@@ -387,6 +405,9 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input)
         std::replace(relativeDirName.begin(), relativeDirName.end(), '/', '.');
 #endif
         fullPkgName = relativeDirName;
+    }
+    if (afterDoubleColon) {
+        fullPkgName = TrimDollonPkgName(fullPkgName);
     }
     env.AccessibleByString(fullPkgName, "packageName");
     env.OutputResult(result);
