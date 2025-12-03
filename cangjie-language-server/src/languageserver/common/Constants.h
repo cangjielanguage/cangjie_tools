@@ -60,6 +60,7 @@ namespace CONSTANTS {
     constexpr size_t MAC_THREAD_STACK_SIZE = 1024 * 1024 * 8;
     const unsigned int SORT_TEXT_SIZE = 6;
     const float ROUND_NUM = 0.5;
+    const std::string DOUBLE_COLON = "::";
 } // namespace CONSTANTS
 
 #endif // LSPSERVER_CONSTANTS_H

@@ -383,9 +383,11 @@ void CompletionImpl::NormalParseImpl(
         beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 1)].kind;
     }
 
+    bool afterDoubleColon = false;
     // if package name has org name, check beforePrefixKind and change token position
     if (beforePrefixKind == TokenKind::DOUBLE_COLON && index >= 3) { // package org :: is three tokens
         beforePrefixKind = input.tokens[static_cast<unsigned int>(index - 3)].kind; // package org :: is three tokens
+        afterDoubleColon = true;
     }
 
     auto &importManager =
@@ -396,7 +398,7 @@ void CompletionImpl::NormalParseImpl(
     // package [name]
     // macro package [name]
     if (beforePrefixKind == TokenKind::PACKAGE) {
-        normalCompleter.CompletePackageSpec(input);
+        normalCompleter.CompletePackageSpec(input, afterDoubleColon);
         return;
     }
 
@@ -406,7 +408,7 @@ void CompletionImpl::NormalParseImpl(
     // modifier? import {std.collection.ArrayList, [module]}
     if (IsPreamble(input, pos)) {
         auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
-        normalCompleter.CompleteModuleName(curModule);
+        normalCompleter.CompleteModuleName(curModule, afterDoubleColon);
         return;
     }
 

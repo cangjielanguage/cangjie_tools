@@ -27,9 +27,9 @@ public:
 
     bool Complete(const ArkAST &input, Cangjie::Position pos);
 
-    void CompletePackageSpec(const ArkAST &input);
+    void CompletePackageSpec(const ArkAST &input, bool afterDoubleColon);
 
-    void CompleteModuleName(const std::string &curModule);
+    void CompleteModuleName(const std::string &curModule, bool afterDoubleColon);
 
 private:
 
