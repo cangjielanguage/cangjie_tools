@@ -9,8 +9,8 @@
 
 #include <string>
 #include <vector>
-#include "cangjie/CHIR/Type/CustomTypeDef.h"
-#include "cangjie/CHIR/Type/Type.h"
+#include "cangjie/CHIR/IR/Type/CustomTypeDef.h"
+#include "cangjie/CHIR/IR/Type/Type.h"
 namespace Cangjie::CodeCheck {
 const std::string ANY_TYPE = "ANY_TYPE";
 const std::string NOT_CARE = "NOT_CARE";
