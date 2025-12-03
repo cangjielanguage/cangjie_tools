@@ -19,7 +19,7 @@ let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
 // Basic string for version.
 let FORMAT_OF_VERSION: String = "(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])\\.(([1-9][0-9]+)|[0-9])"
 // Regexp version.
-public let REGEXP_VERTION: String = "^${FORMAT_OF_VERSION}$"
+public let REGEXP_VERSION: String = "^${FORMAT_OF_VERSION}$"
 let EXAMPLE_MODULE_VERSION: String = "1.0.0"
 // Regexp repo-dependency require.
 let REGEXP_REQUIRE_UNIT: String = "((${FORMAT_OF_VERSION})|((\\(|([\\(\\[]\\s*${FORMAT_OF_VERSION}))\\s*,\\s*(\\)|(${FORMAT_OF_VERSION}\\s*[\\)\\]]))))"
@@ -73,7 +73,7 @@ public func organizationCheck(text: String, path: String): Bool {
 public func analyzingPackageName(pkgName: String): (String, String) {
     if (pkgName.contains("::")) {
         let tomlNameArr= pkgName.split("::", 2)
-        return (tomlNameArr[0], tomlNameArr[tomlNameArr.size - 1]) 
+        return (tomlNameArr[0], tomlNameArr[tomlNameArr.size - 1])
     }
     return ("", pkgName)
 }
@@ -89,7 +89,7 @@ public func dependenciesNameCheck(text: String, path: String): Bool {
     if ((org.isEmpty() || matched.find(org).isSome()) && matched.find(name).isSome()) {
         return true
     }
-    
+
     eprintln("Error: the name of dependency '${text}' in ${path} is wrong, " +
         "the example is '${EXAMPLE_ROOT_PACKAGE_NAME}' or '${EXAMPLE_NAME_WITH_ORG}'")
     return false
@@ -130,7 +130,7 @@ func versionCheck(text: String, path: String): Bool {
         eprintln("Error: the 'version' field in ${path} can't be empty")
         return false
     }
-    let matched = Regex(REGEXP_VERTION)
+    let matched = Regex(REGEXP_VERSION)
     match (matched.find(text)) {
         case Some(_) => return true
         case None => eprintln("Error: the 'version' field '${text}' in ${path} is wrong, " +
@@ -169,7 +169,7 @@ func cjcVersionCheck(text: String, path: String): Bool {
         eprintln("Error: the '${FILE_VERSION}' field in ${path} can't be empty")
         return false
     }
-    let matched = Regex(REGEXP_VERTION)
+    let matched = Regex(REGEXP_VERSION)
     match (matched.find(text)) {
         case Some(_) => return true
         case None => eprintln("Error: the '${FILE_VERSION}' field '${text}' in ${path} is wrong, " +

@@ -11,6 +11,7 @@ import std.sort.*
 import std.sync.*
 import std.fs.*
 import std.time.*
+import std.regex.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 import cjpm.config.*
@@ -518,16 +519,16 @@ public class DepRecord {
 
         // get available set
         let availableSet = HashSet<String>()
-        getAvailableSet(indexPath, indexMap, availableSet)
+        getAvailableSet(indexPath, indexMap, availableSet, newDownloadFlag)
 
-        // local index cannot match, and it is too old
-        if (availableSet.isEmpty() && !newDownloadFlag &&
-            (DateTime.now().toUnixTimeStamp().toHours() - FileInfo(indexPath).lastModificationTime.toUnixTimeStamp().toHours() >= 24)) {
+        if (availableSet.isEmpty() && // cannot match any available version for the first time
+            (!fileExists(indexPath) || // index is not newest, and is deleted because it is broken
+            (DateTime.now().toUnixTimeStamp().toHours() - FileInfo(indexPath).lastModificationTime.toUnixTimeStamp().toHours() >= 24))) { // index is too old
             if (!depot.updateIndex(this.name, this.org)) {
                 // failed to update with error log in updateIndex
                 throw NoneValueException("cannot get index for '${this.fullName}', and local index is invalid")
             }
-            getAvailableSet(indexPath, indexMap, availableSet)
+            getAvailableSet(indexPath, indexMap, availableSet, true)
         }
 
         // no available version for first requirement
@@ -542,10 +543,25 @@ public class DepRecord {
     }
 
     // update index map and get available set
-    func getAvailableSet(indexPath: String, indexMap: HashMap<String, HashMap<String, ArtifactIndex>>, availableSet: HashSet<String>): Unit {
+    func getAvailableSet(indexPath: String, indexMap: HashMap<String, HashMap<String, ArtifactIndex>>,
+        availableSet: HashSet<String>, isNewest: Bool): Unit {
+        func dealWithBrokenIndex(): Unit {
+            if (isNewest) {
+                // index is newest, report unexpected failure
+                throw NoneValueException("broken index for '${this.fullName}' in repository, please contact relative authors")
+            }
+
+            // index is not newest, delete broken index
+            eprintln("Warning: index for '${this.fullName}' is broken, try to refresh it")
+            deleteFile(indexPath)
+        }
+
+        let indexMapForModule = HashMap<String, ArtifactIndex>()
+
         // read index for each version
         var indexRawData = String.fromUtf8(File.readFrom(indexPath))
         var indexIter = indexRawData.lines()
+        let versionRegex = Regex(REGEXP_VERSION)
         while (true) {
             match (indexIter.next()) {
                 case Some(indexStr) =>
@@ -554,20 +570,33 @@ public class DepRecord {
                         if (index.yanked) {
                             continue
                         }
-                        if (!indexMap.contains(this.fullName)) {
-                            indexMap.add(this.fullName, HashMap<String, ArtifactIndex>())
+
+                        if (!versionRegex.matches(index.version)) {
+                            // version is broken
+                            dealWithBrokenIndex()
+                            return
                         }
-                        indexMap[this.fullName].add(index.version, index)
-                    } catch (e: Exception) {
-                        eprintln(e.message)
-                        throw NoneValueException("wrong format of index for '${this.fullName}'")
+
+                        indexMapForModule.add(index.version, index)
+                    } catch (_: Exception) {
+                        // index is broken
+                        dealWithBrokenIndex()
+                        return
                     }
                 case None => break
             }
         }
 
+        // index is empty, delete it
+        if (indexMapForModule.isEmpty()) {
+            dealWithBrokenIndex()
+            return
+        }
+
+        indexMap.add(this.fullName, indexMapForModule)
+
         // get available set
-        for ((version, _) in indexMap[this.fullName]) {
+        for ((version, _) in indexMapForModule) {
             if (this.requires[0].isMatchWith(version)) {
                 availableSet.add(version)
             }
