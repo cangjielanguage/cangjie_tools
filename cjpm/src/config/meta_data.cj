@@ -49,6 +49,9 @@ const INDEX_YANKED = "yanked"
 const INDEX_CJC_VERSION = "cjc-version"
 const INDEX_INDEX_VERSION = "index-version"
 
+// max size of tag and category
+const MAX_SIZE_OF_TAG = 5
+
 // Regex used for checking url
 const WINDOWS_LOCAL_FILE_REGEX = "^[A-Za-z]:.+$"
 const URL_WITH_SPACE = "^.*\\s+.*$"
@@ -309,6 +312,7 @@ public class MetaData <: Serializable<MetaData> {
         flag = this.checkUrl(this.homepage, META_HOMEPAGE) && flag
         flag = this.checkUrl(this.documentation, META_DOCUMENTATION) && flag
         flag = this.index.addDependencies(tomlInfo) && flag
+        flag = this.checkConfigSize() && flag
         flag = this.checkCategory() && flag
         return flag
     }
@@ -320,6 +324,19 @@ public class MetaData <: Serializable<MetaData> {
             return false
         }
         return true
+    }
+
+    func checkConfigSize(): Bool {
+        var flag = true
+        if (this.tag.size > MAX_SIZE_OF_TAG) {
+            eprintln("Error: size of field 'tag' cannot be over ${MAX_SIZE_OF_TAG}")
+            flag = false
+        }
+        if (this.category.size > MAX_SIZE_OF_TAG) {
+            eprintln("Error: size of field 'category' cannot be over ${MAX_SIZE_OF_TAG}")
+            flag = false
+        }
+        return flag
     }
 
     func checkCategory(): Bool {
