@@ -90,7 +90,7 @@ void DotCompleterByParse::Complete(const ArkAST &input,
     // eg: import std.os.[top-level declaration]
     auto srcPkgName = input.file->curPackage->fullPackageName;
     auto idToFullIdMap = ::CollectImportIdMap(input.file->curFile);
-    auto fullImportId = prefix;
+    auto fullImportId = GetFullPrefix(input, pos, prefix);
 
     if (idToFullIdMap.find(prefix) != idToFullIdMap.end()) {
         fullImportId = idToFullIdMap[prefix];
@@ -107,7 +107,8 @@ void DotCompleterByParse::Complete(const ArkAST &input,
 
     // for packageName of Qualified_Type Node
     if (!prefix.empty()) {
-        CompleteQualifiedType(prefix, env);
+        auto fullPrefix = GetFullPrefix(input, pos, prefix);
+        CompleteQualifiedType(fullPrefix, env);
     }
 
     // Get scopeName by Parse + old Sema info, only for MemberAccess
@@ -1451,5 +1452,24 @@ void DotCompleterByParse::WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr,
         }
         return VisitAction::WALK_CHILDREN;
     }).Walk();
+}
+
+// check if in multiimport complete,
+// if true, return prefix with organization name.
+std::string DotCompleterByParse::GetFullPrefix(const ArkAST &input, const Position &pos, const std::string &prefix)
+{
+    std::string name = prefix;
+    for (const auto &im : input.file->imports) {
+        if (pos > im->end) {
+            continue;
+        }
+        bool multiImport = im->content.kind == Cangjie::AST::ImportKind::IMPORT_MULTI
+                && im->content.hasDoubleColon && pos > im->content.leftCurlPos;
+        if (multiImport && !im->content.prefixPaths.empty()) {
+            name = im->content.prefixPaths[0] + "::" + prefix;
+        }
+        return name;
+    }
+    return name;
 }
 }
