@@ -43,6 +43,7 @@ const INDEX_DEP_NAME = "name"
 const INDEX_DEP_REQUIRE = "require"
 const INDEX_DEP_TARGET = "target"
 const INDEX_DEP_TYPE = "type"
+const INDEX_OUTPUT_TYPE = "output-type"
 const INDEX_SHA_256_SUM = "sha256sum"
 const INDEX_YANKED = "yanked"
 const INDEX_CJC_VERSION = "cjc-version"
@@ -82,7 +83,8 @@ public class IndexDep <: Serializable<IndexDep> {
         public let name: String,
         public let require: String,
         public let target: ?String,
-        public let depType: ?String
+        public let depType: ?String,
+        public let outputType: OutputType
     ) {}
 
     public init() {
@@ -90,6 +92,7 @@ public class IndexDep <: Serializable<IndexDep> {
         this.require = ""
         this.target = None
         this.depType = None
+        this.outputType = OutputType.Unknown("")
     }
 
     public func serialize(): DataModel {
@@ -98,6 +101,7 @@ public class IndexDep <: Serializable<IndexDep> {
             .add(field<String>(INDEX_DEP_REQUIRE, this.require))
             .add(field<?String>(INDEX_DEP_TARGET, this.target))
             .add(field<?String>(INDEX_DEP_TYPE, this.depType))
+            .add(field<?String>(INDEX_OUTPUT_TYPE, if (this.outputType.isValid) { this.outputType.toString() } else { None }))
     }
 
     public static func deserialize(dm: DataModel): IndexDep {
@@ -105,11 +109,13 @@ public class IndexDep <: Serializable<IndexDep> {
             case data: DataModelStruct => data
             case _ => throw Exception("Bad artifact index")
         }
+
         IndexDep(
             String.deserialize((dms.get(INDEX_DEP_NAME) as DataModelString) ?? DataModelString("")),
             String.deserialize((dms.get(INDEX_DEP_REQUIRE) as DataModelString) ?? DataModelString("")),
             Option<String>.deserialize(dms.get(INDEX_DEP_TARGET)),
-            Option<String>.deserialize(dms.get(INDEX_DEP_TYPE))
+            Option<String>.deserialize(dms.get(INDEX_DEP_TYPE)),
+            OutputType.fromString(String.deserialize((dms.get(INDEX_OUTPUT_TYPE) as DataModelString) ?? DataModelString("")))
         )
     }
 }
@@ -216,7 +222,7 @@ public class ArtifactIndex <: Serializable<ArtifactIndex> {
                 flag = false
                 continue
             }
-            depList.add(IndexDep(name, depInfo.version ?? "", target, depType))
+            depList.add(IndexDep(name, depInfo.version ?? "", target, depType, depInfo.outputType ?? OutputType.Unknown("")))
         }
         return flag
     }

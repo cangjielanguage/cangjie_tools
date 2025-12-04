@@ -91,7 +91,7 @@ public class DepAnalysisEngine {
         for ((fullName, replaceModule) in this.replaceMap) {
             if (let Some(version) <- replaceModule.version) {
                 try {
-                    let _ = DepRecord(fullName, version, this.depot, this.indexMap)
+                    let _ = DepRecord(fullName, version, OutputType.Unknown(""), this.depot, this.indexMap)
                 } catch (ne: NoneValueException) {
                     // cannot find index or no available version for requirement
                     eprintln("Error: ${ne.message}")
@@ -125,7 +125,7 @@ public class DepAnalysisEngine {
 
             let versionStr = repoDep.version ?? return false // always exist
             try {
-                let depRecord = DepRecord(name, versionStr, this.depot, this.indexMap)
+                let depRecord = DepRecord(name, versionStr, repoDep.outputType ?? OutputType.Unknown(""), this.depot, this.indexMap)
                 if (depRecordMap.contains(name)) {
                     conflictDepMap[name].add(repoDep)
                     if (!depRecordMap[name].combineRecords(depRecord)) {
@@ -151,8 +151,9 @@ public class DepAnalysisEngine {
         for (conflictDep in conflictSet) {
             eprintln("Error: no available artifact of module '${conflictDep}' could match all requirements from these modules:")
             for (depInfo in conflictDepMap[conflictDep]) {
+                let outputInfo = if (let Some(outputType) <- depInfo.outputType) { " with output-type = ${outputType.toString()}" } else { "" }
                 eprintln("    - '${depInfo.importedModuleName}' from '${depInfo.importedPath}', " +
-                    "which requirement for '${conflictDep}' is '${depInfo.version ?? ""}'")
+                    "which requirement for '${conflictDep}' is '${depInfo.version ?? ""}'${outputInfo}")
             }
         }
         if (!conflictSet.isEmpty()) {
@@ -258,8 +259,9 @@ public class DepAnalysisEngine {
      */
     func pushNewDep(targetModuleName: String, fixedVersion: String, depName: String, indexDep: IndexDep): Bool {
         try {
-            this.currentState.depRecordMap.add(depName, DepRecord(depName, indexDep.require, this.depot, this.indexMap))
-        } catch (ne: NoneValueException) {
+            this.currentState.depRecordMap.add(depName,
+                DepRecord(depName, indexDep.require, indexDep.outputType, this.depot, this.indexMap))
+        } catch (_: Exception) {
             // index is broken
             this.brokenRecord.add("${targetModuleName}-${fixedVersion}", depName)
             this.resetState(targetModuleName, fixedVersion)
@@ -286,6 +288,14 @@ public class DepAnalysisEngine {
             this.resetState(targetModuleName, fixedVersion)
             return false
         }
+
+        // output-type of new require does not match
+        if (!this.currentState.depRecordMap[depName].combineOutputType(indexDep.outputType)) {
+            counterConfliction(depName)
+            this.resetState(targetModuleName, fixedVersion)
+            return false
+        }
+
         // version already chosen is banned
         if (this.currentState.fixedVersionMap.contains(depName) &&
             this.currentState.depRecordMap[depName].banned.contains(this.currentState.fixedVersionMap[depName])) {
@@ -293,12 +303,14 @@ public class DepAnalysisEngine {
             this.resetState(targetModuleName, fixedVersion)
             return false
         }
+
         // all versions are banned
         if (this.currentState.depRecordMap[depName].banned.size == this.currentState.depRecordMap[depName].available.size) {
             counterConfliction(depName)
             this.resetState(targetModuleName, fixedVersion)
             return false
         }
+
         return true
     }
 
@@ -376,20 +388,23 @@ public class DepAnalysisEngine {
         let downloadMtx: Mutex = Mutex()
 
         // down replaced repo-dep together
-        for ((name, replaceVersion) in this.replaceMap) {
-            if (let Some(version) <- replaceVersion.version) {
+        for ((name, replaceInfo) in this.replaceMap) {
+            if (let Some(version) <- replaceInfo.version) {
                 this.currentState.fixedVersionMap.add(name, version)
-
-                // index may not be updated
+                try {
+                    this.currentState.depRecordMap.add(name,
+                        DepRecord(name, version, replaceInfo.outputType ?? OutputType.Unknown(""), this.depot, this.indexMap))
+                } catch (ne: NoneValueException) {
+                    // cannot find index or no available version for requirement
+                    eprintln("Error: ${ne.message}")
+                    eprintln("Error: dependency '${name}' in field 'replace' is not valid")
+                    return false
+                }
             }
         }
 
         for ((fullName, version) in this.currentState.fixedVersionMap) {
-            let (org, name) = if (fullName.contains("::")) {
-                (fullName.split("::")[0], fullName.split("::")[1])
-            } else {
-                ("", fullName)
-            }
+            let (org, name) = splitFullName(fullName)
             downloadSem.acquire()
             downloadTasks.add(
                 spawn {
@@ -412,6 +427,9 @@ public class DepAnalysisEngine {
                     finalDep.sourcePath = sourcePath
                     finalDep.rootModulePath = this.rootModulePath
                     finalDep.sourceInfo.version = version
+                    if (this.currentState.depRecordMap[fullName].outputType.isValid) {
+                        finalDep.sourceInfo.outputType = this.currentState.depRecordMap[fullName].outputType
+                    }
                     synchronized(downloadMtx) {
                         this.finalDepMap.add(fullName, finalDep)
                     }
@@ -479,6 +497,7 @@ public class DepRecord {
     public let org: String
     public let fullName: String
     public let requires: ArrayList<RequireVersion> = ArrayList<RequireVersion>()
+    public var outputType: OutputType
     public let available: ArrayList<String> = ArrayList<String>()
     public let banned: HashSet<String> = HashSet<String>()
 
@@ -491,17 +510,15 @@ public class DepRecord {
         for (require in other.requires) {
             this.requires.add(RequireVersion(require))
         }
+        this.outputType = other.outputType
     }
 
     // initialize with exception
-    public init(name: String, require: String,
+    public init(name: String, require: String, outputType: OutputType,
         depot: Depot, indexMap: HashMap<String, HashMap<String, ArtifactIndex>>) {
         this.fullName = name
-        (this.org, this.name) = if (this.fullName.contains("::")) {
-            (this.fullName.split("::")[0], this.fullName.split("::")[1])
-        } else {
-            ("", this.fullName)
-        }
+        this.outputType = if (outputType.isValid) { outputType } else { OutputType.Unknown("") }
+        (this.org, this.name) = splitFullName(this.fullName)
         this.requires.add(RequireVersion(this.fullName, require))
 
         // try to get available versions based on index
@@ -605,6 +622,11 @@ public class DepRecord {
 
     // combine two records
     public func combineRecords(other: DepRecord): Bool {
+        // check if output-type matches
+        if (!combineOutputType(other.outputType)) {
+            return false
+        }
+
         this.requires.add(all: other.requires)
 
         let combinedAvailable = HashSet<String>()
@@ -633,11 +655,27 @@ public class DepRecord {
             }
         }
 
+        // check if requires do not match
         this.available.clear()
         let availableArray = combinedAvailable.toArray()
         sort(availableArray, lessThan: { l: String, r: String => SingleVersion(l) > SingleVersion(r) })
         this.available.add(all: availableArray)
         return !this.available.isEmpty()
+    }
+
+    public func combineOutputType(otherOutputType: OutputType): Bool {
+        // check if output-type matches
+        if (this.outputType.isValid && !otherOutputType.isValid) {
+            // current record do config output-type, and coming record do not config, do nothing
+            return true
+        } else if (!this.outputType.isValid && otherOutputType.isValid) {
+            // current record do not config output-type, and comming record do config, replace it
+            this.outputType = otherOutputType
+            return true
+        } else {
+            // both do or do not config, verify if they are the same
+            return this.outputType == otherOutputType
+        }
     }
 
     // get the highest available version

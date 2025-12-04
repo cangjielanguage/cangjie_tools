@@ -394,6 +394,10 @@ class DepModel {
             tomlInfo.pkg.name = tomlInfo.pkg.organization + "::" + tomlInfo.pkg.name
         }
 
+        if ((let Some(outputType) <- finalDep.sourceInfo.outputType) && outputType.isValid) {
+            tomlInfo.pkg.outputType = outputType
+        }
+
         // verify tomlInfo
         if (!this.verifyToml(tomlInfo, finalDep.sourcePath, finalDep.sourcePath)) {
             return false
