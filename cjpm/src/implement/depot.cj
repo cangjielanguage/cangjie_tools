@@ -168,22 +168,22 @@ public class Depot {
                                 continue
                             }
                             if (index.sha256sum != sha256sum) {
-                                return (false, "package was broken while downloading ${name}-${version} ${orgStr}")
+                                return (false, "package was broken while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
                             }
                             checkSumFlag = true
                             break
                         } catch (e: Exception) {
-                            return (false, "index was broken while downloading ${name}-${version} ${orgStr}")
+                            return (false, "index was broken while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
                         }
                     case None => break
                 }
             }
 
             if (!checkSumFlag) {
-                return (false, "cannot find index data while downloading ${name}-${version} ${orgStr}")
+                return (false, "cannot find index data while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
             }
         } catch (e: Exception) {
-            return (false, "failed to check sha256 check-sum while downloading ${name}-${version} ${orgStr}")
+            return (false, "failed to check sha256 check-sum while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
         }
 
         // save, uncompress and delete cjp file

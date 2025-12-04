@@ -145,7 +145,7 @@ public func replaceEnvforTargetDir(tomlInfo: TomlInfo, path: String): Bool {
 
 public func getScriptDirectory(oriScriptDir: String, rootPath: String, configFileDir: String, needCreate: Bool): Option<String> {
     var scriptDir: String = oriScriptDir
-    
+
     if (!configFileDir.isEmpty()) {
             scriptDir = configFileDir
     }
@@ -394,4 +394,15 @@ public func extractCfgOption(input: String): ArrayList<String> {
         }
     }
     return res
+}
+
+// split org::name to org and name
+// if there is multiple ::, retain extra :: in name
+public func splitFullName(fullName: String): (String, String) {
+    if (fullName.contains("::")) {
+        let fullNameArr = fullName.split("::")
+        let org = fullNameArr[0]
+        return (org, fullName.removePrefix("${org}::"))
+    }
+    return ("", fullName)
 }
