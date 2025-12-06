@@ -7,4 +7,4 @@
 // #include <stdatomic.h>
 
 // 用 _Atomic 关键字声明原子类型（int 的原子封装）
-_Atomic(int) counter = 0;
+const _Atomic(int) counter = 0;
