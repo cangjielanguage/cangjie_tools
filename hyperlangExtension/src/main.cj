@@ -18,7 +18,7 @@ import stdx.encoding.json.*
 import std.process.*
 import hle.tool.*
 import hle.entry.*
-import std.fs.{exists}
+import std.fs.{exists, FileInfo}
 import std.regex.*
 
 const OS_WINDOWS = "Windows"
@@ -108,8 +108,15 @@ main(args: Array<String>) {
             getFiles(fileInfos, inputDir, inputType: InputType.C)
             if (fileInfos.isEmpty()) {
                 println("Error: generation failed! Not found .h file under ${cla.directoryPath}")
-                return 0
+                return 1
             }
+
+            // check whether cjbind exists
+            if (!(exists(cla.bindingsPath) && FileInfo(cla.bindingsPath).isRegular())) {
+                println("Error: generation failed! cjbind file ${cla.bindingsPath} not exists, please download cjbind or build it first!")
+                return 1
+            }
+
             let futureList = ArrayList<Future<Unit>>()
             fileInfos |> forEach { fileInfo => 
                 let future = spawn {
@@ -174,15 +181,24 @@ func generateCangjieBindingsForC(moduleName: String, filePath: String, outDir: S
     let result = if (cla.autoDect) {"--no-detect-include-path"} else {""}
     println("The command is: ${cla.bindingsPath} --auto-cstring --array-pointers-in-args --no-layout-test " + result + " -p " + 
         moduleName + " -o " + outDir + outputFileName + " " + filePath + " -- " + cla.clangArgs)
-    if (cla.autoDect) {
-        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test","--no-detect-include-path",
-            "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
-        )
 
-    } else {
-        execute(cla.bindingsPath, "--auto-cstring", "--array-pointers-in-args", "--no-layout-test",
-            "-p", moduleName, "-o",outDir + outputFileName, filePath, "--", cla.clangArgs
-        )
+    let cjbindArguments = ArrayList<String>(["--auto-cstring", "--array-pointers-in-args", "--no-layout-test"])
+    if (cla.autoDect) {
+        cjbindArguments.add("--no-detect-include-path")
+    }
+    cjbindArguments.add(all: ["-p", moduleName, "-o", outDir + outputFileName, filePath, "--"])
+    for (arg in cla.clangArgs.split(" ")) {
+        cjbindArguments.add(arg)
+    }
+
+    try {
+        let returnCode = execute(cla.bindingsPath, cjbindArguments.toArray())
+        if (returnCode != 0) {
+            println("Error: cjbind generate failed, return code is ${returnCode}.")
+        }
+    } catch (e: Exception) {
+        println(e.message)
+        e.printStackTrace()
     }
 }
 
