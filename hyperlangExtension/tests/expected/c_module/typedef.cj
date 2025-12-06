@@ -8,7 +8,10 @@ package my_module
 
 public type Byte_ = UInt8
 
-public const byte1: Byte = 97
-public const byte2: Byte = 98
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* Byte byte1 = 'a' */
+
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* Byte byte1 = 'a' , byte2 = 'b' */
 
 public type byte = UInt8
