@@ -12,6 +12,7 @@
 #include "KeywordCompleter.h"
 #include "NormalCompleterByParse.h"
 #include "../../common/SyscapCheck.h"
+#include "cangjie/AST/Node.h"
 
 #undef THIS
 using namespace Cangjie;
@@ -596,6 +597,7 @@ void CompletionImpl::NormalParseImpl(
     // modifier? import {std.collection.ArrayList, [module]}
     if (IsPreamble(input, pos)) {
         auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+        afterDoubleColon = afterDoubleColon | IsImportHasOrg(input, pos);
         normalCompleter.CompleteModuleName(curModule, afterDoubleColon);
         return;
     }
@@ -739,6 +741,17 @@ bool CompletionImpl::IsPreamble(const ArkAST &input, Cangjie::Position pos)
     for (const auto &im : input.file->imports) {
         if (pos <= im->end) {
             return true;
+        }
+    }
+    return false;
+}
+
+bool CompletionImpl::IsImportHasOrg(const ArkAST &input, Cangjie::Position pos)
+{
+    for (const auto &im : input.file->imports) {
+        if (pos <= im->end) {
+            return im->content.kind == Cangjie::AST::ImportKind::IMPORT_MULTI
+                && im->content.hasDoubleColon && pos > im->content.leftCurlPos;
         }
     }
     return false;

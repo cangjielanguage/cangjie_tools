@@ -211,6 +211,8 @@ private:
     void WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
                             const Position &pos);
 
+    std::string GetFullPrefix(const ArkAST &input, const Position &pos, const std::string &prefix);
+
     Cangjie::ASTContext *context = nullptr;
 
     CompletionResult &result;
