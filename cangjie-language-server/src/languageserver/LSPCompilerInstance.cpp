@@ -269,13 +269,28 @@ void LSPCompilerInstance::ImportUsrPackage(const std::string &curModuleName)
     }
 }
 
-void LSPCompilerInstance::ImportUsrCjo(const std::string &curModuleName)
+// LCOV_EXCL_STOP
+void LSPCompilerInstance::ImportUsrCjo(const std::string &curModuleName,
+    std::unordered_set<std::string> &visitedPackages)
 {
     if (usrCjoFileCacheMap.count(curModuleName) != 0) {
         CjoCacheMap &cjoCacheMap = usrCjoFileCacheMap[curModuleName];
         for (auto &item : cjoCacheMap) {
+            if (visitedPackages.count(item.first) > 0) {
+                continue;
+            }
+            visitedPackages.insert(item.first);
             importManager.SetPackageCjoCache(item.first, item.second);
         }
+    }
+}
+
+void LSPCompilerInstance::ImportAllUsrCjo(const std::string &curModuleName)
+{
+    std::unordered_set<std::string> visitedPackages;
+    auto deps = ark::CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModuleName);
+    for (auto& module: deps) {
+        ImportUsrCjo(module, visitedPackages);
     }
 }
 
@@ -290,7 +305,7 @@ void LSPCompilerInstance::ImportCjoToManager(
     }
 
     // import cjo for bin dependencies in cjpm.toml
-    ImportUsrCjo(curModuleName);
+    ImportAllUsrCjo(curModuleName);
 
     // Import user's source code, priority is high.
     const auto allDependencies = graph->FindAllDependencies(pkgNameForPath);

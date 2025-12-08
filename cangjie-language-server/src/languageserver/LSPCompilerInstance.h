@@ -130,7 +130,9 @@ public:
 
     void ImportUsrPackage(const std::string &curModuleName);
 
-    void ImportUsrCjo(const std::string &curModuleName);
+    void ImportUsrCjo(const std::string &curModuleName, std::unordered_set<std::string> &visitedPackages);
+
+    void ImportAllUsrCjo(const std::string &curModuleName);
 
     virtual void ImportCjoToManager(
         const std::unique_ptr<ark::CjoManager> &cjoManager, const std::unique_ptr<ark::DependencyGraph> &graph);
