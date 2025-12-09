@@ -246,6 +246,11 @@ func testArgsCheck(unparseArgs: Array<String>, testConfig: TestConfig): (HashSet
     }
 
     for (val in unparseArgs) {
+        if (val.trimAscii().isEmpty()) {
+            eprintln("Error: invalid path '${val}' for 'cjpm test'")
+            checkFlag = false
+            continue
+        }
         match (deduceTestArgKind(val)) {
             case Long(option) =>
                 if (!customizedOptionCheck(option, "")) {
