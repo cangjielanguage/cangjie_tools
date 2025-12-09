@@ -52,15 +52,15 @@ public func deleteDirectory(dirPath: String): Bool {
 }
 
 public func createDirectory(dirPath: String): Bool {
-    if (!directoryExists(dirPath)) {
-        try {
-            synchronized(createDirectoryMtx) {
+    synchronized (createDirectoryMtx) {
+        if (!directoryExists(dirPath)) {
+            try {
                 Directory.create(dirPath, recursive: true)
+            } catch (e: Exception) {
+                eprintln(e.message)
+                eprintln("Error: failed to create the '${dirPath}' directory")
+                return false
             }
-        } catch (e: Exception) {
-            eprintln(e.message)
-            eprintln("Error: failed to create the '${dirPath}' directory")
-            return false
         }
     }
     return true
