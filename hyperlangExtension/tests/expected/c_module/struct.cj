@@ -54,6 +54,9 @@ public struct Point3D {
     }
 }
 
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* Point3D p */
+
 @C
 public struct people {
     public let a: person
@@ -72,9 +75,9 @@ public struct people {
 @C
 public struct S {
     public let a: VArray<Int32, $2>
-    public let b: VArray<Int32, $0>
+    public let b: CPointer<Int32>
 
-    public init(a: VArray<Int32, $2>, b: VArray<Int32, $0>) {
+    public init(a: VArray<Int32, $2>, b: CPointer<Int32>) {
         this.a = a
         this.b = b
     }
@@ -103,6 +106,9 @@ public struct teststruct {
         this.ui8 = ui8
     }
 }
+
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* teststruct struct1 = { 1 , 1 } */
 
 @C
 public struct _cjbind_ty_2 {

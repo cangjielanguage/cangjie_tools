@@ -100,6 +100,13 @@ main(args: Array<String>) {
         println("========Generate C to cangjie bindings Begins!========")
         let dir = Path(cla.outDir)
         println("The out dir is:" + dir.toString())
+
+        // check whether cjbind exists
+        if (!(exists(cla.bindingsPath) && FileInfo(cla.bindingsPath).isRegular())) {
+            println("Error: generation failed! cjbind file ${cla.bindingsPath} not exists, please download cjbind or build it first!")
+            return 1
+        }
+
         if (!cla.arkpath.isEmpty()) {
             generateCangjieBindingsForC(cla.cjModuleName, cla.arkpath, dir.toString())
         } else {
@@ -108,12 +115,6 @@ main(args: Array<String>) {
             getFiles(fileInfos, inputDir, inputType: InputType.C)
             if (fileInfos.isEmpty()) {
                 println("Error: generation failed! Not found .h file under ${cla.directoryPath}")
-                return 1
-            }
-
-            // check whether cjbind exists
-            if (!(exists(cla.bindingsPath) && FileInfo(cla.bindingsPath).isRegular())) {
-                println("Error: generation failed! cjbind file ${cla.bindingsPath} not exists, please download cjbind or build it first!")
                 return 1
             }
 

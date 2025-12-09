@@ -8,6 +8,9 @@ package my_module
 
 public const num: Int32 = 42
 
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* int * ptr = & num */
+
 public type callback_func = CFunc<(arg1: Int32, arg2: Int32) -> Int32>
 
 foreign func testPointer(a: Int32): CPointer<Unit>

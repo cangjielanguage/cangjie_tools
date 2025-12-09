@@ -10,11 +10,14 @@ foreign func add(a: Int32, b: Float32): Int32
 
 foreign func legacy_func(): Int32
 
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* int ( * noProtoPtr ) ( ) = & legacy_func */
+
 foreign func cfoo1(a: CPointer<Int32>): Unit
 
 foreign func cfoo2(a: VArray<Int32, $3>): Unit
 
-foreign func main_(argc: Int32, argv: VArray<CString, $0>): Int32
+foreign func main_(argc: Int32, argv: CPointer<CString>): Int32
 
 public type callback = CFunc<(arg1: Int32) -> Unit>
 
