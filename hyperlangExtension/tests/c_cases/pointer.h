@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-int num = 42;
+const int num = 42;
 int* ptr = &num;
 
 // float* floatPtr = nullptr;

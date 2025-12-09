@@ -5,3 +5,6 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 package my_module
+
+/*FIXME: Non-constant global variable details need to be verified and rewritten by user.*/
+/* float _Complex c_float */

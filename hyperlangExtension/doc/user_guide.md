@@ -29,22 +29,21 @@ The input of this tool is the interface declaration file of ArkTS or C language,
 You can use the following command to generate ArkTS to Cangjie binding code:
 
 ```sh
-main  -i  /path/to/test.d.ts  -o  out  –j  /path/to/analysis.js --module-name=ohos.hilog
+hle -i /path/to/test.d.ts -o out –j ${CANGJIE_HOME}/tools/dtsparser/analysis.js --module-name="my_module"
 ```
 
 In the Windows environment, the file directory currently does not support the symbol "\\", only "/" is supported.
-```sh
-main -i  /path/to/test.d.ts -o out -j /path/to/analysis.js --module-name=ohos.hilog
-```
 
-You can use the following command to generate C to Cangjie binding code:
+The command to generate C to Cangjie binding code is as follows:
 
 ```sh
-./target/bin/main -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
+hle -b ${CANGJIE_HOME}/tools/dtsparser/node_modules/.bin/cjbind -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
 ```
 
-The `-b` parameter is used to specify the path of the cjbind binary, with the default value being "./src/dtsparser/node_modules/.bin/cjbind". During [Build Preparation](./developer_guide.md#build-preparation), the cjbind binary will be downloaded to the "./src/dtsparser/node_modules/.bin/" directory. You can specify a different cjbind path by using the `-b` parameter. Here is an example command:
+The `-b` parameter is used to specify the path to the cjbind binary file. The cjbind download link is as follows:
 
-```sh
-./target/bin/main -b ./src/dtsparser/node_modules/.bin/cjbind -c --module-name="my_module" -d ./tests/c_cases -o ./tests/expected/c_module/ --clang-args="-I/usr/lib/llvm-20/lib/clang/20/include/"
-```
+- Linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-linux-x64'
+- Windows: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-windows-x64.exe'
+- MacOS: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-darwin-arm64'
+
+The `--clang-args` parameter is directly passed to clang, and the -I option can be used within its value to specify header file search paths. System header file paths are searched automatically by the program, while user-defined header file paths need to be explicitly specified.
