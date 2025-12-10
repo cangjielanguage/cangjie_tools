@@ -96,14 +96,7 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
 
     // diagToken.category is enhanced features of clangd, GetCategory(diagnostic.diagCategory) can get it
     std::string filePath = diag.GetSourceManager().GetSource(diagnostic.GetBegin().fileID).path;
-
-    // provider auto import quick fix
-    bool isRefactor = (!diagnostic.isRefactor && IMPORT_FIX_KIND.count(diagnostic.kind))
-        || (diagnostic.isRefactor && IMPORT_FIX_RKIND.count(diagnostic.rKind));
-    if (isRefactor) {
-        diagToken.diaFix->isAutoImport = true;
-    }
-    
+    CollectQuickFix(diagnostic, diagToken);
     // Add diagnostic details
     // If the position is incorrect, the error cause is located in the current position.
     std::vector<DiagnosticRelatedInformation> relatedInformation;
@@ -196,6 +189,20 @@ void LSPDiagObserver::DealMacroDiags(Cangjie::Diagnostic &diagnostic, const Diag
             callback->UpdateDiagnostic(subDiagPath, diagToken);
             return;
         }
+    }
+}
+
+void LSPDiagObserver::CollectQuickFix(Cangjie::Diagnostic &diagnostic, DiagnosticToken &diagToken)
+{
+    // provide add import quick fix
+    bool isRefactor = (!diagnostic.isRefactor && IMPORT_FIX_KIND.count(diagnostic.kind))
+        || (diagnostic.isRefactor && IMPORT_FIX_RKIND.count(diagnostic.rKind));
+    if (isRefactor) {
+        diagToken.diaFix->addImport = true;
+    }
+    // provide remove unused import quick fix
+    if (diagnostic.isRefactor && diagnostic.rKind == DiagKindRefactor::sema_unused_import) {
+        diagToken.diaFix->removeImport = true;
     }
 }
 } // namespace ark

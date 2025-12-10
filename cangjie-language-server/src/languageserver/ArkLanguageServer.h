@@ -154,10 +154,17 @@ private:
 
     void OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id);
 
-    void AutoImportQuickFixPrepare(DiagnosticToken &diagnostic, ArkAST *arkAst);
+    void AddDiagnosticQuickFix(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst, std::string file);
 
-    void AddAutoImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier, Ptr<const File> file,
+    void AddImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst);
+
+    void HandleAddImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier, Ptr<const File> file,
         Cangjie::ImportManager *importManager);
+
+    void RemoveImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri);
+
+    void RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst,
+        const std::string &uri);
 
     void HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
         const lsp::Symbol &sym, Range textEditRange, const std::string &uri);
@@ -168,7 +175,7 @@ private:
 
     void OnCommandApplyTweak(const TweakArgs &,  nlohmann::json id);
 
-    void AddAllImportCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string& uri);
+    void ImportAllSymsCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string &uri);
 
     bool NeedCollect2AllImport(const DiagnosticToken &diagnostic);
 

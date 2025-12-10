@@ -67,6 +67,10 @@ struct TextEdit {
     {
         return std::tie(this->range, this->newText) < std::tie(rhs.range, rhs.newText);
     }
+
+    bool operator==(const TextEdit &other) const {
+        return this->range == other.range && this->newText == other.newText;
+    }
 };
 
 struct CompletionItem {
