@@ -97,6 +97,7 @@ func deserializePackage(dm: DataModel): Package {
 public class PackageConfiguration <: Serializable<PackageConfiguration> {
     public var outputType: OutputType = Unknown("")
     public var compileOption: String = ""
+    public var combineAllDeps: Bool = false
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -111,6 +112,7 @@ public class PackageConfiguration <: Serializable<PackageConfiguration> {
         var result = PackageConfiguration()
         result.outputType = OutputType.deserialize((dms.get(OUTPUT_TYPE) as DataModelString) ?? DataModelString(""))
         result.compileOption = String.deserialize((dms.get(COMPILE_OPTION) as DataModelString) ?? DataModelString(""))
+        result.combineAllDeps = Bool.deserialize((dms.get("combine-all-deps") as DataModelBool) ?? DataModelBool(false))
         return result
     }
 }

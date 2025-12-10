@@ -52,6 +52,11 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
         return (dm, false, mockUsed)
     }
 
+    if (globalConfig.isProjectCombine) {
+        dm.readyPkgs.removeIf {v => v == globalConfig.rootName}
+        dm.readyPkgs.add(globalConfig.rootName)
+    }
+
     // Check parent-child package accessLevel.
     if (!checkAccessLevel(dm)) {
         return (dm, false, mockUsed)
@@ -72,9 +77,9 @@ func dealWithSuperPkg(dm: DepModel): Unit {
             notSupportSet.add(superPkgName)
             continue
         }
-        if (isCombinedForMac()) {
-            println("Warning: field 'profile.build.combined' is not supported on macOS, " +
-                "so output targeted for macOS of module '${superPkgName}' will not be combined")
+        if (!isSupportCombine()) {
+            println("Warning: field 'profile.build.combined' only supports 'Linux/OHOS/Windows', " +
+                "so output targeted for module '${superPkgName}' will not be combined")
             notSupportSet.add(superPkgName)
             continue
         }
@@ -158,14 +163,4 @@ func checkParentChildPkg(parentPkg: String, parentLevel: String, subPkg: String,
     }
 
     return true
-}
-
-@When[os == "macOS"]
-func isCombinedForMac(): Bool {
-    return crossCompileTarget.isEmpty() || crossCompileTarget.contains("darwin")
-}
-
-@When[os != "macOS"]
-func isCombinedForMac(): Bool {
-    return crossCompileTarget.contains("darwin")
 }

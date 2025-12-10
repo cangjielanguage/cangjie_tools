@@ -169,7 +169,6 @@ public func makeCangjieStaticlibName(file: String): String {
     return "lib" + file + ".a"
 }
 
-@When[os == "Linux"]
 public func makeLtoName(file: String): String {
     return file + ".bc"
 }
