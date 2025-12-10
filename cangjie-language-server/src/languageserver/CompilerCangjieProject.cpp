@@ -1509,7 +1509,6 @@ void CompilerCangjieProject::ReportCombinedCycles()
             callback->UpdateDiagnostic(filePath, dt);
         }
     }
-
 }
 
 void CompilerCangjieProject::EmitDiagsOfFile(const std::string &filePath)
