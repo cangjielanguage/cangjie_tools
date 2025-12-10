@@ -28,8 +28,15 @@ void PackageSpecFormatter::AddPackageSpec(Doc& doc, const Cangjie::AST::PackageS
         doc.members.emplace_back(DocType::STRING, level, "macro ");
     }
 
-    const auto prefix = Utils::JoinStrings(packageSpec.prefixPaths, ".");
+    auto prefix = Utils::JoinStrings(packageSpec.prefixPaths, ".");
+    auto prefixResult = prefix + ".";
+    if (packageSpec.hasDoubleColon) {
+        size_t firstDotPos = prefixResult.find('.');
+        if (firstDotPos != std::string::npos) {
+            prefixResult.replace(firstDotPos, 1, "::");
+        }
+    }
     doc.members.emplace_back(DocType::STRING, level,
-        prefix.empty() ? "package " + packageSpec.packageName : "package " + prefix + "." + packageSpec.packageName);
+        prefix.empty() ? "package " + packageSpec.packageName : "package " + prefixResult + packageSpec.packageName);
 }
 } // namespace Cangjie::Format

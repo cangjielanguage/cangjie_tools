@@ -36,7 +36,14 @@ void ImportSpecFormatter::AddImportSpec(Doc& doc, const Cangjie::AST::ImportSpec
     }
 
     if (auto prefix = Utils::JoinStrings(ic.prefixPaths, "."); !prefix.empty()) {
-        doc.members.emplace_back(DocType::STRING, level, prefix + ".");
+        auto prefixResult = prefix + ".";
+        if (ic.hasDoubleColon) {
+            size_t firstDotPos = prefixResult.find('.');
+            if (firstDotPos != std::string::npos) {
+                prefixResult.replace(firstDotPos, 1, "::");
+            }
+        }
+        doc.members.emplace_back(DocType::STRING, level, prefixResult);
     }
     if (ic.leftCurlPos != INVALID_POSITION) {
         doc.members.emplace_back(DocType::STRING, level, "{");
@@ -64,8 +71,15 @@ void ImportSpecFormatter::AddImportContent(Doc& doc, const Cangjie::AST::ImportC
         return;
     }
     auto prefix = Utils::JoinStrings(content.prefixPaths, ".");
+    auto prefixResult = prefix + ".";
+    if (content.hasDoubleColon) {
+        size_t firstDotPos = prefixResult.find('.');
+        if (firstDotPos != std::string::npos) {
+            prefixResult.replace(firstDotPos, 1, "::");
+        }
+    }
     doc.members.emplace_back(
-        DocType::STRING, level, prefix.empty() ? content.identifier : prefix + "." + content.identifier);
+    DocType::STRING, level, prefix.empty() ? content.identifier : prefixResult + content.identifier);
     if (content.kind == ImportKind::IMPORT_ALIAS) {
         doc.members.emplace_back(DocType::STRING, level, " as ");
         if (!content.aliasName.Val().empty()) {
