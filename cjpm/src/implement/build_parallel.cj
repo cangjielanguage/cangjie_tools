@@ -87,16 +87,24 @@ class ParallelBuilder {
             let task = this.taskMap[pkgName]
             let future = spawn {
                 =>
-                for (dep in task.requirePkgs) {
-                    if (!this.checkDepFuture(dep, task, futTasks, sem)) {
-                        return false
+                if (this.buildConfig.globalConfig.isProjectCombine && pkgName == buildConfig.globalConfig.rootName) {
+                    for ((k,_) in this.taskMap) {
+                        if (k != pkgName && !this.checkDepFuture(k, task, futTasks, sem)) {
+                            return false
+                        }
                     }
-                }
-
-                if (let Some(superPkgCfg) <- task.superPkgCfg) {
-                    for (dep in superPkgCfg.subPkgSet) {
+                } else {
+                    for (dep in task.requirePkgs) {
                         if (!this.checkDepFuture(dep, task, futTasks, sem)) {
                             return false
+                        }
+                    }
+
+                    if (let Some(superPkgCfg) <- task.superPkgCfg) {
+                        for (dep in superPkgCfg.subPkgSet) {
+                            if (!this.checkDepFuture(dep, task, futTasks, sem)) {
+                                return false
+                            }
                         }
                     }
                 }

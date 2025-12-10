@@ -6,12 +6,23 @@
 
 package cjpm.implement
 
-@When[os == "Linux"]
+import cjpm.config.*
+
 func supportLto(): Bool {
-    return true
+    if (crossCompileTarget.isEmpty()) {
+        return targetConfigName.contains("linux") && !targetConfigName.contains("android")
+    }
+    return crossCompileTarget.contains("linux") && !crossCompileTarget.contains("android")
 }
 
-@When[os != "Linux"]
-func supportLto(): Bool {
-    return false
+func isSupportCombine(): Bool {
+    let compileTarget = if (crossCompileTarget.isEmpty()) {
+            targetConfigName
+        } else {
+            crossCompileTarget
+        }
+    let isTargetLinux = compileTarget.contains("linux")
+    let isTargetAndroid = compileTarget.contains("android")
+    let isTargetWindows = compileTarget.contains("windows") || compileTarget.contains("w64")
+    return ((isTargetLinux && !isTargetAndroid) || isTargetWindows)
 }
