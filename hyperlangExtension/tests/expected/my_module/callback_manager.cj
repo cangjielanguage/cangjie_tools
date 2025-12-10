@@ -7,6 +7,7 @@ package my_module
 
 import std.sync.ReentrantMutex
 import std.collection.{HashMap, ArrayList}
+import ohos.callback_invoke.CallbackObject
 
 protected class CallbackManager<K, V> where K <: Hashable & Equatable<K> {
     let callbackMap: HashMap<K, ArrayList<(CallbackObject, V)>>

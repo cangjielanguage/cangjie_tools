@@ -58,7 +58,7 @@ public class A2CJ {
 
         mtx.lock()
         generateTemplateFile("${outSrcDir}/ark_api_call_async.cj", createArkAPICallAsync(gconfig))
-        generateTemplateFile("${outSrcDir}/basic_service_kit.cj", createBasicServiceKit(gconfig))
+        generateTemplateFile("${outSrcDir}/business_exception.cj", createBusinessExceptioinKit(gconfig))
         generateTemplateFile("${outSrcDir}/callback_manager.cj", createCallbackManager(gconfig))
         mtx.unlock()
     }
