@@ -831,7 +831,8 @@ bool ToJSON(const CodeAction &params, nlohmann::json &reply)
     return true;
 }
 
-const std::string CodeAction::QUICKFIX_KIND = "quickfix";
+const std::string CodeAction::QUICKFIX_ADD_IMPORT = "quickfix.addImport";
+const std::string CodeAction::QUICKFIX_REMOVE_IMPORT = "quickfix.removeImport";
 const std::string CodeAction::REFACTOR_KIND = "refactor";
 const std::string CodeAction::INFO_KIND = "info";
 const std::string Command::APPLY_EDIT_COMMAND = "cjLsp.applyTweak";
