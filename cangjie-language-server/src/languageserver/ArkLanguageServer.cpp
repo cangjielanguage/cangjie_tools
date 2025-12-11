@@ -1205,18 +1205,15 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
     }
     notification.uri.file = URI::URIFromAbsolutePath(file).ToString();
     ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(file);
+    if (MessageHeaderEndOfLine::GetIsDeveco()) {
+        AddDiagnosticQuickFix(diagnostics, arkAst, file);
+    }
     for (auto &diagnostic: diagnostics) {
         diagnostic.range = TransformFromIDE2Char(diagnostic.range);
         if (arkAst != nullptr) {
             UpdateRange(arkAst->tokens, diagnostic.range, *arkAst->file, false);
         }
         diagnostic.range = TransformFromChar2IDE(diagnostic.range);
-        if (MessageHeaderEndOfLine::GetIsDeveco()) {
-            AutoImportQuickFixPrepare(diagnostic, arkAst);
-        }
-    }
-    if (arkAst && arkAst->file) {
-        AddAllImportCodeAction(diagnostics, URI::URIFromAbsolutePath(file).ToString());
     }
 
     notification.diagnostics = std::move(diagnostics);
@@ -1225,7 +1222,29 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
     PublishDiagnostics(notification);
 }
 
-void ArkLanguageServer::AddAllImportCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string& uri)
+void ArkLanguageServer::AddDiagnosticQuickFix(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst,
+    std::string file)
+{
+    if (!arkAst) {
+        return;
+    }
+    const std::string uri = URI::URIFromAbsolutePath(file).ToString();
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value()) {
+            continue;
+        }
+        if (diagnostic.diaFix->addImport) {
+            AddImportQuickFix(diagnostic, arkAst);
+        }
+        if (diagnostic.diaFix->removeImport) {
+            RemoveImportQuickFix(diagnostic, arkAst, uri);
+        }
+    }
+    ImportAllSymsCodeAction(diagnostics, uri);
+    RemoveAllUnusedImportsCodeAction(diagnostics, arkAst, uri);
+}
+
+void ArkLanguageServer::ImportAllSymsCodeAction(std::vector<DiagnosticToken> &diagnostics, const std::string &uri)
 {
     if (diagnostics.empty()) {
         return;
@@ -1253,8 +1272,8 @@ void ArkLanguageServer::AddAllImportCodeAction(std::vector<DiagnosticToken> &dia
             continue;
         }
         CodeAction allImportCA;
-        allImportCA.kind = "fix auto import";
-        allImportCA.title = "import all packages";
+        allImportCA.kind = CodeAction::QUICKFIX_ADD_IMPORT;
+        allImportCA.title = "import all symbols";
         WorkspaceEdit edit;
         std::set<TextEdit> textEdits;
         for (const auto &ca : allImports) {
@@ -1285,7 +1304,7 @@ bool ArkLanguageServer::NeedCollect2AllImport(const DiagnosticToken &diagnostic)
     }
     int quickFixCount = 0;
     for (const auto &codeAction : diagnostic.codeActions.value()) {
-        if (codeAction.kind == "fix auto import") {
+        if (codeAction.kind == CodeAction::QUICKFIX_ADD_IMPORT) {
             quickFixCount++;
         }
     }
@@ -1296,7 +1315,7 @@ void ArkLanguageServer::CollectCA2AllImport(std::vector<CodeAction> &allImports,
     const std::vector<CodeAction> &codeActions)
 {
     for (const auto &codeAction : codeActions) {
-        if (codeAction.kind == "fix auto import") {
+        if (codeAction.kind == CodeAction::QUICKFIX_ADD_IMPORT) {
             allImports.push_back(codeAction);
             break;
         }
@@ -1371,23 +1390,17 @@ void ArkLanguageServer::OnDocumentSymbol(const DocumentSymbolParams &params, nlo
     Server->FindDocumentSymbol(params, reply);
 }
 
-void ArkLanguageServer::AutoImportQuickFixPrepare(DiagnosticToken &diagnostic, ArkAST *arkAst)
+void ArkLanguageServer::AddImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst)
 {
-    if (!arkAst || !(diagnostic.diaFix.has_value() && diagnostic.diaFix->isAutoImport)) {
-        return;
-    }
-    Position diagPos = PosFromIDE2Char(diagnostic.range.start);
-    int index = arkAst->GetCurTokenByPos(diagPos, 0,
-        static_cast<int>(arkAst->tokens.size()) - 1);
     std::string identifier = GetSubStrBetweenSingleQuote(diagnostic.message);
     if (identifier.empty() || !arkAst->packageInstance) {
         return;
     }
-    AddAutoImportQuickFix(
+    HandleAddImportQuickFix(
         diagnostic, identifier, arkAst->file, &arkAst->packageInstance->importManager);
 }
 
-void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier,
+void ArkLanguageServer::HandleAddImportQuickFix(DiagnosticToken &diagnostic, const std::string& identifier,
     Ptr<const File> file, Cangjie::ImportManager *importManager)
 {
     auto index = CompilerCangjieProject::GetInstance()->GetIndex();
@@ -1432,7 +1445,7 @@ void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const
                 return;
             }
             CodeAction codeAction;
-            codeAction.kind = "fix auto import";
+            codeAction.kind = CodeAction::QUICKFIX_ADD_IMPORT;
             codeAction.title = "import " + pkg + "." + sym.name;
             WorkspaceEdit edit;
             ark::TextEdit textEdit;
@@ -1445,12 +1458,147 @@ void ArkLanguageServer::AddAutoImportQuickFix(DiagnosticToken &diagnostic, const
     diagnostic.codeActions = actions;
 }
 
+void ArkLanguageServer::RemoveImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri)
+{
+    if (!arkAst->file) {
+        return;
+    }
+    Range removeRange = TransformFromIDE2Char(diagnostic.range);
+    // check unused import whether is inside multi-import, if yes remove this symbol and the comma that follow it.
+    for (auto &importSpec : arkAst->file->imports) {
+        if (!importSpec || importSpec->end.IsZero() || importSpec.get()->content.kind != ImportKind::IMPORT_MULTI) {
+            continue;
+        }
+        if (!(importSpec->begin <= removeRange.start && importSpec->end >= removeRange.end)) {
+            continue;
+        }
+        // remove entire multi-import if have only symbol inside multi-import
+        if (importSpec->content.items.size() == 1) {
+            Position multiImportEnd = importSpec->content.rightCurlPos;
+            multiImportEnd.column++;
+            removeRange = {importSpec->begin, multiImportEnd};
+            break;
+        }
+        auto commaPoses = importSpec->content.commaPoses;
+        for (const auto &commaPos: commaPoses) {
+            if (commaPos >= removeRange.end) {
+                removeRange.end = commaPos;
+                removeRange.end.column++;
+                break;
+            }
+        }
+        break;
+    }
+    std::string diagMessage = diagnostic.message.substr(0, diagnostic.message.find_first_of(','));
+    CodeAction codeAction;
+    codeAction.kind = CodeAction::QUICKFIX_REMOVE_IMPORT;
+    codeAction.title = "Remove " + diagMessage;
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    textEdit.range = TransformFromChar2IDE(removeRange);
+    textEdit.newText = "";
+    edit.changes[uri].push_back(textEdit);
+    codeAction.edit = edit;
+    if (diagnostic.codeActions.has_value()) {
+        diagnostic.codeActions.value().push_back(codeAction);
+    } else {
+        diagnostic.codeActions = {codeAction};
+    }
+}
+
+void ArkLanguageServer::RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst,
+    const std::string &uri)
+{
+    if (!arkAst->file) {
+        return;
+    }
+    int unusedImportCount = 0;
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+            continue;
+        }
+        unusedImportCount++;
+    }
+    if (unusedImportCount <= 1) {
+        return;
+    }
+    std::map<Range, std::pair<int, int>> multiImportMap;
+    for (auto &importSpec : arkAst->file->imports) {
+        if (!importSpec || importSpec->end.IsZero() || importSpec.get()->content.kind != ImportKind::IMPORT_MULTI) {
+            continue;
+        }
+        Position multiImportEnd = importSpec->content.rightCurlPos;
+        multiImportEnd.column++;
+        Range multiImportRange = {importSpec->begin, multiImportEnd};
+        multiImportMap[multiImportRange] = {importSpec->content.items.size(), 0};
+    }
+    CodeAction allUnusedImportCA;
+    allUnusedImportCA.kind = CodeAction::QUICKFIX_REMOVE_IMPORT;
+    allUnusedImportCA.title = "Remove all unused imports";
+    WorkspaceEdit edit;
+    std::set<Range> removeMultiImports;
+    std::map<Range, std::vector<TextEdit>> multiImport2TextEdit;
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+            continue;
+        }
+        TextEdit textEdit;
+        for (auto &ca : diagnostic.codeActions.value()) {
+            if (ca.kind == CodeAction::QUICKFIX_REMOVE_IMPORT && ca.edit.has_value()
+                && !ca.edit.value().changes[uri].empty()) {
+                edit.changes[uri].push_back(ca.edit->changes[uri][0]);
+                textEdit = ca.edit->changes[uri][0];
+                break;
+            }
+        }
+        if (textEdit.range.end.IsZero()) {
+            continue;
+        }
+        for (auto &multiImport : multiImportMap) {
+            Range diagRange = TransformFromIDE2Char(diagnostic.range);
+            if (!(multiImport.first.start <= diagRange.start && multiImport.first.end >= diagRange.end)) {
+                continue;
+            }
+            multiImport2TextEdit[multiImport.first].push_back(textEdit);
+            multiImportMap[multiImport.first] = {multiImport.second.first, multiImport.second.second + 1};
+            if (multiImport.second.first == multiImport.second.second) {
+                removeMultiImports.insert(multiImport.first);
+            }
+        }
+    }
+    allUnusedImportCA.edit = edit;
+    if (!allUnusedImportCA.edit.has_value() || allUnusedImportCA.edit.value().changes[uri].empty()) {
+        return;
+    }
+    for (auto &removeMultiImport : removeMultiImports) {
+        if (multiImport2TextEdit.find(removeMultiImport) == multiImport2TextEdit.end()) {
+            continue;
+        }
+        auto textEdits = multiImport2TextEdit[removeMultiImport];
+        allUnusedImportCA.edit.value().changes[uri].erase(
+            std::remove_if(allUnusedImportCA.edit.value().changes[uri].begin(),
+                allUnusedImportCA.edit.value().changes[uri].end(), [textEdits](const TextEdit &textEdit) {
+                return std::find(textEdits.begin(), textEdits.end(), textEdit) != textEdits.end();
+            }), allUnusedImportCA.edit.value().changes[uri].end());
+        TextEdit textEdit;
+        textEdit.range = TransformFromChar2IDE(removeMultiImport);
+        textEdit.newText = "";
+        allUnusedImportCA.edit.value().changes[uri].push_back(textEdit);
+    }
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+            continue;
+        }
+        diagnostic.codeActions.value().push_back(allUnusedImportCA);
+    }
+}
+
 void ArkLanguageServer::HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
     const lsp::Symbol &sym, Range textEditRange, const std::string &uri)
 {
     if (sym.name == "Interop" && pkg == "ohos.ark_interop_macro") {
         CodeAction codeAction;
-        codeAction.kind = "fix auto import";
+        codeAction.kind = CodeAction::QUICKFIX_ADD_IMPORT;
         codeAction.title = "import " + pkg + "." + sym.name;
         WorkspaceEdit edit;
         ark::TextEdit textEdit;
