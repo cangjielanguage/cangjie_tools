@@ -67,6 +67,9 @@ void StructuralRuleGVAR02::CollectVarDeclMap(Ptr<Node> node, size_t level)
                 varDeclMap[var].insert(realscopeName);
             }
         }
+        if (node->astKind == ASTKind::INTERPOLATION_EXPR) {
+            return VisitAction::SKIP_CHILDREN;
+        }
         if (node->astKind == ASTKind::IF_EXPR) {
             auto ie = As<ASTKind::IF_EXPR>(node);
             CollectVarDeclMap(ie->condExpr, FIRST_LEVEL);
