@@ -1156,7 +1156,7 @@ void DotCompleterByParse::CompleteFromType(const std::string &identifier,
     // dot completion for primitive type
     // eg: let a = Int64.parse("1")
     //     let b = a.toString()
-    if (type->IsPrimitive() || type->IsPointer()) {
+    if (type->IsPrimitive() || type->IsPointer() || type->IsCString()) {
         CompleteBuiltInType(type, env);
     }
 }
