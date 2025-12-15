@@ -6,10 +6,10 @@
 
 ## Usage Instructions
 
-Execute the `cjpm -h` command to view the package manager's usage instructions as shown below.
+Execute the `cjpm -h` command to view the project manager's usage instructions as shown below.
 
 ```text
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]

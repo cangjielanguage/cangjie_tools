@@ -20,10 +20,13 @@ import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 import cjpm.config.*
 
+const CONNECT_TIMEOUT = 30
+const READ_TIMEOUT = 60
+
 let tcpSocketConnector = {
     sa: SocketAddress =>
         let socket = TcpSocket(sa)
-        socket.connect(timeout: Duration.second * 3)
+        socket.connect(timeout: Duration.second * CONNECT_TIMEOUT)
         return socket
 }
 
@@ -81,7 +84,12 @@ public class Depot {
         // building client
         var tlsConfig = TlsClientConfig()
         tlsConfig.verifyMode = TrustAll
-        let client = ClientBuilder().connector(tcpSocketConnector).noProxy().tlsConfig(tlsConfig).build()
+        let client = ClientBuilder().
+            connector(tcpSocketConnector).
+            noProxy().
+            readTimeout(Duration.second * READ_TIMEOUT).
+            tlsConfig(tlsConfig).
+            build()
 
         // building https request
         var body = ByteBuffer()
@@ -119,7 +127,12 @@ public class Depot {
         // building client
         var tlsConfig = TlsClientConfig()
         tlsConfig.verifyMode = TrustAll
-        let client = ClientBuilder().connector(tcpSocketConnector).noProxy().tlsConfig(tlsConfig).build()
+        let client = ClientBuilder().
+            connector(tcpSocketConnector).
+            noProxy().
+            readTimeout(Duration.second * READ_TIMEOUT).
+            tlsConfig(tlsConfig).
+            build()
 
         // building https request
         let request = HttpRequestBuilder().method("GET").url(downloadUrl).build()
@@ -224,7 +237,12 @@ public class Depot {
         // building client
         var tlsConfig = TlsClientConfig()
         tlsConfig.verifyMode = TrustAll
-        let client = ClientBuilder().connector(tcpSocketConnector).noProxy().tlsConfig(tlsConfig).build()
+        let client = ClientBuilder().
+            connector(tcpSocketConnector).
+            noProxy().
+            readTimeout(Duration.second * READ_TIMEOUT).
+            tlsConfig(tlsConfig).
+            build()
 
         // building https request
         let request = HttpRequestBuilder().method("GET").url(indexUrl).build()
