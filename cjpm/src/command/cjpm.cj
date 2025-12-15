@@ -10,7 +10,7 @@ import std.collection.*
 import cjpm.implement.*
 
 public let CJPM_USAGE: String = """
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]
@@ -66,7 +66,7 @@ public open class Handle {
 
 // CpmCommand represents the base command when called without any subcommands
 class CpmCommand <: Handle {
-    private let CJPM_VERSION: String = "Cangjie Package Manager: 1.1.0-alpha.50"
+    private let CJPM_VERSION: String = "Cangjie Project Manager: 1.1.0-alpha.50"
 
     init(args: Array<String>) {
         this.arguments = args
