@@ -149,7 +149,7 @@ Additionally, `build.py` provides the following extra functionalities:
 Executing `cjpm -h` displays the command list for `cjpm`, as shown below:
 
 ```text
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]
@@ -300,4 +300,4 @@ Key configuration fields:
 
 In addition to the aforementioned commands and configuration items, `cjpm` also supports other features such as build scripts, command extensions, etc.
 
-For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Package Manager User Guide》](./user_guide.md).
+For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Project Manager User Guide》](./user_guide.md).
