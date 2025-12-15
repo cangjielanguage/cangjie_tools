@@ -11,6 +11,7 @@ import std.process.*
 import std.fs.*
 import std.collection.*
 import std.argopt.*
+import std.io.*
 
 func getArgValue(argMap: HashMap<String, String>, longOpt: String, shortOpt: String): String {
     if (argMap.contains(longOpt)) {
@@ -98,15 +99,18 @@ public func getParseOption(sysArgs: Array<String>): HashMap<String, String> {
 public func subprocessCallWithOutput(exeTool: String, arguments: ArrayList<String>, workingDirectory!: ?Path = None): (Bool, 
     String, String) {
     var returnCode: Int64
-    var outInfo = Array<UInt8>()
-    var errInfo = Array<UInt8>()
+    var outInfo: String = ""
+    var errInfo: String = ""
     try {
-        (returnCode, outInfo, errInfo) = Process.runOutput(exeTool, arguments.toArray(),
-            workingDirectory: workingDirectory, stdOut: ProcessRedirect.Pipe, stdErr: ProcessRedirect.Pipe)
-        return (returnCode == 0, String.fromUtf8(outInfo), String.fromUtf8(errInfo))
+        let subProcess = launch(exeTool, arguments.toArray(), workingDirectory: workingDirectory, stdOut: ProcessRedirect.Pipe,
+            stdErr: ProcessRedirect.Pipe)
+        outInfo = StringReader(subProcess.stdOutPipe).readToEnd()
+        errInfo = StringReader(subProcess.stdErrPipe).readToEnd()
+        returnCode = subProcess.wait()
+        return (returnCode == 0, outInfo, errInfo)
     } catch (e: Exception) {
-        eprintln(e.message)
-        return (false, String.fromUtf8(outInfo), String.fromUtf8(errInfo))
+        eprintln(e.toString())
+        return (false, outInfo, errInfo)
     }
 }
 
