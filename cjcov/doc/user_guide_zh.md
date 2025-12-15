@@ -99,7 +99,7 @@ output
 
 #### 多文件场景
 
-对于多文件场景，推荐使用包管理工具的命令`cjpm build --coverage` 或 `cjpm test --coverage` ，具体用法请参见[包管理工具](./cjpm_manual.md)。
+对于多文件场景，推荐使用项目管理工具的命令`cjpm build --coverage` 或 `cjpm test --coverage` ，具体用法请参见[项目管理工具](./cjpm_manual.md)。
 
 ## 命令说明
 
