@@ -269,13 +269,7 @@ void CompletionImpl::FasterComplete(
     // Import Spec: import pkg.[item]
     // Fully qualified Type: xxx.[item]
     if (prefix == ".") {
-        int possibleChainedBegin = GetChainedPossibleBegin(input, firstTokIdxInLine);
-        auto chainedName = GetChainedNameComplex(input, possibleChainedBegin, index - 1);
-        auto curLineTokens = GetLineTokens(input.tokens, pos.line);
-        if (IsMultiImport(curLineTokens)) {
-            chainedName = chainedName.empty() ? GetMultiImportPrefix(curLineTokens)
-                                              : GetMultiImportPrefix(curLineTokens) + CONSTANTS::DOT + chainedName;
-        }
+        auto chainedName = GetChainedName(input, pos, index, firstTokIdxInLine);
         dotCompleter.Complete(input, pos, chainedName);
         return;
     }
@@ -313,6 +307,19 @@ void CompletionImpl::FasterComplete(
 
     // Completion action implement by NormalCompleter.
     NormalParseImpl(input, pos, result, index, prefix);
+}
+
+std::string CompletionImpl::GetChainedName(const ArkAST &input, const Cangjie::Position &pos,
+                                            int index, int firstTokIdxInLine)
+{
+    int possibleChainedBegin = GetChainedPossibleBegin(input, firstTokIdxInLine);
+    auto chainedName = GetChainedNameComplex(input, possibleChainedBegin, index - 1);
+    auto curLineTokens = GetLineTokens(input.tokens, pos.line);
+    if (IsMultiImport(curLineTokens)) {
+        chainedName = chainedName.empty() ? GetMultiImportPrefix(curLineTokens)
+                                            : GetMultiImportPrefix(curLineTokens) + CONSTANTS::DOT + chainedName;
+    }
+    return chainedName;
 }
 
 void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix)
@@ -429,44 +436,9 @@ void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &resu
 void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cangjie::Position &pos,
                                             ark::CompletionResult &result, int index, const std::string &prefix)
 {
-    // 1. Must have semantic cache
-    if (!input.semaCache) {
-        return;
-    }
-
-    // 2. Backtrack to find the current function call's left parenthesis '('
-    int balance = 0;
     int lparenIndex = -1;
-
-    // Start scanning from the previous token of the current token
-    int startIndex = index - 1;
-    if (startIndex < 0) {
+    if (!CheckNamedParameter(input, index, lparenIndex)) {
         return;
-    }
-
-    for (int i = startIndex; i >= 0; --i) {
-        auto kind = input.tokens[i].kind;
-        if (kind == Cangjie::TokenKind::RPAREN || kind == Cangjie::TokenKind::RSQUARE || kind == Cangjie::TokenKind::RCURL) {
-            balance++;
-        } else if (kind == Cangjie::TokenKind::LPAREN || kind == Cangjie::TokenKind::LSQUARE || kind == Cangjie::TokenKind::LCURL) {
-            if (balance > 0) {
-                balance--;
-            } else if (kind == Cangjie::TokenKind::LPAREN) {
-                // Found the left parenthesis of the current level
-                lparenIndex = i;
-                break;
-            } else {
-                // Found other opening brackets, stop
-                return;
-            }
-        } else if (kind == Cangjie::TokenKind::SEMI) {
-            // Encountered semicolon, exceeded function call scope
-            return;
-        }
-    }
-
-    if (lparenIndex <= 0) {
-        return; // Not found or left parenthesis is the first token
     }
 
     // 3. Get all overloads of the function
@@ -540,6 +512,49 @@ void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cang
 
         GenerateNamedArgumentCompletion(result, prefix, usedNamedParams, positionalsUsed, suggestedParamNames, paramLists, paramIndex);
     }
+}
+
+bool CompletionImpl::CheckNamedParameter(const ark::ArkAST &input, const int index, int &lparenIndex)
+{
+    // 1. Must have semantic cache
+    if (!input.semaCache) {
+        return false;
+    }
+
+    // 2. Backtrack to find the current function call's left parenthesis '('
+    int balance = 0;
+
+    // Start scanning from the previous token of the current token
+    int startIndex = index - 1;
+    if (startIndex < 0) {
+        return false;
+    }
+
+    for (int i = startIndex; i >= 0; --i) {
+        auto kind = input.tokens[i].kind;
+        if (kind == Cangjie::TokenKind::RPAREN || kind == Cangjie::TokenKind::RSQUARE || kind == Cangjie::TokenKind::RCURL) {
+            balance++;
+        } else if (kind == Cangjie::TokenKind::LPAREN || kind == Cangjie::TokenKind::LSQUARE || kind == Cangjie::TokenKind::LCURL) {
+            if (balance > 0) {
+                balance--;
+            } else if (kind == Cangjie::TokenKind::LPAREN) {
+                // Found the left parenthesis of the current level
+                lparenIndex = i;
+                break;
+            } else {
+                // Found other opening brackets, stop
+                return false;
+            }
+        } else if (kind == Cangjie::TokenKind::SEMI) {
+            // Encountered semicolon, exceeded function call scope
+            return false;
+        }
+    }
+
+    if (lparenIndex <= 0) {
+        return false; // Not found or left parenthesis is the first token
+    }
+    return true;
 }
 
 void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg,
