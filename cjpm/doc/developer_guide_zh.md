@@ -15,7 +15,7 @@
 - 项目测试：`cjpm` 支持编译项目中的测试代码并运行单元测试，`cjpm` 支持运行单包测试，也支持模块级的测试。
 - 编译器对接模块：用于与仓颉编译器交互的模块，实现了命令式编译器调用和调用结果转发。
 
-注意，`cjpm` 是仓颉项目的包管理工具，它的产物类型是静态库、动态库和可执行二进制。如需完成 OpenHarmony 的 HAP/APP 构建打包，还需要配合 DevEco Studio 提供的 `DevEco Hvigor` 工具使用。
+注意，`cjpm` 是仓颉项目的项目管理工具，它的产物类型是静态库、动态库和可执行二进制。如需完成 OpenHarmony 的 HAP/APP 构建打包，还需要配合 DevEco Studio 提供的 `DevEco Hvigor` 工具使用。
 
 ## 目录
 
@@ -151,7 +151,7 @@ cjpm/target/x86_64-w64-mingw32/release/bin
 执行 `cjpm -h` 后，会打印 `cjpm` 的命令列表，如下所示：
 
 ```text
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]
@@ -325,4 +325,4 @@ Use "cjpm [subcommand] --help" for more information about a command.
 
 除了上述命令和配置项之外，`cjpm` 还支持一些其他功能，例如构建脚本、命令扩展等。
 
-若想获取 `cjpm` 所有命令、配置项和附加功能的详细信息，请参阅[《仓颉包管理工具用户指南》](./user_guide_zh.md)。
+若想获取 `cjpm` 所有命令、配置项和附加功能的详细信息，请参阅[《仓颉项目管理工具用户指南》](./user_guide_zh.md)。
