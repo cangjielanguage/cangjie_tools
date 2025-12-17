@@ -6,10 +6,10 @@
 
 ## 使用说明
 
-执行 `cjpm -h` 命令，查阅包管理工具的使用说明，如下所示。
+执行 `cjpm -h` 命令，查阅项目管理工具的使用说明，如下所示。
 
 ```text
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]
