@@ -498,34 +498,59 @@ public struct TaskIdentifier {
 public struct PackageList {
     private let packages: Array<ResolveItem>
 
+    public let all: Array<String>
+    public let allIds: Array<TaskIdentifier>
+    public let macros: Array<String>
+    public let dylib: Array<String>
+    public let exe: Array<String>
+    public let test: Array<String>
+    public let productSuffixes: ReadOnlyMap<String, String>
+
     public init(packages: Iterable<ResolveItem>) {
         this.packages = packages |> collectArray
+
+        let capacity = this.packages.size
+        let all = ArrayList<String>(capacity)
+        let allIds = ArrayList<TaskIdentifier>(4 * capacity)
+        let dylib = ArrayList<String>(capacity)
+        let macros = ArrayList<String>(capacity)
+        let exe = ArrayList<String>(capacity)
+        let test = ArrayList<String>(capacity)
+
+        for (pkg in this.packages) {
+            let name = pkg.fullName
+            all.add(name)
+
+            for (source in pkg.packagePath._sources) {
+                let sourceSetDir = if (!source.product) { source.outputSuffix.toString() } else { "" }
+                allIds.add(TaskIdentifier(name, crossCompileTarget, sourceSetDir))
+                allIds.add(TaskIdentifier(name, targetConfigName, sourceSetDir))
+            }
+
+            if (pkg.isMacroPackage) {
+                macros.add(name)
+            }
+            if (pkg.isPureTestPkg()) {
+                test.add(name)
+            }
+            match (pkg.outputType) {
+                case Exe => exe.add(name)
+                case Dynamic => dylib.add(name)
+                case Static | Chir | Unknown(_) => ()
+            }
+        }
+
+        this.all = all.toArray()
+        this.allIds = allIds.toArray()
+        this.macros = macros.toArray()
+        this.dylib = dylib.toArray()
+        this.exe = exe.toArray()
+        this.test = test.toArray()
+        this.productSuffixes = makeProductSuffixes(packages)
     }
 
     init() {
         this([])
-    }
-
-    public prop all: Array<String> {
-        get() {
-            packages |> map {
-                it: ResolveItem => it.fullName
-            } |> collectArray
-        }
-    }
-
-    public prop allIds: Array<TaskIdentifier> {
-        get() {
-            packages |> flatMap { it: ResolveItem =>
-                let result = ArrayList<TaskIdentifier>()
-                for (source in it.packagePath._sources) {
-                    let sourceSetDir = if (!source.product) { source.outputSuffix.toString() } else { "" }
-                    result.add(TaskIdentifier(it.fullName, targetConfigName, sourceSetDir))
-                    result.add(TaskIdentifier(it.fullName, crossCompileTarget, sourceSetDir))
-                }
-                result.iterator()
-            } |> collectArray
-        }
     }
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
@@ -546,61 +571,13 @@ public struct PackageList {
         } |> collectHashMap
     }
 
-    public prop productSuffixes: HashMap<String, String> {
-        get() {
-            packages |> filterMap { it: ResolveItem =>
-                let productEntry = it.packagePath._sources.last ?? return None<(String, String)>
-                return Some((it.fullName, getPath(productEntry.outputSuffix.toString())))
-            } |> collectHashMap
-        }
+    private static func makeProductSuffixes(packages: Iterable<ResolveItem>): HashMap<String, String> {
+        packages |> filterMap { it: ResolveItem =>
+            let productEntry = it.packagePath._sources.last ?? return None<(String, String)>
+            return Some((it.fullName, productEntry.outputSuffix.toString()))
+        } |> collectHashMap
     }
 
-    public prop macros: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (it.isMacroPackage) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
-
-    public prop dylib: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (let Dynamic <- it.outputType) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
-    public prop exe: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (let Exe <- it.outputType) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
-    // Record the packages for pure unittest
-    public prop test: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (it.isPureTestPkg()) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
 }
 
 public class BuildConfig <: CommandConfig {
