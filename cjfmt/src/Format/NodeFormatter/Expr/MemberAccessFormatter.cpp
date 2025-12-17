@@ -36,9 +36,6 @@ void MemberAccessFormatter::AddMemberAccess(
     } else {
         doc.members.emplace_back(DocType::DOT, level, ".");
     }
-    if (IsHexadecimal(memberAccess)) {
-        doc.members.emplace_back(DocType::LINE, level, "");
-    }
 
     doc.members.emplace_back(DocType::STRING, level,
         memberAccess.field.IsRaw() ? memberAccess.field.GetRawText() : memberAccess.field.Val());
@@ -55,18 +52,5 @@ void MemberAccessFormatter::AddMemberAccess(
     if (memberAccess.hasSemi) {
         doc.members.emplace_back(DocType::STRING, level, ";");
     }
-}
-
-bool MemberAccessFormatter::IsHexadecimal(const Cangjie::AST::MemberAccess& memberAccess)
-{
-    if (memberAccess.baseExpr != nullptr && Is<LitConstExpr>(memberAccess.baseExpr.get()) &&
-        StaticAs<ASTKind::LIT_CONST_EXPR>(memberAccess.baseExpr.get())->kind == LitConstKind::INTEGER) {
-        auto litConstExpr = As<ASTKind::LIT_CONST_EXPR>(memberAccess.baseExpr.get());
-        if (litConstExpr != nullptr && !litConstExpr->stringValue.empty()) {
-            std::string str = litConstExpr->stringValue.substr(0, 2);
-            return str.find("0x") != std::string::npos || str.find("0X") != std::string::npos;
-        }
-    }
-    return false;
 }
 } // namespace Cangjie::Format
