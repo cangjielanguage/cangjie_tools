@@ -102,7 +102,7 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     bool isInPrimaryCtor = false;
     std::unordered_set<ASTKind> trustList = {ASTKind::CLASS_DECL, ASTKind::ENUM_DECL, ASTKind::VAR_DECL,
         ASTKind::STRUCT_DECL, ASTKind::INTERFACE_DECL, ASTKind::FUNC_DECL, ASTKind::MACRO_DECL, ASTKind::FUNC_PARAM,
-        ASTKind::TYPE_ALIAS_DECL};
+        ASTKind::PROP_DECL, ASTKind::TYPE_ALIAS_DECL};
 
     Walker(
         topLevelDecl,
