@@ -1138,7 +1138,7 @@ TEST_F(ProtocolTest, ToJSON_CallHierarchyIncomingCall_ValidInput) {
 TEST_F(ProtocolTest, ToJSON_CodeAction_ValidInput) {
     CodeAction params;
     params.title = "Fix import";
-    params.kind = CodeAction::QUICKFIX_KIND;
+    params.kind = CodeAction::QUICKFIX_ADD_IMPORT;
 
     DiagnosticToken diag;
     diag.range.start.line = 5;
@@ -1170,7 +1170,7 @@ TEST_F(ProtocolTest, ToJSON_CodeAction_ValidInput) {
 
     EXPECT_TRUE(result);
     EXPECT_EQ(reply["title"], "Fix import");
-    EXPECT_EQ(reply["kind"], CodeAction::QUICKFIX_KIND);
+    EXPECT_EQ(reply["kind"], CodeAction::QUICKFIX_ADD_IMPORT);
     ASSERT_TRUE(reply.contains("diagnostics"));
     ASSERT_EQ(reply["diagnostics"].size(), 1u);
     EXPECT_EQ(reply["diagnostics"][0]["message"], "Import missing");
