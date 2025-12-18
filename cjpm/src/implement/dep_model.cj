@@ -819,6 +819,8 @@ class DepModel {
 
                 for ((i, source) in pkgSource._sources.iterator().enumerate()) {
                     let expectedFeatures = source.features
+                    let expectedProduct = source.configuredProduct
+                    let specifiedProduct = scans[i].product
                     let specifiedFeatures = scans[i].features
                     if (!(specifiedFeatures.contains(all: expectedFeatures)) ||
                         !(expectedFeatures.contains(all: specifiedFeatures))) {
@@ -830,6 +832,14 @@ class DepModel {
                             errors.add(
                                 "Feature header `${stringify(specifiedFeatures)}` of package `${name}` is different from expected `${stringify(expectedFeatures)}`"
                             )
+                    }
+                    if (expectedProduct != specifiedProduct) {
+                        let errormesg = if (!expectedProduct) {
+                            "Feature header of package `${name}` is missing `@NonProduct` annotation"
+                        } else {
+                            "Package `${name}` should be compiled as product, but feature header annotation `@NonProduct` is present in source code"
+                        }
+                        errors.add(errormesg)
                     }
                 }
 
