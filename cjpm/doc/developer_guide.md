@@ -15,7 +15,7 @@ As shown in the architecture diagram, the overall structure of `cjpm` is as foll
 - Project Testing: `cjpm` supports compiling test code within projects and running unit tests. It supports both single-package testing and module-level testing.
 - Compiler Integration Module: This module facilitates interaction with the Cangjie compiler, implementing imperative compiler invocation and result forwarding.
 
-Note that `cjpm` is a package management tool for the Cangjie project, and its product types are static libraries, dynamic libraries, and executable binary. To complete the HAP/APP build and packaging of OpenHarmony, it is also necessary to use the DevEco Hvigor tool provided by DevEco Studio.
+Note that `cjpm` is a project management tool for the Cangjie project, and its product types are static libraries, dynamic libraries, and executable binary. To complete the HAP/APP build and packaging of OpenHarmony, it is also necessary to use the DevEco Hvigor tool provided by DevEco Studio.
 
 ## Directory Structure
 
@@ -149,7 +149,7 @@ Additionally, `build.py` provides the following extra functionalities:
 Executing `cjpm -h` displays the command list for `cjpm`, as shown below:
 
 ```text
-Cangjie Package Manager
+Cangjie Project Manager
 
 Usage:
   cjpm [subcommand] [option]
@@ -300,4 +300,4 @@ Key configuration fields:
 
 In addition to the aforementioned commands and configuration items, `cjpm` also supports other features such as build scripts, command extensions, etc.
 
-For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Package Manager User Guide》](./user_guide.md).
+For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Project Manager User Guide》](./user_guide.md).
