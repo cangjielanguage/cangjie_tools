@@ -115,15 +115,17 @@ class TestCommand <: Handle {
         testConfig.isIncremental = getBoolOption(argMap, "-i", "--incremental")
         testConfig.dryRun = getBoolOption(argMap, "--dry-run")
         testConfig.globalConfig.isSkipScript = getBoolOption(argMap, "--skip-script")
-        testConfig.globalConfig.noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
-        if (!state.isExperimental && testConfig.globalConfig.noFeatureDeduce) {
-            eprintln("Error: `--no-feature-deduce` is part of experimental Cangjie Multiplatform feature, " +
-                "please enable `experimental = true` in cjpm.toml of this project")
+        let noFeatureDeduce = getBoolOption(argMap, "--no-feature-deduce")
+
+        if (!state.isExperimental && noFeatureDeduce) {
+            eprintln("Error: `--no-feature-deduce` is part of experimental Cangjie Multiplatform feature, please enable `experimental = true` in cjpm.toml of this project")
             return None
         }
 
-        var featureDeducer = FeatureDeducer(handleEnableFeaturesOption(argMap) ?? return None,
-            enabled: !testConfig.globalConfig.noFeatureDeduce)
+        testConfig.globalConfig.noFeatureDeduce = noFeatureDeduce
+        testConfig.globalConfig.enabledFeatures = handleEnableFeaturesOption(argMap)
+            .inspectErr { errs => for (err in errs) { eprintln("Error: ${err}") } }
+            .ok ?? return None
 
         let (testModule, hasTestModule) = getArgValue(argMap, "--module")
         if (hasTestModule) {
@@ -193,11 +195,6 @@ class TestCommand <: Handle {
         if (!handleUnparseArgs(unparseArgs)) {
             return None
         }
-
-        testConfig.globalConfig.features = featureDeducer
-            .deduceTargetFeatures(state.cjcInfo.target)
-            .deduceDependantFeatures()
-            .collect()
 
         testConfig
     }

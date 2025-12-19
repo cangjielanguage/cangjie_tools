@@ -26,7 +26,7 @@ const TEST_GCNO_FILE: String = "\\$test"
 class PkgTestInfo {
     PkgTestInfo(
         public let fqname: PackageFqName,
-        public let packagePath: CMPSource,
+        public let packagePath: CJMPSource,
         public var linkOptions!: Array<String>,
         public let outLogFile!: String = "",
         public let errLogFile!: String = ""
@@ -266,10 +266,9 @@ func testArgsCheck(unparseArgs: Array<String>, testConfig: TestConfig): (HashSet
                 packagesToTest.add(fqname)
             case DirArg(path) where state.isExperimental =>
                 testConfig.isModuleTest = false
-                let pname: String = match (scanDependency([Path(path)])) {
-                    case Ok(t) =>  ": ${t.packageName}"
-                    case Err(_) => ""
-                }
+                let pname = scanDependency(Path(path))
+                    .map { t => ": ${t.packageName}" }
+                    .getOrDefault { => "" }
                 eprintln("Error: package arguments as directory paths are deprecated in experimental, please specify full-qualified name of the package instead${pname}")
                 checkFlag = false
             case DirArg(path) where !state.isExperimental =>
@@ -428,7 +427,7 @@ func prepareTest(res: ModuleResolve, testConfig: TestConfig): (HashMap<PackageFq
         let specifiedArgIsPresent = if (state.isExperimental) {
             !testConfig.isModuleTest && testConfig.packagesToTest.contains(fqname)
         } else {
-            (!testConfig.isModuleTest && testConfig.packagePathsToTest.contains(r.packagePath.platformPaths[0].toString()))
+            (!testConfig.isModuleTest && testConfig.packagePathsToTest.contains(r.packagePath.allPaths[0].toString()))
         }
         let testCheck: Bool = (testConfig.isModuleTest &&
             ((COMMON_INFO.inWorkspace && testModuleNames.contains(r.rootPkgName)) ||
@@ -519,7 +518,9 @@ func appendLinkOption(option: String): Array<String> {
 func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>,
     testConfig: TestConfig): ArrayList<String> {
     let cLibNameList = HashSet<String>()
-    let result = ArrayList<String>()
+    let validCommand = ArrayList<String>()
+
+    validCommand.add(all: appendBinOptionForTest(res, requires, testConfig.isLto))
 
     for (r in res.resolves) {
         if (!requires.contains(r.fullName) && r.fullName != fullName) {
@@ -530,56 +531,49 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
         }
         cLibNameList.add(r.rootPkgName)
         if (r.fullName == fullName) {
-            result.add(all: getTestConditionOption(testConfig.customizedOption, r.customizedOption))
+            validCommand.add(all: getTestConditionOption(testConfig.customizedOption, r.customizedOption))
             if (!r.compileOption.isEmpty()) {
-                result.add(all: extractOptionByString(r.compileOption))
+                validCommand.add(all: extractOptionByString(r.compileOption))
             }
             if (!testConfig.globalConfig.overrideCompileOption.isEmpty()) {
-                result.add(all: extractOptionByString(testConfig.globalConfig.overrideCompileOption))
+                validCommand.add(all: extractOptionByString(testConfig.globalConfig.overrideCompileOption))
             }
-            result.add(all: appendLinkOption(r.linkOption))
-            result.add(all: extractOptionByString(testConfig.profile.compileOption))
+            validCommand.add(all: extractOptionByString(testConfig.profile.compileOption))
+            validCommand.add(all: appendLinkOption(r.linkOption))
             break
         }
         if (r.isPureTestPkg()) {
             continue
         }
         let libPath = Path(testConfig.globalConfig.targetDir).join(r.rootPkgName).toString()
-        result.add(all: linkPackage(r.fullName, libPath, testConfig.isLto), at: 0)
+        validCommand.add(all: linkPackage(r.fullName, libPath, testConfig.isLto), at: 0)
     }
 
-    let linkSort = ArrayList<String>()
-    linkSort.add(all: appendBinOptionForTest(res, requires, testConfig.isLto))
     for (k in cLibNameList) {
         if (testConfig.globalConfig.cLibLinkMap.contains(k)) {
-            linkSort.add(all: testConfig.globalConfig.cLibLinkMap[k])
-        }
-        if (testConfig.globalConfig.crossCLibLinkMap.contains(k)) {
-            linkSort.add(all: testConfig.globalConfig.crossCLibLinkMap[k])
+            validCommand.add(all: testConfig.globalConfig.cLibLinkMap[k])
         }
     }
 
+    let reduced = ArrayList<String>()
 
     var index: Int64 = 0
     let libPathSet = HashSet<String>()
-    let libPathNameSet = HashSet<String>()
-    while (index < linkSort.size) {
-        if (linkSort[index] == "-L") {
-            if (!libPathSet.contains(linkSort[index + 1])) {
-                result.add(linkSort[index])
-                result.add(linkSort[index + 1])
-                libPathSet.add(linkSort[index + 1])
+    // Cleanup to remove redundant LIBRARY_PATH locations
+    while (index < validCommand.size) {
+        if (validCommand[index] == "-L") {
+            if (!libPathSet.contains(validCommand[index + 1])) {
+                reduced.add(validCommand[index])
+                reduced.add(validCommand[index + 1])
+                libPathSet.add(validCommand[index + 1])
             }
             index += 2
         } else {
-            if (!libPathNameSet.contains(linkSort[index])) {
-                result.add(linkSort[index])
-                libPathNameSet.add(linkSort[index])
-            }
+            reduced.add(validCommand[index])
             index += 1
         }
     }
-    return result
+    return reduced
 }
 
 func getTestConditionOption(cmdOption: HashSet<String>, conditionMap: HashMap<String, String>): Array<String> {
@@ -627,12 +621,18 @@ public func getOutput(targetDir: String, fullName: String, isCross: Bool): Strin
     return getUnittestOutput(output, isCross)
 }
 
-func getRootPackageDir(pkgFullName: String, targetDir: String) {
-    return targetDir.replace(UNITTEST_BIN, RELEASE) + PATH_SPLIT_CHAR + pkgFullName.split(".")[0]
+func getRootPackageDir(pkgInfo: PkgTestInfo, targetDir: String) {
+    let pkgRootName = pkgInfo.fqname.value.split(".")[0]
+    if (pkgInfo.packagePath.isMultiplatform) {
+        let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
+        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix, pkgRootName)
+    } else {
+        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName)
+    }
 }
 
 func addOptionsForSeparateCompilation(pkgInfo: PkgTestInfo, testConfig: TestConfig) {
-    let rootProdPkgDir = getRootPackageDir(pkgInfo.fqname.value, testConfig.globalConfig.targetDir)
+    let rootProdPkgDir = getRootPackageDir(pkgInfo, testConfig.globalConfig.targetDir)
     if (testConfig.isLto) {
         pkgInfo.linkOptions = ["${rootProdPkgDir}${PATH_SPLIT_CHAR}${pkgInfo.fqname}.bc"].concat(pkgInfo.linkOptions)
     } else {
@@ -647,6 +647,13 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
         cmdList.add(all: ["--import-path", p])
     }
 
+    if (pkgInfo.packagePath.isMultiplatform) {
+        let rootName = getRootPkgName(pkgInfo.fqname.value)
+        let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
+        let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+        cmdList.add(all: ["--import-path", cjopath])
+    }
+
     if (hasProdFiles) {
         addOptionsForSeparateCompilation(pkgInfo, testConfig)
         cmdList.add("--test-only")
@@ -654,7 +661,7 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
         cmdList.add("--test")
     }
     cmdList.add(all: pkgInfo.linkOptions)
-    cmdList.add(all: pkgInfo.packagePath.allPaths |> flatMap { it: Path => ["-p", it.toString()] } |> collectArray)
+    cmdList.add(all: ["-p", pkgInfo.packagePath.product.srcDir.toString()])
     cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, pkgInfo.fqname.value, testConfig.isCrossCompile)])
     cmdList.add("--mock=${testConfig.mock}")
     if (testConfig.isCrossCompile) {
@@ -857,7 +864,7 @@ func rebuildTestPkgs(testConfig: TestConfig, fqname: PackageFqName): Bool {
 }
 
 // Check pure test packages: rebuild if source files are changed or depended packages are changed
-func rebuildPureTestPkgs(testConfig: TestConfig, pkgSrcDir: CMPSource, pkgName: PackageFqName): Bool {
+func rebuildPureTestPkgs(testConfig: TestConfig, pkgSrcDir: CJMPSource, pkgName: PackageFqName): Bool {
     if (!testConfig.testPkgs.contains(pkgName.value)) {
         return false
     }
@@ -938,7 +945,7 @@ func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<PackageFqN
 }
 
 // Collect file timestamp for pure test packages
-func getFileTimeStamp(pkgSrcDir: CMPSource): String {
+func getFileTimeStamp(pkgSrcDir: CJMPSource): String {
     var timeStamp: Int64 = Int64.Min
     for (fileInfo in pkgSrcDir.files()) {
         let fileName = fileInfo.path.toString()
@@ -1012,7 +1019,7 @@ func parallelCompileTests(
         if (pkgDesc.hasTestsInProdFiles && !pkgDesc.hasTestFiles) {
             // If no test files, then generate dummy test file to further run prod package's tests
             DummyTestFile.generateSources(testConfig.globalConfig.targetDir, pkgDesc.fqname.value)
-            DummyTestFile.compile(testConfig, pkgDesc.fqname, linkMap)
+            DummyTestFile.compile(testConfig, pkgDesc, linkMap)
         }
         testFut.add(spawn { =>
             let rootPkgName: String = getRootPkgName(pkgDesc.fqname.value)
@@ -1066,7 +1073,8 @@ class DummyTestFile {
         File.writeTo(path, "package ${packageName}".toArray())
     }
 
-    static func compile(testConfig: TestConfig, fqname: PackageFqName, linkMap: HashMap<PackageFqName, Array<String>>): Bool {
+    static func compile(testConfig: TestConfig, pkgDesc: PkgDescTest, linkMap: HashMap<PackageFqName, Array<String>>): Bool {
+        let fqname = pkgDesc.fqname
         let cmdList = ArrayList<String>()
         if (testConfig.isCov) {
             cmdList.add("--coverage")
@@ -1078,16 +1086,26 @@ class DummyTestFile {
 
         let pkgInfo = PkgTestInfo(
             fqname,
-            CMPSource.empty,
+            pkgDesc.srcDir,
             linkOptions: linkMap.get(fqname) ?? Array<String>()
         )
         addOptionsForSeparateCompilation(pkgInfo, testConfig)
         cmdList.add("--test-only")
         cmdList.add(all: pkgInfo.linkOptions)
-        cmdList.add(all: ["--import-path", testConfig.globalConfig.targetDir])
+
+        if (pkgDesc.srcDir.isMultiplatform) {
+            let rootName = getRootPkgName(fqname.value)
+            let suffix = pkgDesc.srcDir.product.outputSuffix.toString()
+            let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+            cmdList.add(all: ["--import-path", cjopath])
+        } else {
+            cmdList.add(all: ["--import-path", testConfig.globalConfig.targetDir])
+        }
+
         for (p in testConfig.globalConfig.cjPathList where directoryExists(p)) {
             cmdList.add(all: ["--import-path", p])
         }
+
         if (testConfig.isCrossCompile) {
             cmdList.add("--target=${crossCompileTarget}")
         }
@@ -1417,7 +1435,7 @@ struct TestPackageExecuteCommand <: Serializable<TestPackageExecuteCommand> {
 struct PkgDescTest {
     PkgDescTest(
         let fqname: PackageFqName,
-        @DeriveExclude let srcDir: CMPSource,
+        @DeriveExclude let srcDir: CJMPSource,
         @DeriveExclude let hasTestFiles: Bool,
         @DeriveExclude let hasProdFiles: Bool,
         @DeriveExclude let hasTestsInProdFiles: Bool

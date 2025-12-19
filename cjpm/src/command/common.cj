@@ -9,6 +9,7 @@ package cjpm.command
 import std.argopt.*
 import std.collection.*
 import std.regex.*
+import cjpm.util.*
 import cjpm.config.*
 
 func getArgValue(argMap: HashMap<String, String>, longOpt: String, shortOpt: String): (String, Bool) {
@@ -69,17 +70,20 @@ func handleTargetDirOption(argMap: HashMap<String, String>): Option<String> {
     return Some(newDir)
 }
 
-func handleEnableFeaturesOption(argMap: HashMap<String, String>): Option<ArrayList<Feature>> {
+func handleEnableFeaturesOption(argMap: HashMap<String, String>): Result<Array<Feature>, Array<CJMPError>> {
     let flag = "enable-features"
     let (featureString, featuresFlag) = getArgValue(argMap, "--${flag}")
     if (featuresFlag && !safeCheck(featureString, flag)) {
-        return None
+        return Err([])
     }
     if (featureString.isEmpty()) {
-        return ArrayList()
+        return Ok([])
     }
-    featureString.trimAscii().split(",", removeEmpty: true) |> map {it: String => Feature.fromString(it)} |>
-        collectArrayList
+
+    featureString.trimAscii().split(",", removeEmpty: true).allResult { it => 
+        QName.fromString(it)
+            .mapErr { e => ErrorWrapper(None, e) }
+            .flatMap { it => Feature.create(it) }.mapErr { e => [ e ] } }
 }
 
 func handleFilterOption(argMap: HashMap<String, String>): Option<String> {

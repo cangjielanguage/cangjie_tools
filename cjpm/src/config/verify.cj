@@ -9,6 +9,8 @@ package cjpm.config
 import std.regex.*
 import std.fs.*
 
+import cjpm.util.Result
+
 // Regexp root package name.
 let EXAMPLE_ROOT_PACKAGE_NAME: String = "cjDemo"
 let EXAMPLE_ENV_NAME: String = "CJ_ENV_NAME"
@@ -163,23 +165,21 @@ public func ltoValueCheck(_: String, _: String): Bool {
 }
 
 public func safeCheck(text: String, path: String): Bool {
-    if (let Some(err) <- safeCheck_valueError(text, path)) {
-        eprintln(err)
-        return false
-    }
-    return true
+    safeCheckResult(text, path: path)
+        .inspectErr { err => eprintln("Error: ${err}") }
+        .isOk
 }
 
-public func safeCheck_valueError(text: String, path: String): ?String {
+public func safeCheckResult(text: String, path!: String = ""): Result<String, String> {
     let hasPath: Bool = !path.isEmpty()
     if (Regex(REGEXP_COMMAND_INJECTION).matches(text)) {
-        var errorString: String = "Error: the '${text}' contains illegal characters"
+        var errorString: String = "the '${text}' contains illegal characters"
         if (hasPath) {
             errorString += " in ${path}"
         }
-        return errorString
+        return Err(errorString)
     }
-    return None
+    return Ok(text)
 }
 
 public func sourcePathCheck(path: Path): Bool {

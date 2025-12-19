@@ -262,13 +262,9 @@ func relocateScript(scriptConfig: ScriptConfig): Bool {
 }
 
 func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<ArrayList<String>> {
-    let scanDepRes = scanDependency(Path(modulePath))
-    var res = match (scanDepRes) {
-        case Err(e) =>
-            eprintln(e)
-            return Option.None
-        case Ok(t) => t
-    }
+    let res = scanDependency(Path(modulePath))
+        .inspectErr { e => eprintln(e) }
+        .ok ?? return None
 
     var allPackageSet: HashSet<String> = HashSet<String>(buildConfig.packageList.all)
     var requires: HashSet<String> = HashSet<String>()
