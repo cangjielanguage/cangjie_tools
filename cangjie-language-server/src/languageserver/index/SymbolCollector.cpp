@@ -316,11 +316,16 @@ void SymbolCollector::Build(const Package &package)
                 return VisitAction::WALK_CHILDREN;
             } else if (auto id = DynamicCast<InheritableDecl *>(node)) {
                 (void)inheritableDecls.emplace(id);
+                if (IsHidedDecl(id)) {
+                    return VisitAction::SKIP_CHILDREN;
+                }
             }
             if (Utils::In(node->astKind, G_IGNORE_KINDS)) {
                 return VisitAction::WALK_CHILDREN;
             }
-            CollectNode(node, filePath, pkgAccess);
+            if (!IsHidedDecl(node)) {
+                CollectNode(node, filePath, pkgAccess);
+            }
             return VisitAction::WALK_CHILDREN;
         };
 
@@ -1196,8 +1201,7 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
     std::vector<ExtendInfo> extendVec;
     std::map<std::string, ExtendInfo> extendInfoMap;
     for (auto &member : extendDecl->members) {
-        bool isExported = member->IsExportedDecl();
-        if (!isExported) {
+        if (IsHidedDecl(member) || !member->IsExportedDecl()) {
             continue;
         }
         std::string signature = ItemResolverUtil::ResolveSignatureByNode(*member);
