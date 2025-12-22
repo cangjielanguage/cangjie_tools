@@ -216,7 +216,9 @@ func checkGitLocalDep(name: String, curInfo: DepInfo, newInfo: DepInfo): Bool {
 }
 
 func updateIndex(): Bool {
-    UPDATE_DEPOT = Depot.new() ?? return true
+    if (!UPDATE_DEPOT.loadConfiguration(isError: false)) {
+        return true
+    }
     let indexDir = Path(UPDATE_DEPOT.localRepo).join("index").toString()
     if (!directoryExists(indexDir)) {
         return true
