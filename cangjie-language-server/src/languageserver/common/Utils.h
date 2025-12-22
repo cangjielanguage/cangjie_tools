@@ -70,6 +70,8 @@ bool Is(const N *node)
 
 TypeCompatibility CheckTypeCompatibility(const Cangjie::AST::Ty *lvalue, const Cangjie::AST::Ty *rvalue);
 
+bool IsHidedDecl(const Ptr<Node> node);
+
 bool IsFuncParameterTypesIdentical(const Cangjie::AST::FuncTy &t1, const Cangjie::AST::FuncTy& t2);
 
 bool IsMatchingCompletion(const std::string &prefix, const std::string &completionName, bool caseSensitive = false);

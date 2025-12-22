@@ -62,7 +62,7 @@ std::string FilterModifiers(Ptr<Decl> decl, const std::vector<std::string>& modi
     return result;
 }
 
-std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, const FuncDecl* funcDecl,
+std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, FuncDecl* funcDecl,
                              const std::vector<Ptr<ClassLikeDecl>>& canSuperCall)
 {
     // if lack of function body, don't add super call
@@ -70,7 +70,8 @@ std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, const FuncDecl* 
         std::any_of(canSuperCall.begin(), canSuperCall.end(), [&owner](const Ptr<ClassLikeDecl>& decl) {
             return owner->curFile == decl->curFile && owner->begin == decl->begin && owner->end == decl->end;
         });
-    if (funcDecl->TestAttr(Attribute::ABSTRACT) || (!funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall)) {
+    if (funcDecl->TestAttr(Attribute::ABSTRACT) || (!funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) ||
+        IsHidedDecl(funcDecl) || IsHidedDecl(owner)) {
         return TAB + "throw Exception(\"Function not implemented.\")\n";
     }
 

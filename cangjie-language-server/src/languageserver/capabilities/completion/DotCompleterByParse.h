@@ -48,7 +48,7 @@ private:
                            CompletionEnv &env,
                            bool isSuperOrThis = false) const;
 
-    void CompleteInterfaceDecl(Ptr<const Cangjie::AST::InterfaceDecl> interfaceDecl,
+    void CompleteInterfaceDecl(Ptr<Cangjie::AST::InterfaceDecl> interfaceDecl,
                                const Cangjie::Position &pos,
                                CompletionEnv &env) const;
 
