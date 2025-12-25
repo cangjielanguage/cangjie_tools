@@ -839,17 +839,25 @@ func appendLinkOption(resolveConfig: ResolveConfig, requiredForTests: Bool, isNa
 
 func getDepLinkCommand(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
     let res = ArrayList<String>()
+
+    // module-level combine
+    if (let Some(superPkgCfg) <- resolveConfig.superPkgCfg && !isNativeForCross) {
+        res.add(all: getBuildArgs(resolveConfig, buildConfig, isNativeForCross, true))
+        res.add(all: getForcedLibArgs(resolveConfig, superPkgCfg, buildConfig, isNativeForCross))
+        return res
+    }
+
     if (resolveConfig.outputType == Exe || resolveConfig.outputType == Dynamic) {
         if (buildConfig.globalConfig.isProjectCombine &&
             resolveConfig.fullName == buildConfig.globalConfig.rootName && !isNativeForCross) {
+            // project-level combine
             res.add(all: getLtoCombineBuildArgs(resolveConfig, buildConfig, isNativeForCross))
         } else {
-            res.add(all: getBuildArgs(resolveConfig, buildConfig, isNativeForCross))
+            // ordinary packages
+            res.add(all: getBuildArgs(resolveConfig, buildConfig, isNativeForCross, false))
         }
     }
-    if (let Some(superPkgCfg) <- resolveConfig.superPkgCfg && !isNativeForCross) {
-        res.add(all: getForcedLibArgs(resolveConfig, superPkgCfg, buildConfig, isNativeForCross))
-    }
+
     return res
 }
 
@@ -1122,12 +1130,13 @@ func getLtoCombineBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConf
     return res
 }
 
-func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool): ArrayList<String> {
+func getBuildArgs(resolveConfig: ResolveConfig, buildConfig: BuildConfig, isNativeForCross: Bool, isCombined: Bool): ArrayList<String> {
     let res = ArrayList<String>()
     var cLibNameList = ArrayList<String>([resolveConfig.rootPkgName]) // Record dependent root packages
+    let superPkgMap = if (isCombined) { buildConfig.superPkgMap } else { HashMap<String, SuperPackageConfig>() }
     var linkSort: HashSet<String> = getDepSet(resolveConfig.fullName, buildConfig.requiresMap,
-        buildConfig.superPkgSubMap,
-        isForMacroRequire: buildConfig.packageList.macros.contains(resolveConfig.fullName)) // Record dependent package names
+            buildConfig.superPkgSubMap, isForMacroRequire: buildConfig.packageList.macros.contains(resolveConfig.fullName),
+            isCombined: isCombined, superPkgMap: superPkgMap) // Record dependent package names
 
     if (linkSort.size == 0) {
         appendCLibLinkStr(buildConfig, cLibNameList, res, buildConfig.isCrossCompile && !isNativeForCross)
@@ -1363,10 +1372,12 @@ func getDylibOutputName(fullName: String, buildConfig: BuildConfig, isNativeForC
 }
 
 public func getDepSet(fullName: String, requiresMap: HashMap<String, HashSet<String>>,
-    superPkgSubMap: HashMap<String, String>, isForMacroRequire!: Bool = false): HashSet<String> {
+    superPkgSubMap: HashMap<String, String>, isForMacroRequire!: Bool = false,
+    isCombined!: Bool = false, superPkgMap!: HashMap<String, SuperPackageConfig> = HashMap<String, SuperPackageConfig>()): HashSet<String> {
     var linkPkgs = HashSet<String>()
     var queue = ArrayList<String>()
     queue.add(fullName)
+    let currentRoot = fullName.split(".")[0]
     while (queue.size != 0) {
         var cur = queue[0]
         queue.remove(at: 0)
@@ -1375,10 +1386,22 @@ public func getDepSet(fullName: String, requiresMap: HashMap<String, HashSet<Str
         }
         for (k in requiresMap[cur]) {
             var finalPkg = k
+
+            // for bin-dependencies, if lib of sub pkg does not exist,
+            // but lib of its root exists, use root lib instead
             if (!isForMacroRequire && superPkgSubMap.contains(k)) {
                 printSuperPkgWarn(k)
                 finalPkg = superPkgSubMap[k]
             }
+
+            // for sub packages in other combined module,
+            // if current module is combined, use root lib instead
+            let finalRoot = k.split(".")[0]
+            if (isCombined && superPkgMap.contains(finalRoot) && (finalRoot != currentRoot)) {
+                linkPkgs.add(finalRoot)
+                continue
+            }
+
             if (!linkPkgs.contains(finalPkg)) {
                 linkPkgs.add(finalPkg)
                 queue.add(finalPkg)
