@@ -71,7 +71,7 @@ std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, FuncDecl* funcDe
             return owner->curFile == decl->curFile && owner->begin == decl->begin && owner->end == decl->end;
         });
     if (funcDecl->TestAttr(Attribute::ABSTRACT) || (!funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) ||
-        IsHidedDecl(funcDecl) || IsHidedDecl(owner)) {
+        IsHiddenDecl(funcDecl) || IsHiddenDecl(owner)) {
         return TAB + "throw Exception(\"Function not implemented.\")\n";
     }
 

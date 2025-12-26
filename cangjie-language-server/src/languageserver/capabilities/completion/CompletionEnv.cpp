@@ -766,7 +766,7 @@ void CompletionEnv::SetValue(FILTER kind, bool value)
 
 void CompletionEnv::DotAccessible(Decl &decl, const Decl &parentDecl, bool isSuperOrThis)
 {
-    if (!syscap.CheckSysCap(decl) || IsHidedDecl(&decl)) {
+    if (!syscap.CheckSysCap(decl) || IsHiddenDecl(&decl)) {
         return;
     }
     // use signature to unique
@@ -873,7 +873,7 @@ void CompletionEnv::InvokedAccessible(Ptr<Node> node,
 {
     if (node == nullptr || node->TestAnyAttr(Cangjie::AST::Attribute::CONSTRUCTOR,
                                              Cangjie::AST::Attribute::MACRO_INVOKE_FUNC) ||
-                                            IsHidedDecl(node)) {
+                                            IsHiddenDecl(node)) {
         return;
     }
 
@@ -1045,7 +1045,7 @@ void CompletionEnv::DealClassOrInterfaceDeclByName(T &decl)
 void CompletionEnv::CompleteNode(
     Ptr<Node> node, bool isImport, bool isInScope, bool isSameName, const std::string &container)
 {
-    if (noComplete(node, syscap, isCompleteFunction) || IsHidedDecl(node)) {
+    if (noComplete(node, syscap, isCompleteFunction) || IsHiddenDecl(node)) {
         return;
     }
     DeclVarWithTuple(node, isImport, isInScope, isSameName);

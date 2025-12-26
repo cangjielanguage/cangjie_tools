@@ -330,7 +330,7 @@ void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::stri
 {
     if (declOrTy.hasDecl) {
         for (auto &decl : declOrTy.decls) {
-            if (!decl || !syscap.CheckSysCap(*decl) || IsHidedDecl(decl)) {
+            if (!decl || !syscap.CheckSysCap(*decl) || IsHiddenDecl(decl)) {
                 continue;
             }
             if (decl->IsTypeDecl()) {
@@ -1021,7 +1021,7 @@ void DotCompleterByParse::AddExtendDeclFromIndex(Ptr<Ty> &extendTy, CompletionEn
     }
     std::unordered_set<lsp::SymbolID> visibleMembers;
     for (auto &member : extendMembers) {
-        if (IsHidedDecl(member) || IsHidedDecl(member->outerDecl)) {
+        if (IsHiddenDecl(member) || IsHiddenDecl(member->outerDecl)) {
             continue;
         }
         env.DotAccessible(*member, *decl);
@@ -1172,7 +1172,7 @@ void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position 
 {
     auto classDecl = DynamicCast<ClassDecl>(Ty::GetDeclPtrOfTy(ty));
     if (classDecl == nullptr || classDecl->body == nullptr || !syscap.CheckSysCap(*classDecl) ||
-        IsHidedDecl(classDecl)) {
+        IsHiddenDecl(classDecl)) {
         return;
     }
     if (Contain(classDecl, pos)) {
@@ -1207,7 +1207,7 @@ void DotCompleterByParse::CompleteInterfaceDecl(Ptr<Cangjie::AST::InterfaceDecl>
                                                 const Cangjie::Position &pos, CompletionEnv &env) const
 {
     if (interfaceDecl == nullptr || interfaceDecl->body == nullptr || !syscap.CheckSysCap(*interfaceDecl) ||
-        IsHidedDecl(interfaceDecl.get())) {
+        IsHiddenDecl(interfaceDecl.get())) {
         return;
     }
     for (auto &decl : interfaceDecl->body->decls) {
@@ -1225,7 +1225,7 @@ void DotCompleterByParse::CompleteSuperInterface(Ptr<const InterfaceDecl> interf
             continue;
         }
         auto refType = dynamic_cast<RefType*>(inheritedType.get().get());
-        if (Cangjie::Is<InterfaceTy>(refType->ty.get()) && !IsHidedDecl(refType->ref.target)) {
+        if (Cangjie::Is<InterfaceTy>(refType->ty.get()) && !IsHiddenDecl(refType->ref.target)) {
             CompleteFromType("", pos, refType->ty, env);
         }
     }
@@ -1235,7 +1235,7 @@ void DotCompleterByParse::CompleteEnumDecl(Ptr<Ty> ty, const Cangjie::Position &
 {
     // TD: Enum Type will be written later.
     auto enumDecl = DynamicCast<EnumDecl>(Ty::GetDeclPtrOfTy(ty));
-    if (enumDecl == nullptr || !syscap.CheckSysCap(*enumDecl) || IsHidedDecl(enumDecl)) {
+    if (enumDecl == nullptr || !syscap.CheckSysCap(*enumDecl) || IsHiddenDecl(enumDecl)) {
         return;
     }
     if (!isEnumCtor) {
@@ -1281,7 +1281,7 @@ void DotCompleterByParse::CompleteStructDecl(Ptr<Ty> ty, const Cangjie::Position
     // TD: Struct Type will be written later.
     auto structDecl = dynamic_cast<StructTy *>(ty.get())->decl;
     if (structDecl == nullptr || structDecl->body == nullptr || !syscap.CheckSysCap(*structDecl) ||
-        IsHidedDecl(structDecl)) {
+        IsHiddenDecl(structDecl)) {
         return;
     }
     if (Contain(structDecl, pos)) {
@@ -1315,7 +1315,7 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
     auto extendDecls = CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
         type, packageNameForPath, *ast->file);
     for (auto &decl : extendDecls) {
-        if (!syscap.CheckSysCap(decl) || IsHidedDecl(decl) || IsHidedDecl(decl->outerDecl)) {
+        if (!syscap.CheckSysCap(decl) || IsHiddenDecl(decl) || IsHiddenDecl(decl->outerDecl)) {
             return;
         }
         if (env.GetValue(FILTER::IS_STATIC)) {
@@ -1358,7 +1358,7 @@ bool DotCompleterByParse::IsEnumCtorTy(const std::string &beforePrefix, Ty *cons
     std::string className = ED->identifier + ".";
     for (const auto &c : ED->constructors) {
         if ((c->identifier == beforePrefix || className + c->identifier == beforePrefix) &&
-            !IsHidedDecl(c)) {
+            !IsHiddenDecl(c)) {
             return true;
         }
     }
