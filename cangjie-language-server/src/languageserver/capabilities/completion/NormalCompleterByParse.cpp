@@ -85,6 +85,9 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     for (auto const &declSet : importManager->GetImportedDecls(*input.file)) {
         // The first element is real imported name
         for (const auto &decl : declSet.second) {
+            if (IsHidedDecl(decl)) {
+                continue;
+            }
             result.importDeclsSymID.insert(CompletionEnv::GetDeclSymbolID(*decl));
             if (decl->identifier == declSet.first) {
                 env.CompleteNode(decl.get());
@@ -270,7 +273,7 @@ bool NormalCompleterByParse::CheckCompletionInParse(Ptr<Decl> decl)
     if (decl->astKind == Cangjie::AST::ASTKind::EXTEND_DECL) {
         return false;
     }
-    if (decl->astKind == ASTKind::MACRO_EXPAND_DECL && decl->identifier == "APILevel") {
+    if (decl->astKind == ASTKind::MACRO_EXPAND_DECL && (decl->identifier == "APILevel" || decl->identifier == "Hide")) {
         return false;
     }
     return true;

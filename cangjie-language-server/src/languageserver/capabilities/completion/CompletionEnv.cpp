@@ -142,7 +142,8 @@ void CompletionEnv::DealClassDecl(Ptr<Node> node, const Position pos)
         if (!classMember) {
             continue;
         }
-        if (classMember->astKind == ASTKind::MACRO_EXPAND_DECL && classMember->identifier == "APILevel") {
+        if (classMember->astKind == ASTKind::MACRO_EXPAND_DECL &&
+            (classMember->identifier == "APILevel" || classMember->identifier == "Hide")) {
             continue;
         }
         CompleteNode(classMember.get());
@@ -178,7 +179,8 @@ void CompletionEnv::DealStructDecl(Ptr<Node> node, const Position pos)
         if (!structMember) {
             continue;
         }
-        if (structMember->astKind == ASTKind::MACRO_EXPAND_DECL && structMember->identifier == "APILevel") {
+        if (structMember->astKind == ASTKind::MACRO_EXPAND_DECL && 
+            (structMember->identifier == "APILevel" || structMember->identifier == "Hide")) {
             continue;
         }
         CompleteNode(structMember.get());
@@ -210,7 +212,7 @@ void CompletionEnv::DealInterfaceDecl(Ptr<Node> node, const Position pos)
     Ptr<Decl> innerDecl = nullptr;
     for (auto &memberDecl : pInterfaceDecl->GetMemberDecls()) {
         if (!memberDecl || (memberDecl->astKind == ASTKind::MACRO_EXPAND_DECL &&
-                            memberDecl->identifier == "APILevel")) {
+                            (memberDecl->identifier == "APILevel" || memberDecl->identifier == "Hide"))) {
             continue;
         }
         CompleteNode(memberDecl.get());
@@ -763,7 +765,7 @@ void CompletionEnv::SetValue(FILTER kind, bool value)
 
 void CompletionEnv::DotAccessible(Decl &decl, const Decl &parentDecl, bool isSuperOrThis)
 {
-    if (!syscap.CheckSysCap(decl)) {
+    if (!syscap.CheckSysCap(decl) || IsHidedDecl(&decl)) {
         return;
     }
     // use signature to unique
@@ -867,9 +869,11 @@ void CompletionEnv::InvokedAccessible(Ptr<Node> node,
                                       bool isImport)
 {
     if (node == nullptr || node->TestAnyAttr(Cangjie::AST::Attribute::CONSTRUCTOR,
-                                             Cangjie::AST::Attribute::MACRO_INVOKE_FUNC)) {
+                                             Cangjie::AST::Attribute::MACRO_INVOKE_FUNC) ||
+                                            IsHidedDecl(node)) {
         return;
     }
+
     // remove ord/chr etc.
     if (IsZeroPosition(node) && node->astKind != ASTKind::PACKAGE &&
         node->astKind != ASTKind::GENERIC_PARAM_DECL && node->astKind != ASTKind::BUILTIN_DECL) {
@@ -956,6 +960,9 @@ bool CompletionEnv::CompleteInParseCache(const std::string &parentClassLikeName)
                 hasAPILevel = true;
                 continue;
             }
+            if (memberDecl->astKind == ASTKind::MACRO_EXPAND_DECL && memberDecl->identifier == "Hide") {
+                continue;
+            }
             if (!memberDecl->TestAttr(Cangjie::AST::Attribute::PRIVATE)) {
                 CompleteNode(memberDecl.get());
             }
@@ -1035,7 +1042,7 @@ void CompletionEnv::DealClassOrInterfaceDeclByName(T &decl)
 void CompletionEnv::CompleteNode(
     Ptr<Node> node, bool isImport, bool isInScope, bool isSameName, const std::string &container)
 {
-    if (noComplete(node, syscap, isCompleteFunction)) {
+    if (noComplete(node, syscap, isCompleteFunction) || IsHidedDecl(node)) {
         return;
     }
     DeclVarWithTuple(node, isImport, isInScope, isSameName);
