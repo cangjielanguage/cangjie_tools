@@ -138,17 +138,21 @@ public class Depot {
         // building https request
         let request = HttpRequestBuilder().method("GET").url(downloadUrl).build()
         let resp = client.send(request)
-        client.close()
 
         // verify response code
+        var (flag, errLog) = (true, "")
         match (resp.status) {
             case 200 => ()
-            case 400 => return (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: invalid parameters")
-            case 401 => return (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: authentication failed")
-            case 403 => return (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: permission denied")
-            case 404 => return (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: file does not exist")
-            case s where (s >= 500) => return (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: server error")
-            case _ => return (false, "${name}-${version} ${orgStr}load failed, unknown error with status ${resp.status}")
+            case 400 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: invalid parameters")
+            case 401 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: authentication failed")
+            case 403 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: permission denied")
+            case 404 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: file does not exist")
+            case s where (s >= 500) => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: server error")
+            case _ => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed, unknown error with status ${resp.status}")
+        }
+        if (!flag) {
+            client.close()
+            return (flag, errLog)
         }
 
         let buf = Array<UInt8>(1024, repeat: 0)
@@ -158,6 +162,7 @@ public class Depot {
             i = resp.body.read(buf)
             buffer.add(all: buf[..i])
         } while (i != 0)
+        client.close()
 
         // check sha256sum
         try {
@@ -248,23 +253,27 @@ public class Depot {
         // building https request
         let request = HttpRequestBuilder().method("GET").url(indexUrl).build()
         let resp = client.send(request)
-        client.close()
 
         // verify response code
+        var (flag, errLog) = (true, "")
         match (resp.status) {
             case 200 => ()
             case 400 =>
-                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: invalid parameters")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: invalid parameters")
             case 401 =>
-                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: authentication failed")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: authentication failed")
             case 403 =>
-                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: permission denied")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: permission denied")
             case 404 =>
-                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: file does not exist")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: file does not exist")
             case s where (s >= 500) =>
-                return (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: server error")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed with status ${resp.status}: server error")
             case _ =>
-                return (false, "index of module '${name}'${orgStr} load failed, unknown error with status ${resp.status}")
+                (flag, errLog) = (false, "index of module '${name}'${orgStr} load failed, unknown error with status ${resp.status}")
+        }
+        if (!flag) {
+            client.close()
+            return (flag, errLog)
         }
 
         let buf = Array<UInt8>(1024, repeat: 0)
@@ -274,6 +283,7 @@ public class Depot {
             i = resp.body.read(buf)
             buffer.add(all: buf[..i])
         } while (i != 0)
+        client.close()
 
         // save index file
         let indexDir = Path(this.localRepo).join("index").
