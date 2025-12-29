@@ -43,12 +43,12 @@ public func doUpdate(): Bool {
     }
 
     // update 'cjpm.lock' file
+    var checkFlag: Bool = updateDepMap(DIR_CURRENT, "", "", None)
     if (!COMMON_INFO.inWorkspace) {
-        if (!updateDepMap(DIR_CURRENT, "", "", None)) {
+        if (!checkFlag) {
             return false
         }
     } else {
-        var checkFlag: Bool = true
         for (mem in COMMON_INFO.members) {
             checkFlag = checkFlag && updateDepMap(mem, "", "", None)
         }
