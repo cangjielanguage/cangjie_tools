@@ -85,7 +85,7 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     for (auto const &declSet : importManager->GetImportedDecls(*input.file)) {
         // The first element is real imported name
         for (const auto &decl : declSet.second) {
-            if (IsHidedDecl(decl)) {
+            if (IsHiddenDecl(decl)) {
                 continue;
             }
             result.importDeclsSymID.insert(CompletionEnv::GetDeclSymbolID(*decl));

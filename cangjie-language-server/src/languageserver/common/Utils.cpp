@@ -15,7 +15,7 @@ using namespace Cangjie::FileUtil;
 namespace ark {
 const int NUMBER_FOR_LINE_COMMENT = 2; // length of "//"
 const int NUMBER_FOR_DOC_COMMENT = 3;  // length of "/**"
-const std::string PKG_NAME_OHOS_LABLES = "ohos.labels";
+const std::string PKG_NAME_OHOS_LABElS = "ohos.labels";
 const std::string HIDE_ANNO_NAME = "Hide";
 const std::unordered_map<ASTKind, SymbolKind> AST_KIND_TO_SYMBOL_KIND = {
     {ASTKind::INTERFACE_DECL, SymbolKind::INTERFACE_DECL},
@@ -59,7 +59,7 @@ TypeCompatibility CheckTypeCompatibility(const Ty *lvalue, const Ty *rvalue)
     return TypeCompatibility::INCOMPATIBLE;
 }
 
-bool IsHidedDecl(const Ptr<Node> node) {
+bool IsHiddenDecl(const Ptr<Node> node) {
     if (!Options::GetInstance().IsOptionSet("test") && !MessageHeaderEndOfLine::GetIsDeveco()) {
         return false;
     }
@@ -72,10 +72,12 @@ bool IsHidedDecl(const Ptr<Node> node) {
             continue;
         }
         auto target = anno->baseExpr ? anno->baseExpr->GetTarget() : nullptr;
-        if (target && target->curFile && target->curFile->curPackage &&
-            target->curFile->curPackage->fullPackageName == PKG_NAME_OHOS_LABLES) {
-            return true;
+        if (target) {
+            return target->GetFullPackageName() == PKG_NAME_OHOS_LABElS && target->outerDecl &&
+                target->outerDecl->identifier == HIDE_ANNO_NAME; 
         }
+        // 6.0 annotation is not export target, to compatible with 6.0, treat as hidden
+        return true;
     }
     return false;
 }
