@@ -37,21 +37,19 @@ public func setRepoRoot(installConfig: InstallConfig, artifact: String): Bool {
         (nameArr[0], nameArr[1])
     }
     try {
-        installConfig.globalConfig.rootPath = Path(DEFAULT_CONFIG_LOCATION)
-            .join(".cjpm")
-            .join("repository")
-            .join("source")
-            .join(if (org.isEmpty()) { "default" } else { org })
-            .join("${name}-${params[1]}")
-            .toString()
-        if (directoryExists(installConfig.globalConfig.rootPath)) {
-            if (installConfig.verbose) {
-                println("cjpm install skip downloading ${artifact}: local files exist")
-            }
-            installConfig.globalConfig.targetDir = getPath(installConfig.globalConfig.rootPath, TARGET)
-            return true
-        }
         if (let Some(depot) <- Depot.new()) {
+            installConfig.globalConfig.rootPath = Path(depot.localRepo)
+                .join("source")
+                .join(if (org.isEmpty()) { "default" } else { org })
+                .join("${name}-${params[1]}")
+                .toString()
+            if (directoryExists(installConfig.globalConfig.rootPath)) {
+                if (installConfig.verbose) {
+                    println("cjpm install skip downloading ${artifact}: local files exist")
+                }
+                installConfig.globalConfig.targetDir = getPath(installConfig.globalConfig.rootPath, TARGET)
+                return true
+            }
             if (!depot.updateIndex(name, org)) {
                 return false
             }
