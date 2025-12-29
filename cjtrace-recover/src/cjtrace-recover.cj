@@ -28,7 +28,7 @@ Use symbol mapping files to recover obfuscated exception stacktrace. The support
 }
 
 func printVersion() {
-	println("Cangjie Trace Recover: 1.1.0-alpha.51")
+	println("Cangjie Trace Recover: 1.1.0-alpha.52")
 }
 
 func needMoreInformation() {
