@@ -26,7 +26,7 @@ void OverrideCompleter::FindOvrrideFunction()
     }
     // get super class function member
     for (auto superDecl: canSuperCall) {
-        if (superDecl == nullptr || superDecl == topLevelDecl || IsHidedDecl(superDecl)) {
+        if (superDecl == nullptr || superDecl == topLevelDecl || IsHiddenDecl(superDecl)) {
             continue;
         }
         std::optional<std::unordered_map<std::string, std::string>> replace;
@@ -35,7 +35,7 @@ void OverrideCompleter::FindOvrrideFunction()
         }
         for (auto& memberDecl : superDecl->GetMemberDeclPtrs()) {
             auto decl = DynamicCast<FuncDecl>(memberDecl);
-            if (decl == nullptr || IsHidedDecl(decl)) {
+            if (decl == nullptr || IsHiddenDecl(decl)) {
                 continue;
             }
             if (modifier.has_value() && !decl->TestAttr(modifier.value())) {
