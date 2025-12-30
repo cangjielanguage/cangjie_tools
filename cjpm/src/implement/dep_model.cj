@@ -341,8 +341,7 @@ class DepModel {
             }
             if (let Exe <- tomlInfo.pkg.outputType) {
                 let pathLoc = Path(curModulePath).join(CONFIG_FILE_NAME).toString()
-                eprintln("Error: the 'output-type' field of dependent module can't be '${Exe}' in ${pathLoc}")
-                return FAILED_BUILD_CHECK_RESULT
+                tomlInfo.pkg.outputType = Static
             }
             // verify that `requires` block that added this module is compatible with its medatada
             if (preName != tomlInfo.pkg.name) {
