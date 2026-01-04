@@ -31,12 +31,12 @@ public func doUpdate(): Bool {
 
     // update 'cjpm.lock' file
     let depMap = HashMap<String, DepInfo>()
+    var checkFlag: Bool = updateDepMap(depMap, DIR_CURRENT, "", "", None)
     if (!COMMON_INFO.inWorkspace) {
-        if (!updateDepMap(depMap, DIR_CURRENT, "", "", None)) {
+        if (!checkFlag) {
             return false
         }
     } else {
-        var checkFlag: Bool = true
         for (mem in COMMON_INFO.members) {
             checkFlag = checkFlag && updateDepMap(depMap, mem, "", "", None)
         }
