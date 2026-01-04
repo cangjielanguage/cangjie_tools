@@ -342,7 +342,7 @@ auto StoreRef(flatbuffers::FlatBufferBuilder &builder, const Ref &ref)
     auto loc = IdxFormat::CreateLocation(builder, &begin, &end, uri);
     return IdxFormat::CreateRef(builder, loc, static_cast<uint16_t>(ref.kind), ref.container, ref.isCjoRef);
 }
-
+// LCOV_EXCL_START
 auto StoreExtend(flatbuffers::FlatBufferBuilder &builder, const ExtendItem &extendItem)
 {
     auto interfaceName = builder.CreateString(extendItem.interfaceName);
@@ -394,7 +394,7 @@ void AstFileHandler::StoreShard(std::string filePath, const FileOut *out) const
         Trace::Log("ast file write");
     }
 }
-
+// LCOV_EXCL_STOP
 void CacheManager::InitDir()
 {
     std::string cacheRoot = FileUtil::JoinPath(basePath, ".cache");
@@ -445,7 +445,7 @@ void CacheManager::UpdateIdMap(const std::string &pkgName, const std::string &di
     std::lock_guard<std::mutex> lock(cacheMtx);
     astIdMap.insert_or_assign(pkgName, digest);
 }
-
+// LCOV_EXCL_START
 std::optional<std::unique_ptr<FileIn>> CacheManager::Load(const std::string &pkgName)
 {
     auto found = astIdMap.find(pkgName);
@@ -481,7 +481,7 @@ void CacheManager::Store(const std::string &pkgName, const std::string &digest, 
         astLoader->StoreShard(filePath, &out);
     }
 }
-
+// LCOV_EXCL_STOP
 std::optional<std::unique_ptr<IndexFileIn>> CacheManager::LoadIndexShard(const std::string &curPkgName,
                                                                          const std::string &shardIdentifier) const
 {

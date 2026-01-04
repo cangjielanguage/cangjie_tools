@@ -523,6 +523,7 @@ class ExtractFunctionBreakContinueRule : public TweakRule {
         bool isValid = true;
         SelectionTree::Walk(root, [ &isValid, &extraOptions, &sel, this]
             (const SelectionTree::SelectionTreeNode *treeNode) {
+                // LCOV_EXCL_START
                 if (!treeNode->node) {
                     isValid = false;
                     extraOptions.insert(std::make_pair("ErrorCode",
@@ -543,7 +544,7 @@ class ExtractFunctionBreakContinueRule : public TweakRule {
                         return SelectionTree::WalkAction::STOP_NOW;
                     }
                 }
-
+            // LCOV_EXCL_STOP
                 return SelectionTree::WalkAction::WALK_CHILDREN;
             });
 

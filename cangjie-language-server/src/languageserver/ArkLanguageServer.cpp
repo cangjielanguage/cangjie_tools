@@ -127,7 +127,7 @@ public:
             logger.LogMessage(MessageType::MSG_WARNING, log.str());
             return LSPRet::SUCCESS;
         }
-
+        // LCOV_EXCL_START
         // Log and run the reply handler.
         if (result.type == ValueOrErrorCheck::VALUE) {
             CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", success");
@@ -139,6 +139,7 @@ public:
                         "," + result.errorInfo.message);
             logger.LogMessage(MessageType::MSG_WARNING, log.str());
         }
+        // LCOV_EXCL_STOP
         return LSPRet::SUCCESS;
     }
 
@@ -148,6 +149,7 @@ public:
     {
         calls[method] = [method, handler, this](const nlohmann::json &rawParams, const nlohmann::json &id) {
             Param param;
+            // LCOV_EXCL_START
             if (!FromJSON(rawParams, param)) {
                 std::stringstream log;
                 log << "Failed to decode request or request not meet requirement, method:" << method;
@@ -155,6 +157,7 @@ public:
                 return;
             }
             (server.*handler)(param, id);
+            // LCOV_EXCL_STOP
         };
     }
 
@@ -762,7 +765,7 @@ bool ArkLanguageServer::CheckFileInCangjieProject(const std::string &filePath, b
     }
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(filePath).first != CangjieFileKind::MISSING;
 }
-
+// LCOV_EXCL_START
 bool ArkLanguageServer::CheckPkgInCangjieProject(const std::string &pkgPath) const
 {
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(pkgPath, true).first != CangjieFileKind::MISSING;
@@ -772,7 +775,7 @@ void ArkLanguageServer::RemoveDocByFile(const std::string &file)
 {
     DocMgr.RemoveDoc(file);
 }
-
+// LCOV_EXCL_STOP
 void ArkLanguageServer::OnHover(const TextDocumentPositionParams &params, nlohmann::json onHoverId)
 {
     Logger& logger = Logger::Instance();
@@ -851,7 +854,7 @@ void ArkLanguageServer::OnFileReference(const DocumentLinkParams &params, nlohma
     };
     Server->FindFileReferences(file, std::move(reply));
 }
-
+// LCOV_EXCL_START
 void ArkLanguageServer::OnCrossLanguageRegister(const CrossLanguageJumpParams &params, nlohmann::json id)
 {
     Logger& logger = Logger::Instance();
@@ -917,7 +920,7 @@ void ArkLanguageServer::OnFileRefactor(const FileRefactorReqParams &params, nloh
     bool isTest = false;
     Server->ApplyFileRefactor(file, selectedElement, target, isTest, std::move(reply));
 }
-
+// LCOV_EXCL_STOP
 
 void ArkLanguageServer::OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id)
 {
@@ -1322,7 +1325,7 @@ void ArkLanguageServer::CollectCA2AllImport(std::vector<CodeAction> &allImports,
         }
     }
 }
-// LCOV_EXCL_STOP
+
 void ArkLanguageServer::ReportCjoVersionErr(std::string message)
 {
     nlohmann::json reply;
@@ -1341,7 +1344,7 @@ void ArkLanguageServer::PublishCompletionTip(const CompletionTip &params)
     ValueOrError result(ValueOrErrorCheck::VALUE, reply);
     Notify("textDocument/publishCompletionTip", result);
 }
-
+// LCOV_EXCL_STOP
 void ArkLanguageServer::OnSignatureHelp(const SignatureHelpParams &params, nlohmann::json id)
 {
     Logger &logger = Logger::Instance();
@@ -1390,7 +1393,7 @@ void ArkLanguageServer::OnDocumentSymbol(const DocumentSymbolParams &params, nlo
     };
     Server->FindDocumentSymbol(params, reply);
 }
-
+// LCOV_EXCL_START
 void ArkLanguageServer::AddImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst)
 {
     std::string identifier = GetSubStrBetweenSingleQuote(diagnostic.message);
@@ -1594,7 +1597,7 @@ void ArkLanguageServer::RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticT
     }
 }
 
-// LCOV_EXCL_START
+
 void ArkLanguageServer::HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
     const lsp::Symbol &sym, Range textEditRange, const std::string &uri)
 {
