@@ -1438,7 +1438,7 @@ func addStdLibsLink(compileTarget: String): ?ArrayList<String> {
         let runtimeDirList = getDirectoryList(runtimePath)
         var runtimeLibPath = ""
         for (dirInfo in runtimeDirList) {
-            if (dirInfo.name.contains(platform) && dirInfo.name.contains(framework)) {
+            if (checkRuntimeLibDir(dirInfo.name, platform, framework)) {
                 runtimeLibPath = dirInfo.path.toString()
                 break
             }
@@ -1478,7 +1478,9 @@ func getTargetKeywords(compileTarget: String): (String, String) {
     // check platform
     if (compileTarget.contains("darwin")) {
         platform = "darwin"
-    } else if (compileTarget.contains("linux") || compileTarget.contains("ohos")) {
+    } else if (compileTarget.contains("ohos")) {
+        platform = "ohos"
+    } else if (compileTarget.contains("linux")) {
         platform = "linux"
     } else if (compileTarget.contains("windows") || compileTarget.contains("w64")) {
         platform = "windows"
@@ -1492,4 +1494,11 @@ func getTargetKeywords(compileTarget: String): (String, String) {
     }
 
     return (platform, framework)
+}
+
+func checkRuntimeLibDir(dirName: String, platform: String, framework: String): Bool {
+    if (dirName.contains("ohos") && (platform == "linux")) {
+        return false
+    }
+    return dirName.contains(platform) && dirName.contains(framework)
 }
