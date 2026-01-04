@@ -7,6 +7,8 @@
             <policy name="projectPolicy" desc="">
                 <policyitem type="copyright" name="Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
                 <policyitem type="copyright" name="REM Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
+                <policyitem type="copyright" name="Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
+                <policyitem type="copyright" name="REM Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
                 <policyitem type="license" name="CC-BY-4.0" path=".*" rule="may" group="defaultGroup" filefilter="defaultPolicyFilter" desc=""/>
             </policy>
         </policylist>
@@ -59,4 +61,3 @@
         </licensematcherlist>
     </oatconfig>
 </configuration>
-
