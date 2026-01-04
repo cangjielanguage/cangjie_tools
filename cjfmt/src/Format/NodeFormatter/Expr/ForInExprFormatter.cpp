@@ -29,7 +29,7 @@ void ForInExprFormatter::AddForInExpr(Doc& doc, const Cangjie::AST::ForInExpr& f
     }
     doc.members.emplace_back(DocType::STRING, level, " in ");
     if (forInExpr.inExpression) {
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(forInExpr.inExpression.get(), level + 1));
+        doc.members.emplace_back(astToFormatSource.ASTToDoc(forInExpr.inExpression.get(), level));
     }
     if (forInExpr.patternGuard) {
         doc.members.emplace_back(DocType::STRING, level, " where ");
