@@ -8,6 +8,7 @@ package cjpm.implement
 
 import std.collection.*
 import std.fs.*
+import std.env.*
 import cjpm.config.*
 import cjpm.util.Result
 
@@ -35,7 +36,7 @@ public func makeScriptConfigByToml(rootPath: String, modulePath: String, tomlInf
             return scriptConfig
         }
     }
-    
+
     let (flag, errlog) = tomlInfo.isCompatible()
     if (!flag) {
         eprintln("Error: ${errlog} at ${Path(modulePath).join(CONFIG_FILE_NAME).toString()}")
@@ -123,18 +124,14 @@ func runScriptExe(scriptConfig: ScriptConfig, commandArg: String): Bool {
     if (RUN_SCRIPT_CMD_MAP.contains(scriptConfig.moduleName)) {
         (cmd, exePath, envs) = RUN_SCRIPT_CMD_MAP[scriptConfig.moduleName]
         if (scriptConfig.isVerbose) {
-            println("${cmd} ${commandArg}")
+            println(cmd)
         }
     } else {
         exePath = scriptConfig.scriptExe
         envs = getEnvMap(scriptConfig.scriptLdPath)
         if (scriptConfig.isVerbose) {
-            cmd = "Run build script: "
-            if (!scriptConfig.scriptLdPath.isEmpty()) {
-                cmd += "${setLdLibraryPath(scriptConfig.scriptLdPath)} "
-            }
-            cmd += "${scriptConfig.scriptExe}"
-            println("${cmd} ${commandArg}")
+            cmd = "Run build script: ${getCmdStr(envs, exePath, ArrayList<String>([commandArg]))}"
+ 	        println(cmd)
         }
         RUN_SCRIPT_CMD_MAP.add(scriptConfig.moduleName, (cmd, exePath, envs))
     }
@@ -330,20 +327,13 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
 }
 
 func getEnvMap(ldPath: HashSet<String>): HashMap<String, String> {
-    let ldPathString: String = getNativeLdLibraryConfig(ldPath)
-    let envs: HashMap<String, String> = HashMap<String, String>()
-    if (!LD_PATH.isEmpty() && !ldPathString.isEmpty()) {
-        envs.add(LD_PATH, ldPathString)
-        if (LD_PATH == "Path") {
-            envs.add("PATH", ldPathString)
-            envs.add("path", ldPathString)
-        }
-    }
-    return envs
+    let envBuilder = EnvironmentBuilder()
+    envBuilder.prepend(LD_PATH, ldPath)
+    envBuilder.prepend(LD_PATH, getExtraRuntimePaths())
+    return envBuilder.asCliStrings(getVariables())
 }
 
 func getCompileArgs(scriptConfig: ScriptConfig, buildConfig: BuildConfig): Option<(HashMap<String, String>, ArrayList<String>)> {
-    let ldPathString: String = getNativeLdLibraryConfig(scriptConfig.scriptLdPath)
     var cmd: String = "\"${scriptConfig.scriptPath}\""
     for (p in buildConfig.globalConfig.cjPathList) {
         if (directoryExists(p)) {
@@ -360,15 +350,13 @@ func getCompileArgs(scriptConfig: ScriptConfig, buildConfig: BuildConfig): Optio
     if (!depLinkList.isEmpty()) {
         cmd += " ${String.join(depLinkList.toArray(), delimiter: " ")} "
     }
+    let env = getEnvMap(scriptConfig.scriptLdPath)
+ 	let cmdArgs = extractOptionByString(cmd)
     if (scriptConfig.isVerbose) {
-        print("Compiling build script of `${scriptConfig.moduleName}`:")
-        if (!ldPathString.isEmpty()) {
-            print(" ${setLdLibraryPath(scriptConfig.scriptLdPath)}")
-        }
-        print(" ${COMPILE_TOOL} ${cmd}\n")
+        println("Compiling build script of `${scriptConfig.moduleName}`: ${getCmdStr(env, COMPILE_TOOL, cmdArgs)}")
     }
 
-    return (getEnvMap(scriptConfig.scriptLdPath), extractOptionByString(cmd))
+    return (env, cmdArgs)
 }
 
 func getScriptIncremental(scriptConfig: ScriptConfig): String {
