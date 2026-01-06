@@ -42,8 +42,8 @@ hle -b ${CANGJIE_HOME}/tools/dtsparser/node_modules/.bin/cjbind -c --module-name
 
 The `-b` parameter is used to specify the path to the cjbind binary file. The cjbind download link is as follows:
 
-- Linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.7/cjbind-linux-x64'
-- Windows: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.7/cjbind-windows-x64.exe'
-- MacOS: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.7/cjbind-darwin-arm64'
+- Linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-linux-x64'
+- Windows: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-windows-x64.exe'
+- MacOS: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-darwin-arm64'
 
 The `--clang-args` parameter is directly passed to clang, and the -I option can be used within its value to specify header file search paths. System header file paths are searched automatically by the program, while user-defined header file paths need to be explicitly specified.
