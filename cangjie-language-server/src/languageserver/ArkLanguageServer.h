@@ -188,6 +188,15 @@ private:
         transp.Reply(std::move(id), ValueOrError(ValueOrErrorCheck::VALUE, result));
     }
 
+    int GetUnusedImportCount(std::vector<DiagnosticToken> &diagnostics);
+
+    void GetMultiImportMap(std::map<Range, std::pair<int, int>>& multiImportMap, ArkAST *arkAst);
+
+    WorkspaceEdit GetWorkspaceEdit(std::vector<DiagnosticToken> &diagnostics,
+        const std::string &uri, std::set<Range>& removeMultiImports,
+        std::map<Range, std::vector<TextEdit>>& multiImport2TextEdit,
+        std::map<Range, std::pair<int, int>>& multiImportMap);
+
     std::mutex fixItsMutex {};
 
     std::unordered_map<std::string, std::set<DiagnosticToken, DiagnosticCompare>> fixItsMap {};
