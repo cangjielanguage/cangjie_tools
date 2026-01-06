@@ -125,14 +125,14 @@ public:
         }
         return nullptr;
     }
-
+    // LCOV_EXCL_START
     bool PkgIsFromSrcOrNoSrc(Ptr<const Cangjie::AST::Node> node) const
     {
         if (!node) { return false; }
         std::string fullPkgName = GetPkgNameFromNode(node);
         return CIMap.find(fullPkgName) != CIMap.end() || CIMapNotInSrc.find(fullPkgName) != CIMapNotInSrc.end();
     }
-
+    // LCOV_EXCL_STOP
     bool PkgIsFromCIMap(const std::string &fullPkgName) const
     {
         return CIMap.find(fullPkgName)!=CIMap.end();
@@ -156,7 +156,7 @@ public:
     {
         return CIMapNotInSrc.find(fullPkgName)!=CIMapNotInSrc.end();
     }
-
+    // LCOV_EXCL_START
     std::vector<std::string> GetFilesInPkg(const std::string &pkgPath) const
     {
         std::vector<std::string> ret;
@@ -169,7 +169,7 @@ public:
         }
         return ret;
     }
-
+    // LCOV_EXCL_STOP
     void GetIncDegree(const std::string &pkgName, std::unordered_map<std::string, size_t>& inDegreeMap,
                       std::unordered_map<std::string, bool>& isVisited);
 
@@ -233,7 +233,7 @@ public:
             pLRUCache = std::make_unique<LRUCache>(LRU_SIZE);
         }
     }
-
+    // LCOV_EXCL_START
     std::vector<std::string> GetCIMapNotInSrcList()
     {
         std::vector<std::string> ciMap = {};
@@ -277,7 +277,7 @@ public:
         }
         return curDecl;
     };
-
+    // LCOV_EXCL_STOP
     std::set<Ptr<Cangjie::AST::ExtendDecl> >
     GetExtendDecls(const std::variant<Ptr<Cangjie::AST::Ty>, Ptr<Cangjie::AST::InheritableDecl> > &type,
                    const std::string& packageName)

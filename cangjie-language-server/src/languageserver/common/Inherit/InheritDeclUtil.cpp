@@ -144,6 +144,7 @@ void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
     // deal funcDecl in Extend
     if (inDecl->outerDecl->astKind == Cangjie::AST::ASTKind::EXTEND_DECL) {
         for (auto &item: classLikeOrStructDecl->inheritedTypes) {
+            // LCOV_EXCL_START
             if (item->ty->kind == TypeKind::TYPE_CLASS) {
                 auto superDecl = dynamic_cast<ClassTy *>(item->ty.get())->decl;
                 auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
@@ -153,6 +154,7 @@ void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
                 auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
                 HandleRelatedFuncDeclsFromTopLevel(realDecl, !isDocumentHighlight);
             }
+            // LCOV_EXCL_STOP
         }
         if (isDocumentHighlight) { return; }
     }

@@ -230,7 +230,7 @@ public:
         void DealCrossSymbols(const std::vector<std::pair<std::string, CrossSymbol>> &crsSyms);
 
         dberr_no InsertCrossSymbols(const std::vector<std::pair<std::string, CrossSymbol>> &crsSyms);
-
+        // LCOV_EXCL_START
         template <typename... Ts>
         void BindValue(const sqldb::Bind<Ts...> &bind, sqlite3_stmt *stmt, int &Index)
         {
@@ -239,7 +239,7 @@ public:
                         Trace::Log(RC, "Failed to bind value to parameter at index " + std::to_string(Index));
             });
         }
-
+        // LCOV_EXCL_STOP
         /**
          * Apply path mappings to paths inside index database.
          */

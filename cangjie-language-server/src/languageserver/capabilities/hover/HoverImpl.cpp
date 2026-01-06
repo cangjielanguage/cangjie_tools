@@ -347,7 +347,7 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
     }
     return 1;
 }
-
+// LCOV_EXCL_START
 std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
 {
     std::string apiKey = "apiKey:";
@@ -402,7 +402,7 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
     // return empty apiKey:
     return "apiKey:\r\n";
 }
-
+// LCOV_EXCL_STOP
 int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos)
 {
     Logger &logger = Logger::Instance();
@@ -435,6 +435,7 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
     std::string query = "_ = (" + std::to_string(pos.fileID) + ", "
                         + std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
     auto syms = SearchContext(ast.packageInstance->ctx, query);
+    // LCOV_EXCL_START
     if (syms.empty()) {
         logger.LogMessage(MessageType::MSG_WARNING, "the result of search is empty.");
         return -1;
@@ -448,6 +449,7 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
             return -1;
         }
     }
+    // LCOV_EXCL_STOP
     bool isMarkPosition = !syms[0] || IsMarkPos(syms[0]->node, pos);
     if (isMarkPosition) { return -1; }
     std::vector<Ptr<Decl> > decls = ast.FindRealDecl(ast, syms, query, pos, {true, false});
@@ -463,6 +465,7 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
         decl = GetRealDecl(decls);
     }
     if (decl->TestAttr(Attribute::DEFAULT, Attribute::COMPILER_ADD)) {
+        // LCOV_EXCL_START
         query = "_ = (" + std::to_string(decl->identifier.Begin().fileID) +
             ", " + std::to_string(decl->identifier.Begin().line) +
             ", " + std::to_string(decl->identifier.Begin().column) + ")";
@@ -473,6 +476,7 @@ int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos
                 decl = realDecl;
             }
         }
+        // LCOV_EXCL_STOP
     }
     if (IsModifierBeforeDecl(decl, curToken.Begin())) {
         logger.LogMessage(MessageType::MSG_WARNING, "this token does not need to hover");

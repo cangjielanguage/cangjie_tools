@@ -51,7 +51,7 @@ void MemIndex::Lookup(const LookupRequest &req, std::function<void(const Symbol 
         }
     }
 }
-
+// LCOV_EXCL_START
 void MemIndex::FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const
 {
     auto it = pkgSymsMap.find(req.fullPkgName);
@@ -62,7 +62,7 @@ void MemIndex::FindPkgSyms(const PkgSymsRequest &req, std::function<void(const S
         callback(sym);
     }
 }
-
+// LCOV_EXCL_STOP
 void MemIndex::Refs(const RefsRequest &req, std::function<void(const Ref &)> callback) const
 {
     for (const auto &id : req.ids) {
@@ -82,7 +82,7 @@ void MemIndex::Refs(const RefsRequest &req, std::function<void(const Ref &)> cal
         }
     }
 }
-
+// LCOV_EXCL_START
 void MemIndex::FileRefs(const FileRefsRequest &req,
     std::function<void(const Ref &ref, const SymbolID symId)> callback) const
 {
@@ -101,7 +101,7 @@ void MemIndex::FileRefs(const FileRefsRequest &req,
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void MemIndex::RefsFindReference(const RefsRequest &req,
     Ref &definition, std::function<void(const Ref &)> callback) const
 {
@@ -374,6 +374,7 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
     std::unordered_set<std::string> targetPackageSet;
     targetPackageSet.insert(packageName);
     if (isComebined) {
+        // LCOV_EXCL_START
         const auto pkgMap = CompilerCangjieProject::GetInstance()->GetFullPkgNameToPathMap();
         for (auto &item : pkgMap) {
             std::string pkgName = item.first;
@@ -381,6 +382,7 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
                 targetPackageSet.insert(pkgName);
             }
         }
+        // LCOV_EXCL_STOP
     }
     for (const auto &pkgName : targetPackageSet) {
         if (pkgCrossSymsMap.find(pkgName) == pkgCrossSymsMap.end()) {

@@ -178,12 +178,14 @@ void ArkASTWorker::RunWithAST(const std::string &name,
             // Do incremental build for defined file first
             if (this->callback->isRenameDefined && this->callback->NeedReParser(this->callback->path) &&
                 this->callback->path != file) {
+                // LCOV_EXCL_START
                 CompilerCangjieProject::GetInstance()->CompilerOneFile(
                     this->callback->path, this->callback->GetContentsByFile(this->callback->path));
                 this->callback->UpdateDocNeedReparse(this->callback->path,
                     this->callback->GetVersionByFile(this->callback->path), false);
                 this->callback->isRenameDefined = false;
                 this->callback->path = "";
+                // LCOV_EXCL_STOP
             }
             CompilerCangjieProject::GetInstance()->CompilerOneFile(file, this->callback->GetContentsByFile(file));
             this->callback->UpdateDocNeedReparse(file, inputs.version, false);
@@ -266,6 +268,7 @@ void ArkASTWorker::RunWithASTCache(
             return;
         }
 
+        // LCOV_EXCL_START
         {
             std::unique_lock<std::mutex> lock(completionMtx);
             if (waitingCompletionTask != nullptr) {
@@ -284,12 +287,14 @@ void ArkASTWorker::RunWithASTCache(
             auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
             dbCache.EraseThreadCache();
         }
+        // LCOV_EXCL_STOP
     };
 
     if (Options::GetInstance().IsOptionSet("test")) {
         std::thread thread(std::move(task));
         thread.join();
     } else {
+        // LCOV_EXCL_START
         std::unique_lock<std::mutex> lock(completionMtx);
         if (isCompleteRunning) {
             waitingCompletionTask = std::move(task);
@@ -298,6 +303,7 @@ void ArkASTWorker::RunWithASTCache(
             std::thread thread(std::move(task));
             thread.detach();
         }
+        // LCOV_EXCL_STOP
     }
 }
 

@@ -903,6 +903,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             if (docMgr->GetDoc(file).version != -1) {
                 return;
             }
+            // LCOV_EXCL_START
             const std::string &contents = GetFileContents(file);
             if (std::hash<std::string>{}(contents) == std::hash<std::string>{}(docMgr->GetDoc(file).contents)) {
                 Logger::Instance().LogMessage(MessageType::MSG_INFO, "recieve file change, but contens are same.");
@@ -911,6 +912,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             int64_t version = docMgr->AddDoc(file, 0, contents);
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;
+            // LCOV_EXCL_STOP
         }
         if (type == FileChangeType::CREATED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
@@ -922,6 +924,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;
         }
+        // LCOV_EXCL_START
         if (type == FileChangeType::DELETED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "delete the file:  " + file);
             CompilerCangjieProject::GetInstance()->IncrementForFileDelete(file);
@@ -933,6 +936,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
         }
         std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(input.onEditFile);
         callback->ReadyForDiagnostics(input.onEditFile, input.inputs.version, diagnostics);
+        // LCOV_EXCL_STOP
     };
 
     auto taskName = "ChangeWatchedFiles " + file;

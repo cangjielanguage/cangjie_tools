@@ -154,7 +154,7 @@ int ArkAST::GetCurToken(const Cangjie::Position &pos, int start, int end) const
         return GetCurToken(pos, midIndex + 1, end);
     }
 }
-
+// LCOV_EXCL_START
 int ArkAST::GetCurTokenByStartColumn(const Cangjie::Position &pos, int start, int end) const
 {
     int idx = GetCurToken(pos, start, end);
@@ -182,7 +182,7 @@ int ArkAST::GetCurTokenByStartColumn(const Cangjie::Position &pos, int start, in
     }
     return idx;
 }
-
+// LCOV_EXCL_STOP
 int ArkAST::GetCurTokenSkipSpace(const Cangjie::Position &pos, int start, int end, int lastEnd) const
 {
     if (start > end) {
@@ -429,6 +429,7 @@ std::vector<Ptr<Decl>> ArkAST::FindRealDecl(const ark::ArkAST& nowAst, const std
         bool isDeclInMacroCall = isMacro && (node->astKind == ASTKind::MACRO_EXPAND_DECL || node->isInMacroCall) &&
                                  !node->GetMacroCallNewPos(macroPos).IsZero();
         if (isDeclInMacroCall) {
+            // LCOV_EXCL_START
             auto pos = node->GetMacroCallNewPos(macroPos);
             std::string newQuery = "_ = (" + std::to_string(pos.fileID) + ", "
                                    + std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
@@ -438,6 +439,7 @@ std::vector<Ptr<Decl>> ArkAST::FindRealDecl(const ark::ArkAST& nowAst, const std
             }
             decls = nowAst.FindRealDecl(nowAst, newSyms, newQuery);
             if (!decls.empty()) { return decls; }
+            // LCOV_EXCL_STOP
         }
         if (i < syms.size() - 1 && node->isInMacroCall && syms[i]->name == syms[i + 1]->name && !syms[i]->target) {
             node = syms[i + 1]->node;

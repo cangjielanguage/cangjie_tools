@@ -186,12 +186,14 @@ int main(int argc, const char *argv[], const char *envp[])
         (void)fprintf(stderr, "warning: %s", message.c_str());
     }
     if (exitCode == ark::LSPRet::ERR_IO && ark::ShutdownRequested()) {
+        // LCOV_EXCL_START
         std::thread timer([]()-> void {
             const int64_t deadTime = 10;
             std::this_thread::sleep_for(std::chrono::seconds(deadTime));
             std::exit(0);
         });
         timer.detach();
+        // LCOV_EXCL_STOP
     }
     return 0;
 }

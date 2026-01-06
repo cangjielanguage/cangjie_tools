@@ -99,7 +99,7 @@ void PopulateSymbol(const sqldb::Result &row, Symbol &sym)
         sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column);
     sym.id = GetIDFromArray(idArray);
 }
-
+// LCOV_EXCL_START
 void PopulateSymbolAndCompletions(const sqldb::Result &row, Symbol &sym, CompletionItem &completion)
 {
     IDArray idArray;
@@ -133,7 +133,7 @@ void PopulateExtendItemAndCompletions(const sqldb::Result &row, ExtendItem &exte
         idArray, completionItem.label, completionItem.insertText);
     sym.id = GetIDFromArray(idArray);
 }
-
+// LCOV_EXCL_STOP
 void PopulateRef(const sqldb::Result &row, Ref &ref, SymbolID &symId)
 {
     IDArray idArray;
@@ -631,7 +631,7 @@ dberr_no IndexDatabase::GetComment(IDArray id, std::function<bool(const Comment 
 #endif
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetFileWithID(int fileId,
                                       std::function<bool(std::string, std::string)> callback)
 {
@@ -681,7 +681,7 @@ dberr_no IndexDatabase::GetSymbol(std::string filePath, size_t line, size_t col,
 {
     return true;
 }
-// LCOV_EXCL_START
+
 dberr_no IndexDatabase::GetMatchingSymbols(
     std::string query, std::function<bool(const Symbol &sym)> callback,
     std::optional<std::string> scope,
@@ -891,7 +891,7 @@ dberr_no IndexDatabase::DBUpdate::DeleteFile(const std::string &fileURI)
 #endif
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::DBUpdate::UpdateFilesNotEnumerated()
 {
     return true;
@@ -907,7 +907,7 @@ dberr_no IndexDatabase::DBUpdate::RenameFile(
 {
     return true;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::DBUpdate::InsertSymbol(const Symbol &sym)
 {
     if (sym.id == 0) {

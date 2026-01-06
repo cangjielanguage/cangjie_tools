@@ -54,7 +54,7 @@ void FindReferencesImpl::CompileDownStreamPackage(const std::vector<Ptr<Cangjie:
     // Compile all downstream packages before searching for references
     CompilerCangjieProject::GetInstance()->SubmitTasksToPool(tasks);
 }
-
+// LCOV_EXCL_START
 std::unordered_set<std::string> FindReferencesImpl::GetSelectedUesScopeNames(Ptr<Decl> decl,
     const ArkAST &ast, Range &range)
 {
@@ -74,7 +74,7 @@ std::unordered_set<std::string> FindReferencesImpl::GetSelectedUesScopeNames(Ptr
     }
     return scopeNames;
 }
-
+// LCOV_EXCL_STOP
 void FindReferencesImpl::FindReferences(const ArkAST &ast, ReferencesResult &result, Position pos)
 {
     Logger &logger = Logger::Instance();

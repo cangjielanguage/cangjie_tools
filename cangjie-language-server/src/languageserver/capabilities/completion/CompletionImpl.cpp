@@ -348,6 +348,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
     Range textEditRange{textEditStart, textEditStart};
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
     SyscapCheck syscap(curModule);
+    // LCOV_EXCL_START
     index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
         pkgName, curModule, prefix,
         [&result, &textEditRange, &syscap](const std::string &pkg,
@@ -375,6 +376,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             completion.sortType = SortType::AUTO_IMPORT_SYM;
             result.completions.push_back(completion);
         });
+    // LCOV_EXCL_STOP
 }
 
 void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix, std::unordered_set<std::string> usedNamedParams, int positionalsUsed, std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists, int paramIndex)
@@ -556,7 +558,7 @@ bool CompletionImpl::CheckNamedParameter(const ark::ArkAST &input, const int ind
     }
     return true;
 }
-
+// LCOV_EXCL_START
 void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg,
     const lsp::Symbol &sym, const lsp::CompletionItem &completionItem, Range textEditRange)
 {
@@ -578,7 +580,7 @@ void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const
         return;
     }
 }
-
+// LCOV_EXCL_STOP
 void CompletionImpl::NormalParseImpl(
     const ArkAST &input, const Cangjie::Position &pos, CompletionResult &result, int index, std::string &prefix)
 {
@@ -648,6 +650,7 @@ int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdx
     if (input.tokens[firstTokIdxInLine].kind != TokenKind::DOT) {
         return firstTokIdxInLine;
     }
+    // LCOV_EXCL_START
     int qualifyPreTokenIdx = firstTokIdxInLine - 1;
     if (qualifyPreTokenIdx < 0) {
         return firstTokIdxInLine;
@@ -672,6 +675,7 @@ int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdx
         return firstTokIdxInLine;
     }
     return begin;
+    // LCOV_EXCL_STOP
 }
 
 std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start, int end)

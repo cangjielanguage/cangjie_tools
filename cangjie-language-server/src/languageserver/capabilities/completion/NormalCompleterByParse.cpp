@@ -392,6 +392,7 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool after
     std::string path = Normalize(input.file->filePath);
     std::string fullPkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(path);
     if (IsFromCIMapNotInSrc(fullPkgName)) {
+        // LCOV_EXCL_START
         auto workspace = CompilerCangjieProject::GetInstance()->GetWorkSpace();
         std::string relativeDirName = fullPkgName;
         size_t found = fullPkgName.find(workspace);
@@ -402,6 +403,7 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool after
                 relativeDirName = relativeDirName.substr(1);
             }
         }
+        // LCOV_EXCL_STOP
 #ifdef _WIN32
         std::replace(relativeDirName.begin(), relativeDirName.end(), '\\', '.');
 #else

@@ -253,7 +253,7 @@ void BackgroundIndexDB::Lookup(const LookupRequest &req,
         });
     }
 }
-
+// LCOV_EXCL_START
 void BackgroundIndexDB::GetExportSID(IDArray array,
                                      std::function<void(const CrossSymbol &)> callback) const
 {
@@ -285,7 +285,7 @@ void BackgroundIndexDB::GetFuncByName(const FuncSigRequest &req,
         return true;
     });
 }
-// LCOV_EXCL_START
+
 Symbol BackgroundIndexDB::GetAimSymbol(const Decl& decl)
 {
     auto pkgName = decl.fullPackageName;

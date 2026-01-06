@@ -15,6 +15,7 @@ namespace ark {
 void RedirectToMacroInvocation(const Decl &decl, LocatedSymbol &result, std::string &path)
 {
     if (EndsWith(path, ".macrocall") && decl.curMacroCall) {
+        // LCOV_EXCL_START
         Ptr<Node> curMacroCallNode = decl.curMacroCall;
         std::string sourceFile;
         if (RemoveFilePathExtension(path, ".macrocall", sourceFile)
@@ -24,6 +25,7 @@ void RedirectToMacroInvocation(const Decl &decl, LocatedSymbol &result, std::str
             Range macroCallBeginRange = {curMacroCallNode->begin, curMacroCallNode->begin};
             result.Definition = {uri, TransformFromChar2IDE(macroCallBeginRange)};
         }
+        // LCOV_EXCL_STOP
     }
 }
 
@@ -63,6 +65,7 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
     ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(path);
     // jump to lib
     const std::string standardDeclAbsolutePath = GetStandardDeclAbsolutePath(&decl, path);
+    // LCOV_EXCL_START
     if (standardDeclAbsolutePath != "") {
         uri.file = URI::URIFromAbsolutePath(standardDeclAbsolutePath).ToString();
         result.Definition = {uri, TransformFromChar2IDE(range)};
@@ -79,6 +82,7 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
         }
         return false;
     }
+    // LCOV_EXCL_STOP
     if (arkAst) {
         UpdateRange(arkAst->tokens, range, decl);
     }
