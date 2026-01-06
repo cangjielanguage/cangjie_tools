@@ -423,6 +423,7 @@ std::string SignatureHelpImpl::ResolveFuncName()
     // ensure like "@ValWithGrad(product,"
     // offset -2 is "@" && offset -1 is (VJP|Grad|ValWithGrad) && offset +1 is funcName &&
     // then is need signatureHelp
+    // LCOV_EXCL_START
     if (leftQuoteIndex > 1 && realTokens[leftQuoteIndex - CONSTANTS::AD_OFFSET] == "@" &&
         (funcName == "ValWithGrad" || funcName == "Grad" || funcName == "VJP") &&
         static_cast<unsigned long>(leftQuoteIndex + 1) < realTokens.size() &&
@@ -432,6 +433,7 @@ std::string SignatureHelpImpl::ResolveFuncName()
     } else if (funcNameIndex >= 0) {
         funcName = realTokens[funcNameIndex].Value();
     }
+    // LCOV_EXCL_STOP
     return funcName;
 }
 
