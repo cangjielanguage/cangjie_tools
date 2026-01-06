@@ -1512,60 +1512,18 @@ void ArkLanguageServer::RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticT
     if (!arkAst->file) {
         return;
     }
-    int unusedImportCount = 0;
-    for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
-            continue;
-        }
-        unusedImportCount++;
-    }
+    int unusedImportCount = GetUnusedImportCount(diagnostics);
     if (unusedImportCount <= 1) {
         return;
     }
     std::map<Range, std::pair<int, int>> multiImportMap;
-    for (auto &importSpec : arkAst->file->imports) {
-        if (!importSpec || importSpec->end.IsZero() || importSpec.get()->content.kind != ImportKind::IMPORT_MULTI) {
-            continue;
-        }
-        Position multiImportEnd = importSpec->content.rightCurlPos;
-        multiImportEnd.column++;
-        Range multiImportRange = {importSpec->begin, multiImportEnd};
-        multiImportMap[multiImportRange] = {importSpec->content.items.size(), 0};
-    }
+    GetMultiImportMap(multiImportMap, arkAst);
     CodeAction allUnusedImportCA;
     allUnusedImportCA.kind = CodeAction::QUICKFIX_REMOVE_IMPORT;
     allUnusedImportCA.title = "Remove all unused imports";
-    WorkspaceEdit edit;
     std::set<Range> removeMultiImports;
     std::map<Range, std::vector<TextEdit>> multiImport2TextEdit;
-    for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
-            continue;
-        }
-        TextEdit textEdit;
-        for (auto &ca : diagnostic.codeActions.value()) {
-            if (ca.kind == CodeAction::QUICKFIX_REMOVE_IMPORT && ca.edit.has_value()
-                && !ca.edit.value().changes[uri].empty()) {
-                edit.changes[uri].push_back(ca.edit->changes[uri][0]);
-                textEdit = ca.edit->changes[uri][0];
-                break;
-            }
-        }
-        if (textEdit.range.end.IsZero()) {
-            continue;
-        }
-        for (auto &multiImport : multiImportMap) {
-            Range diagRange = TransformFromIDE2Char(diagnostic.range);
-            if (!(multiImport.first.start <= diagRange.start && multiImport.first.end >= diagRange.end)) {
-                continue;
-            }
-            multiImport2TextEdit[multiImport.first].push_back(textEdit);
-            multiImportMap[multiImport.first] = {multiImport.second.first, multiImport.second.second + 1};
-            if (multiImport.second.first == multiImport.second.second) {
-                removeMultiImports.insert(multiImport.first);
-            }
-        }
-    }
+    WorkspaceEdit edit = GetWorkspaceEdit(diagnostics, uri, removeMultiImports, multiImport2TextEdit, multiImportMap);
     allUnusedImportCA.edit = edit;
     if (!allUnusedImportCA.edit.has_value() || allUnusedImportCA.edit.value().changes[uri].empty()) {
         return;
@@ -1796,5 +1754,67 @@ void ArkLanguageServer::OnCommandApplyTweak(const TweakArgs &args, nlohmann::jso
         return;
     };
     Server->ApplyTweak(file, range, args.tweakID, args.extraOptions, std::move(action));
+}
+
+int ArkLanguageServer::GetUnusedImportCount(std::vector<DiagnosticToken> &diagnostics)
+{
+    int unusedImportCount = 0;    
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+            continue;
+        }
+        unusedImportCount++;
+    }
+    return unusedImportCount;
+}
+
+void ArkLanguageServer::GetMultiImportMap(std::map<Range, std::pair<int, int>>& multiImportMap, ArkAST *arkAst)
+{
+    for (auto &importSpec : arkAst->file->imports) {
+        if (!importSpec || importSpec->end.IsZero() || importSpec.get()->content.kind != ImportKind::IMPORT_MULTI) {
+            continue;
+        }
+        Position multiImportEnd = importSpec->content.rightCurlPos;
+        multiImportEnd.column++;
+        Range multiImportRange = {importSpec->begin, multiImportEnd};
+        multiImportMap[multiImportRange] = {importSpec->content.items.size(), 0};
+    }
+}
+
+WorkspaceEdit ArkLanguageServer::GetWorkspaceEdit(std::vector<DiagnosticToken> &diagnostics,
+    const std::string &uri, std::set<Range>& removeMultiImports,
+    std::map<Range, std::vector<TextEdit>>& multiImport2TextEdit,
+    std::map<Range, std::pair<int, int>>& multiImportMap)
+{
+    WorkspaceEdit edit;
+    for (auto &diagnostic : diagnostics) {
+        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+            continue;
+        }
+        TextEdit textEdit;
+        for (auto &ca : diagnostic.codeActions.value()) {
+            if (ca.kind == CodeAction::QUICKFIX_REMOVE_IMPORT && ca.edit.has_value()
+                && !ca.edit.value().changes[uri].empty()) {
+                edit.changes[uri].push_back(ca.edit->changes[uri][0]);
+                textEdit = ca.edit->changes[uri][0];
+                break;
+            }
+        }
+        if (textEdit.range.end.IsZero()) {
+            continue;
+        }
+        for (auto &multiImport : multiImportMap) {
+            Range diagRange = TransformFromIDE2Char(diagnostic.range);
+            if (!(multiImport.first.start <= diagRange.start && multiImport.first.end >= diagRange.end)) {
+                continue;
+            }
+            multiImport2TextEdit[multiImport.first].push_back(textEdit);
+            multiImportMap[multiImport.first] = {multiImport.second.first, multiImport.second.second + 1};
+            if (multiImport.second.first == multiImport.second.second) {
+                removeMultiImports.insert(multiImport.first);
+            }
+        }
+    }
+    return edit;
 }
 } // namespace ark
