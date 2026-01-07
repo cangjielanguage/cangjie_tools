@@ -513,7 +513,8 @@ void DotCompleterByParse::FindVarDecl(Ptr<Node> node, const Position &pos, std::
         ASTKind::LAMBDA_EXPR,
         ASTKind::MATCH_EXPR,
         ASTKind::TRAIL_CLOSURE_EXPR,
-        ASTKind::TRY_EXPR
+        ASTKind::TRY_EXPR,
+        ASTKind::CALL_EXPR,
     };
     if (keyKind.find(pVarDecl->initializer->astKind) != keyKind.end() &&
         Contain(pVarDecl->initializer.get(), pos)) {
@@ -534,7 +535,8 @@ void DotCompleterByParse::FindVarWithPatternDecl(Ptr<Node> node, const Position 
         ASTKind::LAMBDA_EXPR,
         ASTKind::MATCH_EXPR,
         ASTKind::TRAIL_CLOSURE_EXPR,
-        ASTKind::TRY_EXPR
+        ASTKind::TRY_EXPR,
+        ASTKind::CALL_EXPR
     };
     if (keyKind.find(pVarWithPatternDecl->initializer->astKind) != keyKind.end() &&
         Contain(pVarWithPatternDecl->initializer.get(), pos)) {
