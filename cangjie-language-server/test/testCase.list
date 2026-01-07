@@ -238,6 +238,7 @@
 {"completion":{"testFile":"LSP_Completion_Hide_010.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_011.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_012.test","id":"3"}}
+{"completion":{"testFile":"LSP_Completion_2026010534205.test","id":"10"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
