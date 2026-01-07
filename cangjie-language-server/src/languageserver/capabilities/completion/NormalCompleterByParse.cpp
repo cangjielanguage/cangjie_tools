@@ -409,10 +409,10 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool after
     env.OutputResult(result);
 }
 
-void NormalCompleterByParse::GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefix,
+void NormalCompleterByParse::GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefixContent,
                                                     Ptr<Decl> decl, const Position& pos)
 {
-    OverrideCompleter overrideCompleter(semaCacheDecl, prefix);
+    OverrideCompleter overrideCompleter(semaCacheDecl, prefixContent);
     if (overrideCompleter.SetCompletionConfig(decl, pos)) {
         overrideCompleter.FindOvrrideFunction();
         auto items = overrideCompleter.ExportItems();
