@@ -135,14 +135,7 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     bool isInclass = CheckIfOverrideComplete(topLevelDecl, decl, pos, kind);
     Ptr<Decl> semaCacheDecl = decls.second;
     if (isInclass && semaCacheDecl) {
-        OverrideCompleter overrideCompleter(semaCacheDecl, env.prefix);
-        if (overrideCompleter.SetCompletionConfig(decl, pos)) {
-            overrideCompleter.FindOvrrideFunction();
-            auto items = overrideCompleter.ExportItems();
-            for (auto& item : items) {
-                result.completions.push_back(item);
-            }
-        }
+        GetOverrideComplete(semaCacheDecl, env.prefix, decl, pos);
     }
 
     if (isMinDecl) {
@@ -416,4 +409,16 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool after
     env.OutputResult(result);
 }
 
+void NormalCompleterByParse::GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefix,
+                                                    Ptr<Decl> decl, const Position& pos)
+{
+    OverrideCompleter overrideCompleter(semaCacheDecl, prefix);
+    if (overrideCompleter.SetCompletionConfig(decl, pos)) {
+        overrideCompleter.FindOvrrideFunction();
+        auto items = overrideCompleter.ExportItems();
+        for (auto& item : items) {
+            result.completions.push_back(item);
+        }
+    }
+}
 } // namespace ark

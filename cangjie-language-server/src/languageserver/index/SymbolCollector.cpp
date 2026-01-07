@@ -1413,7 +1413,8 @@ void SymbolCollector::CreateMacroRef(const Node &node, const MacroInvocation &in
     if (!invocation.target) {
         return;
     }
-    if (invocation.decl && invocation.decl->astKind == ASTKind::MACRO_EXPAND_DECL) {
+    if (invocation.decl && invocation.decl->astKind == ASTKind::MACRO_EXPAND_DECL &&
+        invocation.decl->GetConstInvocation()) {
         CreateMacroRef(*invocation.decl, *invocation.decl->GetConstInvocation());
     }
     if (!node.curFile) {

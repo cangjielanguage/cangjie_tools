@@ -6,6 +6,21 @@
 
 #include "Protocol.h"
 
+namespace {
+ark::lsp::SymbolID ParseSymbolID(std::string symbol)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        return std::stoull(symbol);
+#ifndef NO_EXCEPTIONS
+    } catch (...) {
+        return ark::lsp::INVALID_SYMBOL_ID;
+    }
+#endif
+}
+} // namespace
+
 namespace ark {
 using namespace Cangjie;
 
@@ -456,7 +471,7 @@ bool FromJSON(const nlohmann::json &params, TypeHierarchyItem &replyTH)
     replyTH.isChildOrSuper = params["item"]["data"].value("isChildOrSuper", false);
     auto symbolId = params["item"]["data"].value("symbolId", "");
     if (!symbolId.empty()) {
-        replyTH.symbolId = std::stoull(symbolId);
+        replyTH.symbolId = ParseSymbolID(symbolId);
     }
     return true;
 }
@@ -501,7 +516,7 @@ bool FromJSON(const nlohmann::json &params, CallHierarchyItem &replyCH)
     replyCH.isKernel = params["item"]["data"].value("isKernel", false);
     auto symbolId = params["item"]["data"].value("symbolId", "");
     if (!symbolId.empty()) {
-        replyCH.symbolId = std::stoull(symbolId);
+        replyCH.symbolId = ParseSymbolID(symbolId);
     }
     return true;
 }

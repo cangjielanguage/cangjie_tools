@@ -50,6 +50,9 @@ private:
 
     bool CheckIfOverrideComplete(Ptr<Decl> topLevelDecl, Ptr<Decl>& decl, const Position& pos, TokenKind kind);
 
+    void GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefix,
+                                Ptr<Decl> decl, const Position& pos);
+
     CompletionResult &result;
 
     Cangjie::ImportManager *importManager = nullptr;

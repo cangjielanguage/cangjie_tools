@@ -15,7 +15,7 @@ using namespace Cangjie::FileUtil;
 namespace ark {
 const int NUMBER_FOR_LINE_COMMENT = 2; // length of "//"
 const int NUMBER_FOR_DOC_COMMENT = 3;  // length of "/**"
-const std::string PKG_NAME_OHOS_LABElS = "ohos.labels";
+const std::string PKG_NAME_OHOS_LABELS = "ohos.labels";
 const std::string HIDE_ANNO_NAME = "Hide";
 const std::unordered_map<ASTKind, SymbolKind> AST_KIND_TO_SYMBOL_KIND = {
     {ASTKind::INTERFACE_DECL, SymbolKind::INTERFACE_DECL},
@@ -73,7 +73,7 @@ bool IsHiddenDecl(const Ptr<Node> node) {
         }
         auto target = anno->baseExpr ? anno->baseExpr->GetTarget() : nullptr;
         if (target) {
-            return target->GetFullPackageName() == PKG_NAME_OHOS_LABElS && target->outerDecl &&
+            return target->GetFullPackageName() == PKG_NAME_OHOS_LABELS && target->outerDecl &&
                 target->outerDecl->identifier == HIDE_ANNO_NAME; 
         }
         // 6.0 annotation is not export target, to compatible with 6.0, treat as hidden
