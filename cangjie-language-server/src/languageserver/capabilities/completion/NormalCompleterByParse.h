@@ -50,7 +50,7 @@ private:
 
     bool CheckIfOverrideComplete(Ptr<Decl> topLevelDecl, Ptr<Decl>& decl, const Position& pos, TokenKind kind);
 
-    void GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefix,
+    void GetOverrideComplete(Ptr<Cangjie::AST::Decl> semaCacheDecl, const std::string& prefixContent,
                                 Ptr<Decl> decl, const Position& pos);
 
     CompletionResult &result;
