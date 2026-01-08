@@ -131,7 +131,8 @@ void DotCompleterByParse::FuzzyDotComplete(const ArkAST &input, const Position &
         env.OutputResult(result);
         return;
     }
-    FindExprInTopDecl(topDecl, expr, input, pos);
+    OwnedPtr<Expr> invocationEx;
+    FindExprInTopDecl(topDecl, expr, input, pos, invocationEx);
     if (!expr) {
         env.OutputResult(result);
         return;
@@ -1410,17 +1411,17 @@ bool DotCompleterByParse::CompleteEmptyPrefix(Ptr<Expr> expr, CompletionEnv &env
     return false;
 }
 
-void DotCompleterByParse::FindExprInTopDecl(Ptr<Decl> topDecl, Ptr<Expr>& expr,
-                            const ArkAST &input, const Position &pos)
+void DotCompleterByParse::FindExprInTopDecl(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
+    const Position &pos, OwnedPtr<Expr> &invocationEx)
 {
-    WalkForMemberAccess(topDecl, expr, input, pos);
+    WalkForMemberAccess(topDecl, expr, input, pos, invocationEx);
     if (inIfAvailable && !expr) {
         WalkForIfAvailable(topDecl, expr, input, pos);
     }
 }
 
 void DotCompleterByParse::WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                        const Position &pos)
+                        const Position &pos, OwnedPtr<Expr> &invocationEx)
 {
     Walker(topDecl, [&](auto node) {
         if (auto ma = dynamic_cast<MemberAccess *>(node.get())) {
@@ -1435,6 +1436,7 @@ void DotCompleterByParse::WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr
             if (auto ma = DynamicCast<MemberAccess *>(ex.get())) {
                 if (ma->dotPos.line == pos.line && ma->dotPos.column == pos.column - 1) {
                     expr = ma->baseExpr.get();
+                    invocationEx = std::move(ex);
                     return VisitAction::STOP_NOW;
                 }
             }
