@@ -57,6 +57,7 @@ class ParallelBuilder {
     }
 
     func build(): Bool {
+        let originalEnv = getVariables()
         let sem = Semaphore(maxParallelSize)
         let futTasks = HashMap<String, Future<Bool>>()
 
@@ -138,10 +139,10 @@ class ParallelBuilder {
                 }
 
                 var flag: Bool = true
-                if (task.targetPlatform && !runTask(task, this.buildConfig.globalConfig.ldPath)) {
+                if (task.targetPlatform && !runTask(task, this.buildConfig.globalConfig.ldPath, originalEnv)) {
                     flag = false
                 }
-                if (task.nativePlatform && !runTask(task, this.buildConfig.globalConfig.ldPath,
+                if (task.nativePlatform && !runTask(task, this.buildConfig.globalConfig.ldPath, originalEnv,
                     isNativeForCross: true)) {
                     flag = false
                 }
@@ -199,7 +200,8 @@ class ParallelBuilder {
         return delLog
     }
 
-    func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>, isNativeForCross!: Bool = false): Bool {
+    func runTask(resolveConfig: ResolveConfig, ldPath: HashSet<String>,
+ 	        originalEnv: Array<(String, String)>, isNativeForCross!: Bool = false): Bool {
         let envBuilder = EnvironmentBuilder()
         envBuilder.prepend(LD_PATH, ldPath)
 
@@ -225,8 +227,7 @@ class ParallelBuilder {
                 calculateParallel(CUR_PARALLEL_SIZE.load(), args)
             }
 
-            let env = getVariables()
-            let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
+            let commandStr = getCmdStr(envBuilder.asCliStrings(originalEnv), COMPILE_TOOL, args)
             if (this.buildConfig.isVerbose) {
                 let verbose: String = "Compiling package `${resolveConfig.fullName}`: ${commandStr}\n"
                 if (!isNativeForCross) {
@@ -265,7 +266,7 @@ class ParallelBuilder {
                 return false
             }
             try {
-                if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: env)) {
+                if (let Some(returnCode) <- execAndToFile(COMPILE_TOOL, args, outFile, errFile, envBuilder: envBuilder, originalEnv: originalEnv)) {
                     if (returnCode == 0) {
                         execCmdFlag = true
                         if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
