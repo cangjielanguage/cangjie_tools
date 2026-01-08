@@ -203,10 +203,10 @@ private:
                                 const std::string &scopeName, const Position &pos);
 
     void FindExprInTopDecl(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                            const Position &pos);
+                            const Position &pos, OwnedPtr<Expr> &invocationEx);
 
     void WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                            const Position &pos);
+                            const Position &pos, OwnedPtr<Expr> &invocationEx);
 
     void WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
                             const Position &pos);
