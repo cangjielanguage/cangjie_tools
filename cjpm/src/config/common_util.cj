@@ -33,23 +33,29 @@ public func execAndToTerminal(exeTool: String, arguments: Array<String>, timeout
 
 // Execute the command and store the output.
 public func execWithOutput(exeTool: String, arguments: ArrayList<String>,
-    envMap!: HashMap<String, String> = HashMap(), timeout!: Option<Duration> = None,
+    envMap!: HashMap<String, String> = HashMap<String, String>(), timeout!: Option<Duration> = None,
     workingDirectory!: ?Path = None, spawnForScript!: Bool = false): (Bool, String, String) {
     let subProcess: SubProcess
     var returnCode: Int64
     var outInfo = ""
     var errInfo = ""
     try {
-        let env = HashMap<String, String>(getVariables())
-        for ((k, v) in envMap) {
-            if (env.contains(k)) {
-                env[k] = v + env[k]
-            } else {
-                env[k] = v
+        if (envMap.isEmpty()) {
+            subProcess = launch(exeTool, arguments.toArray(), workingDirectory: workingDirectory,
+                stdOut: ProcessRedirect.Pipe, stdErr: ProcessRedirect.Pipe)
+        } else {
+            let env = HashMap<String, String>(getVariables())
+            for ((k, v) in envMap) {
+                if (env.contains(k)) {
+                    env[k] = v + env[k]
+                } else {
+                    env[k] = v
+                }
             }
+            subProcess = launch(exeTool, arguments.toArray(), environment: env, workingDirectory: workingDirectory,
+                stdOut: ProcessRedirect.Pipe, stdErr: ProcessRedirect.Pipe)
         }
-        subProcess = launch(exeTool, arguments.toArray(), environment: env, workingDirectory: workingDirectory,
-            stdOut: ProcessRedirect.Pipe, stdErr: ProcessRedirect.Pipe)
+
         if (spawnForScript) {
             let outInfoFuture = spawn {StringReader(subProcess.stdOutPipe).readToEnd()}
             let errInfoFuture = spawn {StringReader(subProcess.stdErrPipe).readToEnd()}
