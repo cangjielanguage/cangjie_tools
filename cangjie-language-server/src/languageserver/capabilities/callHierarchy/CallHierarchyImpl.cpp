@@ -135,7 +135,7 @@ void DealCallee(const std::pair<lsp::SymbolID, std::vector<lsp::Ref>>& callee, l
     lsp::Symbol declSym;
     // find callee symbol by id
     index->Lookup(lookUpReq, [&declSym](const lsp::Symbol &sym) {
-        if (sym.location.IsZeroLoc() && sym.name != "init") {
+        if ((sym.location.IsZeroLoc() && sym.name != "init") || (sym.id == 0 && sym.isCjoSym)) {
             return;
         }
         declSym = sym;
