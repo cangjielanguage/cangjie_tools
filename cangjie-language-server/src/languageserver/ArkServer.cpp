@@ -909,8 +909,11 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
                 Logger::Instance().LogMessage(MessageType::MSG_INFO, "recieve file change, but contens are same.");
                 return;
             }
+            auto pkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(file);
             int64_t version = docMgr->AddDoc(file, 0, contents);
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
+            CompilerCangjieProject::GetInstance()->
+                UpdateFileStatusInCI(pkgName, file, CompilerInstance::SrcCodeChangeState::CHANGED);
             return;
             // LCOV_EXCL_STOP
         }
@@ -928,7 +931,9 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
         if (type == FileChangeType::DELETED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "delete the file:  " + file);
             CompilerCangjieProject::GetInstance()->IncrementForFileDelete(file);
-            CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({file});
+            if (CompilerCangjieProject::GetUseDB()) {
+                CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({file});
+            }
             this->callback->RemoveDocByFile(input.inputs.fileName);
         }
         if (!FileUtil::FileExist(input.onEditFile)) {

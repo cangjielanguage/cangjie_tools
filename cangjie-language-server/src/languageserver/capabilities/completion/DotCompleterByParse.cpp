@@ -376,7 +376,6 @@ Ptr<Decl> DotCompleterByParse::FindTopDecl(const ArkAST &input, const std::strin
         if (!file) {
             continue;
         }
-        file->curPackage = context->curPackage;
         for (auto &decl : file->decls) {
             if (!decl) {
                 continue;

@@ -153,11 +153,17 @@ public:
 
     void UpdateDepGraph(const std::unique_ptr<ark::DependencyGraph> &graph, const std::string &prePkgName);
 
+    void SetBufferCache(const std::unordered_map<std::string, std::string> &buffer);
+
+    void SetBufferCacheForParse(const std::unordered_map<std::string, std::string> &buffer);
+
     ark::Callbacks *callback = nullptr;
     std::string pkgNameForPath; // Real Package Name
     std::string pkgNameForCj;
     bool macroExpandSuccess = false;
-    std::set<std::string> upstreamPkgs;
+    std::set<std::string> upstreamPkgs; // direct upstream packages
+    std::mutex fileStatusLock;
+    std::unordered_map<std::string, SrcCodeChangeState> fileStatus;
     const std::unique_ptr<ark::ModuleManager> &moduleManger;
 
     static inline std::shared_mutex mtx;

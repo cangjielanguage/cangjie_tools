@@ -1200,7 +1200,11 @@ bool InImportSpec(const File &file, Position pos)
         return false;
     }
     if (file.imports.empty()) {
-        return true;
+        ++ pos.line;
+        if (file.decls.empty() || (!file.decls.empty() && file.decls[0] && pos < file.decls[0]->GetBegin())) {
+            return true;
+        }
+        return false;
     } else {
         auto line = file.imports.back()->begin.line;
         if (pos.line > line) {
