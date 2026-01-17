@@ -434,7 +434,7 @@ static CHIR::Func *GetSpawnClosure(const T *apply, AstFuncInfo spawenFunc)
 template <typename T> void DataflowRuleP02Check::CheckApplyOrInVoke(const CHIR::Expression &expr)
 {
     auto apply = StaticCast<T *>(&expr);
-    auto spawnFunc = AstFuncInfo("init", "Future", {"Future", NOT_CARE}, "Void", "std.core");
+    auto spawnFunc = AstFuncInfo("init", "Future", {"Future", NOT_CARE}, ANY_TYPE, "std.core");
     if (CommonFunc::FindCHIRFunction(apply->GetCallee(), spawnFunc)) {
         auto lambdaVar = StaticCast<CHIR::LocalVar *>(apply->GetArgs()[1]);
         auto lambdaExpr = lambdaVar->GetExpr();

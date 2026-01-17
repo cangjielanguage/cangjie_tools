@@ -322,6 +322,7 @@ std::string ASTToFormatSource::DocToString(Doc& doc, int& pos, std::string& form
 void ASTToFormatSource::AddModifier(Doc& doc, const std::set<Cangjie::AST::Modifier>& modifiers, int level)
 {
     static std::vector<std::set<TokenKind>> MODIFIER_PRIORITY = {
+        {TokenKind::COMMON, TokenKind::PLATFORM},
         {TokenKind::PUBLIC, TokenKind::PRIVATE, TokenKind::INTERNAL, TokenKind::PROTECTED},
         {TokenKind::OPEN, TokenKind::SEALED, TokenKind::STATIC},
         {TokenKind::ABSTRACT},

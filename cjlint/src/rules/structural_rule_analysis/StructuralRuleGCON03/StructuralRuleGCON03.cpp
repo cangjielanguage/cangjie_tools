@@ -134,7 +134,7 @@ bool StructuralRuleGCON03::CoverDeclToFuncDecl(Ptr<Cangjie::AST::Decl> decl)
 
 bool StructuralRuleGCON03::IsFuncSafe(Ptr<Cangjie::AST::CallExpr> callExpr)
 {
-    if (callExpr->baseFunc && callExpr->baseFunc->astKind == ASTKind::REF_EXPR) {
+    if (callExpr->baseFunc->astKind == ASTKind::REF_EXPR) {
         auto refExpr = As<ASTKind::REF_EXPR>(callExpr->baseFunc.get());
         if (!CoverDeclToFuncDecl(refExpr->ref.target)) {
             return false;
@@ -151,7 +151,7 @@ bool StructuralRuleGCON03::IsFuncSafe(Ptr<Cangjie::AST::CallExpr> callExpr)
 
 StructuralRuleGCON03::MutexState StructuralRuleGCON03::IsReentrantMutex(Ptr<Cangjie::AST::CallExpr> callExpr)
 {
-    if (callExpr->baseFunc == nullptr || callExpr->baseFunc->astKind != AST::ASTKind::MEMBER_ACCESS) {
+    if (callExpr->baseFunc->astKind != AST::ASTKind::MEMBER_ACCESS) {
         return MutexState::NOT_MUTEX;
     }
     auto memberAccess = As<ASTKind::MEMBER_ACCESS>(callExpr->baseFunc.get());

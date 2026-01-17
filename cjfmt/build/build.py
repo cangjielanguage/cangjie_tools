@@ -115,6 +115,26 @@ def generate_cmake_defs(args):
             '-DCANGJIE_HOME=' + os.environ['CANGJIE_HOME'],
             ] + [arg for arg in args.cmake_args if arg != '--']
 
+    if args.target == "ohos-x86_64":
+        return [
+            '-DCMAKE_BUILD_TYPE=' + args.build_type.value,
+            "-DCJFMT_CODE_COVERAGE=" + bool_to_opt(args.code_coverage),
+            '-DCMAKE_C_COMPILER=' + 'x86_64-unknown-linux-ohos-clang',
+            '-DCMAKE_CXX_COMPILER=' + 'x86_64-unknown-linux-ohos-clang++',
+            '-DCANGJIE_HOME=' + os.environ['CANGJIE_HOME'],
+            "-DCMAKE_SYSROOT=" + (args.target_sysroot if args.target_sysroot else ""),
+            ] + [arg for arg in args.cmake_args if arg != '--']
+
+    if args.target == "ohos-aarch64":
+        return [
+            '-DCMAKE_BUILD_TYPE=' + args.build_type.value,
+            "-DCJFMT_CODE_COVERAGE=" + bool_to_opt(args.code_coverage),
+            '-DCMAKE_C_COMPILER=' + 'aarch64-unknown-linux-ohos-clang',
+            '-DCMAKE_CXX_COMPILER=' + 'aarch64-unknown-linux-ohos-clang++',
+            '-DCANGJIE_HOME=' + os.environ['CANGJIE_HOME'],
+            "-DCMAKE_SYSROOT=" + (args.target_sysroot if args.target_sysroot else ""),
+            ] + [arg for arg in args.cmake_args if arg != '--']
+
     return [
                '-DCMAKE_BUILD_TYPE=' + args.build_type.value,
                "-DCJFMT_CODE_COVERAGE=" + bool_to_opt(args.code_coverage),
@@ -244,8 +264,12 @@ def main():
                             type=str,
                             dest="target",
                             default='native',
-                            choices=['native', 'windows-x86_64'],
+                            choices=['native', 'windows-x86_64', 'ohos-x86_64', 'ohos-aarch64'],
                             help='Specify the target platform (default: native).')
+    parser_build.add_argument("--target-sysroot",
+                            type=str,
+                            dest="target_sysroot",
+                            help="pass this argument to C/CXX compiler as --sysroot")
     parser_build.add_argument("-j",
                               "--jobs",
                               type=int,
