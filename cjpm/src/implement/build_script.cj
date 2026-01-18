@@ -294,7 +294,7 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
 
     var allPackageSet: HashSet<String> = HashSet<String>(buildConfig.packageList.all)
     var requires: HashSet<String> = HashSet<String>()
-    for (fullName in res.dependencies) {
+    for (fullName in res.dependencies where !fullName.isStdlibPackage) {
         for (importInfo in fullName.importsList) {
             if (!importInfo.fileImported.endsWith(PATH_SPLIT_CHAR + BUILD_SCRIPT_NAME)) {
                 continue
@@ -307,13 +307,6 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
                 eprintln("Error: dependency ${fullName.packageName} is not compiled")
                 return Option.None
             }
-        }
-    }
-
-    var stdRequires: HashSet<String> = HashSet<String>()
-    for (fullName in res.stdDependencies) {
-        for (importInfo in fullName.importsList) {
-            stdRequires.add(fullName.packageName)
         }
     }
 

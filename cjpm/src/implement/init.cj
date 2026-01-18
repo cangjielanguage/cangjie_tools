@@ -206,14 +206,22 @@ func createTomlFile(configFileName: String, tomlInfo: TomlInfo): Bool {
     return modifyFilePermission(configFileName)
 }
 
-// Create and open a file named filePath, then write fileString to fileName.
-public func createAndWriteFile(filePath: String, fileString: String, mode!: OpenMode = Write): Bool {
+// Create and open a file named filePath, then write content to fileName.
+public func createAndWriteFile(filePath: String, content: String, mode!: OpenMode = Write): Bool {
     if (directoryExists(filePath)) {
         eprintln("Error: failed to create '${filePath}', because a directory with the same name already exists")
         return false
     }
 
-    var f: File = try {
+    if (!writeFile(filePath, content, mode)) {
+        return false
+    }
+
+    return modifyFilePermission(filePath)
+}
+
+public func writeFile(filePath: String, content: String, mode: OpenMode): Bool {
+    let f: File = try {
         File(filePath, mode)
     } catch (e: Exception) {
         let errMsg = "Error: create '${filePath}' failed"
@@ -223,10 +231,9 @@ public func createAndWriteFile(filePath: String, fileString: String, mode!: Open
         }
         return false
     }
-    f.write(unsafe { fileString.rawData() })
+    f.write(unsafe { content.rawData() })
     f.close()
-
-    return modifyFilePermission(filePath)
+    true
 }
 
 // Get cangjie compiler version

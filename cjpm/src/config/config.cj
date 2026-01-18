@@ -45,7 +45,8 @@ private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
         ("static", Static),
         ("dynamic", Dynamic),
         ("executable", Exe),
-        ("chir", Chir)
+        ("chir", Chir),
+        ("obj", Obj)
     ]
 )
 
@@ -55,6 +56,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
     | Dynamic
     | Exe
     | Chir
+    | Obj
     | Unknown(String)
 
     // output type is considered valid if it can be used in public API by the user
@@ -64,6 +66,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
             match (this) {
                 case Static | Dynamic | Exe => true
                 case Chir => false // This output type is currently for internal usage only
+                case Obj => false // This output type is currently for internal usage only
                 case Unknown(_) => false
             }
         }
@@ -73,7 +76,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
         get() {
             match (this) {
                 case Static | Dynamic => true
-                case Exe | Chir | Unknown(_) => false
+                case Exe | Chir | Obj | Unknown(_) => false
             }
         }
     }
@@ -84,6 +87,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
             case Dynamic => "dynamic"
             case Exe => "executable"
             case Chir => "chir"
+            case Obj => "obj"
             case Unknown(s) => s
         }
     }
@@ -95,6 +99,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
                 case Dynamic => "dylib"
                 case Exe => "exe"
                 case Chir => "chir"
+                case Obj => "obj"
                 case Unknown(s) => s
             }
         }
@@ -487,19 +492,36 @@ public open class CommandConfig {
 }
 
 @Derive[Hashable, Equatable]
+public enum CompilePhase {
+    ObjOnly | LinkOnly | Default
+
+    public func toString(): String {
+        match (this) {
+            case ObjOnly => "ObjOnly"
+            case LinkOnly => "LinkOnly"
+            case Default => "Default"
+        }
+    }
+}
+
+@Derive[Hashable, Equatable]
 public struct TaskIdentifier {
     public TaskIdentifier(
         public let fullName: String,
         public let target: String,
-        public let sourceSetDir: String
+        public let sourceSetDir: String,
+        public let compilePhase!: CompilePhase = Default
     ) { }
 }
 
 public struct PackageList {
     private let packages: Array<ResolveItem>
+    private let macroSet: HashSet<String>
+    private let dylibSet: HashSet<String>
+    private let exeSet: HashSet<String>
+    private let testSet: HashSet<String>
 
     public let all: Array<String>
-    public let allIds: Array<TaskIdentifier>
     public let macros: Array<String>
     public let dylib: Array<String>
     public let exe: Array<String>
@@ -511,7 +533,6 @@ public struct PackageList {
 
         let capacity = this.packages.size
         let all = ArrayList<String>(capacity)
-        let allIds = ArrayList<TaskIdentifier>(4 * capacity)
         let dylib = ArrayList<String>(capacity)
         let macros = ArrayList<String>(capacity)
         let exe = ArrayList<String>(capacity)
@@ -520,12 +541,6 @@ public struct PackageList {
         for (pkg in this.packages) {
             let name = pkg.fullName
             all.add(name)
-
-            for (source in pkg.packagePath._sources) {
-                let sourceSetDir = if (!source.product) { source.outputSuffix.toString() } else { "" }
-                allIds.add(TaskIdentifier(name, crossCompileTarget, sourceSetDir))
-                allIds.add(TaskIdentifier(name, targetConfigName, sourceSetDir))
-            }
 
             if (pkg.isMacroPackage) {
                 macros.add(name)
@@ -536,21 +551,41 @@ public struct PackageList {
             match (pkg.outputType) {
                 case Exe => exe.add(name)
                 case Dynamic => dylib.add(name)
-                case Static | Chir | Unknown(_) => ()
+                case Static | Chir | Obj | Unknown(_) => ()
             }
         }
 
         this.all = all.toArray()
-        this.allIds = allIds.toArray()
         this.macros = macros.toArray()
         this.dylib = dylib.toArray()
         this.exe = exe.toArray()
         this.test = test.toArray()
         this.productSuffixes = makeProductSuffixes(packages)
+
+        this.macroSet = HashSet<String>(this.macros)
+        this.dylibSet = HashSet<String>(this.dylib)
+        this.exeSet = HashSet<String>(this.exe)
+        this.testSet = HashSet<String>(this.test)
     }
 
     init() {
         this([])
+    }
+
+    public func isMacro(name: String): Bool {
+        this.macroSet.contains(name)
+    }
+
+    public func isDyLib(name: String): Bool {
+        this.dylibSet.contains(name)
+    }
+
+    public func isExe(name: String): Bool {
+        this.exeSet.contains(name)
+    }
+
+    public func isTest(name: String): Bool {
+        this.testSet.contains(name)
     }
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
@@ -589,6 +624,7 @@ public enum CjcParallelConfig {
 public class BuildConfig <: CommandConfig {
     public var globalConfig: GlobalConfig = GlobalConfig()
 
+    public var isCompilePipelineParallel: Bool = false
     public var isIncremental: Bool = false
     public var isRebuild: Bool = false
     public var isLint: Bool = false
@@ -624,6 +660,8 @@ public class BuildConfig <: CommandConfig {
     public var scriptConfig: ScriptConfig = ScriptConfig()
     public var superPkgMap: HashMap<String, SuperPackageConfig> = HashMap<String, SuperPackageConfig>()
     public var superPkgSubMap: HashMap<String, String> = HashMap<String, String>()
+
+    public let resolveItemMap: HashMap<String, ResolveItem> = HashMap<String, ResolveItem>()
 
     public func getOptionCacheData(): ArrayList<String> {
         var cacheData = ArrayList<String>()
@@ -1009,7 +1047,11 @@ public struct CompileTask {
         // A file for verbose output of `cjpm` when compiling task
         public let outLogFile!: String = "", 
         // A joined file containing `stderr` of a compiler together with `cjpm` errors
-        public let errLogFile!: String = "" 
+        public let errLogFile!: String = "",
+        // The value of `--compile-target`
+ 	    public let compileTargetOutput!: ?OutputType = None,
+        // The *.o/obj file generated by a ObjOnly task, as the input of a LinkOnly task
+ 	    public let prevStageObj!: ?String = None
     ) { }
 }
 
@@ -1024,10 +1066,10 @@ public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayLis
         }
     }
 
-    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(processdLibName)).toString()) || fileExists(
-        Path(libPath).join("lib${processdLibName}.so").toString()) || fileExists(
-        Path(libPath).join("lib${processdLibName}.dll").toString()) || fileExists(
-        Path(libPath).join("lib${processdLibName}.dylib").toString())) {
+    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(processdLibName))) || 
+        fileExists(Path(libPath).join("lib${processdLibName}.so")) || 
+        fileExists(Path(libPath).join("lib${processdLibName}.dll")) || 
+        fileExists(Path(libPath).join("lib${processdLibName}.dylib"))) {
         res.add(all: ["-L", libPath, "-l${processdLibName}"])
     } else if (fileExists(ltoFile)) {
         res.add(ltoFile)

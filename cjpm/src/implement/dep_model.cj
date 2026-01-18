@@ -736,12 +736,10 @@ class DepModel {
             }
             pkgInfo.isDyLib = isDyLibExist(pkgInfo.libName, libPath, this.isCrossBin)
         }
-        for (k in cjoInfo.dependencies) {
+        for (k in cjoInfo.dependencies where !k.isStdlibPackage) {
             pkgInfo.requires.add(k.packageName)
         }
-        for (k in cjoInfo.stdDependencies) {
-            pkgInfo.stdRequires.add(k.packageName)
-        }
+        pkgInfo.stdRequires = cjoInfo.stdDependencies
         synchronized(this.packageMtx) {
             if (pkgMap.contains(cjoInfo.packageName)) {
                 eprintln("Warning: the package '${cjoInfo.packageName}' is imported multiple times, " +
@@ -852,7 +850,7 @@ class DepModel {
                     result.mockUsed = scans |> any { it => it.mockUsed }
                     result.testUsed = scans |> any { it => it.testUsed }
                     result.dependencies = scans |> flatMap { it => it.dependencies.iterator() } |> collectHashSet |> collectArrayList
-                    result.stdDependencies = scans |> flatMap { it => it.stdDependencies.iterator() } |> collectHashSet |> collectArrayList
+                    result.stdDependencies = scans |> flatMap { it => it.stdDependencies.iterator() } |> collectArrayList
                     result.features = HashSet() // Isn't necessary further
                     result.timeStamp = (scans.map { it => it.timeStamp } |> max) ?? 0
                     return Ok<RequiresPackages, Array<ScanDependencyError>>(result)
@@ -1191,7 +1189,7 @@ class DepModel {
             return FAILED_BUILD_CHECK_RESULT
         }
 
-        for (d in info.dependencies) {
+        for (d in info.dependencies where !d.isStdlibPackage) {
             let depRootPkgName: String = getRootPkgName(d.packageName)
             if (!directDeps.contains(depRootPkgName)) {
                 synchronized(this.errPrintMtx) {
@@ -1203,9 +1201,7 @@ class DepModel {
             pkgInfo.requireDoublePkgs.add((d.packageName, d.orPkgName))
         }
 
-        for (sd in info.stdDependencies) {
-            pkgInfo.stdRequires.add(sd.packageName)
-        }
+        pkgInfo.stdRequires = info.stdDependencies
 
         // The output type of current module is executable, but other package should be static in this module.
         if (pkgInfo.modulePath == this.globalConfig.modulePath && isSubpackage(pkgInfo.fullName)) {
