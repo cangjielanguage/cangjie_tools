@@ -60,9 +60,6 @@ TypeCompatibility CheckTypeCompatibility(const Ty *lvalue, const Ty *rvalue)
 }
 
 bool IsHiddenDecl(const Ptr<Node> node) {
-    if (!Options::GetInstance().IsOptionSet("test") && !MessageHeaderEndOfLine::GetIsDeveco()) {
-        return false;
-    }
     auto decl = DynamicCast<Decl *>(node.get());
     if (!decl) {
         return false;
