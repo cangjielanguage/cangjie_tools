@@ -503,6 +503,7 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
     private static let SRC_DIR = "srcDir"
     private static let FEATURES = "features"
     private static let PRODUCT = "product"
+    private static let CONFIGURED_PRODUCT = "configuredProduct"
     private static let OUTPUT_SUFFIX = "outputSuffix"
 
     public CJMPPackageInfo(
@@ -510,6 +511,7 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
         public let srcDir: Path,
         public let features: HashSet<Feature>,
         public let product: Bool,
+        public let configuredProduct!: Bool = product,
         public let outputSuffix!: Path = makeOutputSuffix(sourceSetDir, product: product)
     ) { }
 
@@ -524,7 +526,14 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
 
     // The suffix should be of a product source set
     func changeProduct(newval: Bool): CJMPPackageInfo {
-        CJMPPackageInfo(sourceSetDir, srcDir, features, newval, outputSuffix: makeOutputSuffix(sourceSetDir, product: newval))
+        CJMPPackageInfo(
+            sourceSetDir,
+            srcDir,
+            features,
+            newval,
+            configuredProduct: configuredProduct,
+            outputSuffix: makeOutputSuffix(sourceSetDir, product: newval)
+        )
     }
 
     public func serialize(): DataModel {
@@ -533,6 +542,7 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
             .add(field(SRC_DIR, srcDir.toString()))
             .add(field(FEATURES, features.iterator().map { it => it.toString() } |> collectArray))
             .add(field(PRODUCT, product))
+            .add(field(CONFIGURED_PRODUCT, configuredProduct))
             .add(field(OUTPUT_SUFFIX, outputSuffix.toString()))
     }
 
@@ -544,9 +554,10 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
         let features = Array<String>.deserialize(dms.get(FEATURES))
             .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
         let product = Bool.deserialize(dms.get(PRODUCT))
+        let configuredProduct = Bool.deserialize(dms.get(CONFIGURED_PRODUCT))
         let outputSuffix = Path(String.deserialize(dms.get(OUTPUT_SUFFIX)))
 
-        CJMPPackageInfo(sourceSetDir, srcDir, features, product, outputSuffix: outputSuffix)
+        CJMPPackageInfo(sourceSetDir, srcDir, features, product, configuredProduct: configuredProduct, outputSuffix: outputSuffix)
     }
 }
 
@@ -593,7 +604,15 @@ public struct CJMPSource <: Serializable<CJMPSource> {
                     if (!dirMap.contains(dirname)) {
                         dirMap[dirname] = ArrayList()
                     }
-                    dirMap[dirname].add(CJMPPackageInfo(source.sourceSetDir, it.path, source.features, source.product))
+                    dirMap[dirname].add(
+                        CJMPPackageInfo(
+                            source.sourceSetDir,
+                            it.path,
+                            source.features,
+                            source.product,
+                            configuredProduct: source.configuredProduct
+                        )
+                    )
                 }
         }
 
@@ -1400,10 +1419,14 @@ private func constructSourceLocations(sourceSets: Array<Node<SourceSetTuple>>): 
     let mapping = HashMap<String, SourceSetEntry>()
     let sourceSetEntries = toposort.iterator().map { it => 
         let (name, srcDir, features, product) = sourceSetsMap[it].value
+        let ssname = name ?? srcDir.toString()
         let isProduct = if (outdegree[it] == 0) {
+            if (let Some(false) <- product) {
+                eprintln("Warning: source set `${ssname}` is most specific and is always product, `product = false` is ignored")
+            }
             true
         } else { product ?? false }
-        let result = SourceSetEntry(name ?? srcDir.toString(), srcDir, features, isProduct)
+        let result = SourceSetEntry(ssname, srcDir, features, isProduct)
         mapping[it] = result
         result
     } |> collectArray

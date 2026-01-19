@@ -135,10 +135,12 @@ public class TomlInfo <: Serializable<TomlInfo> {
         checkList.add(this.pkg.linkOption)
         checkList.add(this.pkg.nativeLinkOption)
         checkList.add(this.pkg.targetDir)
+        checkList.add(this.pkg.scriptDir)
         checkList.add(this.workspace.compileOption)
         checkList.add(this.workspace.overrideCompileOption)
         checkList.add(this.workspace.linkOption)
         checkList.add(this.workspace.targetDir)
+        checkList.add(this.workspace.scriptDir)
         checkList.add(all: this.workspace.members)
         checkList.add(all: this.workspace.buildMembers)
         checkList.add(all: this.workspace.testMembers)
@@ -214,10 +216,12 @@ public class TomlInfo <: Serializable<TomlInfo> {
         this.pkg.nativeCompileOption = replaceEnvVars(this.pkg.nativeCompileOption)
         this.pkg.nativeLinkOption = replaceEnvVars(this.pkg.nativeLinkOption)
         this.pkg.targetDir = replaceEnvVars(this.pkg.targetDir)
+        this.pkg.scriptDir = replaceEnvVars(this.pkg.scriptDir)
         this.workspace.compileOption = replaceEnvVars(this.workspace.compileOption)
         this.workspace.overrideCompileOption = replaceEnvVars(this.workspace.overrideCompileOption)
         this.workspace.linkOption = replaceEnvVars(this.workspace.linkOption)
         this.workspace.targetDir = replaceEnvVars(this.workspace.targetDir)
+        this.workspace.scriptDir = replaceEnvVars(this.workspace.scriptDir)
         for (k in 0..this.workspace.members.size) {
             this.workspace.members[k] = replaceEnvVars(this.workspace.members[k])
         }
@@ -394,7 +398,7 @@ public func loadModuleFile(path: String): Option<TomlInfo> {
 
     var tomlInfo: TomlInfo
     try {
-        let file = File(tomlFile, ReadWrite)
+        let file = File(tomlFile, Read)
         let de = DecoderToml(file)
         let to = de.decode()
         tomlInfo = TomlInfo.deserialize(DataModel.fromToml(to))
@@ -505,7 +509,7 @@ func verifyAll<T>(location: String, checkList: T): Bool where T <: Iterable<((St
     var result = true
     for ((check, v) in checkList) {
         if (let Some(val) <- v) {
-            result &&= check(val, location)
+            result = check(val, location) && result
         }
     }
 

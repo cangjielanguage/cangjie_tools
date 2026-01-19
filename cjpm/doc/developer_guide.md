@@ -301,3 +301,9 @@ Key configuration fields:
 In addition to the aforementioned commands and configuration items, `cjpm` also supports other features such as build scripts, command extensions, etc.
 
 For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Project Manager User Guide》](./user_guide.md).
+
+## Related Repositories
+
+- [cangjie Repository](https://gitcode.com/Cangjie/cangjie_compiler)
+- [stdx Repository](https://gitcode.com/Cangjie/cangjie_stdx)
+- [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)

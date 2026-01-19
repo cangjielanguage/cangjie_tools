@@ -372,7 +372,7 @@ public func loadInstallList(root: String): Option<HashMap<String, InstallBinary>
         return Option.None
     }
     try {
-        let file = File(path, ReadWrite)
+        let file = File(path, Read)
         let de = Decoder(file)
         let to = de.decode()
         file.close()

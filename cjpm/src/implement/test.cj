@@ -77,9 +77,16 @@ public func doTest(unparseArgs: Array<String>, testConfig: TestConfig): Bool {
         return false
     }
 
+    if (!replaceEnvforScriptDir(tomlInfo, Path(DIR_CURRENT))) {
+        return false
+    }
+    let configScriptFileDir = getScriptDirValue(tomlInfo)
+    testConfig.globalConfig.scriptDir = getScriptDirectory(testConfig.globalConfig.scriptDir,
+        testConfig.globalConfig.rootPath, configScriptFileDir, true) ?? return false
+
     var scriptConfig: ScriptConfig = ScriptConfig()
     if (!testConfig.globalConfig.isSkipScript) {
-        scriptConfig = makeScriptConfigByToml(testConfig.globalConfig.rootPath, testConfig.globalConfig.rootPath,
+        scriptConfig = makeScriptConfigByToml(testConfig.globalConfig.scriptDir, testConfig.globalConfig.rootPath,
             tomlInfo, testConfig.isDebug, testConfig.isVerbose, testConfig.isCrossCompile) ?? return false
         if (!runScript(scriptConfig, Pre, testConfig.origCommand)) {
             return false

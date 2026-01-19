@@ -212,6 +212,7 @@ Use "cjpm [subcommand] --help" for more information about a command.
   output-type = "executable" # 编译输出产物类型，必需
   src-dir = "" # 指定源码存放路径，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
   package-configuration = {} # 单包配置选项，非必需
 
 [workspace] # 工作空间管理字段，与 package 字段不能同时存在
@@ -222,6 +223,7 @@ Use "cjpm [subcommand] --help" for more information about a command.
   override-compile-option = "" # 应用于所有工作空间成员模块的额外全局编译命令选项，非必需
   link-option = "" # 应用于所有工作空间成员模块的链接器透传选项，非必需
   target-dir = "" # 指定产物存放路径，非必需
+  script-dir = "" # 指定构建脚本产物存放路径，非必需
 
 [dependencies] # 源码依赖配置项，非必需
   coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
@@ -326,3 +328,9 @@ Use "cjpm [subcommand] --help" for more information about a command.
 除了上述命令和配置项之外，`cjpm` 还支持一些其他功能，例如构建脚本、命令扩展等。
 
 若想获取 `cjpm` 所有命令、配置项和附加功能的详细信息，请参阅[《仓颉项目管理工具用户指南》](./user_guide_zh.md)。
+
+## 相关仓
+
+- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
+- [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx)
+- [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)

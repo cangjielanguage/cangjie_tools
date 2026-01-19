@@ -347,7 +347,25 @@ class DepModel {
     func moduleCheck(path: String, tomlInfo: TomlInfo): BuildCheckResult {
         if (!this.globalConfig.isSkipScript && (path != this.globalConfig.modulePath) &&
             (this.globalConfig.resolveType != RESOLVE_CHECK)) {
-            var scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
+            if (fileExists(Path(path).join(BUILD_SCRIPT_NAME)) && !directoryExists(this.globalConfig.scriptDir)){
+                if (!createDirectory(this.globalConfig.scriptDir)) {
+                    return FAILED_BUILD_CHECK_RESULT
+                }
+            }
+            let scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
+                this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
+            if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
+                return FAILED_BUILD_CHECK_RESULT
+            }
+            this.globalConfig.scriptList.add(scriptConfig)
+        }
+        if (COMMON_INFO.inWorkspace && !this.globalConfig.isSkipScript && (this.globalConfig.resolveType != RESOLVE_CHECK)) {
+            if (fileExists(Path(path).join(BUILD_SCRIPT_NAME)) && !directoryExists(this.globalConfig.scriptDir)){
+                if (!createDirectory(this.globalConfig.scriptDir)) {
+                    return FAILED_BUILD_CHECK_RESULT
+                }
+            }
+            let scriptConfig: ScriptConfig = makeScriptConfigByToml(this.globalConfig.scriptDir, path, tomlInfo,
                 this.globalConfig.isDebug, this.globalConfig.isVerbose, this.globalConfig.isCross) ?? return FAILED_BUILD_CHECK_RESULT
             if (!runScript(scriptConfig, Pre, this.globalConfig.resolveType)) {
                 return FAILED_BUILD_CHECK_RESULT
@@ -694,10 +712,12 @@ class DepModel {
 
                 for ((i, source) in pkgSource._sources.iterator().enumerate()) {
                     let expectedFeatures = source.features
+                    let expectedProduct = source.configuredProduct
+                    let specifiedProduct = scans[i].product
                     let specifiedFeatures = scans[i].features
                     if (!(specifiedFeatures.contains(all: expectedFeatures)) ||
                         !(expectedFeatures.contains(all: specifiedFeatures))) {
-                            let stringify = { it: Iterable<Feature> => 
+                            let stringify = { it: Iterable<Feature> =>
                                 if (let str <- (it |> collectString(delimiter: ", ")) && !str.isEmpty()) {
                                     str
                                 } else { "<none>" }
@@ -705,6 +725,14 @@ class DepModel {
                             errors.add(
                                 "Feature header `${stringify(specifiedFeatures)}` of package `${name}` is different from expected `${stringify(expectedFeatures)}`"
                             )
+                    }
+                    if (expectedProduct != specifiedProduct) {
+                        let errormesg = if (!expectedProduct) {
+                            "Feature header of package `${name}` is missing `@NonProduct` annotation"
+                        } else {
+                            "Package `${name}` should be compiled as product, but feature header annotation `@NonProduct` is present in source code"
+                        }
+                        errors.add(errormesg)
                     }
                 }
 
@@ -734,7 +762,7 @@ class DepModel {
             return Ok(this.pkgTestDepCacheMap[pkgPathString])
         }
         // update pkgDepCacheMap
-        scanDependency(pkgPath, isTest: isTest, compileOptions: compileOptions).inspect { depRes => 
+        scanDependency(pkgPath, isTest: isTest, compileOptions: compileOptions).inspect { depRes =>
             var dep = depRes
             dep.timeStamp = timeStamp
             synchronized (this.scanPkgMtx) {
@@ -800,9 +828,9 @@ class DepModel {
     func updateDepIncrementalCache(): Unit {
         let binCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
         let dmCacheRoot = DataModelStruct()
-                            .add(field<HashMap<String, RequiresPackages>>("bin", this.binDepCacheMap))
-                            .add(field<HashMap<String, RequiresPackages>>("pkg-build", this.pkgBuildDepCacheMap))
-                            .add(field<HashMap<String, RequiresPackages>>("pkg-test", this.pkgTestDepCacheMap))
+            .add(field<HashMap<String, RequiresPackages>>("bin", this.binDepCacheMap))
+            .add(field<HashMap<String, RequiresPackages>>("pkg-build", this.pkgBuildDepCacheMap))
+            .add(field<HashMap<String, RequiresPackages>>("pkg-test", this.pkgTestDepCacheMap))
         let cacheString = dmCacheRoot.toJson().toJsonString()
         createAndWriteFile(binCachePath, cacheString)
         return
