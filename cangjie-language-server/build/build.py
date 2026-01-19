@@ -61,8 +61,11 @@ def download_json():
 
 
 def download_flatbuffers(args):
-    cmd = ["git", "clone", "-b", "OpenHarmony-v6.0-Release", "--depth=1", FLATBUFFER_GIT, "flatbuffers"]
+    cmd = ["git", "clone", "-b", "master", FLATBUFFER_GIT, "flatbuffers"]
     subprocess.run(cmd, cwd=THIRDPARTY_DIR, check=True)
+    checkout_cmd = ["git", "checkout", "8355307828c7a6bc6bae9d2dba48ad3ab0b5ff2d"]
+    flatbuffers_dir = os.path.join(THIRDPARTY_DIR, "flatbuffers")
+    subprocess.run(checkout_cmd, cwd=flatbuffers_dir, check=True)
 
 
 def generate_flat_header():
