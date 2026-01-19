@@ -188,6 +188,8 @@ void StructuralRuleGDCL01::FindShadowNode(Ptr<Cangjie::AST::Node>& node)
         switch (node->astKind) {
             case ASTKind::FILE: {
                 auto pFILE = As<ASTKind::FILE>(node.get());
+                container.clear();
+                tmpContainer.clear();
                 // collect top level elements info
                 TraversingNode(pFILE->decls, container, tmpContainer);
                 break;

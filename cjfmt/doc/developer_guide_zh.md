@@ -233,3 +233,8 @@ cjfmt -f a.cj -c ./cangjie-format.toml
 ```shell
 cjfmt -f a.cj -o .cj -l 10:25 // 仅格式化第10行至第25行
 ```
+
+## 相关仓
+
+- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
+- [SDK 构建](https://gitcode.com/Cangjie/cangjie_build)

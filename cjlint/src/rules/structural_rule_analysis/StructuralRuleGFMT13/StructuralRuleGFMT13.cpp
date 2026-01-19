@@ -58,6 +58,10 @@ void StructuralRuleGFMT13::AnalyzeComments(std::vector<AST::CommentGroup>& leadi
 
 void StructuralRuleGFMT13::GetTopLevelComments(Ptr<Cangjie::AST::File> pFile)
 {
+    if (!pFile->comments.leadingComments.empty()) {
+        AnalyzeComments(pFile->comments.leadingComments, pFile->begin);
+        return;
+    }
     if (pFile->package) {
         AnalyzeComments(pFile->package->comments.leadingComments, pFile->begin);
         return;

@@ -232,3 +232,8 @@ cjfmt -f a.cj -c ./cangjie-format.toml
 ```shell
 cjfmt -f a.cj -o .cj -l 10:25 // Formats only lines 10-25
 ```
+
+## Related Repositories
+
+- [cangjie repo](https://gitcode.com/Cangjie/cangjie_compiler)
+- [SDK Build](https://gitcode.com/Cangjie/cangjie_build)

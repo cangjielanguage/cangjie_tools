@@ -41,11 +41,30 @@ void StructuralRuleGENU01::DuplicateNameFinderHelper(Ptr<Node> node)
  */
 void StructuralRuleGENU01::DiagnosticsFunc(const Decl &decl)
 {
+    for (auto modifier : decl.modifiers) {
+        if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            return;
+        }
+    }
     if (!enumSet.empty()) {
         for (auto &item : enumSet) {
             if (item.first == decl.identifier) {
                 Diagnose(decl.identifier.Begin(), decl.identifier.End(),
                     CodeCheckDiagKind::G_ENU_01_0_duplicate_name_information, decl.identifier.Val().c_str());
+                Diagnose(item.second.first, item.second.second,
+                    CodeCheckDiagKind::G_ENU_01_1_duplicate_name_information, item.first.c_str());
+            }
+        }
+    }
+}
+
+void StructuralRuleGENU01::DiagnosticsPackage(const PackageSpec &packageSpec)
+{
+    if (!enumSet.empty()) {
+        for (auto &item : enumSet) {
+            if (item.first == packageSpec.packageName) {
+                Diagnose(packageSpec.packageName.Begin(), packageSpec.packageName.End(),
+                    CodeCheckDiagKind::G_ENU_01_0_duplicate_name_information, packageSpec.packageName.Val().c_str());
                 Diagnose(item.second.first, item.second.second,
                     CodeCheckDiagKind::G_ENU_01_1_duplicate_name_information, item.first.c_str());
             }
@@ -68,6 +87,11 @@ void StructuralRuleGENU01::DuplicateNameFinder(Ptr<Node> node)
             for (auto &it : file.decls) {
                 DuplicateNameFinder(it.get());
             }
+            DuplicateNameFinder(file.package);
+        },
+        // 识别程序中的包名
+        [this](const PackageSpec &packageSpec) {
+            DiagnosticsPackage(packageSpec);
         },
         // 识别程序中类声明语句
         [this](const ClassDecl &classDecl) {

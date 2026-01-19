@@ -20,6 +20,16 @@ void ExtendDeclFormatter::AddExtendDecl(Doc& doc, const Cangjie::AST::ExtendDecl
         astToFormatSource.AddAnnotations(doc, extendDecl.annotations, level);
     }
 
+    if (extendDecl.TestAttr(AST::Attribute::COMMON)) {
+        doc.members.emplace_back(DocType::STRING, level, "common");
+        doc.members.emplace_back(DocType::STRING, level, " ");
+    }
+
+    if (extendDecl.TestAttr(AST::Attribute::PLATFORM)) {
+        doc.members.emplace_back(DocType::STRING, level, "platform");
+        doc.members.emplace_back(DocType::STRING, level, " ");
+    }
+
     doc.members.emplace_back(DocType::STRING, level, "extend");
     if (extendDecl.generic) {
         astToFormatSource.AddGenericParams(doc, *extendDecl.generic, level);

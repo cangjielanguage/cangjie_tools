@@ -476,3 +476,9 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
   ]
 }
 ```
+
+
+## 相关仓
+
+- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
+- [SDK 构建](https://gitcode.com/Cangjie/cangjie_build)
