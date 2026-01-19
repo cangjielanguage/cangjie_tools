@@ -12,7 +12,7 @@ import ohos.base.*
 import std.math.numeric.*
 import std.collection.{ HashMap }
 
-public enum AutoGenType0 < U > where U <: JSInteropType<U> {
+public enum AutoGenType0IntypeNodes < U > where U <: JSInteropType<U> {
     | NUMBER(Float64)
     | U0(U)
     
@@ -22,7 +22,7 @@ public enum AutoGenType0 < U > where U <: JSInteropType<U> {
             case U0(x) => x.toJSValue(context)
         }
     }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 < U > {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0IntypeNodes < U > {
         
         if(input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
@@ -31,7 +31,7 @@ public enum AutoGenType0 < U > where U <: JSInteropType<U> {
     }
 }
 
-public enum AutoGenType1 < U > where U <: JSInteropType<U> {
+public enum AutoGenType1IntypeNodes < U > where U <: JSInteropType<U> {
     | U0(U)
     | NUMBER(Float64)
     
@@ -41,7 +41,7 @@ public enum AutoGenType1 < U > where U <: JSInteropType<U> {
             case NUMBER(x) => context.number(x).toJSValue()
         }
     }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1 < U > {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1IntypeNodes < U > {
         
         if(input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
@@ -51,14 +51,14 @@ public enum AutoGenType1 < U > where U <: JSInteropType<U> {
 }
 
 
-/*interface AutoGenType2 {
+/*interface AutoGenType2IntypeNodes {
     x: number;
     y: U;
     }*/
 
-public open class AutoGenType2 {
+public open class AutoGenType2IntypeNodes<U> where U <: JSInteropType<U> {
     
-    protected AutoGenType2(public var x: Float64,
+    protected AutoGenType2IntypeNodes(public var x: Float64,
     public var y: U) { }
     
     
@@ -69,9 +69,9 @@ public open class AutoGenType2 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2IntypeNodes<U> {
         let obj = input.asObject()
-        AutoGenType2(
+        AutoGenType2IntypeNodes(
         Float64.fromJSValue(context, obj["x"]),
         U.fromJSValue(context, obj["y"])
         )
@@ -79,12 +79,12 @@ public open class AutoGenType2 {
     
 }
 
-/*interface AutoGenType3 {
+/*interface AutoGenType3IntypeNodes {
     }*/
 
-public open class AutoGenType3 {
+public open class AutoGenType3IntypeNodes {
     
-    protected AutoGenType3() { }
+    protected AutoGenType3IntypeNodes() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -93,21 +93,21 @@ public open class AutoGenType3 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3IntypeNodes {
         let obj = input.asObject()
-        AutoGenType3(
+        AutoGenType3IntypeNodes(
         
         )
     }
     
 }
 
-/*interface AutoGenType4 {
+/*interface AutoGenType4IntypeNodes {
     }*/
 
-public open class AutoGenType4 {
+public open class AutoGenType4IntypeNodes {
     
-    protected AutoGenType4() { }
+    protected AutoGenType4IntypeNodes() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -116,23 +116,23 @@ public open class AutoGenType4 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4IntypeNodes {
         let obj = input.asObject()
-        AutoGenType4(
+        AutoGenType4IntypeNodes(
         
         )
     }
     
 }
 
-/*interface AutoGenType5 {
+/*interface AutoGenType5IntypeNodes {
     x: { value: number; unit: string } | number;
     y: { value: number; unit: string } | number;
     }*/
 
-public open class AutoGenType5 {
+public open class AutoGenType5IntypeNodes {
     
-    protected AutoGenType5(public var x: JSValue/* FIXME: `{ value: number; unit: string } | number` */,
+    protected AutoGenType5IntypeNodes(public var x: JSValue/* FIXME: `{ value: number; unit: string } | number` */,
     public var y: JSValue/* FIXME: `{ value: number; unit: string } | number` */) { }
     
     
@@ -143,9 +143,9 @@ public open class AutoGenType5 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5IntypeNodes {
         let obj = input.asObject()
-        AutoGenType5(
+        AutoGenType5IntypeNodes(
         obj["x"],
         obj["y"]
         )
@@ -153,12 +153,12 @@ public open class AutoGenType5 {
     
 }
 
-/*interface AutoGenType6 {
+/*interface AutoGenType6IntypeNodes {
     }*/
 
-public open class AutoGenType6 {
+public open class AutoGenType6IntypeNodes {
     
-    protected AutoGenType6() { }
+    protected AutoGenType6IntypeNodes() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -167,21 +167,21 @@ public open class AutoGenType6 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType6 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType6IntypeNodes {
         let obj = input.asObject()
-        AutoGenType6(
+        AutoGenType6IntypeNodes(
         
         )
     }
     
 }
 
-/*interface AutoGenType7 {
+/*interface AutoGenType7IntypeNodes {
     }*/
 
-public open class AutoGenType7 {
+public open class AutoGenType7IntypeNodes {
     
-    protected AutoGenType7() { }
+    protected AutoGenType7IntypeNodes() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -190,21 +190,21 @@ public open class AutoGenType7 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType7 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType7IntypeNodes {
         let obj = input.asObject()
-        AutoGenType7(
+        AutoGenType7IntypeNodes(
         
         )
     }
     
 }
 
-/*interface AutoGenType8 {
+/*interface AutoGenType8IntypeNodes {
     }*/
 
-public open class AutoGenType8 {
+public open class AutoGenType8IntypeNodes {
     
-    protected AutoGenType8() { }
+    protected AutoGenType8IntypeNodes() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -213,9 +213,9 @@ public open class AutoGenType8 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType8 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType8IntypeNodes {
         let obj = input.asObject()
-        AutoGenType8(
+        AutoGenType8IntypeNodes(
         
         )
     }
@@ -232,10 +232,10 @@ public open class AutoGenType8 {
 
 public open class ArrayTypesI {
     
-    protected ArrayTypesI(private var arr10: Array<JSValue/* FIXME: `Error` */>,
-    private var arr20: Array<Float64>,
-    private var arr11!: Option<Array<JSValue/* FIXME: `Error` */>> = None,
-    private var arr21!: Option<Array<Float64>> = None) { }
+    protected ArrayTypesI(public var arr10: Array<JSValue/* FIXME: `Error` */>,
+    public var arr20: Array<Float64>,
+    public var arr11!: Option<Array<JSValue/* FIXME: `Error` */>> = None,
+    public var arr21!: Option<Array<Float64>> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -280,17 +280,17 @@ public open class ArrayTypesI {
 
 public open class BasicTypes {
     
-    protected BasicTypes(private var numberKeyword: Float64,
-    private var stringKeyword: String,
-    private var booleanKeyword: Bool,
-    private var bigintKeyword: BigInt,
-    private var objectKeyword: JSValue/* FIXME: `object` */,
-    private var symbolKeyword: JSValue/* FIXME: `symbol` */,
-    private var voidKeyword: Unit,
-    private var undefinedKeyword: JSValue/* FIXME: `undefined` */,
-    private var anyKeyword: JSValue/* FIXME: `any` */,
-    private var unknownKeyword: JSValue/* FIXME: `unknown` */,
-    private var neverKeyword: JSValue/* FIXME: `never` */) { }
+    protected BasicTypes(public var numberKeyword: Float64,
+    public var stringKeyword: String,
+    public var booleanKeyword: Bool,
+    public var bigintKeyword: BigInt,
+    public var objectKeyword: JSValue/* FIXME: `object` */,
+    public var symbolKeyword: JSValue/* FIXME: `symbol` */,
+    public var voidKeyword: Unit,
+    public var undefinedKeyword: JSValue/* FIXME: `undefined` */,
+    public var anyKeyword: JSValue/* FIXME: `any` */,
+    public var unknownKeyword: JSValue/* FIXME: `unknown` */,
+    public var neverKeyword: JSValue/* FIXME: `never` */) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -298,7 +298,7 @@ public open class BasicTypes {
         obj["numberKeyword"] = numberKeyword.toJSValue(context)
         obj["stringKeyword"] = stringKeyword.toJSValue(context)
         obj["booleanKeyword"] = booleanKeyword.toJSValue(context)
-        obj["bigintKeyword"] = context.bigint(bigintKeyword).toJSValue(context)
+        obj["bigintKeyword"] = context.bigint(bigintKeyword).toJSValue()
         obj["objectKeyword"] = objectKeyword
         obj["symbolKeyword"] = symbolKeyword
         obj["voidKeyword"] = voidKeyword.toJSValue(context)
@@ -315,7 +315,7 @@ public open class BasicTypes {
         Float64.fromJSValue(context, obj["numberKeyword"]),
         String.fromJSValue(context, obj["stringKeyword"]),
         Bool.fromJSValue(context, obj["booleanKeyword"]),
-        obj["bigintKeyword"].asBigInt(context).toBigInt(),
+        obj["bigintKeyword"].asBigInt().toBigInt(),
         obj["objectKeyword"],
         obj["symbolKeyword"],
         Unit.fromJSValue(context, obj["voidKeyword"]),
@@ -355,28 +355,28 @@ public open class BasicTypes {
 
 public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
     
-    protected ComplexTypes(private var typeReference10: U,
-    private var typeReference20: ComplexTypes<T, U>,
-    private var typeReference21: JSValue/* FIXME: `Promise<T>` */,
-    private var typeReference30: Pick<ComplexTypes<T, U>, JSValue/* FIXME: `"literalType1"` */>,
-    private var literalType1: JSValue/* FIXME: `123` */,
-    private var literalType2: JSValue/* FIXME: `"abc"` */,
-    private var literalType3: JSValue/* FIXME: `null` */,
-    private var arrayType1: Array<Float64>,
-    private var arrayType2: Array<U>,
-    private var unionType: AutoGenType0< U >,
-    private var intersectionType: JSValue/* FIXME: `object & HashMap<U, T>` */,
-    private var parenthesizedType1: JSValue/* FIXME: `any` */,
-    private var parenthesizedType2: Array<AutoGenType1< U >>,
-    private var tupleType: (Float64, Float64, String),
-    private var typeLiteral10: AutoGenType2,
-    private var typeLiteral20: AutoGenType3,
-    private var typeLiteral30: AutoGenType4,
-    private var typeOperator1: JSValue/* FIXME: `UnsupportedType[TypeOperator]` */,
-    private var typeOperator10: JSValue/* FIXME: `UnsupportedType[TypeOperator]` */,
-    private var typeQuery: JSValue/* FIXME: `UnsupportedType[TypeQuery]` */,
-    private var mappedType10: JSValue/* FIXME: `UnsupportedType[MappedType]` */,
-    private var mappedType20: JSValue/* FIXME: `UnsupportedType[MappedType]` */) { }
+    protected ComplexTypes(public var typeReference10: U,
+    public var typeReference20: ComplexTypes<T, U>,
+    public var typeReference21: JSValue/* FIXME: `Promise<T>` */,
+    public var typeReference30: JSValue/* FIXME: `Pick` */,
+    public var literalType1: JSValue/* FIXME: `123` */,
+    public var literalType2: JSValue/* FIXME: `"abc"` */,
+    public var literalType3: JSValue/* FIXME: `null` */,
+    public var arrayType1: Array<Float64>,
+    public var arrayType2: Array<U>,
+    public var unionType: AutoGenType0IntypeNodes< U >,
+    public var intersectionType: JSValue/* FIXME: `object & HashMap<U, T>` */,
+    public var parenthesizedType1: JSValue/* FIXME: `any` */,
+    public var parenthesizedType2: Array<AutoGenType1IntypeNodes< U >>,
+    public var tupleType: (Float64, Float64, String),
+    public var typeLiteral10: AutoGenType2IntypeNodes<U>,
+    public var typeLiteral20: AutoGenType3IntypeNodes,
+    public var typeLiteral30: AutoGenType4IntypeNodes,
+    public var typeOperator1: JSValue/* FIXME: `UnsupportedType[TypeOperator]` */,
+    public var typeOperator10: JSValue/* FIXME: `UnsupportedType[TypeOperator]` */,
+    public var typeQuery: JSValue/* FIXME: `UnsupportedType[TypeQuery]` */,
+    public var mappedType10: JSValue/* FIXME: `UnsupportedType[MappedType]` */,
+    public var mappedType20: JSValue/* FIXME: `UnsupportedType[MappedType]` */) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -384,7 +384,7 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["typeReference10"] = typeReference10.toJSValue(context)
         obj["typeReference20"] = typeReference20.toJSValue(context)
         obj["typeReference21"] = typeReference21
-        obj["typeReference30"] = typeReference30.toJSValue(context)
+        obj["typeReference30"] = typeReference30
         obj["literalType1"] = literalType1
         obj["literalType2"] = literalType2
         obj["literalType3"] = literalType3
@@ -393,8 +393,8 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         obj["unionType"] = unionType.toJSValue(context)
         obj["intersectionType"] = intersectionType
         obj["parenthesizedType1"] = parenthesizedType1
-        obj["parenthesizedType2"] = toJSArray < AutoGenType1< U > >(context, parenthesizedType2, { ctx: JSContext, val: AutoGenType1< U > => val.toJSValue(ctx) })
-        obj["tupleType"] = tupleType.toJSValue(context)
+        obj["parenthesizedType2"] = toJSArray < AutoGenType1IntypeNodes< U > >(context, parenthesizedType2, { ctx: JSContext, val: AutoGenType1IntypeNodes< U > => val.toJSValue(ctx) })
+        obj["tupleType"] = context.array([tupleType[0].toJSValue(context), tupleType[1].toJSValue(context), tupleType[2].toJSValue(context)]).toJSValue()
         obj["typeLiteral10"] = typeLiteral10.toJSValue(context)
         obj["typeLiteral20"] = typeLiteral20.toJSValue(context)
         obj["typeLiteral30"] = typeLiteral30.toJSValue(context)
@@ -412,20 +412,20 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
         U.fromJSValue(context, obj["typeReference10"]),
         ComplexTypes<T, U>.fromJSValue(context, obj["typeReference20"]),
         obj["typeReference21"],
-        Pick<ComplexTypes<T, U>, JSValue/* FIXME: `"literalType1"` */>.fromJSValue(context, obj["typeReference30"]),
+        obj["typeReference30"],
         obj["literalType1"],
         obj["literalType2"],
         obj["literalType3"],
         fromJSArray < Float64 >(context, obj["arrayType1"]),
         fromJSArray < U >(context, obj["arrayType2"], { ctx: JSContext, val: JSValue => U.fromJSValue(ctx, val) }),
-        AutoGenType0< U >.fromJSValue(context, obj["unionType"]),
+        AutoGenType0IntypeNodes< U >.fromJSValue(context, obj["unionType"]),
         obj["intersectionType"],
         obj["parenthesizedType1"],
-        fromJSArray < AutoGenType1< U > >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => AutoGenType1< U >.fromJSValue(ctx, val) }),
-        (Float64.fromJSValue(context, obj["tupleType"].asObject()[0]), Float64.fromJSValue(context, obj["tupleType"].asObject()[1]), String.fromJSValue(context, obj["tupleType"].asObject()[2])),
-        AutoGenType2.fromJSValue(context, obj["typeLiteral10"]),
-        AutoGenType3.fromJSValue(context, obj["typeLiteral20"]),
-        AutoGenType4.fromJSValue(context, obj["typeLiteral30"]),
+        fromJSArray < AutoGenType1IntypeNodes< U > >(context, obj["parenthesizedType2"], { ctx: JSContext, val: JSValue => AutoGenType1IntypeNodes< U >.fromJSValue(ctx, val) }),
+        (Float64.fromJSValue(context, obj["tupleType"].asArray()[0]), Float64.fromJSValue(context, obj["tupleType"].asArray()[1]), String.fromJSValue(context, obj["tupleType"].asArray()[2])),
+        AutoGenType2IntypeNodes<U>.fromJSValue(context, obj["typeLiteral10"]),
+        AutoGenType3IntypeNodes.fromJSValue(context, obj["typeLiteral20"]),
+        AutoGenType4IntypeNodes.fromJSValue(context, obj["typeLiteral30"]),
         obj["typeOperator1"],
         obj["typeOperator10"],
         obj["typeQuery"],
@@ -438,21 +438,21 @@ public open class ComplexTypes<T, U> where T <: JSInteropType<T>, U <: JSInterop
 
 /*interface FunctionTypes {
     functionType1: () => void;
-    functionType10: <V>(arg: V) => void;
-    functionType11: <V, W extends String>(arg: V) => W;
-    functionType12: <V = object, W extends String = '123' | '345'>(arg: V) => W;
+    functionType10: (arg: V) => void;
+    functionType11: (arg: V) => W;
+    functionType12: (arg: V) => W;
     functionType20: (...a: number[]) => void;
     functionType30: (a?: number) => void;
     }*/
 
-public open class FunctionTypes {
+public open class FunctionTypes<V, W> where V <: JSInteropType<V>, W <: JSInteropType<W> {
     
-    protected FunctionTypes(private var functionType1: () -> Unit,
-    private var functionType10: (arg: JSValue/* FIXME: `V` */) -> Unit/* FIXME: `<V>(arg: V) => void` */,
-    private var functionType11: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
-    private var functionType12: (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */,
-    private var functionType20: (a: Array<Float64>) -> Unit,
-    private var functionType30: (a: ?Float64) -> Unit) { }
+    protected FunctionTypes(public var functionType1: () -> Unit,
+    public var functionType10: (V) -> Unit,
+    public var functionType11: (V) -> W,
+    public var functionType12: (V) -> W,
+    public var functionType20: (Array<Float64>) -> Unit,
+    public var functionType30: (?Float64) -> Unit) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -462,17 +462,17 @@ public open class FunctionTypes {
             ctx.undefined().toJSValue()
         }).toJSValue()
         obj["functionType10"] = context.function({ ctx, info =>
-            let p0 = info[0]
+            let p0 = V.fromJSValue(ctx, info[0])
             functionType10(p0)
             ctx.undefined().toJSValue()
         }).toJSValue()
         obj["functionType11"] = context.function({ ctx, info =>
-            let p0 = info[0]
+            let p0 = V.fromJSValue(ctx, info[0])
             let ret = functionType11(p0)
             ret.toJSValue(ctx)
         }).toJSValue()
         obj["functionType12"] = context.function({ ctx, info =>
-            let p0 = info[0]
+            let p0 = V.fromJSValue(ctx, info[0])
             let ret = functionType12(p0)
             ret.toJSValue(ctx)
         }).toJSValue()
@@ -489,7 +489,7 @@ public open class FunctionTypes {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): FunctionTypes {
+    public static func fromJSValue(context: JSContext, input: JSValue): FunctionTypes<V, W> {
         let obj = input.asObject()
         FunctionTypes(
         { =>
@@ -497,22 +497,22 @@ public open class FunctionTypes {
                 obj["functionType1"].asFunction().call()
             })
         },
-        { arg: JSValue/* FIXME: `V` */ =>
+        { arg: V =>
             checkThreadAndCall < Unit >(context, { ctx =>
-                let arg0 = arg
+                let arg0 = arg.toJSValue(ctx)
                 obj["functionType10"].asFunction().call([arg0])
             })
         },
-        { arg: JSValue/* FIXME: `V` */ =>
+        { arg: V =>
             checkThreadAndCall < W >(context, { ctx =>
-                let arg0 = arg
+                let arg0 = arg.toJSValue(ctx)
                 let ret = obj["functionType11"].asFunction().call([arg0])
                 W.fromJSValue(ctx, ret)
             })
         },
-        { arg: JSValue/* FIXME: `V` */ =>
+        { arg: V =>
             checkThreadAndCall < W >(context, { ctx =>
-                let arg0 = arg
+                let arg0 = arg.toJSValue(ctx)
                 let ret = obj["functionType12"].asFunction().call([arg0])
                 W.fromJSValue(ctx, ret)
             })
@@ -525,7 +525,10 @@ public open class FunctionTypes {
         },
         { a:?Float64 =>
             checkThreadAndCall < Unit >(context, { ctx =>
-                let arg0 = a.toJSValue(ctx)
+                let arg0 = match(a) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => a.getOrThrow().toJSValue(ctx)
+                }
                 obj["functionType30"].asFunction().call([arg0])
             })
         }
@@ -541,14 +544,14 @@ public open class FunctionTypes {
 
 public open class InferredTypes {
     
-    protected InferredTypes(private var inferred1: JSValue/* FIXME: `number & string` */,
-    private var inferred10: ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>) { }
+    protected InferredTypes(public var inferred1: JSValue/* FIXME: `number & string` */,
+    public var inferred10: JSValue/* FIXME: `ReturnType` */) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
         obj["inferred1"] = inferred1
-        obj["inferred10"] = inferred10.toJSValue(context)
+        obj["inferred10"] = inferred10
         obj.toJSValue()
     }
     
@@ -556,7 +559,7 @@ public open class InferredTypes {
         let obj = input.asObject()
         InferredTypes(
         obj["inferred1"],
-        ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>.fromJSValue(context, obj["inferred10"])
+        obj["inferred10"]
         )
     }
     
@@ -567,35 +570,23 @@ public open class InferredTypes {
 		x: { value: number; unit: String; } | number;
 		y: { value: number; unit: String; } | number;
 	};
-    nested20: ComplexTypes<Record<String, (x: number) => Promise<String>>, String>;
-    nested21: ComplexTypes<Record<String, <T>(x: T) => Promise<String>>, String>;
-    nested22: ComplexTypes<Record<String, <T>(x?: T) => Promise<[String, String]>>, String>;
     }*/
 
-public open class NestedTypes {
+public open class NestedTypes<T> where T <: JSInteropType<T> {
     
-    protected NestedTypes(private var nested10: AutoGenType5,
-    private var nested20: ComplexTypes<HashMap<String, (x: Float64) -> JSValue/* FIXME: `Promise<string>` */>, String>,
-    private var nested21: ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>,
-    private var nested22: ComplexTypes<HashMap<String, (x: ?T) -> JSValue/* FIXME: `Promise<(string, string)>` *//* FIXME: `<T>(x?: T) => Promise<(string, string)>` */>, String>) { }
+    protected NestedTypes(public var nested10: AutoGenType5IntypeNodes) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
         obj["nested10"] = nested10.toJSValue(context)
-        obj["nested20"] = nested20.toJSValue(context)
-        obj["nested21"] = nested21.toJSValue(context)
-        obj["nested22"] = nested22.toJSValue(context)
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): NestedTypes {
+    public static func fromJSValue(context: JSContext, input: JSValue): NestedTypes<T> {
         let obj = input.asObject()
         NestedTypes(
-        AutoGenType5.fromJSValue(context, obj["nested10"]),
-        ComplexTypes<HashMap<String, (x: Float64) -> JSValue/* FIXME: `Promise<string>` */>, String>.fromJSValue(context, obj["nested20"]),
-        ComplexTypes<HashMap<String, (x: T) -> JSValue/* FIXME: `Promise<string>` *//* FIXME: `<T>(x: T) => Promise<string>` */>, String>.fromJSValue(context, obj["nested21"]),
-        ComplexTypes<HashMap<String, (x: ?T) -> JSValue/* FIXME: `Promise<(string, string)>` *//* FIXME: `<T>(x?: T) => Promise<(string, string)>` */>, String>.fromJSValue(context, obj["nested22"])
+        AutoGenType5IntypeNodes.fromJSValue(context, obj["nested10"])
         )
     }
     
@@ -608,8 +599,8 @@ public open class NestedTypes {
 
 public open class Optionals {
     
-    protected Optionals(private var optionalParam10: (a: Float64, b: ?String) -> Unit,
-    private var optionalField1!: Option<Float64> = None) { }
+    protected Optionals(public var optionalParam10: (Float64, ?String) -> Unit,
+    public var optionalField1!: Option<Float64> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -632,11 +623,19 @@ public open class Optionals {
         { a: Float64, b:?String =>
             checkThreadAndCall < Unit >(context, { ctx =>
                 let arg0 = a.toJSValue(ctx)
-                let arg1 = b.toJSValue(ctx)
+                let arg1 = match(b) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => b.getOrThrow().toJSValue(ctx)
+                }
                 obj["optionalParam10"].asFunction().call([arg0, arg1])
             })
         },
-        optionalField1: Option < Float64 >.fromJSValue(context, obj["optionalField1"])
+        optionalField1:
+        if(obj["optionalField1"].isNull()) {
+            None < Float64 >
+        } else {
+            Float64.fromJSValue(context, obj["optionalField1"])
+        }
         )
     }
     
@@ -650,9 +649,9 @@ public open class Optionals {
 
 public open class UnsupportedTypes {
     
-    protected UnsupportedTypes(private var unsupported10: AutoGenType6,
-    private var unsupported20: AutoGenType7,
-    private var unsupported30: AutoGenType8) { }
+    protected UnsupportedTypes(public var unsupported10: AutoGenType6IntypeNodes,
+    public var unsupported20: AutoGenType7IntypeNodes,
+    public var unsupported30: AutoGenType8IntypeNodes) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -666,9 +665,9 @@ public open class UnsupportedTypes {
     public static func fromJSValue(context: JSContext, input: JSValue): UnsupportedTypes {
         let obj = input.asObject()
         UnsupportedTypes(
-        AutoGenType6.fromJSValue(context, obj["unsupported10"]),
-        AutoGenType7.fromJSValue(context, obj["unsupported20"]),
-        AutoGenType8.fromJSValue(context, obj["unsupported30"])
+        AutoGenType6IntypeNodes.fromJSValue(context, obj["unsupported10"]),
+        AutoGenType7IntypeNodes.fromJSValue(context, obj["unsupported20"]),
+        AutoGenType8IntypeNodes.fromJSValue(context, obj["unsupported30"])
         )
     }
     
@@ -747,7 +746,7 @@ public class ArrayTypesC {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): ArrayTypesC {
+    static func fromJSValue(context: JSContext, input: JSValue): ArrayTypesC {
         ArrayTypesC(input.asObject())
     }
 }
@@ -757,9 +756,7 @@ public class ArrayTypesC {
 	 * @brief returnType10(): any
 	 */
 public func returnType10(): JSValue/* FIXME: `any` */ {
-    hmsGlobalApiCall < JSValue/* FIXME: `any` */ >( "my_module_typeNodes", "returnType10", emptyArg) {
-        ctx, info => info
-    }
+    hmsGlobalApiCall < JSValue/* FIXME: `any` */ >( "my_module_typeNodes", "returnType10", EMPTY_ARG) { ctx, info => info }
 }
 
 

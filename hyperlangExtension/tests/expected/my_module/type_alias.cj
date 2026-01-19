@@ -49,19 +49,19 @@ public type TA110 = JSValue/* FIXME: `never` */
 public type TA200 = () -> Unit
 
 
-public type TA210 = (arg: JSValue/* FIXME: `V` */) -> Unit/* FIXME: `<V>(arg: V) => void` */
+public type TA210< V > = (V) -> Unit/* FIXME: `<V>(arg: V) => void` */
 
 
-public type TA220 = (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
+public type TA220< V, W > = (V) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
 
 
-public type TA230 = (arg: JSValue/* FIXME: `V` */) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
+public type TA230< V, W > = (V) -> W/* FIXME: `<V, W extends string>(arg: V) => W` */
 
 
-public type TA240 = (a: Array<Float64>) -> Unit
+public type TA240 = (Array<Float64>) -> Unit
 
 
-public type TA250 = (a: ?Float64) -> Unit
+public type TA250 = (?Float64) -> Unit
 
 
 public type TA300 = JSValue/* FIXME: `Promise<string>` */
@@ -70,13 +70,13 @@ public type TA300 = JSValue/* FIXME: `Promise<string>` */
 public type TA310 = Array<JSValue/* FIXME: `Promise<string>` */>
 
 
-public type TA400 = Pick<JSValue/* FIXME: `Promise<void>` */, JSValue/* FIXME: `"then"` */>
+public type TA400 = JSValue/* FIXME: `Pick` */
 
 
-public type TA410 = Omit<JSValue/* FIXME: `Promise<void>` */, JSValue/* FIXME: `""` */>
+public type TA410 = JSValue/* FIXME: `Omit` */
 
 
-public type TA420 = Omit<JSValue/* FIXME: `Promise<void>` */, JSValue/* FIXME: `""` */>
+public type TA420 = JSValue/* FIXME: `Omit` */
 
 
 public type TA500 = JSValue/* FIXME: `123` */
@@ -159,13 +159,13 @@ public enum TA730 {
 
 
 public enum TA740 {
-    | 111
-    | TA710(TA710)
+    | AAA
+    | TA740TA710(TA710)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
-            case 111 => context.string("111").toJSValue()
-            case TA710(x) => x.toJSValue(context)
+            case AAA => context.string("aaa").toJSValue()
+            case TA740TA710(x) => x.toJSValue(context)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): TA740 {
@@ -193,7 +193,7 @@ public type TA910 = JSValue/* FIXME: `UnsupportedType[TypeOperator]` */
 public type TA1000 = JSValue/* FIXME: `UnsupportedType[TypeQuery]` */
 
 
-public type TA1010 = ReturnType<JSValue/* FIXME: `UnsupportedType[TypeQuery]` */>
+public type TA1010 = JSValue/* FIXME: `ReturnType` */
 
 
 public enum ARK1 {
@@ -248,46 +248,46 @@ public enum ARK1 {
         } 
         if (instanceof(input, "Uint8Array")) {
             let jsArray: JSValue = context.global["Uint8Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt8>(context, jsArray))
+            return BYTEARRAY(fromJSArray<UInt8>(context, jsArray))
         } 
         if (instanceof(input, "Float32Array")) {
             let jsArray: JSValue = context.global["Float32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Float32>(context, jsArray))
+            return FLOAT32ARRAY(fromJSArray<Float32>(context, jsArray))
         } 
         if (input.isBigInt()) {
             return BIGINT(input.toBigInt())
         } 
         if (instanceof(input, "Int8Array")) {
             let jsArray: JSValue = context.global["Int8Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int8>(context, jsArray))
+            return INT8ARRAY(fromJSArray<Int8>(context, jsArray))
         } 
         if (instanceof(input, "Int16Array")) {
             let jsArray: JSValue = context.global["Int16Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int16>(context, jsArray))
+            return INT16ARRAY(fromJSArray<Int16>(context, jsArray))
         } 
         if (instanceof(input, "Uint16Array")) {
             let jsArray: JSValue = context.global["Uint16Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt16>(context, jsArray))
+            return UINT16ARRAY(fromJSArray<UInt16>(context, jsArray))
         } 
         if (instanceof(input, "Uint32Array")) {
             let jsArray: JSValue = context.global["Uint32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt32>(context, jsArray))
+            return UINT32ARRAY(fromJSArray<UInt32>(context, jsArray))
         } 
         if (instanceof(input, "Int32Array")) {
             let jsArray: JSValue = context.global["Int32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int32>(context, jsArray))
+            return INT32ARRAY(fromJSArray<Int32>(context, jsArray))
         } 
         if (instanceof(input, "BigInt64Array")) {
             let jsArray: JSValue = context.global["BigInt64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int64>(context, jsArray))
+            return INT64ARRAY(fromJSArray<Int64>(context, jsArray))
         } 
         if (instanceof(input, "BigUint64Array")) {
             let jsArray: JSValue = context.global["BigUint64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt64>(context, jsArray))
+            return UINT64ARRAY(fromJSArray<UInt64>(context, jsArray))
         } 
         if (instanceof(input, "Float64Array")) {
             let jsArray: JSValue = context.global["Float64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Float64>(context, jsArray))
+            return FLOAT64ARRAY(fromJSArray<Float64>(context, jsArray))
         }
         throw Exception("unsupport type!")
     }

@@ -4,6 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+import { LoggerAdapter } from './interface'
 
 export declare class TDDiagBuilder {
     static readonly PLATFORM_OA = 0;
@@ -11,7 +12,7 @@ export declare class TDDiagBuilder {
     appId: string;
     appKey: string;
     appVersion: string;
-    platform: number;
+    platform1: number;
     loggerAdapter: LoggerAdapter | null | undefined;
     logUploadListener?: LogUploadListener;
     initiativeUploadWhiteListTags?: Array<string>;

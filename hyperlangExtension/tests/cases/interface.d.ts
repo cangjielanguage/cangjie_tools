@@ -67,9 +67,9 @@ export interface IWBAPI {
     
     authorizeClient(context: Context, listener: WbASListener): void
 
-    authorizeClient(context: BaseContext, listener: WbASListener): void
+    // authorizeClient(context: BaseContext, listener: WbASListener): void
 
-    authorizeClient(context: common.Context, listener: WbASListener): void
+    // authorizeClient(context: common.Context, listener: WbASListener): void
 }
 
 interface UnionInterface {
@@ -110,4 +110,10 @@ export declare class DefaultPluginContainer implements PluginContainer {
     constructor();
     registryPlugin(g12: BasePlugin, h12: UMConfig): BasePlugin;
     getPluginById(e12: Biz_Type): BasePlugin | undefined;
+}
+
+export declare class UMConfig {
+  appKey?: string;
+  channel?: string;
+  enableLog?: boolean;
 }

@@ -43,9 +43,7 @@ public const value2 = 0/* FIXME: Initialization is required */
 	 * @brief createSub(): Inheritances.SubClass
 	 */
 public func createSub(): JSValue/* FIXME: `Inheritances.SubClass` */ {
-    hmsGlobalApiCall < JSValue/* FIXME: `Inheritances.SubClass` */ >( "my_module_imports", "createSub", emptyArg) {
-        ctx, info => info
-    }
+    hmsGlobalApiCall < JSValue/* FIXME: `Inheritances.SubClass` */ >( "my_module_imports", "createSub", EMPTY_ARG) { ctx, info => info }
 }
 
 
@@ -57,7 +55,7 @@ public func createSub(): JSValue/* FIXME: `Inheritances.SubClass` */ {
 
 public open class ExportedInterface {
     
-    protected ExportedInterface(private var myOption!: Option<String> = None) { }
+    protected ExportedInterface(public var myOption!: Option<String> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -71,7 +69,12 @@ public open class ExportedInterface {
     public static func fromJSValue(context: JSContext, input: JSValue): ExportedInterface {
         let obj = input.asObject()
         ExportedInterface(
-        myOption: Option < String >.fromJSValue(context, obj["myOption"])
+        myOption:
+        if(obj["myOption"].isNull()) {
+            None < String >
+        } else {
+            String.fromJSValue(context, obj["myOption"])
+        }
         )
     }
     
