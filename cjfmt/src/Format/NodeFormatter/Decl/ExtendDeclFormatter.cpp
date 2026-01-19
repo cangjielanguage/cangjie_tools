@@ -25,8 +25,8 @@ void ExtendDeclFormatter::AddExtendDecl(Doc& doc, const Cangjie::AST::ExtendDecl
         doc.members.emplace_back(DocType::STRING, level, " ");
     }
 
-    if (extendDecl.TestAttr(AST::Attribute::PLATFORM)) {
-        doc.members.emplace_back(DocType::STRING, level, "platform");
+    if (extendDecl.TestAttr(AST::Attribute::SPECIFIC)) {
+        doc.members.emplace_back(DocType::STRING, level, "specific");
         doc.members.emplace_back(DocType::STRING, level, " ");
     }
 
