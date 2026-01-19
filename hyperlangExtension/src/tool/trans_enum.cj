@@ -174,6 +174,7 @@ public class TransEnum {
             token.append(quote(case $(keyToken) => $(keys[i])) + nl)
         }
     }
+
     private func addToString() {
         token.append(nl)
         if (!isNumber) {

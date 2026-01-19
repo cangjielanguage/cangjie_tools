@@ -85,7 +85,7 @@ private func toCJType(ty: TsType): String {
                     quote()
                 }
             }
-            "(${params.map {it => "${it.name}: ${opt(it)}${toCJType(it.ty)}"} |> collectString<String>(delimiter: ", ")}) -> ${toCJType(ret)}" +
+            "(${params.map {it => "${opt(it)}${toCJType(it.ty)}"} |> collectString<String>(delimiter: ", ")}) -> ${toCJType(ret)}" +
                 if (generics.size > 0) {
                 "/* FIXME: `${ty}` */"
             } else {
@@ -115,17 +115,10 @@ private func toCJType(ty: TsType): String {
             }
         case TsTypeRef("Promise", _) => "JSValue/* FIXME: `${ty}` */"
         case TsTypeRef(x, arr) =>
-            var hasJSValueTy = false
-            for (ty in arr) {
-                if (toCJType(ty).startsWith("JSValue")) {
-                    hasJSValueTy = true
-                    break
-                }
-            }
-            if (userDefinedNames.contains(x) && hasJSValueTy) {
-                "JSValue"
-            } else {
+             if (userDefinedNames.contains(x) || x.startsWith("AutoGenType")) {
                 "${x}<${arr.map(toCJType) |> collectString<String>(delimiter: ", ")}>"
+            } else {
+                "JSValue/* FIXME: `${x}` */"
             }
 
         case _ =>
@@ -136,37 +129,64 @@ private func toCJType(ty: TsType): String {
 
 private func genTo(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens, ctxParam: Tokens, typeName: ?String,
     isOptional: Bool, arr!: ?Array<TsType> = None): Tokens {
-    let isEnum = if (let Some(v) <- typeName) {
-        gconfig.isEnum(v)
-    } else {
-        false
-    }
-    let isHashMap = if (let Some(v) <- typeName) {
-        v == "HashMap"
-    } else {
-        false
+    var isEnum = false
+    var isHashMap = false
+    var isAsyncCallback = false
+    var isCallback = false
+    if (let Some(v) <- typeName) {
+        isEnum = gconfig.isEnum(v)
+        isHashMap = v == "HashMap"
+        isAsyncCallback = v == "AsyncCallback"
+        isCallback = v == "Callback"
     }
     let get = if (isEnum) {
         quote(.get())
     } else {
         quote()
     }
-    let res = if (isOptional) {
-        quote(.getOrDefault({=> $(ctxParam).object().toJSValue()}))
-    } else {
-        quote()
-    }
-    let toValue = if (toCJType(tsType).startsWith("JSValue")) {
-        res
-    } else {
-        quote(.toJSValue($(ctxParam)))
-    }
     if (isHashMap) {
+        let firstParam = toCJType(arr.getOrThrow()[0])
         let secondParam = toCJType(arr.getOrThrow()[1])
-        let res = Token(TokenKind.IDENTIFIER, "hashmap2Record<${secondParam}>")
-        quote($(res)($(ctxParam), $(targetObj)$(get), {context, i => i.toJSValue(context)}))
+        let res = Token(TokenKind.IDENTIFIER, "hashmap2Record<${firstParam}, ${secondParam}>")
+        if (secondParam.startsWith("JSValue")) {
+            quote($(res)($(ctxParam), $(targetObj)$(get), {context, i => i}))
+        } else {
+            quote($(res)($(ctxParam), $(targetObj)$(get), {context, i => i.toJSValue(context)}))
+        }
+    } else if (isCallback) {
+        // Callback<T> = (arg: T) -> Unit
+        let tsFunction = TsFunction(TsVoid, [TsParameter("arg", arr.getOrThrow()[0], false)], [TsGeneric(arr.getOrThrow()[0].toString())])
+        return tsFunction.toJSValue(gconfig, quote($(targetObj)), quote($(ctxParam)), isOptional: isOptional)
+    } else if (isAsyncCallback) {
+        let genericParameter = Token(TokenKind.IDENTIFIER, toCJType(arr.getOrThrow()[0]))
+        let getOrThrow = if (isOptional) {
+            quote(.getOrThrow())
+        } else {
+            quote()
+        }
+        let toValue = quote(asyncCallbackWrapper<$(genericParameter)>($(ctxParam), $(targetObj)$(getOrThrow)))
+        if (isOptional) {
+            quote(match ($(targetObj)) {
+                case None => $(ctxParam).undefined().toJSValue()
+                case _ => $(toValue)
+            })
+        } else {
+            toValue
+        }
     } else {
-        quote($(targetObj)$(get)$(toValue))
+        let toValue = if (toCJType(tsType).startsWith("JSValue")) {
+            quote()
+        } else {
+            quote(.toJSValue($(ctxParam)))
+        }
+        if (isOptional) {
+            quote(match ($(targetObj)) {
+                case None => $(ctxParam).undefined().toJSValue()
+                case _ => $(targetObj).getOrThrow()$(get)$(toValue)
+            })
+        } else {
+            quote($(targetObj)$(get)$(toValue))
+        }
     }
 }
 
@@ -222,7 +242,7 @@ private func toJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens,
     isOptional!: Bool = false, initValue!: ?String = None): Tokens {
     let optional = isOptional && initValue.isNone()
     match (tsType) {
-        case TsBigInt => quote($(ctxParam).bigint($(targetObj)).toJSValue($(ctxParam)))
+        case TsBigInt => quote($(ctxParam).bigint($(targetObj)).toJSValue())
         case TsTypeRef(typeName) => genTo(tsType, gconfig, targetObj, ctxParam, Some(typeName), optional)
         case TsTypeRef(typeName, array) => genTo(tsType, gconfig, targetObj, ctxParam, Some(typeName), optional,
             arr: array)
@@ -242,13 +262,14 @@ private func toJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens,
             if (optional) {
                 let wrapped = wrapJSFunc(ret, gconfig, ctxParam, params, quote(v))
                 quote(match ($(targetObj)) {
-                    case None => $(ctxParam).undefined.toJSValue()
+                    case None => $(ctxParam).undefined().toJSValue()
                     case Some(v) => $(wrapped)
                 })
             } else {
                 wrapJSFunc(ret, gconfig, ctxParam, params, targetObj)
             }
         case TsArray(elemType) => toJSArray(elemType, gconfig, targetObj, ctxParam)
+        case TsTuple(arrayTsType) => toJSTuple(arrayTsType, gconfig, targetObj, ctxParam)
         case _ => genTo(tsType, gconfig, targetObj, ctxParam, None, optional)
     }
 }
@@ -264,6 +285,18 @@ private func toJSArray(elemType: TsType, gconfig: GlobalConfig, targetObj: Token
             let transformElements = quote({$(elemCtx): JSContext, $(elemValue): $(innerType) => $(elemToJS)})
             quote(toJSArray<$(innerType)>($(ctxParam), $(targetObj), $(transformElements)))
     }
+}
+
+private func toJSTuple(arrayTsType: Array<TsType>, gconfig: GlobalConfig, targetObj: Tokens, ctxParam: Tokens): Tokens {
+    var jsArr = quote([)
+    for (i in 0..arrayTsType.size) {
+        jsArr += arrayTsType[i].toJSValue(gconfig, targetObj + quote([$(i)]), ctxParam)
+        if (i != arrayTsType.size - 1) {
+            jsArr += quote(,)
+        }
+    }
+    jsArr += quote(])
+    return quote($(ctxParam).array($(jsArr)).toJSValue())
 }
 
 private func genFrom(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens, ctxParam: Tokens,
@@ -297,7 +330,12 @@ private func genFrom(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens, c
         quote($(fromValue))
     } else {
         if (opt) {
-            quote(Option<$(cjType)>$(fromValue))
+            quote(
+                if ($(targetObj).isNull()) {
+                    None<$(cjType)>
+                } else {
+                    $(cjType)$(fromValue)
+                })
         } else {
             quote($(cjType)$(fromValue))
         }
@@ -384,7 +422,7 @@ private func genFunction(ret: TsType, gconfig: GlobalConfig, targetObj: Tokens, 
 private func fromJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens, ctxParam: Tokens,
     isOptional!: Bool = false, initValue!: ?String = None): Tokens {
     match (tsType) {
-        case TsBigInt => quote($(targetObj).asBigInt($(ctxParam)).toBigInt())
+        case TsBigInt => quote($(targetObj).asBigInt().toBigInt())
         case TsArray(elemType) => fromJSArray(elemType, gconfig, targetObj, ctxParam, isOptional: isOptional,
             initValue: initValue)
         case TsTuple(elems) =>
@@ -392,7 +430,7 @@ private func fromJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Token
             var index = 0
             for (e in elems) {
                 let indexQuote = Token(TokenKind.IDENTIFIER, "${index}")
-                let targetObjWithIndex = targetObj + quote(.asObject()[$(indexQuote)])
+                let targetObjWithIndex = targetObj + quote(.asArray()[$(indexQuote)])
                 result += genFrom(e, gconfig, targetObjWithIndex, ctxParam, isOptional: isOptional, initValue: initValue)
                 if (index != elems.size - 1) {
                     result += quote(,)
@@ -402,10 +440,23 @@ private func fromJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Token
             result += quote(\))
             return result
         case TsTypeRef("HashMap", array) =>
-            let secondParam = toCJType(array[1])
-            let res = Token(TokenKind.IDENTIFIER, "record2Hashmap<${secondParam}>")
-            let secondParamToken = Token(TokenKind.IDENTIFIER, secondParam)
-            quote($(res)($(ctxParam), $(targetObj), {context, i => $(secondParamToken).fromJSValue(context, i)}))
+            let secondParam = array[1].toCJTypeTokens()
+            var res = Token(TokenKind.IDENTIFIER, "record2Hashmap<${secondParam}>")
+            let fromJSToken = array[1].fromJSValue(gconfig, quote(i), quote(context))
+            if (isOptional) {
+                quote(
+                    if ($(targetObj).isNull()) {
+                        None<HashMap<String, $(secondParam)>>
+                    } else {
+                        $(res)($(ctxParam), $(targetObj), {context, i => $(fromJSToken)})
+                    }
+                )
+            } else {
+                quote($(res)($(ctxParam), $(targetObj), {context, i => $(fromJSToken)}))
+            }
+        case TsTypeRef("Callback", array) =>
+            let tsFunction = TsFunction(TsVoid, [TsParameter("arg", array[0], false)], [TsGeneric(array[0].toString())])
+            tsFunction.fromJSValue(gconfig, quote($(targetObj)), quote($(ctxParam)))
         case TsUnion(elems) =>
             let nonNullTypes: ArrayList<TsType> = ArrayList<TsType>()
             for (e in elems) {

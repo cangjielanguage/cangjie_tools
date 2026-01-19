@@ -6,7 +6,7 @@
 
 package my_module
 
-import std.collection.concurrent.ConcurrentHashMap
+import std.collection.{concurrent.ConcurrentHashMap, HashMap}
 import ohos.base.UIThread
 import ohos.hilog.Hilog
 import std.sync.Mutex
@@ -124,22 +124,183 @@ protected func asyncCallbackWrapper<T>(ctx: JSContext, callback: (?BusinessExcep
     asyncCallbackWrapper<T>(ctx, callback) {ctx, info => T.fromJSValue(ctx, info)}
 }
 
+protected func asyncCallbackWrapperEx<T>(ctx: JSContext, callback: AsyncCallback<T>,
+    paramParser: (JSContext, JSValue) -> T): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jscall = ctx.function {
+            ctx, info =>
+            try {
+                var err = None<BusinessException>
+                var data = None<T>
+                if (info[1].isNull() || info[1].isUndefined()) {
+                    err = handleError(ctx, info[0])
+                } else {
+                    data = paramParser(ctx, info[1])
+                }
+                callback(err, data)
+            } catch (e: Exception) {
+                Hilog.error(1, "hle", e.toString())
+                throw e
+            }
+            ctx.undefined().toJSValue()
+        }
+        jscall.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(ctx, call)
+}
+
 protected func getJSModule(ctx: JSContext, name: String, prefix: ?String): JSObject {
     match (MAIN_CONTEXT_MODULE_MAP.get(name)) {
         case Some(v) => v
         case None =>
-            let module = ctx.requireSystemNativeModule(name, prefix: prefix).asObject()
+            let module = ctx.global[name].asObject()
             MAIN_CONTEXT_MODULE_MAP.add(name, module)
             module
+    }
+}
+
+protected func toJSFunction(fun: () -> Unit): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info =>
+            fun()
+            ctx.undefined().toJSValue()
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func toJSFunction<T>(fun: (T) -> Unit): JSValue where T <: JSInteropType<T> {
+    toJSFunction(fun, {ctx, info => T.fromJSValue(ctx, info)})
+}
+
+protected func toJSFunction<T>(fun: (T) -> Unit, paramParser: (JSContext, JSValue) -> T): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info =>
+            fun(paramParser(ctx, info[0]))
+            ctx.undefined().toJSValue()
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func toJSFunction<T, P>(fun: (T, P) -> Unit, paramParser1: (JSContext, JSValue) -> T,
+    paramParser2: (JSContext, JSValue) -> P): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info =>
+            fun(paramParser1(ctx, info[0]), paramParser2(ctx, info[1]))
+            ctx.undefined().toJSValue()
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func toJSFunction<P1, P2, P3>(fun: (P1, P2, P3) -> Unit, paramParser1: (JSContext, JSValue) -> P1,
+    paramParser2: (JSContext, JSValue) -> P2, paramParser3: (JSContext, JSValue) -> P3): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info =>
+            fun(paramParser1(ctx, info[0]), paramParser2(ctx, info[1]), paramParser3(ctx, info[2]))
+            ctx.undefined().toJSValue()
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func toJSFunctionWithReturn<P1, P2, R>(fun: (P1, P2) -> R, paramParser1: (JSContext, JSValue) -> P1,
+    paramParser2: (JSContext, JSValue) -> P2, retParser: (JSContext, R) -> JSValue): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info => retParser(ctx, fun(paramParser1(ctx, info[0]), paramParser2(ctx, info[1])))
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func toJSFunctionWithReturn<T, P, J, K>(fun: (T, P, J) -> K, param1Parser: (JSContext, JSValue) -> T,
+    param2Parser: (JSContext, JSValue) -> P, param3Parser: (JSContext, JSValue) -> J,
+    retParser: (JSContext, K) -> JSValue): JSValue {
+    func call(ctx: JSContext): JSValue {
+        let jsFun = ctx.function {
+            ctx, info => retParser(ctx,
+                fun(param1Parser(ctx, info[0]), param2Parser(ctx, info[1]), param3Parser(ctx, info[2])))
+        }
+        jsFun.toJSValue()
+    }
+    checkThreadAndCall<JSValue>(getMainContext(), call)
+}
+
+protected func fromJSFunction<T>(ctx: JSContext, fun: JSValue): (T) -> Unit where T <: JSInteropType<T> {
+    fromJSFunction(ctx, fun, {ctx, val => val.toJSValue(ctx)})
+}
+
+protected func fromJSFunction<T>(ctx: JSContext, fun: JSValue, paramParser: (JSContext, T) -> JSValue): (T) -> Unit {
+    {
+        val: T => checkThreadAndCall<Unit>(ctx, {ctx => fun.asFunction().call([paramParser(ctx, val)])})
+    }
+}
+
+protected func fromJSFunctionWithReturn<T, P, K>(ctx: JSContext, fun: JSValue,
+    param1Parser: (JSContext, T) -> JSValue, param2Parser: (JSContext, P) -> JSValue,
+    retParser: (JSContext, JSValue) -> K): (T, P) -> K {
+    {
+        val1: T, val2: P => checkThreadAndCall<K>(
+            ctx,
+            {
+                ctx => retParser(ctx,
+                    fun.asFunction().call([param1Parser(ctx, val1), param2Parser(ctx, val2)]))
+            }
+        )
+    }
+}
+
+protected func fromJSFunctionWithReturn<T, P, J, K>(ctx: JSContext, fun: JSValue,
+    param1Parser: (JSContext, T) -> JSValue, param2Parser: (JSContext, P) -> JSValue,
+    param3Parser: (JSContext, J) -> JSValue, retParser: (JSContext, JSValue) -> K): (T, P, J) -> K {
+    {
+        val1: T, val2: P, val3: J => checkThreadAndCall<K>(
+            ctx,
+            {
+                ctx => retParser(ctx,
+                    fun.asFunction().call([param1Parser(ctx, val1), param2Parser(ctx, val2), param3Parser(ctx, val3)]))
+            }
+        )
+    }
+}
+
+protected func fromJSFunction<T, P>(ctx: JSContext, fun: JSValue, paramParser1: (JSContext, T) -> JSValue,
+    paramParser2: (JSContext, P) -> JSValue): (T, P) -> Unit {
+    {
+        val1: T, val2: P => checkThreadAndCall<Unit>(ctx,
+            {ctx => fun.asFunction().call([paramParser1(ctx, val1), paramParser2(ctx, val2)])})
+    }
+}
+
+protected func fromJSFunction<P1, P2, P3>(ctx: JSContext, fun: JSValue, paramParser1: (JSContext, P1) -> JSValue,
+    paramParser2: (JSContext, P2) -> JSValue, paramParser3: (JSContext, P3) -> JSValue): (P1, P2, P3) -> Unit {
+    {
+        val1: P1, val2: P2, val3: P3 => checkThreadAndCall<Unit>(ctx,
+            {ctx => fun.asFunction().call([paramParser1(ctx, val1), paramParser2(ctx, val2), paramParser3(ctx, val3)])})
     }
 }
 
 protected func jsGlobalApiCall<T>(moduleName: String, modulePrefix: ?String, funcName: String,
     args: (JSContext) -> Array<JSValue>, onResolve: (JSContext, JSValue) -> T): T {
     func call(context: JSContext): T {
-        let jsModule = getJSModule(context, moduleName, modulePrefix)
-        let jsRet = jsModule.callMethod(funcName, args(context))
-        onResolve(context, jsRet)
+        try {
+            let jsModule = getJSModule(context, moduleName, modulePrefix)
+            let jsRet = jsModule.callMethod(funcName, args(context))
+            onResolve(context, jsRet)
+        } catch (e: BusinessException) {
+            throw e
+        }
     }
     checkThreadAndCall<T>(getMainContext(), call)
 }
@@ -147,8 +308,12 @@ protected func jsGlobalApiCall<T>(moduleName: String, modulePrefix: ?String, fun
 protected func jsObjApiCall<T>(obj: JSObject, funcName: String, args: (JSContext) -> Array<JSValue>,
     onResolve: (JSContext, JSValue) -> T): T {
     func call(context: JSContext): T {
-        let jsRet = obj.callMethod(funcName, args(context))
-        onResolve(context, jsRet)
+        try {
+            let jsRet = obj.callMethod(funcName, args(context))
+            onResolve(context, jsRet)
+        } catch (e: BusinessException) {
+            throw e
+        }
     }
     checkThreadAndCall<T>(getMainContext(), call)
 }
@@ -175,6 +340,14 @@ protected func ohosGlobalApiCall<T>(moduleName: String, funcName: String, args: 
     ohosGlobalApiCall<T>(moduleName, funcName, args) {ctx, info => T.fromJSValue(ctx, info)}
 }
 
+protected func getClassConstructorObj(moduleName: String, className: String, prefix!: ?String = None): JSObject {
+    checkThreadAndCall<JSObject>(getMainContext()) {
+        ctx =>
+        let module = getJSModule(ctx, moduleName, prefix)
+        module[className].asObject()
+    }
+}
+
 protected struct JsGlobalApiCallInfo<T> {
     var moduleName: String
     var modulePrefix: ?String
@@ -193,31 +366,35 @@ protected struct JsGlobalApiCallInfo<T> {
 
 protected func jsGlobalApiCallPromise<T>(jsGlobalApiCallInfo: JsGlobalApiCallInfo<T>, onResolve: (JSContext, JSValue) -> T): Unit {
     func call(context: JSContext): Unit {
-        let jsRet = getJSModule(context, jsGlobalApiCallInfo.moduleName, jsGlobalApiCallInfo.modulePrefix).callMethod(
-            jsGlobalApiCallInfo.funcName, jsGlobalApiCallInfo.args(context))
-        let promise = jsRet.asPromise()
-        let onResolved = context.function(
-            {
-                ctx: JSContext, callInfo: JSCallInfo =>
-                try {
-                    let result = onResolve(ctx, callInfo[0])
-                    jsGlobalApiCallInfo.callback(None, result)
-                } catch (e: BusinessException) {
-                    jsGlobalApiCallInfo.callback(e, None)
-                } catch (e: Exception) {
-                    jsGlobalApiCallInfo.callback(BusinessException(JS_INTERNAL_ERROR, e.message), None)
+        try {
+            let jsRet = getJSModule(context, jsGlobalApiCallInfo.moduleName, jsGlobalApiCallInfo.modulePrefix).callMethod(
+                jsGlobalApiCallInfo.funcName, jsGlobalApiCallInfo.args(context))
+            let promise = jsRet.asPromise()
+            let onResolved = context.function(
+                {
+                    ctx: JSContext, callInfo: JSCallInfo =>
+                    try {
+                        let result = onResolve(ctx, callInfo[0])
+                        jsGlobalApiCallInfo.callback(None, result)
+                    } catch (e: BusinessException) {
+                        jsGlobalApiCallInfo.callback(e, None)
+                    } catch (e: Exception) {
+                        jsGlobalApiCallInfo.callback(BusinessException(JS_INTERNAL_ERROR, e.message), None)
+                    }
+                    ctx.null().toJSValue()
                 }
-                ctx.null().toJSValue()
-            }
-        )
-        let onRejected = context.function(
-            {
-                ctx: JSContext, callInfo: JSCallInfo =>
-                jsGlobalApiCallInfo.callback(handleError(ctx, callInfo[0]), None)
-                ctx.null().toJSValue()
-            }
-        )
-        promise.then(onResolved, onRejected: onRejected)
+            )
+            let onRejected = context.function(
+                {
+                    ctx: JSContext, callInfo: JSCallInfo =>
+                    jsGlobalApiCallInfo.callback(handleError(ctx, callInfo[0]), None)
+                    ctx.null().toJSValue()
+                }
+            )
+            promise.then(onResolved, onRejected: onRejected)
+        } catch (e: BusinessException) {
+            throw e
+        }
     }
     checkThreadAndCall<Unit>(getMainContext(), call)
 }
@@ -252,30 +429,34 @@ protected func ohosGlobalApiCallPromise<T>(moduleName: String, funcName: String,
 protected func jsObjApiCallPromise<T>(obj: JSObject, funcName: String, callback: (?BusinessException, ?T) -> Unit,
     args: (JSContext) -> Array<JSValue>, onResolve: (JSContext, JSValue) -> T): Unit {
     func call(context: JSContext): Unit {
-        let jsRet = obj.callMethod(funcName, args(context))
-        let promise = jsRet.asPromise()
-        let onResolved = context.function(
-            {
-                ctx: JSContext, callInfo: JSCallInfo =>
-                try {
-                    let result = onResolve(ctx, callInfo[0])
-                    callback(None, result)
-                } catch (e: BusinessException) {
-                    callback(e, None)
-                } catch (e: Exception) {
-                    callback(BusinessException(JS_INTERNAL_ERROR, e.message), None)
+        try {
+            let jsRet = obj.callMethod(funcName, args(context))
+            let promise = jsRet.asPromise()
+            let onResolved = context.function(
+                {
+                    ctx: JSContext, callInfo: JSCallInfo =>
+                    try {
+                        let result = onResolve(ctx, callInfo[0])
+                        callback(None, result)
+                    } catch (e: BusinessException) {
+                        callback(e, None)
+                    } catch (e: Exception) {
+                        callback(BusinessException(JS_INTERNAL_ERROR, e.message), None)
+                    }
+                    ctx.null().toJSValue()
                 }
-                ctx.null().toJSValue()
-            }
-        )
-        let onRejected = context.function(
-            {
-                ctx: JSContext, callInfo: JSCallInfo =>
-                callback(handleError(ctx, callInfo[0]), None)
-                ctx.null().toJSValue()
-            }
-        )
-        promise.then(onResolved, onRejected: onRejected)
+            )
+            let onRejected = context.function(
+                {
+                    ctx: JSContext, callInfo: JSCallInfo =>
+                    callback(handleError(ctx, callInfo[0]), None)
+                    ctx.null().toJSValue()
+                }
+            )
+            promise.then(onResolved, onRejected: onRejected)
+        } catch (e: BusinessException) {
+            throw e
+        }
     }
     checkThreadAndCall<Unit>(getMainContext(), call)
 }
@@ -338,4 +519,47 @@ protected func fromJSArrayOption<T>(ctx: JSContext, input: JSValue, constructor:
     } else {
         Some(fromJSArray(ctx, input, constructor))
     }
+}
+
+protected func record2Hashmap<V>(context: JSContext, input: JSValue, valueConstructor: (JSContext, JSValue) -> V): HashMap<String, V> {
+    if (input.isUndefined()) {
+        HashMap<String, V>()
+    } else {
+        let record = input.asObject()
+        let hashmap = HashMap<String, V>()
+
+        for(key in record.keys()) {
+            hashmap.add(key, valueConstructor(context, record[key]))
+        }
+        hashmap
+     }
+}
+
+protected func hashmap2Record<K, V>(context: JSContext, hashmap: ?HashMap<K, V>, valueConstructor: (JSContext, V) -> JSValue): JSValue where K <: Hashable & Equatable<K> & JSKeyable {
+    if (let Some(map) <- hashmap) {
+        let obj = context.object()
+
+        for((k, v) in map) {
+            obj.setProperty(k, valueConstructor(context, v))
+        }
+
+        obj.toJSValue()
+    } else {
+        context.undefined().toJSValue()
+     }
+}
+
+protected func instanceof(value: JSValue, className: String): Bool {
+    let ctx = getMainContext()
+    let prototype = ctx.global["Object"].asObject().callMethod("getPrototypeOf", [value]).asObject()
+    let constructor = prototype["constructor"].asObject()
+    return constructor["name"].toString() == className
+}
+
+protected func instanceof(value: JSValue, moduleName: String, prefix: ?String, className: String): Bool {
+    func innerInstanceof(ctx: JSContext): Bool {
+        let clazz = getJSModule(ctx, moduleName, prefix)[ctx.string(className)].asClass()
+        value.asObject().instanceOf(clazz)
+    }
+    checkThreadAndCall<Bool>(getMainContext(), innerInstanceof)
 }

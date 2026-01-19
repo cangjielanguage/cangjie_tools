@@ -78,6 +78,44 @@ protected class CallbackManager<K, V> where K <: Hashable & Equatable<K> {
         }
     }
 }
+
+public abstract class Callback0Argument<A> <: CallbackObject {
+    public func invoke(): Unit
+}
+
+public abstract class Callback1Argument<A> <: CallbackObject {
+    public func invoke(arg: A): Unit
+}
+
+public abstract class Callback2Argument<A, B> <: CallbackObject {
+    public func invoke(arg1: A, arg2: B): Unit
+}
+
+public abstract class Callback3Argument<A, B, C> <: CallbackObject {
+    public func invoke(arg1: A, arg2: B, arg3: C): Unit
+}
+
+public abstract class Callback4Argument<A, B, C, D> <: CallbackObject {
+    public func invoke(arg1: A, arg2: B, arg3: C, arg4: D): Unit
+}
+
+public abstract class CallbackWithReturn<A> <: CallbackObject {
+    public func invoke(): A
+}
+
+public abstract class Callback1ArgumentWithReturn<A, B> <: CallbackObject {
+    public func invoke(arg: A): B
+}
+
+public abstract class Callback2ArgumentWithReturn<A, B, C> <: CallbackObject {
+    public func invoke(arg1: A, arg2: B): C
+}
+
+public abstract class Callback3ArgumentWithReturn<A, B, C, D> <: CallbackObject {
+    public func invoke(arg1: A, arg2: B, arg3: C): D
+}
+
+public type Callback<T> = (arg: T) -> Unit
 """
     return content
 }

@@ -95,7 +95,7 @@ public class BuildProfile {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): BuildProfile {
+    static func fromJSValue(context: JSContext, input: JSValue): BuildProfile {
         BuildProfile(input.asObject())
     }
 }

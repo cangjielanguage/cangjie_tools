@@ -23,9 +23,8 @@ interface IM {
     f5(cb: (obj: CM, n: number) => string): void
     f6(evt: EMNum, cb: () => Record<number, Uint8Array>): boolean
     f7(p: bigint, cb: (p: bigint) => void): bigint
+    f8(evt: EMNum, cb: () => Record<string, Uint8Array>): boolean
 }
-
-type Callback<T> = (arg: T) => void;
 
 declare class CM {
     // 静态成员
@@ -45,6 +44,7 @@ declare class CM {
     f6(evt: EMNum, cb: () => Record<number, Uint8Array>): boolean
     f7(p: bigint, cb: (p: bigint) => void): bigint
     f8(result: string | Promise<string>): boolean
+    f9(evt: EMNum, cb: () => Record<string, Uint8Array>): boolean
 }
 
 declare class TE {
@@ -148,22 +148,16 @@ declare class MyClass {
 // 泛型
 declare function getFavoriteNumber<T>(t: T): T;
 
-export declare function test(): Promise<void>;
 export declare function test1(name:string): Promise<void>;
 
 declare function testUnion1(t: string | undefined ): undefined | string;
 
-declare function testUnion2(t: null | T, s: A | B): null | string;
+declare function testUnion2<T, A, B>(t: null | T, s: A | B): null | string;
 
 declare function testUnion3(t: number[] | null): null | number[];
 
 declare function testUnion4(t: Record<string, Uint8Array>| null): void;
 
-export declare class UMConfig {
-  appKey?: string;
-  channel?: string;
-  enableLog?: boolean;
-}
 
 export declare class RecordTest {
   recordTest: Record<string, string>
@@ -174,7 +168,7 @@ export declare class RecordTest {
 
 export declare function RecordAndOptionalTest(eventID: string, params?: Record<string, string | number>): void;
 
-export declare function RecordTest(eventID: string, params: Record<string, string | number>): void;
+export declare function RecordTest3(eventID: string, params: Record<string, string | number>): void;
 
 export declare function RecordAndOptionalTest1(eventID: string, params?: Record<string, string | number>, params1?: Record<string, string | number>): void;
 

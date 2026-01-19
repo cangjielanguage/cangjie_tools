@@ -44,7 +44,7 @@ public class MessagePackage {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
+    static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
     }
 }
@@ -62,14 +62,18 @@ public class PushReporter {
 	 * @brief getTags(t12: Callback<Record<string, any>>): void
 	 */
     public static func getTags(t12: Callback<HashMap<String, JSValue/* FIXME: `any` */>>): Unit {
-        jsObjApiCall < Unit >(getClassConstructorObj("my_module_test", "PushReporter"),  "getTags", { ctx =>[t12.toJSValue(ctx)] })
+        jsObjApiCall < Unit >(getClassConstructorObj("my_module_test", "PushReporter"),  "getTags", { ctx =>[ctx.function({ ctx, info =>
+                let p0 = record2Hashmap<JSValue/* FIXME: `any` */>(ctx, info[0], { context, i => i })
+                t12(p0)
+                ctx.undefined().toJSValue()
+            }).toJSValue()] })
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
+    static func fromJSValue(context: JSContext, input: JSValue): PushReporter {
         PushReporter(input.asObject())
     }
 }

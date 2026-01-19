@@ -11,12 +11,12 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 
 
-/*interface AutoGenType0 {
+/*interface AutoGenType0Inissue_issue6 {
     }*/
 
-public open class AutoGenType0 {
+public open class AutoGenType0Inissue_issue6 {
     
-    protected AutoGenType0() { }
+    protected AutoGenType0Inissue_issue6() { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -25,9 +25,9 @@ public open class AutoGenType0 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0Inissue_issue6 {
         let obj = input.asObject()
-        AutoGenType0(
+        AutoGenType0Inissue_issue6(
         
         )
     }
@@ -43,15 +43,23 @@ public class UserInfoManager {
     protected UserInfoManager(var arkts_object: JSObject) { }
     
     
-    public mut prop userPreferences: ?AutoGenType0 {
+    public mut prop userPreferences: ?AutoGenType0Inissue_issue6 {
         get() {
-            checkThreadAndCall < ?AutoGenType0 >(getMainContext()) {
-                ctx: JSContext => Option < AutoGenType0 >.fromJSValue(ctx, arkts_object["userPreferences"])
+            checkThreadAndCall < ?AutoGenType0Inissue_issue6 >(getMainContext()) {
+                ctx: JSContext =>
+                if(arkts_object["userPreferences"].isNull()) {
+                    None < AutoGenType0Inissue_issue6 >
+                } else {
+                    AutoGenType0Inissue_issue6.fromJSValue(ctx, arkts_object["userPreferences"])
+                }
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["userPreferences"] = v.toJSValue(ctx)
+                ctx: JSContext => arkts_object["userPreferences"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
             }
         }
         
@@ -62,7 +70,7 @@ public class UserInfoManager {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): UserInfoManager {
+    static func fromJSValue(context: JSContext, input: JSValue): UserInfoManager {
         UserInfoManager(input.asObject())
     }
 }

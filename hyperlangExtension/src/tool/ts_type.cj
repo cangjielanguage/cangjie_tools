@@ -51,7 +51,7 @@ public enum TsMember {
 
 // ts parameter, for example, the `x: number` part in `(x: number) => void` or `{ [x: number]: string }`
 public class TsParameter {
-    public TsParameter(let name: String, var ty: TsType, let optional: Bool) {}
+    public TsParameter(var name: String, var ty: TsType, let optional: Bool) {}
 }
 
 public struct TsGeneric {

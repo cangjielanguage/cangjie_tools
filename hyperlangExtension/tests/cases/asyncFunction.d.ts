@@ -15,7 +15,7 @@ export function as1(callback:AsyncCallback<void>):void;
 export function as2(callback:AsyncCallback<string>):void;
 export function as3(callback:AsyncCallback<Colors>):void;
 export function as4(callback:AsyncCallback<Array<number>>):void;
-export function as5(callback:AsyncCallback<BigInt>):void;
+export function as5(callback:AsyncCallback<bigint>):void;
 export function as6(callback:AsyncCallback<Uint8Array>):void;
  
 declare class ASC {

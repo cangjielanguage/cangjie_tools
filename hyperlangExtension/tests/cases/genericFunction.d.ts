@@ -9,8 +9,6 @@ declare function testMultiGenericT<T, M>(t: T, m: M): T;
 
 declare function testMultiGenericM<T, M>(t: T, m: M): M;
 
-declare function testNoGeneric(t: T): T;
- 
 declare function init(type: string, data: any);
- 
+
 declare function getObject(extra: number, info: string);
