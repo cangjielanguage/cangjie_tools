@@ -180,7 +180,7 @@ func cjcVersionCheck(text: String, path: String): Bool {
 
 // Check output_type in cjpm.toml.
 func outputTypeCheck(text: String, path: String): Bool {
-    if (let Unknown(_) <- OutputType.fromString(text)) {
+    if (!OutputType.fromString(text).isValid) {
         eprintln("Error: the 'output-type' field in ${path} is wrong, optional value are '${Static}/${Dynamic}/${Exe}'.")
         return false
     }

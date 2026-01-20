@@ -632,7 +632,7 @@ func getRootPackageDir(pkgInfo: PkgTestInfo, targetDir: String) {
     let pkgRootName = swapOrgName(pkgInfo.fqname.value.split(".")[0])
     if (pkgInfo.packagePath.isMultiplatform) {
         let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
-        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix, pkgRootName)
+        return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName, suffix)
     } else {
         return getPath(targetDir.replace(UNITTEST_BIN, RELEASE), pkgRootName)
     }
@@ -657,7 +657,7 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     if (pkgInfo.packagePath.isMultiplatform) {
         let rootName = getRootPkgName(pkgInfo.fqname.value)
         let suffix = pkgInfo.packagePath.product.outputSuffix.toString()
-        let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+        let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix)
         cmdList.add(all: ["--import-path", cjopath])
     }
 
@@ -999,23 +999,8 @@ func parallelCompileTests(
     testPkgsMap: HashMap<PackageFqName, PkgDescTest>,
     testConfig: TestConfig
 ): Bool {
-    let queue = LinkedBlockingQueue<(String, String)>()
-    let logFuture = spawn {
-        =>
-        var count: Int64 = testPkgsMap.size
-        var logFlag: Bool = true
-        while (count > 0) {
-            let (outLogFile, errLogFile) = queue.remove()
-            count--
-            if (fileExists(outLogFile) && !loadLogAndPrint(outLogFile, false)) {
-                logFlag = false
-            }
-            if (fileExists(errLogFile) && !loadLogAndPrint(errLogFile, true)) {
-                logFlag = false
-            }
-        }
-        return logFlag
-    }
+    let logger = BoundedFileLogger(testPkgsMap.size)
+    logger.start()
 
     var testFlag: Bool = true
     let testLogPath: Path = Path(testConfig.globalConfig.targetDir).join(".test-logs")
@@ -1041,7 +1026,7 @@ func parallelCompileTests(
             )
             let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
             sem.release()
-            queue.add((pkgInfo.outLogFile, pkgInfo.errLogFile))
+            logger.log(pkgInfo.outLogFile, pkgInfo.errLogFile)
             return flag
         })
     }
@@ -1068,7 +1053,7 @@ func parallelCompileTests(
         }
     }
 
-    if (!logFuture.get()) {
+    if (!logger.unsafeWait()) {
         testFlag = false
     }
     return testFlag
@@ -1103,7 +1088,7 @@ class DummyTestFile {
         if (pkgDesc.srcDir.isMultiplatform) {
             let rootName = getRootPkgName(fqname.value)
             let suffix = pkgDesc.srcDir.product.outputSuffix.toString()
-            let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix, rootName)
+            let cjopath = getPath(testConfig.globalConfig.targetDir, rootName, suffix)
             cmdList.add(all: ["--import-path", cjopath])
         } else {
             cmdList.add(all: ["--import-path", testConfig.globalConfig.targetDir])
@@ -1313,7 +1298,7 @@ func backupGcnoData(isCov: Bool, outputDir: String): Bool {
 
 public func getUnittestOutput(output: String, isCross: Bool): String {
     if (isCross) {
-        return makeTargetExeName(output)
+        return makeTargetExeName(output, crossCompileTarget)
     }
     return makeExeName(output)
 }

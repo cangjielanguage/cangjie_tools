@@ -10,8 +10,10 @@ import std.collection.*
 import std.fs.*
 import std.sync.*
 import std.env.*
+import std.deriving.Derive
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
+
 import cjpm.util.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
@@ -42,20 +44,26 @@ private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
     [
         ("static", Static),
         ("dynamic", Dynamic),
-        ("executable", Exe)
+        ("executable", Exe),
+        ("chir", Chir)
     ]
 )
 
+@Derive[Equatable]
 public enum OutputType <: Serializable<OutputType> & ToString {
     | Static
     | Dynamic
     | Exe
+    | Chir
     | Unknown(String)
 
+    // output type is considered valid if it can be used in public API by the user
+    // e.g. `package.output-type` field in `cjpm.toml` or `cjpm init --type=<output-type>`
     public prop isValid: Bool {
         get() {
             match (this) {
                 case Static | Dynamic | Exe => true
+                case Chir => false // This output type is currently for internal usage only
                 case Unknown(_) => false
             }
         }
@@ -65,7 +73,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
         get() {
             match (this) {
                 case Static | Dynamic => true
-                case Exe | Unknown(_) => false
+                case Exe | Chir | Unknown(_) => false
             }
         }
     }
@@ -75,6 +83,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
             case Static => "static"
             case Dynamic => "dynamic"
             case Exe => "executable"
+            case Chir => "chir"
             case Unknown(s) => s
         }
     }
@@ -85,6 +94,7 @@ public enum OutputType <: Serializable<OutputType> & ToString {
                 case Static => "staticlib"
                 case Dynamic => "dylib"
                 case Exe => "exe"
+                case Chir => "chir"
                 case Unknown(s) => s
             }
         }
@@ -108,18 +118,6 @@ public enum OutputType <: Serializable<OutputType> & ToString {
             case _ => throw CliFailError("tried to deserialize OutputType not from the DataModelString")
         }
         return fromString(dmstr.getValue())
-    }
-}
-
-extend OutputType <: Equatable<OutputType> {
-    public operator func ==(other: OutputType) {
-        match ((this, other)) {
-            case (Static, Static) => true
-            case (Dynamic, Dynamic) => true
-            case (Exe, Exe) => true
-            case (Unknown(l), Unknown(r)) => l == r
-            case _ => false
-        }
     }
 }
 
@@ -488,23 +486,71 @@ public open class CommandConfig {
     public var memberModule: String = ""
 }
 
+@Derive[Hashable, Equatable]
+public struct TaskIdentifier {
+    public TaskIdentifier(
+        public let fullName: String,
+        public let target: String,
+        public let sourceSetDir: String
+    ) { }
+}
+
 public struct PackageList {
     private let packages: Array<ResolveItem>
 
+    public let all: Array<String>
+    public let allIds: Array<TaskIdentifier>
+    public let macros: Array<String>
+    public let dylib: Array<String>
+    public let exe: Array<String>
+    public let test: Array<String>
+    public let productSuffixes: ReadOnlyMap<String, String>
+
     public init(packages: Iterable<ResolveItem>) {
         this.packages = packages |> collectArray
+
+        let capacity = this.packages.size
+        let all = ArrayList<String>(capacity)
+        let allIds = ArrayList<TaskIdentifier>(4 * capacity)
+        let dylib = ArrayList<String>(capacity)
+        let macros = ArrayList<String>(capacity)
+        let exe = ArrayList<String>(capacity)
+        let test = ArrayList<String>(capacity)
+
+        for (pkg in this.packages) {
+            let name = pkg.fullName
+            all.add(name)
+
+            for (source in pkg.packagePath._sources) {
+                let sourceSetDir = if (!source.product) { source.outputSuffix.toString() } else { "" }
+                allIds.add(TaskIdentifier(name, crossCompileTarget, sourceSetDir))
+                allIds.add(TaskIdentifier(name, targetConfigName, sourceSetDir))
+            }
+
+            if (pkg.isMacroPackage) {
+                macros.add(name)
+            }
+            if (pkg.isPureTestPkg()) {
+                test.add(name)
+            }
+            match (pkg.outputType) {
+                case Exe => exe.add(name)
+                case Dynamic => dylib.add(name)
+                case Static | Chir | Unknown(_) => ()
+            }
+        }
+
+        this.all = all.toArray()
+        this.allIds = allIds.toArray()
+        this.macros = macros.toArray()
+        this.dylib = dylib.toArray()
+        this.exe = exe.toArray()
+        this.test = test.toArray()
+        this.productSuffixes = makeProductSuffixes(packages)
     }
 
     init() {
         this([])
-    }
-
-    public prop all: Array<String> {
-        get() {
-            packages |> map {
-                it: ResolveItem => it.fullName
-            } |> collectArray
-        }
     }
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
@@ -517,7 +563,7 @@ public struct PackageList {
                 for (source in reversed) {
                     let finalFeatures = it.featureDeducer.addFeature(features).collect()
                     if (finalFeatures.contains(all: source.features)) {
-                        return Some((it.fullName, getPath(source.outputSuffix.toString(), it.rootPkgName)))
+                        return Some((it.fullName, getPath(source.outputSuffix.toString())))
                     }
                 }
                 return None<(String, String)>
@@ -525,52 +571,13 @@ public struct PackageList {
         } |> collectHashMap
     }
 
-    public prop macros: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (it.isMacroPackage) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
+    private static func makeProductSuffixes(packages: Iterable<ResolveItem>): HashMap<String, String> {
+        packages |> filterMap { it: ResolveItem =>
+            let productEntry = it.packagePath._sources.last ?? return None<(String, String)>
+            return Some((it.fullName, productEntry.outputSuffix.toString()))
+        } |> collectHashMap
     }
 
-    public prop dylib: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (let Dynamic <- it.outputType) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
-    public prop exe: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (let Exe <- it.outputType) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
-    // Record the packages for pure unittest
-    public prop test: Array<String> {
-        get() {
-            packages |> filterMap {
-                it: ResolveItem => if (it.isPureTestPkg()) {
-                    it.fullName
-                } else {
-                    None
-                }
-            } |> collectArray
-        }
-    }
 }
 
 public class BuildConfig <: CommandConfig {
@@ -917,37 +924,86 @@ public class GlobalConfig {
     }
 }
 
-public struct ResolveConfig {
-    public var targetPath: String = ""
-    public var packagePath: CJMPSource = CJMPSource.empty
-    public var rootPkgName: String = ""
-    public var fullName: String = ""
-    public var outputType: OutputType = Unknown("")
-    public var compileOption: String = ""
-    public var linkOption: String = ""
-    public var nativeCompileOption: String = ""
-    public var nativeLinkOption: String = ""
-    public var customizedOption: HashMap<String, String> = HashMap<String, String>()
-    public var requirePkgs: HashSet<String> = HashSet<String>()
-    public var stdRequirePkgs: HashSet<String> = HashSet<String>()
-    public var outLogFile: String = ""
-    public var errLogFile: String = ""
-    public var nativePath: String = ""
-    public var nativeOutLog: String = ""
-    public var nativeErrLog: String = ""
-    public var targetPlatform: Bool = true
-    public var nativePlatform: Bool = false
-    public var checkDepCjo: Bool = false
-    public var superPkgCfg: ?SuperPackageConfig = None
-    public var hasTestFiles: Bool = false
-    public var features: HashSet<Feature> = HashSet()
-    public var featureDeducer: FeatureDeducer = FeatureDeducer.empty
-
-    public prop isMultiplatform: Bool {
-        get() {
-            this.packagePath.isMultiplatform
-        }
-    }
+// Self-sufficient compilation unit. 
+// Stores all of the information for constructing a single `cjc` call
+public struct CompileTask {
+    public CompileTask(
+        public let id!: TaskIdentifier,
+        // The directory, of current `target`
+        public let targetDir!: String = "",
+        // The value of `--target-dir`: where to dump the compilation result (depends on many factors)
+        public let targetPath!: String = "", 
+        // The value of `-p`: The location of package files of current source set
+        public let packagePath!: String = "", 
+        // Is this a product source set (`--output-type` can be of binary)
+        public let product!: Bool = false, 
+        // Source set directory without the module path prefix. Uniquely identifies source set
+        public let sourceSetDir!: String = "", 
+        // The feature set header of the package
+        public let sourceSetFeatures!: HashSet<Feature> = HashSet(), 
+        // e.g. for `cjpm.config` the value would be `cjpm`
+        public let rootPkgName!: String = "", 
+        // Full package name, e.g. `cjpm.config`
+        public let fullName!: String = "", 
+        // The expected name of output file without extension
+        public let filename!: String = "", 
+        // The value of `--output-type`
+        public let outputType!: OutputType = Unknown(""), 
+        // The target triple passed to `--target` for compilation/cross-compilation
+        public let target!: String = "", 
+        // `true` if value stored in `target` field is different from host
+        public let isCrossCompile!: Bool = false, 
+        // A set of option fields from `cjpm.toml` of a module, specialized for this particular package
+        public let compileOption!: String = "", 
+        public let overrideOption!: String = "", 
+        public let linkOption!: String = "", 
+        public let customizedOption!: ArrayList<String> = ArrayList(), 
+        // Stores names of all subpackages of a module to combine them into a single compilation unit
+        public let subPkgSet!: HashSet<String> = HashSet(), 
+        // Use `--whole-archive` to link dendencies
+        public let isCombined!: Bool = false,
+        // Compile this root package and make it into a single linkable binary
+        public let isProjectCombined!: Bool = false,
+        // Package is being compiled by `cjpm test`
+        public let requiredForTests!: Bool = false, 
+        // Include some declarations from testfiles `*_test.cj` of a package.
+        public let exportForTests!: Bool = false, 
+        // Incoming edges of dependency graph
+        public let requireTasks!: HashSet<TaskIdentifier> = HashSet(), 
+        // All features, asked by different modules of this package. Required for proper selection of product source set
+        public let allEnabledFeatures!: HashSet<Feature> = HashSet(), 
+        // Mappings from `[[feature]]` array of tables from `cjpm.toml`. Used to provide correct `*.cjo` files in `--import-path`
+        public let featureMapping!: FeatureDeducer = FeatureDeducer.empty, 
+        // Does this compiler call support AnalysisCompilePerformance
+        public let isAnalysisCompilePerformance!: Bool = false, 
+        // `true` if:
+        //  - this is a parent package of some subpackage
+        //  - requiredForTests
+        public let hasSubPkgs!: Bool = false, 
+        // Is this compilation task for debug build
+        public let isDebug!: Bool = false,
+        // Compile package with support of `coverage`
+        public let isCov!: Bool = false,
+        // Compile package with support of `mock`
+        public let mockSupported!: Bool = false,
+        // Is package a macro package
+        public let isMacro!: Bool = false, 
+        // A value of `--lto` flag to be passed to a compiler
+        public let isLto!: Bool = false,
+        public let ltoValue!: String = "",
+        // 0 - CHIR file with declarations to be merged for multiplatform build
+        // 1 - The value of `--common-part-cjo` for multiplatform build
+        public let prevStageArtifacts!: ?(String, String) = None, 
+        // Whether the source code location is spread between multiple [[source-set]] src-dir
+        public let isMultiplatform!: Bool = false, 
+        public let checkDepCjo!: Bool = false,
+        // A list of `-Woff` compiler options
+        public let supressed!: ArrayList<String> = ArrayList<String>(),
+        // A file for verbose output of `cjpm` when compiling task
+        public let outLogFile!: String = "", 
+        // A joined file containing `stderr` of a compiler together with `cjpm` errors
+        public let errLogFile!: String = "" 
+    ) { }
 }
 
 public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
