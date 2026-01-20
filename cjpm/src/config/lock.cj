@@ -80,7 +80,7 @@ public func loadLockFile(rootPath: String): (Bool, ModuleLock) {
     }
 
     try {
-        let file = File(lockFile, ReadWrite)
+        let file = File(lockFile, Read)
         let de = DecoderToml(file)
         let to = de.decode()
         res = ModuleLock.deserialize(DataModel.fromToml(to))

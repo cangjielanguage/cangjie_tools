@@ -77,6 +77,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
     public var dependencies: ArrayList<FullName> = ArrayList<FullName>()
     public var stdDependencies: ArrayList<FullName> = ArrayList<FullName>()
     public var features: HashSet<Feature> = HashSet()
+    public var product: Bool = false
     public var timeStamp: Int64 = 0
 
     public func serialize(): DataModel {
@@ -88,6 +89,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.add(field<ArrayList<FullName>>(DEPENDENCIES, this.dependencies))
         result.add(field<ArrayList<FullName>>("std-dependencies", this.stdDependencies))
         result.add(field("features", features |> map { it => it.toString() } |> collectArray))
+        result.add(field("product", product))
         result.add(field<Bool>("testUsed", this.testUsed))
         result.add(field<Bool>("mockUsed", this.mockUsed))
         return result
@@ -107,6 +109,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.features = Array<String>
             .deserialize((dms.get("features") as DataModelSeq) ?? DataModelSeq())
             .map { it => Feature.fromString(it).getOrThrow() } |> collectHashSet
+        result.product = Bool.deserialize((dms.get("product") as DataModelBool) ?? DataModelBool(true))
         result.mockUsed = Bool.deserialize((dms.get("mockUsed") as DataModelBool) ?? DataModelBool(false))
         let allDependencies = ArrayList<FullName>.deserialize(dms.get(DEPENDENCIES))
         for (dependency in allDependencies) {
