@@ -195,3 +195,9 @@ Options:
   -i INCLUDE, --include=INCLUDE
                                 The cangjie source files starts with INCLUDE will be showed in coverage reports.
 ```
+
+## 相关仓
+
+- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
+- [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx)
+- [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)
