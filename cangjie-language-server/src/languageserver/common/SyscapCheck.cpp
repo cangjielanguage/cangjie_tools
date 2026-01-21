@@ -196,6 +196,7 @@ std::unordered_set<std::string> ParseSyscap(Ptr<JsonObject> deviceSysCapObj)
 
 namespace ark {
 std::unordered_map<std::string, SysCapSet> SyscapCheck::module2SyscapsMap{};
+bool SyscapCheck::isChecked = false;
 
 SyscapCheck::SyscapCheck(const std::string& moduleName)
 {
@@ -223,6 +224,7 @@ void SyscapCheck::ParseCondition(const std::unordered_map<std::string, std::stri
             return;
         }
         ParseJsonFile(jsonContent);
+        isChecked = true;
     }
 }
 
@@ -247,6 +249,9 @@ void SyscapCheck::ParseJsonFile(const std::vector<uint8_t>& in)
 
 bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Node> node)
 {
+    if (!isChecked) {
+        return true;
+    }
     auto decl = Cangjie::DynamicCast<Decl*>(node.get());
     if (decl == nullptr) {
         return true;
@@ -256,6 +261,9 @@ bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Node> node)
 
 bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Node> node, bool& hasAPILevel) const
 {
+    if (!isChecked) {
+        return true;
+    }
     auto decl = Cangjie::DynamicCast<Decl*>(node.get());
     if (decl == nullptr) {
         return true;
@@ -288,6 +296,9 @@ bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Node> node, bool& hasAPILevel) c
 
 bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Decl> decl) const
 {
+    if (!isChecked) {
+        return true;
+    }
     if (decl == nullptr) {
         return true;
     }
@@ -296,6 +307,9 @@ bool SyscapCheck::CheckSysCap(Ptr<Cangjie::AST::Decl> decl) const
 
 bool SyscapCheck::CheckSysCap(const Cangjie::AST::Decl& decl) const
 {
+    if (!isChecked) {
+        return true;
+    }
     for (auto& annotation : decl.annotations) {
         auto name = annotation->identifier;
         if (annotation->identifier != "APILevel") {
@@ -323,6 +337,9 @@ bool SyscapCheck::CheckSysCap(const Cangjie::AST::Decl& decl) const
 
 bool SyscapCheck::CheckSysCap(const std::string& syscapName)
 {
+    if (!isChecked) {
+        return true;
+    }
     return intersectionSet.find(syscapName) != intersectionSet.end();
 }
 } // namespace ark
