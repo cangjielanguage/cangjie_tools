@@ -580,6 +580,12 @@ public struct PackageList {
 
 }
 
+public enum CjcParallelConfig {
+    | Default
+    | Heuristic
+    | Spicific(Int64)
+}
+
 public class BuildConfig <: CommandConfig {
     public var globalConfig: GlobalConfig = GlobalConfig()
 
@@ -589,6 +595,7 @@ public class BuildConfig <: CommandConfig {
     public var isInstall: Bool = false
     public var curModuleName: String = WORKSPACE_NAME
     public var lastEndTime: Int64 = 0
+    public var cjcJobs: CjcParallelConfig = CjcParallelConfig.Default
     public var packageList: PackageList = PackageList()
     public var pkgRequireByMacro = HashSet<String>()
     public var requiredForTests: Bool = false

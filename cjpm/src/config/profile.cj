@@ -65,6 +65,8 @@ public class BuildProfile <: Serializable<BuildProfile> {
     public var incremental: Bool = false
     public var analysisCompilePerformance: Bool = false
     public var combined: HashMap<String, OutputType> = HashMap<String, OutputType>()
+    public var cjcJobs: ?Int64 = None
+    public var heuristic: Bool = false
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -77,6 +79,8 @@ public class BuildProfile <: Serializable<BuildProfile> {
             case _ => throw Exception("this data is not DataModelStruct")
         }
         var result = BuildProfile()
+        result.cjcJobs = Option<Int64>.deserialize(dms.get("cjc-jobs"))
+        result.heuristic = Bool.deserialize((dms.get("enable-heuristic-parallelism") as DataModelBool) ?? DataModelBool(false))
         result.ltoValue = String.deserialize((dms.get("lto") as DataModelString) ?? DataModelString(""))
         result.incremental = Bool.deserialize((dms.get("incremental") as DataModelBool) ?? DataModelBool(false))
         result.analysisCompilePerformance = Bool.deserialize((dms.get("performance_analysis") as DataModelBool) ??

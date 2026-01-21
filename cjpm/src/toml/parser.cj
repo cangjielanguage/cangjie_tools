@@ -258,8 +258,14 @@ public class Parser {
         if (numHasLeadingZero(it.val)) {
             throw ParseException("Invalid integer ${it.val}: cannot have leading zeroes", it.pos, current())
         }
-        let num = Int64.parse(it.val)
-        return (num, this.typeOfPrimitive(it))
+        
+        try {
+            let num = Int64.parse(it.val)
+            return (num, this.typeOfPrimitive(it))
+        } catch (e: Exception) {
+            eprintln(e.message)
+            throw ParseException("Invalid integer ${it.val}: out of Int64 range", it.pos, current())
+        }
     }
 
     func valueFloat(it: Item): (Float64, TomlType) {
@@ -292,8 +298,14 @@ public class Parser {
         if (val == "+nan" || val == "-nan") {
             val = "nan"
         }
-        let num = Float64.parse(val)
-        return (num, this.typeOfPrimitive(it))
+
+        try {
+            let num = Float64.parse(val)
+            return (num, this.typeOfPrimitive(it))
+        } catch (e: Exception) {
+            eprintln(e.message)
+            throw ParseException("Invalid integer ${it.val}: out of Float64 range", it.pos, current())
+        }
     }
 
     func checkTimeFormats(regex: String, val: String): ?DateTime {
