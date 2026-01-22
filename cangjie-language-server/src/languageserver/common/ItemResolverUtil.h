@@ -177,6 +177,10 @@ private:
     template<typename T> static void DealEmptyParamFollowLambda(const T &decl,
         Cangjie::SourceManager *sourceManager, OwnedPtr<Cangjie::AST::FuncParamList> &paramList, std::string &signature,
         const std::string &myFilePath);
+
+    static void DealAliasType(Ptr<Cangjie::AST::Type> type, std::string &detail);
+
+    static std::string GetTypeString(const Cangjie::AST::Type &type);
 };
 } // namespace ark
 
