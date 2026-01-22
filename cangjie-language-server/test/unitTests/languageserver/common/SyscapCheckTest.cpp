@@ -422,6 +422,7 @@ TEST(SyscapCheckTest, CheckSysCapTest003)
 
     auto hasAPILevel = true;
     SyscapCheck syscapCheck;
+    SyscapCheck::isChecked = true;
     auto result = syscapCheck.CheckSysCap(declNode, hasAPILevel);
 
     EXPECT_FALSE(result);
@@ -476,6 +477,7 @@ TEST(SyscapCheckTest, CheckSysCapTest006)
     declNode->annotations.emplace_back(annotation);
 
     const SyscapCheck syscapCheck;
+    SyscapCheck::isChecked = true;
     auto result = syscapCheck.CheckSysCap(declNode);
 
     EXPECT_FALSE(result);
@@ -493,6 +495,7 @@ TEST(SyscapCheckTest, CheckSysCapTest012)
 {
     const std::string& syscapName = "syscap1";
     SyscapCheck syscapCheck;
+    SyscapCheck::isChecked = true;
     auto res = syscapCheck.CheckSysCap(syscapName);
 
     EXPECT_EQ(res, false);
@@ -626,6 +629,7 @@ TEST(SyscapCheckTest, SetIntersectionSetTest002)
 {
     // Test setting intersection set for non-existent module
     SyscapCheck syscapCheck;
+    SyscapCheck::isChecked = true;
     syscapCheck.SetIntersectionSet("nonExistentModule");
 
     // Should not crash and should handle gracefully
