@@ -86,6 +86,7 @@ endif ()
 
 add_compile_options(${CXX_SYSTEM_INCLUDE_CONFIGURATION_FLAG})
 add_compile_definitions(CJFMT_VERSION="${CJFMT_VERSION_STR}")
+add_compile_definitions(CANGJIE_CODEGEN_CJNATIVE_BACKEND)
 
 include_directories(${CANGJIE_HOME}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
