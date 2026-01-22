@@ -21,8 +21,15 @@ std::string GetFullPackageName(const Cangjie::AST::PackageSpec& pkg)
     if (pkg.prefixPaths.empty()) {
         return pkg.packageName;
     }
-    auto prefix = Cangjie::Utils::JoinStrings(pkg.prefixPaths, ".");
-    return prefix + "." + pkg.packageName;
+    auto prefix = Cangjie::Utils::JoinStrings(pkg.prefixPaths, ".") + ".";
+    if (pkg.hasDoubleColon) {
+        size_t firstDotPos = prefix.find('.');
+        if (firstDotPos != std::string::npos) {
+            prefix.replace(firstDotPos, 1, "::");
+        }
+    }
+    auto res = prefix  + pkg.packageName;
+    return res;
 }
 } // namespace
 
@@ -48,9 +55,10 @@ void StructuralRuleGNAM01::FileDeclHandler(const File &file)
             CodeCheckDiagKind::G_NAM_01_Package_Information, GetFullPackageName(package));
     }
     // Root packages can have any valid package name.
-    if (package.prefixPaths.empty()) {
+    if (package.prefixPaths.empty() || (package.hasDoubleColon && package.prefixPaths.size() == 1)) {
         return;
     }
+
     auto filePath = FileUtil::GetDirPath(file.filePath);
     auto lastSlashPos = filePath.rfind(PATH_SEPARATOR);
     auto curDir = lastSlashPos != std::string::npos ? filePath.substr(lastSlashPos + 1) : "";

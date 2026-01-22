@@ -11,6 +11,18 @@ using namespace Cangjie;
 using namespace Cangjie::AST;
 using namespace Meta;
 
+std::string ProcessPrefixIncludeOrgName(const std::vector<std::string>& prefixPaths, bool hasDoubleColon, bool isMulti)
+{
+    auto prefix = isMulti ? Utils::JoinStrings(prefixPaths, ".") + "." : Utils::JoinStrings(prefixPaths, ".");
+    if (hasDoubleColon) {
+        size_t firstDotPos = prefix.find('.');
+        if (firstDotPos != std::string::npos) {
+            prefix.replace(firstDotPos, 1, "::");
+        }
+    }
+    return prefix;
+}
+
 void StructuralRuleGPKG01::FindImportNode(Ptr<Node> node)
 {
     if (node == nullptr) {
@@ -32,15 +44,22 @@ void StructuralRuleGPKG01::CheckImportItemName(const Cangjie::AST::ImportSpec& i
     if (importSpec.importPos == INVALID_POSITION || importSpec.TestAttr(AST::Attribute::COMPILER_ADD)) {
         return;
     }
+
     const auto& ic = importSpec.content;
     if (ic.kind == AST::ImportKind::IMPORT_ALL) {
+        auto prefix = ProcessPrefixIncludeOrgName(ic.prefixPaths, ic.hasDoubleColon, false);
         Diagnose(ic.begin, ic.end, CodeCheckDiagKind::G_PKG_01_avoid_wildcard,
-            ic.prefixPaths.empty() ? std::string() : Utils::JoinStrings(ic.prefixPaths, "."));
+            ic.prefixPaths.empty() ? std::string() : prefix);
     } else if (ic.kind == AST::ImportKind::IMPORT_MULTI) {
+        std::string prefix = "";
+        if (!ic.prefixPaths.empty()) {
+            prefix = ProcessPrefixIncludeOrgName(ic.prefixPaths, ic.hasDoubleColon, true);
+        }
         for (const auto& item : ic.items) {
             if (item.kind == AST::ImportKind::IMPORT_ALL) {
                 Diagnose(item.begin, item.end, CodeCheckDiagKind::G_PKG_01_avoid_wildcard,
-                    item.prefixPaths.empty() ? std::string() : Utils::JoinStrings(item.prefixPaths, "."));
+                    item.prefixPaths.empty() ?
+                        prefix + std::string() : prefix + Utils::JoinStrings(item.prefixPaths, "."));
             }
         }
     }
