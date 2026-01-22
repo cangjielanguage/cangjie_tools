@@ -80,13 +80,8 @@ void WriteVersionInfo(const std::string &validFile)
     }
     versionInfo.close();
 }
-} // namespace
 
-int main(int argc, const char *argv[], const char *envp[])
-{
-    ark::Environment environment = StringifyEnvironmentPointer(envp);
-    ark::Options &opts = ark::Options::GetInstance();
-    opts.Parse(argc, argv);
+void ConfigByOptions(ark::Options &opts, std::string& cachePath) {
     if (opts.IsOptionSet("log-path")) {
         ark::Logger::SetPath(opts.GetLongOption("log-path").value());
     }
@@ -96,10 +91,23 @@ int main(int argc, const char *argv[], const char *envp[])
     if (opts.IsOptionSet('V')) {
         ark::CrashReporter::RegisterHandlers();
     }
-    std::string cachePath;
+    if (opts.IsOptionSet("disable-incremental-optimization")) {
+        ark::CompilerCangjieProject::SetIncrementalOptimize(false);
+    }
     if (opts.IsOptionSet("cache-path")) {
         cachePath = opts.GetLongOption("cache-path").value();
+        ark::CompilerCangjieProject::SetUseDB(!cachePath.empty());
     }
+}
+} // namespace
+
+int main(int argc, const char *argv[], const char *envp[])
+{
+    ark::Environment environment = StringifyEnvironmentPointer(envp);
+    ark::Options &opts = ark::Options::GetInstance();
+    opts.Parse(argc, argv);
+    std::string cachePath;
+    ConfigByOptions(opts, cachePath);
     Trace::Log("LSP Starting over stdin/stdout");
     // add if/else can add another transport layer
     ark::TransportRegistrar<ark::Transport, ark::StdioTransport> stdioTransportRegistrar("stdio");
@@ -139,10 +147,7 @@ int main(int argc, const char *argv[], const char *envp[])
 #endif
     std::unique_ptr<ark::lsp::IndexDatabase> indexDB;
     indexDB = std::make_unique<ark::lsp::IndexDatabase>();
-    if (cachePath.empty()) {
-        ark::CompilerCangjieProject::SetUseDB(false);
-    } else {
-        ark::CompilerCangjieProject::SetUseDB(true);
+    if (ark::CompilerCangjieProject::GetUseDB()) {
         std::string cacheRoot = JoinPath(cachePath, ".cache");
         cachePath = JoinPath(cacheRoot, "index/");
         if (!FileExist(cachePath)) {
