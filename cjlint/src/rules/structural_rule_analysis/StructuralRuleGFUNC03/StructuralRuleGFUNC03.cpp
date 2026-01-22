@@ -62,7 +62,7 @@ void StructuralRuleGFUNC03::FuncDeclProcessor(Ptr<Node> node)
     if (functy) {
         auto paramTys = functy->paramTys;
         for (auto modifier : funcDecl->modifiers) {
-            if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::SPECIFIC) {
                 return;
             }
         }
@@ -98,7 +98,7 @@ void StructuralRuleGFUNC03::FileProcessor(Ptr<Node> node)
         }
         auto paramTys = functy->paramTys;
         for (auto modifier : funcDecl->modifiers) {
-            if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::PLATFORM) {
+            if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::SPECIFIC) {
                 return;
             }
         }
