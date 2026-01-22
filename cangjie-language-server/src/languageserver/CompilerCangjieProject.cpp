@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include "CjoManager.h"
+#include "cangjie/Frontend/CompilerInstance.h"
 #include "common/Utils.h"
 #include "common/SyscapCheck.h"
 #include "index/CjdIndex.h"
@@ -306,7 +307,7 @@ bool CompilerCangjieProject::UpdateDependencies(
 {
     {
         std::lock_guard<std::mutex> lock(pkgInfoMap[fullPkgName]->pkgInfoMutex);
-        ci->bufferCache = pkgInfoMap[fullPkgName]->bufferCache;
+        ci->SetBufferCache(pkgInfoMap[fullPkgName]->bufferCache);
     }
     ci->PreCompileProcess();
     auto packages = ci->GetSourcePackages();
@@ -399,7 +400,7 @@ void CompilerCangjieProject::SubmitTasksToPool(const std::unordered_set<std::str
             auto ci = std::make_unique<LSPCompilerInstance>(callback, *invocation, *diag, package, moduleManager);
             ci->cangjieHome = modulesHome;
             ci->loadSrcFilesFromCache = true;
-            ci->bufferCache = pkgInfoMap[package]->bufferCache;
+            ci->SetBufferCache(pkgInfoMap[package]->bufferCache);
             ci->PreCompileProcess();
             bool changed = ci->CompileAfterParse(cjoManager, graph);
             if (changed) {
@@ -516,7 +517,7 @@ bool CompilerCangjieProject::ParseAndUpdateNotInSrcDep(const std::string &dirPat
 {
     {
         std::lock_guard<std::mutex> lock(pkgInfoMapNotInSrc[dirPath]->pkgInfoMutex);
-        newCI->bufferCache = pkgInfoMapNotInSrc[dirPath]->bufferCache;
+        newCI->SetBufferCache(pkgInfoMapNotInSrc[dirPath]->bufferCache);
     }
     newCI->PreCompileProcess();
     newCI->UpdateDepGraph();
@@ -664,26 +665,45 @@ void CompilerCangjieProject::IncrementCompileForComplete(
     const std::string &name, const std::string &filePath, Position pos, const std::string &contents)
 {
     std::string pkgName = GetFullPkgName(filePath);
-    // delete and add new CI
-    auto newCI = std::make_unique<LSPCompilerInstance>(
-        callback, *pkgInfoMap[pkgName]->compilerInvocation, *pkgInfoMap[pkgName]->diagTrash, pkgName, moduleManager);
+    if (CIForParse && CIForParse->pkgNameForPath == pkgName) {
+        if (pkgInfoMap[pkgName]->bufferCache.count(filePath) &&
+            !Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
+            {
+                std::lock_guard<std::mutex> lock(pkgInfoMap[pkgName]->pkgInfoMutex);
+                pkgInfoMap[pkgName]->bufferCache[filePath] = contents;
+            }
+            std::lock_guard lock(CIForParse->fileStatusLock);
+            if (CIForParse->fileStatus.find(filePath) != CIForParse->fileStatus.end()) {
+                CIForParse->fileStatus[filePath] = CompilerInstance::SrcCodeChangeState::CHANGED;
+            }
+        }
+        CIForParse->SetBufferCacheForParse(pkgInfoMap[pkgName]->bufferCache);
+        CIForParse->CompilePassForComplete(cjoManager, graph, pos, name);
+        InitParseCache(CIForParse, pkgName);
+    } else {
+        // delete and add new CI
+        auto newCI = std::make_unique<LSPCompilerInstance>(
+            callback, *pkgInfoMap[pkgName]->compilerInvocation, *pkgInfoMap[pkgName]->diagTrash,
+            pkgName, moduleManager);
 
-    if (newCI == nullptr) {
-        return;
+        if (newCI == nullptr) {
+            return;
+        }
+        newCI->cangjieHome = modulesHome;
+        // update cache and read code from cache
+        newCI->loadSrcFilesFromCache = true;
+        if (pkgInfoMap[pkgName]->bufferCache.count(filePath) &&
+            !Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
+            std::lock_guard<std::mutex> lock(pkgInfoMap[pkgName]->pkgInfoMutex);
+            pkgInfoMap[pkgName]->bufferCache[filePath] = contents;
+        }
+        newCI->SetBufferCacheForParse(pkgInfoMap[pkgName]->bufferCache);
+        newCI->CompilePassForComplete(cjoManager, graph, pos, name);
+        CIForParse = std::move(newCI);
+        InitParseCache(CIForParse, pkgName);
     }
-    newCI->cangjieHome = modulesHome;
-    // update cache and read code from cache
-    newCI->loadSrcFilesFromCache = true;
-    if (pkgInfoMap[pkgName]->bufferCache.count(filePath) &&
-        !Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
-        std::lock_guard<std::mutex> lock(pkgInfoMap[pkgName]->pkgInfoMutex);
-        pkgInfoMap[pkgName]->bufferCache[filePath] = contents;
-    }
-    newCI->bufferCache = pkgInfoMap[pkgName]->bufferCache;
-    newCI->CompilePassForComplete(cjoManager, graph, pos, name);
-    CIForParse = std::move(newCI);
-    InitParseCache(CIForParse, pkgName);
 }
+
 // LCOV_EXCL_START
 std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete(
     const std::string &filePath, Position pos, std::string &contents)
@@ -703,10 +723,10 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete
         return nullptr;
     }
 
-    newCI->bufferCache = pkgInfoMap[pkgName]->bufferCache;
+    newCI->SetBufferCache(pkgInfoMap[pkgName]->bufferCache);
     if (newCI->bufferCache.count(filePath) &&
         !Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
-        newCI->bufferCache[filePath] = contents;
+        newCI->bufferCache.insert_or_assign(filePath, contents);
     }
     newCI->CompilePassForComplete(cjoManager, graph, pos);
     newCI->CompileAfterParse(cjoManager, graph);
@@ -726,7 +746,7 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForFileRefacto
     auto ci = std::make_unique<LSPCompilerInstance>(callback, *invocation, *diag, package, moduleManager);
     ci->cangjieHome = modulesHome;
     ci->loadSrcFilesFromCache = true;
-    ci->bufferCache = pkgInfoMap[package]->bufferCache;
+    ci->SetBufferCache(pkgInfoMap[package]->bufferCache);
     ci->PreCompileProcess();
 
     return ci;
@@ -752,7 +772,7 @@ void CompilerCangjieProject::IncrementCompileForCompleteNotInSrc(
     if (pkgInfoMapNotInSrc[dirPath]->bufferCache.count(filePath)) {
         pkgInfoMapNotInSrc[dirPath]->bufferCache[filePath] = contents;
     }
-    newCI->bufferCache = pkgInfoMapNotInSrc[dirPath]->bufferCache;
+    newCI->SetBufferCacheForParse(pkgInfoMapNotInSrc[dirPath]->bufferCache);
 
     newCI->CompilePassForComplete(cjoManager, graph, INVALID_POSITION, name);
     CIForParse = std::move(newCI);
@@ -1022,7 +1042,7 @@ void CompilerCangjieProject::InitPkgInfoAndParseInModule()
         }
         pkgCompiler->cangjieHome = modulesHome;
         pkgCompiler->loadSrcFilesFromCache = true;
-        pkgCompiler->bufferCache = item.second->bufferCache;
+        pkgCompiler->SetBufferCache(item.second->bufferCache);
         pkgCompiler->PreCompileProcess();
         CjoData cjoData;
         cjoData.data = {};
@@ -1060,7 +1080,7 @@ void CompilerCangjieProject::InitPkgInfoAndParseNotInModule()
             }
             pkgCompiler->cangjieHome = modulesHome;
             pkgCompiler->loadSrcFilesFromCache = true;
-            pkgCompiler->bufferCache = item.second->bufferCache;
+            pkgCompiler->SetBufferCache(item.second->bufferCache);
             pkgCompiler->PreCompileProcess();
             pkgCompiler->UpdateDepGraph(false);
             auto packages = pkgCompiler->GetSourcePackages();
@@ -1420,7 +1440,9 @@ void CompilerCangjieProject::UpdateBuffCache(const std::string &file, bool isCon
     }
     auto downStreamPkgs = graph->FindAllDependents(pkgName);
     cjoManager->UpdateStatus(downStreamPkgs, DataStatus::WEAKSTALE);
+    UpdateFileStatusInCI(pkgName, file, CompilerInstance::SrcCodeChangeState::CHANGED);
 }
+
 // LCOV_EXCL_START
 std::vector<std::vector<std::string>> CompilerCangjieProject::ResolveDependence()
 {
@@ -1746,7 +1768,6 @@ std::string CompilerCangjieProject::GetPathBySource(const Node &node, unsigned i
 
 void CompilerCangjieProject::ClearParseCache()
 {
-    CIForParse.reset();
     packageInstanceCacheForParse.reset();
     fileCacheForParse.clear();
 }
@@ -2119,5 +2140,16 @@ bool CompilerCangjieProject::IsCombinedSym(const std::string &curModule, const s
     bool isCombinedModule = GetModuleCombined(curModule);
     bool isRootPkg = curModule == curPkg;
     return isCombinedModule && symPkg == curModule && !isRootPkg;
+}
+
+void CompilerCangjieProject::UpdateFileStatusInCI(const std::string& pkgName, const std::string& file,
+    CompilerInstance::SrcCodeChangeState state)
+{
+    // Update file status in CI for parse
+    // Currently, only CHANGED state is updated in CI
+    if (CIForParse && CIForParse->pkgNameForPath == pkgName) {
+        std::lock_guard lock(CIForParse->fileStatusLock);
+        CIForParse->fileStatus[file] = state;
+    }
 }
 } // namespace ark

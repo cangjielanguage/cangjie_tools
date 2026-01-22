@@ -4,12 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "ArkLanguageServer.h"
 #include <iostream>
 #include <map>
 #include <set>
 #include <mutex>
 #include <utility>
+#include "ArkLanguageServer.h"
+#include "cangjie/Frontend/CompilerInstance.h"
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
 #include "capabilities/shutdown/Shutdown.h"
 
@@ -450,6 +451,11 @@ void ArkLanguageServer::OnDocumentDidOpen(const DidOpenTextDocumentParams &param
                 reBuild = true;
             }
         }
+    }
+    if (reBuild) {
+        auto pkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(file);
+        CompilerCangjieProject::GetInstance()->
+            UpdateFileStatusInCI(pkgName, file,CompilerInstance::SrcCodeChangeState::CHANGED);
     }
     int64_t version = DocMgr.AddDoc(file, params.textDocument.version, contents);
     Server->AddDoc(file, contents, version, ark::NeedDiagnostics::YES, reBuild);

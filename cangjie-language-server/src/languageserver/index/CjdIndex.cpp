@@ -93,7 +93,7 @@ void CjdIndexer::ParsePackageDependencies()
                 callback, *item.second->compilerInvocation, *item.second->diag, item.first);
         ci->cangjieHome = CompilerCangjieProject::GetInstance()->GetModulesHome();
         ci->loadSrcFilesFromCache = true;
-        ci->bufferCache = item.second->bufferCache;
+        ci->SetBufferCache(item.second->bufferCache);
         ci->PreCompileProcess();
         std::string fullPackageName = item.first;
         ci->UpdateDepGraph(graph, item.first);

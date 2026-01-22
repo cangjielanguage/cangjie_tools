@@ -161,7 +161,7 @@ public:
     {
         std::vector<std::string> ret;
         auto it = packageInstanceCache.find(pkgPath);
-        if (it == packageInstanceCache.end() || !it->second ||!it->second->package) {
+        if (it == packageInstanceCache.end() || !it->second || !it->second->package) {
             return ret;
         }
         for (auto &file: it->second->package->files) {
@@ -482,6 +482,9 @@ public:
     void StoreAllPackagesCache();
     
     void EmitDiagsOfFile(const std::string &filePath);
+
+    void UpdateFileStatusInCI(const std::string& pkgName, const std::string& file,
+        CompilerInstance::SrcCodeChangeState state);
 
 private:
     CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
