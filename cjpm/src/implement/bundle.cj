@@ -396,17 +396,16 @@ func printBundle(logStr: String, isVerbose: Bool): Unit {
     }
 }
 
-@When [os != "Windows"]
+@When [os == "Linux"]
 func verifyReadme(): Bool {
     return fileExists(getPath(DIR_CURRENT, README_FILE)) || fileExists(getPath(DIR_CURRENT, README_ZH_FILE))
 }
 
-@When [os == "Windows"]
+@When [os != "Linux"]
 func verifyReadme(): Bool {
     let fileList = getFileList(DIR_CURRENT)
     for (fileInfo in fileList) {
-        let filePath = getCanonicalPath(fileInfo.path.toString())
-        if (filePath.endsWith("${PATH_SPLIT_CHAR}${README_FILE}") || filePath.endsWith("${PATH_SPLIT_CHAR}${README_ZH_FILE}")) {
+        if (Path(fileInfo.path.toString()).fileName == README_FILE || Path(fileInfo.path.toString()).fileName == README_ZH_FILE) {
             return true
         }
     }
