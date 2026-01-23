@@ -1249,7 +1249,7 @@ bool RemoveFilePathExtension(const std::string &path, const std::string &extensi
     return false;
 }
 
-bool IsUnderPath(const std::string &basePath, const std::string &targetPath)
+bool IsUnderPath(const std::string &basePath, const std::string &targetPath, bool checkSamePath)
 {
     auto normalizePath = [](const std::string &path) -> std::string {
         std::string normalizedPath = path;
@@ -1264,6 +1264,10 @@ bool IsUnderPath(const std::string &basePath, const std::string &targetPath)
 
     std::replace(normBasePath.begin(), normBasePath.end(), '\\', '/');
     std::replace(normTargetPath.begin(), normTargetPath.end(), '\\', '/');
+
+    if (checkSamePath && normBasePath == normTargetPath) {
+        return true;
+    }
 
     if (normBasePath.back() != '/') {
         normBasePath += "/";

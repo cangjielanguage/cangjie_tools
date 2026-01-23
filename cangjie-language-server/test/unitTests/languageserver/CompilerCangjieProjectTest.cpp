@@ -203,8 +203,8 @@ TEST_F(CompilerCangjieProjectTest, IsCurModuleCjoDepTest) {
     bool isDep = CompilerCangjieProject::GetInstance()->IsCurModuleCjoDep(curModule, fullPkgName);
 }
 
-TEST_F(CompilerCangjieProjectTest, GetFullPkgNameToPathMapTest) {
-    std::unordered_map<std::string, std::string> pkgMap = CompilerCangjieProject::GetInstance()->GetFullPkgNameToPathMap();
+TEST_F(CompilerCangjieProjectTest, GetPkgNameList) {
+    std::unordered_set<std::string> pkgList = CompilerCangjieProject::GetInstance()->GetPkgNameList();
 }
 
 TEST_F(CompilerCangjieProjectTest, GetContentByFileTest) {

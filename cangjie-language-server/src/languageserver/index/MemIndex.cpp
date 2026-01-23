@@ -158,7 +158,7 @@ void MemIndex::Relations(const RelationsRequest &req, std::function<void(const R
 // LCOV_EXCL_STOP
 Symbol MemIndex::GetAimSymbol(const Decl& decl)
 {
-    auto pkgName = decl.fullPackageName;
+    auto pkgName = CompilerCangjieProject::GetInstance()->GetFinalDownStreamFullPkgName(decl.fullPackageName);
     auto symbolID = GetSymbolId(decl);
     if (pkgSymsMap.find(pkgName) == pkgSymsMap.end()) { return {}; }
     for (auto &sym: pkgSymsMap[pkgName]) {
@@ -375,9 +375,8 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
     targetPackageSet.insert(packageName);
     if (isComebined) {
         // LCOV_EXCL_START
-        const auto pkgMap = CompilerCangjieProject::GetInstance()->GetFullPkgNameToPathMap();
-        for (auto &item : pkgMap) {
-            std::string pkgName = item.first;
+        auto pkgNameList = CompilerCangjieProject::GetInstance()->GetPkgNameList();
+        for (auto &pkgName : pkgNameList) {
             if (pkgName.find(packageName) != std::string::npos) {
                 targetPackageSet.insert(pkgName);
             }

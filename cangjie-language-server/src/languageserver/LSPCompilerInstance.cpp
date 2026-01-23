@@ -39,12 +39,12 @@ std::tuple<std::string, std::string> GetFullPackageNames(const ImportSpec& impor
     if (import.content.prefixPaths.empty()) {
         return std::tuple(import.content.identifier, "");
     }
-    std::string fullPackageName = import.content.GetPrefixPath();
+    std::string packageName = import.content.GetPrefixPath();
     if (import.content.kind == ImportKind::IMPORT_ALL) {
-        return std::tuple(fullPackageName, "");
+        return std::tuple(packageName, "");
     }
-    [[maybe_unused]] std::string maybePackageName = fullPackageName + "." + import.content.identifier;
-    return std::tuple(maybePackageName, fullPackageName);
+    [[maybe_unused]] std::string maybePackageName = packageName + "." + import.content.identifier;
+    return std::tuple(maybePackageName, packageName);
 }
 }
 
@@ -68,7 +68,8 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
     std::string curModule;
     std::unordered_set<std::string> depends;
     if (!pkgNameForPath.empty()) {
-        curModule = SplitQualifiedName(pkgNameForPath).front();
+        curModule = 
+            SplitQualifiedName(ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath)).front();
         depends = ark::CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModule);
     }
 
@@ -93,23 +94,43 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
             if (package.empty() && orPackage.empty()) {
                 continue;
             }
-            std::string realDep = (package.size() > orPackage.size()) ? package : orPackage;
-            if (pkgNameForPath.empty() || realDep.empty()) {
+            std::string dep = (package.size() > orPackage.size()) ? package : orPackage;
+            std::vector<std::string> realDeps;
+            if (ark::CompilerCangjieProject::GetInstance()->IsCommonSpecificPkg(dep)) {
+                std::vector<std::string> sourceSetGraph = 
+                    ark::CompilerCangjieProject::GetInstance()->GetCommonSpecificSourceSetGraph(dep);
+                for (const auto &sourceSet : sourceSetGraph) {
+                    if (sourceSet.empty()) {
+                        continue;
+                    }
+                    std::string realDep = sourceSet + "-" + dep;
+                    realDeps.push_back(realDep);
+                }
+            }
+            if (realDeps.empty()) {
+                realDeps.push_back(dep);
+            }
+            auto realModule = SplitQualifiedName(dep).front();
+            if (curModule != realModule && depends.count(realModule) == 0) {
+                continue;
+            }
+            for (const auto &realDep : realDeps) {
+                if (pkgNameForPath.empty() || realDep.empty()) {
+                    if (depPkgsEdges.find(realDep) == depPkgsEdges.end() || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
+                        depPkgsEdges[realDep] = edgeKindMap[modifier];
+                    }
+                    depPkgs.insert(realDep);
+                    continue;
+                }
                 if (depPkgsEdges.find(realDep) == depPkgsEdges.end() || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
                     depPkgsEdges[realDep] = edgeKindMap[modifier];
                 }
                 depPkgs.insert(realDep);
-                continue;
             }
-            auto realModule = SplitQualifiedName(realDep).front();
-            if (curModule != realModule && depends.count(realModule) == 0) {
-                continue;
-            }
-            if (depPkgsEdges.find(realDep) == depPkgsEdges.end() || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
-                depPkgsEdges[realDep] = edgeKindMap[modifier];
-            }
-            depPkgs.insert(realDep);
         }
+    }
+    if (!upstreamSourceSetName.empty()) {
+        depPkgs.insert(upstreamSourceSetName + "-" + ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath));
     }
     upstreamPkgs = depPkgs;
     return depPkgsEdges;
@@ -313,7 +334,8 @@ void LSPCompilerInstance::ImportCjoToManager(
         if (!cjoCache) {
             continue;
         }
-        importManager.SetPackageCjoCache(package, *cjoCache);
+        importManager.SetPackageCjoCache(
+            ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(package), *cjoCache);
     }
 }
 
@@ -337,11 +359,13 @@ void LSPCompilerInstance::IndexCjoToManager(
  *
  * @param cjoManager Read cjo cache and update cjo cache and state
  * @param graph
+ * @param realPkgName Update target package cjo cache, used in common-specific package 
  * @return true
  * @return false
  */
 bool LSPCompilerInstance::CompileAfterParse(
-    const std::unique_ptr<ark::CjoManager> &cjoManager, const std::unique_ptr<ark::DependencyGraph> &graph)
+    const std::unique_ptr<ark::CjoManager> &cjoManager,
+    const std::unique_ptr<ark::DependencyGraph> &graph)
 {
     ImportCjoToManager(cjoManager, graph);
     (void)ImportPackage();
@@ -367,6 +391,7 @@ bool LSPCompilerInstance::CompileAfterParse(
     cjoData.data = data;
     cjoData.status = ark::DataStatus::FRESH;
     cjoManager->SetData(pkgNameForPath, cjoData);
+    cjoManager->SetData(ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath), cjoData);
     return changed;
 }
 // LCOV_EXCL_START

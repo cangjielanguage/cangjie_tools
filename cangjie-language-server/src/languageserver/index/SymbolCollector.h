@@ -34,7 +34,7 @@ public:
 
     void Preamble(const Package& package);
 
-    void Build(const Package& package);
+    void Build(const Package& package, const std::string &packagePath="");
 
     const std::vector<Symbol>* GetSymbolMap() const
     {

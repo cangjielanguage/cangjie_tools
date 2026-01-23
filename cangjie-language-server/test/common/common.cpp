@@ -87,6 +87,14 @@ namespace {
                 ChangeMessageUrlOfTextDocument(projectPath, multiModuleOption[moduleOptKey]["src_path"], rootUri,
                                                isMultiModule);
             }
+            if (multiModuleOption[moduleOptKey].contains("common_specific_paths")) {
+                for (auto &member : multiModuleOption[moduleOptKey]["common_specific_paths"]) {
+                    if (!member.is_object() || !member.contains("path")) {
+                        continue;
+                    }
+                    ChangeMessageUrlOfTextDocument(projectPath, member["path"], rootUri, isMultiModule);
+                }
+            }
             auto key = ChangeMessageUrlOfString(projectPath, moduleOptKey, rootUri, isMultiModule);
             multiModuleOptionTemp[key] = multiModuleOption[moduleOptKey];
         }
