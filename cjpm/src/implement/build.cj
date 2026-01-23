@@ -870,7 +870,7 @@ func getTypeCommand(compileTask: CompileTask): ArrayList<String> {
         res.add("--export-for-test")
     }
 
-    if (let Some((chirpath, commonCjo)) <- compileTask.prevStageArtifacts) {
+    for ((chirpath, commonCjo) in compileTask.prevStageArtifacts) {
         res.add(chirpath)
         res.add("--common-part-cjo=${commonCjo}")
     }

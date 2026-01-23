@@ -372,8 +372,8 @@ class FeatureMappingBuilder {
     }
  
     public func finish(): FeatureMapping {
-        let newGraph = graph |> 
-            map { it: (Feature, ArrayList<Feature>) => (it[0], it[1] |> collectHashSet |> collectArray) } |> 
+        let newGraph = graph.iterator()
+            .map { it => (it[0], (it[1] |> collectHashSet).toArray()) } |> 
             collectHashMap
         FeatureMapping(newGraph)
     }
@@ -498,7 +498,7 @@ public struct FeatureDeducer <: Serializable<FeatureDeducer> {
     }
 }
 
-public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
+public class CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
     private static let SOURCE_SET_DIR = "sourceSetDir"
     private static let SRC_DIR = "srcDir"
     private static let FEATURES = "features"
@@ -510,10 +510,16 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
         public let sourceSetDir: Path,
         public let srcDir: Path,
         public let features: HashSet<Feature>,
-        public let product: Bool,
+        public var product: Bool,
         public let configuredProduct!: Bool = product,
-        public let outputSuffix!: Path = makeOutputSuffix(sourceSetDir, product: product)
+        public var outputSuffix!: Path = makeOutputSuffix(sourceSetDir, product: product)
     ) { }
+
+    // Creates a `CJMPPackageInfo` of root package of a module
+    static func fromSourceSetEntry(modulePath: String, entry: SourceSetEntry): CJMPPackageInfo {
+        assertion { exists(getPath(modulePath, entry.srcDir.toString())) }
+        CJMPPackageInfo(entry.srcDir, Path(getPath(modulePath, entry.srcDir.toString())), entry.features, entry.product) 
+    }
 
     static func makeOutputSuffix(sourceSetDir: Path, product!: Bool): Path {
         assertion { sourceSetDir.isRelative() }
@@ -525,18 +531,12 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
     }
 
     // The suffix should be of a product source set
-    func changeProduct(newval: Bool, isMultiplatform: Bool): CJMPPackageInfo {
+    func changeProduct(newval: Bool, isMultiplatform: Bool): Unit {
         let outputSuffix = if (isMultiplatform) {
             makeOutputSuffix(sourceSetDir, product: newval)
         } else { Path("") }
-        CJMPPackageInfo(
-            sourceSetDir,
-            srcDir,
-            features,
-            newval,
-            configuredProduct: configuredProduct,
-            outputSuffix: outputSuffix
-        )
+        this.product = newval
+        this.outputSuffix = outputSuffix
     }
 
     public func serialize(): DataModel {
@@ -567,86 +567,83 @@ public struct CJMPPackageInfo <: Serializable<CJMPPackageInfo> {
 public struct CJMPSource <: Serializable<CJMPSource> {
     public static let empty = CJMPSource()
 
-    public let _sources: Array<CJMPPackageInfo>
+    public let sourceSets: DAG<String, CJMPPackageInfo>
     private var _isMultiplatform: Bool
 
     private init() {
-        this._sources = Array()
         this._isMultiplatform = false
+        this.sourceSets = DAG<String, CJMPPackageInfo>.builder().finish()
     }
 
     public init(modulePath: String, srcDir: String) {
         assertion { exists(getPath(modulePath, srcDir)) }
-        this._sources = [CJMPPackageInfo(Path(srcDir), Path(getPath(modulePath, srcDir)), HashSet(), true, outputSuffix: Path(""))]
+        let packageInfo = CJMPPackageInfo(Path(srcDir), Path(getPath(modulePath, srcDir)), HashSet(), true, outputSuffix: Path(""))
+        let builder = DAG<String, CJMPPackageInfo>.builder()
+        builder.add(srcDir, data: packageInfo)
+        this.sourceSets = builder.finish()
         this._isMultiplatform = false
     }
 
-    // It's expected to be topologically sorted by features
-    init(modulePath: String, sourceSetEntries: Array<SourceSetEntry>) {
-        this._sources = sourceSetEntries.map { it => 
-            assertion { exists(getPath(modulePath, it.srcDir.toString())) }
-            CJMPPackageInfo(it.srcDir, Path(getPath(modulePath, it.srcDir.toString())), it.features, it.product) 
+    init(modulePath: String, mapping: HashMap<String, SourceSetEntry>, dag: DAG<String, Unit>) {
+        this.sourceSets = dag.map { it, _ => 
+            let entry = CJMPPackageInfo.fromSourceSetEntry(modulePath, mapping[it]) 
+            entry.changeProduct(false, true)
+            entry
         }
         this._isMultiplatform = true
+        let last = sourceSets.toposort[sourceSets.toposort.size - 1]
+        sourceSets.data[last].changeProduct(true, this._isMultiplatform)
     }
 
-    private init(info: ArrayList<CJMPPackageInfo>) {
-        this._sources = info.toArray()
-        this._isMultiplatform = false
+    private init(dag: DAG<String, CJMPPackageInfo>, isMultiplatform: Bool) {
+        this.sourceSets = dag
+        this._isMultiplatform = isMultiplatform
     }
 
-    public func dirs(): Iterator<CJMPSource> {
-        let dirMap =  HashMap<String, ArrayList<CJMPPackageInfo>>()
-        let latestSourceSet = HashMap<String, Int64>()
-        for ((i, source) in _sources.iterator().enumerate()) {
-            tryReadDirectory(source.srcDir) |> 
-                filter { info => info.isDirectory() } |> 
-                forEach { it: FileInfo => 
-                    let dirname = it.path.fileName
-                    latestSourceSet[dirname] = i
-                    if (!dirMap.contains(dirname)) {
-                        dirMap[dirname] = ArrayList()
-                    }
-                    let packageInfo = if (this._isMultiplatform) {
-                        CJMPPackageInfo(
-                            source.sourceSetDir,
-                            it.path,
-                            source.features,
-                            source.product,
-                            configuredProduct: source.configuredProduct
-                        )
-                    } else {
-                        CJMPPackageInfo(
-                            source.sourceSetDir,
-                            it.path,
-                            source.features,
-                            source.product,
-                            configuredProduct: source.configuredProduct,
-                            outputSuffix: Path("")
-                        )
-                    }
-                    dirMap[dirname].add(packageInfo)
-                }
+    public prop _sources: Array<CJMPPackageInfo> {
+        get() {
+            sourceSets.toposort.map { it => sourceSets.data[it] } |> collectArray
         }
+    }
 
-        dirMap.iterator().map { pair => 
-            let (dirname, dirs) = pair
-            assertion { dirs.size > 0 }
-            if (latestSourceSet[dirname] != this._sources.size - 1) {
-                let latest = dirs[dirs.size - 1]
-                dirs[dirs.size - 1] = latest.changeProduct(true, this._isMultiplatform)
+    public func dirs(): Iterable<CJMPSource> {
+        let subpackages = HashSet<String>()
+        for (source in _sources) {
+            tryReadDirectory(source.srcDir).iterator()
+                .filter { info => info.isDirectory() }
+                .forEach { it: FileInfo => subpackages.add(it.path.fileName) }
+        }
+        
+        let result = ArrayList<CJMPSource>()
+        for (subpackage in subpackages) {
+            let packageDag = sourceSets.filterVertices { _, source => exists(source.srcDir.join(subpackage).toString()) }
+            let newDag = packageDag.map { _, source: CJMPPackageInfo => 
+                let res = CJMPPackageInfo(
+                    source.sourceSetDir,
+                    source.srcDir.join(subpackage),
+                    source.features,
+                    source.product,
+                    configuredProduct: source.configuredProduct
+                )
+                res.changeProduct(false, this._isMultiplatform)
+                res
             }
-            var new = CJMPSource(dirs) 
-            new._isMultiplatform = this._isMultiplatform
-            new
+
+            let last = newDag.toposort[newDag.toposort.size - 1]
+            newDag.data[last].changeProduct(true, this._isMultiplatform)
+            let newSource = CJMPSource(newDag, this._isMultiplatform)
+            result.add(newSource)
         }
+        return result
     }
 
     // Used only for update timestamps
     public func files(): Iterator<FileInfo> {
-        _sources.map { it => it.srcDir } |> 
-            flatMap {it: Path => tryReadDirectory(it) |> 
-            filter {info => info.isRegular()}}
+        _sources.iterator()
+            .map { it => it.srcDir }
+            .flatMap { it: Path => 
+                tryReadDirectory(it).iterator().filter { info => info.isRegular() }
+            }
     }
 
     public prop isMultiplatform: Bool {
@@ -672,7 +669,7 @@ public struct CJMPSource <: Serializable<CJMPSource> {
     public func serialize(): DataModel {
         DataModelStruct()
             .add(field("isMultiplatform", _isMultiplatform))
-            .add(field("sources", _sources))
+            .add(field("sources", sourceSets))
     }
 
     public static func deserialize(dm: DataModel): CJMPSource {
@@ -682,10 +679,8 @@ public struct CJMPSource <: Serializable<CJMPSource> {
         }
 
         let isMultiplatform = Bool.deserialize(dms.get("isMultiplatform"))
-        let sources = ArrayList<CJMPPackageInfo>.deserialize(dms.get("sources"))
-        var new = CJMPSource(sources)
-        new._isMultiplatform = isMultiplatform
-        new
+        let dag = DAG<String, CJMPPackageInfo>.deserialize(dms.get("sources"))
+        CJMPSource(dag, isMultiplatform)
     }
 }
 
@@ -1140,17 +1135,6 @@ private func verifyFeatureDeclarationsPre(packageName: String, features: Sequenc
 }
 
 private func verifySourceSetsPre(sourceSets: Sequence<SourceSetSchema>): Result<Array<Node<SourceSetDecl>>, Array<CJMPError>> { 
-    func unorderedHash(array: Array<Node<Feature>>) {
-        let withoutDuplicates = array.map { it => it.value } |> collectHashSet
-        let hashes = withoutDuplicates.iterator().map { it => it.hashCode() } |> collectArray
-        sort(hashes)       
-        var hashser = DefaultHasher()
-        hashser.write(hashes.size)
-        for (hash in hashes) {
-            hashser.write(hash)
-        }
-        hashser.finish()
-    }
 
     let declaredFeatures = HashMap<Int64, (Location, String)>()
     let declaredName = HashMap<String, Location>()
@@ -1230,24 +1214,84 @@ public class SourceLocations {
         }
     }
 
+    // Assumptions:
+    // all `feature sets` in `family` are unique
+    private static func below(family: Array<SourceSetEntry>, boundingSet: HashSet<Feature>): Array<SourceSetEntry> {
+        let result = ArrayList<SourceSetEntry>()
+        // `index` uniquely identifies an element of a family
+        for ((i, sourceSet) in family.enumerate()) {
+            let featureSet = sourceSet.features
+            if (boundingSet.contains(all: featureSet)) {
+                var noInbetweenSets = true
+                for ((j, midSourceSet) in family.enumerate() where i != j) {
+                    let midFeauteSet = midSourceSet.features
+                    if (midFeauteSet.contains(all: featureSet) && boundingSet.contains(all: midFeauteSet)) {
+                        // The `sourceSet` is not maximal in the diagram
+                        noInbetweenSets = false
+                        break
+                    }
+                }
+                if (noInbetweenSets) {
+                    result.add(sourceSet)
+                }
+            }
+        }
+        result.toArray()
+    }
+
     public func selectSourceSets(modulePath: String, localFeatures: HashSet<Feature>, globalFeatures: HashSet<Feature>): Result<CJMPSource, String> {
         assertion { globalFeatures.contains(all: localFeatures) }
-        let globalSourceSet = toposort |> filter { it => globalFeatures.contains(all: it.features)} |> collectArray
-        let sourceSets = toposort |> filter { it => localFeatures.contains(all: it.features)} |> collectArray
-        let result = CJMPSource(modulePath, globalSourceSet)
+        let allSelected = toposort.filter { it => globalFeatures.contains(all: it.features) } |> collectArray
+        let globalBelow = below(toposort, globalFeatures)
 
-        let products = globalSourceSet |> filter { it => it.product } |> collectArray
-        if (products.size > 1) {
-            return Err("Cannot compile multiple product source sets\n${SourceLocationsPrinter(result, globalFeatures)}")
+        if (globalBelow.size > 1) {
+            let printer = SourceLocationsPrinter(
+                allSelected.map { it => CJMPPackageInfo.fromSourceSetEntry(modulePath, it)} |> collectArray,
+                globalFeatures
+            )
+            return Err("Cannot compile multiple source sets without common parent source set\n${printer}")
         }
-        if (sourceSets.size == 0) {
-            return Err("No source set was selected\n${SourceLocationsPrinter(result, globalFeatures)}")
+
+        let localBelow = below(toposort, localFeatures)
+        if (localBelow.size == 0) {
+            let printer = SourceLocationsPrinter(
+                toposort.map { it => CJMPPackageInfo.fromSourceSetEntry(modulePath, it)} |> collectArray,
+                localFeatures
+            )
+            return Err("No source set was selected\n${printer}")
         }
-        if (products.size == 0) {
-            return Err("Provided feature set doesn't specify product to compile\n${SourceLocationsPrinter(result, globalFeatures)}")
+
+        assertion { globalBelow.size == 1 }
+
+        if (!globalBelow[0].product) {
+            let printer = SourceLocationsPrinter(
+                allSelected.map { it => CJMPPackageInfo.fromSourceSetEntry(modulePath, it)} |> collectArray,
+                globalFeatures
+            )
+            return Err("Provided feature set doesn't specify product to compile\n${printer}")
         } 
 
-        return Ok(result)
+        let resultFeatures = globalBelow[0].features
+
+        let indegGraph = HashMap<String, ArrayList<String>>()
+        for (i in allSelected.map { it => it.srcDir.toString() }) {
+            for (j in allSelected.map { it => it.srcDir.toString() }) {
+                if (!indegGraph.contains(j)) {
+                    indegGraph.add(j, ArrayList<String>())
+                }
+                if (graph[i].contains(j)) {
+                    indegGraph[j].add(i)
+                }
+            }
+        }
+
+
+        let sourceSetDag = DAG<String, Unit>.builder()
+        for (i in allSelected.map { it => it.srcDir.toString() }) {
+            sourceSetDag.add(i, incoming: indegGraph[i].toArray(), data: ())
+        }
+
+        return Ok(CJMPSource(modulePath, mapping, sourceSetDag.finish()))
     }
 }
 
@@ -1328,7 +1372,7 @@ private func verifyFeatureArrayPost(array: Array<Node<Feature>>, resolveMap: Res
 
         let depName = value.depName ?? return Ok(value)
         if (let Some(module) <- resolveMap.get(depName)) {
-            let declaredFeatures = module.featureDecls |> map { it => it.value.name } |> collectHashSet
+            let declaredFeatures = module.featureDecls.iterator().map { it => it.value.name } |> collectHashSet
             if (!declaredFeatures.contains(value)) {
                 return Err(FeatureIsNotDeclared(location, value, depName))
             } else { 
@@ -1390,6 +1434,7 @@ private func constructSourceLocations(sourceSets: Array<Node<SourceSetTuple>>): 
             if (graph[i].contains(j)) {
                 for (k in graph.keys() where k != i && k != j) {
                     if (graph[i].contains(k) && graph[k].contains(j)) {
+                        indegree[j]--
                         graph[i].remove(j)
                     }
                 }
@@ -1397,7 +1442,7 @@ private func constructSourceLocations(sourceSets: Array<Node<SourceSetTuple>>): 
         }
     }
 
-    let starts = indegree.iterator() |> filterMap { it => 
+    let starts = indegree.iterator().filterMap { it => 
         if (it[1] == 0) {         
             let node = sourceSetsMap[it[0]]
             let name = node.value[0] ?? node.value[1].toString()
@@ -1450,7 +1495,7 @@ public func verifyCliEnabledFeatures(array: Array<Feature>, resolveMap: ResolveM
             assertion { value.isUserDefined || value.isBuiltin }
             let depName = value.depName ?? return Ok(value)
             if (let Some(module) <- resolveMap.get(depName)) {
-                let declaredFeatures = module.featureDecls |> map { it => it.value.name } |> collectHashSet
+                let declaredFeatures = module.featureDecls.iterator().map { it => it.value.name } |> collectHashSet
                 if (!declaredFeatures.contains(value)) {
                     return Err(FeatureIsNotDeclared(None, value, depName))
                 } else { 
@@ -1523,7 +1568,7 @@ public enum CJMPError <: ToString {
 }
 
 public struct SourceLocationsPrinter <: ToString {
-    private SourceLocationsPrinter(
+    SourceLocationsPrinter(
         private let sourceLocations: Array<CJMPPackageInfo>,
         private let features: Iterable<Feature>,
         private let project!: ?String = None
@@ -1644,5 +1689,11 @@ extend <T> Option<T> {
             case Some(v) => transform(v).map { it => Some(it) }
             case None => Ok(None)
         }
+    }
+}
+
+extend <T> Node<T> <: Hashable where T <: Hashable {
+    public func hashCode(): Int64 {
+        this.value.hashCode()
     }
 }

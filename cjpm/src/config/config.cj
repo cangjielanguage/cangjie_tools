@@ -492,7 +492,7 @@ public open class CommandConfig {
 }
 
 @Derive[Hashable, Equatable]
-public enum CompilePhase {
+public enum CompilePhase <: ToString {
     ObjOnly | LinkOnly | Default
 
     public func toString(): String {
@@ -504,7 +504,7 @@ public enum CompilePhase {
     }
 }
 
-@Derive[Hashable, Equatable]
+@Derive[Hashable, Equatable, ToString]
 public struct TaskIdentifier {
     public TaskIdentifier(
         public let fullName: String,
@@ -589,8 +589,8 @@ public struct PackageList {
     }
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
-        packages |> filterMap {
-            it: ResolveItem => if (!it.isMultiplatform) {
+        packages.filterMap { it: ResolveItem => 
+            if (!it.isMultiplatform) {
                 return None<(String, String)>
             } else {
                 let reversed = it.packagePath._sources.clone()
@@ -607,7 +607,7 @@ public struct PackageList {
     }
 
     private static func makeProductSuffixes(packages: Iterable<ResolveItem>): HashMap<String, String> {
-        packages |> filterMap { it: ResolveItem =>
+        packages.iterator().filterMap { it: ResolveItem =>
             let productEntry = it.packagePath._sources.last ?? return None<(String, String)>
             return Some((it.fullName, productEntry.outputSuffix.toString()))
         } |> collectHashMap
@@ -1036,9 +1036,10 @@ public struct CompileTask {
         // A value of `--lto` flag to be passed to a compiler
         public let isLto!: Bool = false,
         public let ltoValue!: String = "",
+        // Locations of `*.chir` and `*.cjo` of each source set, the current one depends on
         // 0 - CHIR file with declarations to be merged for multiplatform build
         // 1 - The value of `--common-part-cjo` for multiplatform build
-        public let prevStageArtifacts!: ?(String, String) = None, 
+        public let prevStageArtifacts!: Array<(String, String)> = Array(), 
         // Whether the source code location is spread between multiple [[source-set]] src-dir
         public let isMultiplatform!: Bool = false, 
         public let checkDepCjo!: Bool = false,
