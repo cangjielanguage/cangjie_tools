@@ -201,6 +201,7 @@ class ParallelBuilder {
                 let cjcCall = constructCjcInvocation(task, this.buildConfig)
                 let envBuilder = EnvironmentBuilder()
                 envBuilder.prepend(LD_PATH, this.buildConfig.globalConfig.ldPath)
+                specifyCjcJobs(cjcCall, this.buildConfig.cjcJobs)
                 let flag = runTask(task, cjcCall, envBuilder) 
 
                 sem.release()
@@ -243,11 +244,6 @@ class ParallelBuilder {
 
     func runTask(compileTask: CompileTask, args: ArrayList<String>, envBuilder: EnvironmentBuilder): Bool {
         var execCmdFlag: Bool = true
-        CUR_PARALLEL_SIZE.fetchAdd(1)
-        if (!futJudge(args)) {
-            let jobs = calculateParallel(CUR_PARALLEL_SIZE.load())
-            args.add("-j${jobs}", at: 0)
-        }
 
         let env = getVariables()
         let commandStr = getCmdStr(envBuilder.asCliStrings(env), COMPILE_TOOL, args)
@@ -580,6 +576,23 @@ func parallelBuild(res: ModuleResolve, buildConfig: BuildConfig): Bool {
     }
 
     return parallelResult
+}
+
+func specifyCjcJobs(args: ArrayList<String>, cjcParallelConfig: CjcParallelConfig): Unit {
+    CUR_PARALLEL_SIZE.fetchAdd(1)
+
+    if (futJudge(args)) {
+        return
+    }
+
+    match (cjcParallelConfig) {
+        case CjcParallelConfig.Default => ()
+        case CjcParallelConfig.Heuristic =>
+            let jobs = calculateParallel(CUR_PARALLEL_SIZE.load())
+            args.add("-j${jobs}", at: 0)
+        case CjcParallelConfig.Spicific(v) =>
+            args.add("-j${v}", at: 0)
+    }
 }
 
 func calculateParallel(currentParalla: Int64): Int64 {
