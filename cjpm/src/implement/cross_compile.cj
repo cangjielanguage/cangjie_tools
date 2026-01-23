@@ -18,7 +18,7 @@ func appendNativeData(buildConfig: BuildConfig, data: ModuleResolve): Unit {
 
     for (item in data.resolves) {
         // macro packages are executeed on native platform
-        if (buildConfig.packageList.macros.contains(item.fullName)) {
+        if (buildConfig.packageList.isMacro(item.fullName)) {
             item.nativePlatform = true
             // if user didn't explicitly asked to cross compile macro package
             // via `compile-macros-for-target`, we don't do it

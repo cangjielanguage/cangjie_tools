@@ -1542,6 +1542,7 @@ hello = { path = "./src/" }
 lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，仅 `Linux` 平台支持该功能
 performance_analysis = true # 开启编译性能分析功能
 incremental = true # 是否默认开启增量编译
+compile-pipeline-parallel = true # 是否开启流水并行编译优化
 [profile.build.combined]
 demo = "dynamic" # 将模块整体编译成一个动态库文件，key 值为模块名
 ```
@@ -1567,6 +1568,15 @@ demo
             ├── ...
             └── xxxN.json
 ```
+
+`compile-pipeline-parallel` 配置项的取值为 `true` 或 `false`，代表是否开启流水并行编译优化。当开启此功能时，`cjpm` 会在上游包的 `cjo` 编译产物就绪时开始下游包的编译，从而提升编译流程整体的并行度，可以更充分地利用 CPU 资源，减少编译耗时。
+
+> **注意：**
+>
+> - 目前 `compile-pipeline-parallel` 配置项为实验特性，暂不稳定，开发者若想启用该配置，需要注意如下限制：
+>     - 需要在 `[profile]` 字段中指定 `experimental = true`；
+>     - 开启 `LTO` 优化编译模式后， `compile-pipeline-parallel` 选项不会生效；
+>     - `compile-pipeline-parallel` 选项仅支持 `Linux/macOS/Windows` 平台。
 
 `combined` 配置项是一个键值对，其中键为模块名，即 `package.name`，值为 `dynamic`。配置该配置项之前，该模块会根据 `package.output-type` 配置将各个包编译成独立的动态库或静态库文件；配置后，该模块的编译方式改为：
 

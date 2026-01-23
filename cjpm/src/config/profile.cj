@@ -67,6 +67,7 @@ public class BuildProfile <: Serializable<BuildProfile> {
     public var combined: HashMap<String, OutputType> = HashMap<String, OutputType>()
     public var cjcJobs: ?Int64 = None
     public var heuristic: Bool = false
+    public var compilePipelineParallel: Bool = false
 
     // Serialize of toml is useless.
     public func serialize(): DataModel {
@@ -87,6 +88,8 @@ public class BuildProfile <: Serializable<BuildProfile> {
             DataModelBool(false))
         result.combined = HashMap<String, OutputType>.deserialize((dms.get("combined") as DataModelStruct) ??
             DataModelStruct())
+        result.compilePipelineParallel = Bool.deserialize((dms.get("compile-pipeline-parallel") as DataModelBool) ??
+            DataModelBool(false))
         return result
     }
 }

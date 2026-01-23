@@ -8,11 +8,14 @@ package cjpm.config
 
 import std.collection.*
 import std.fs.*
+
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 
 @When[os == "macOS"]
 import std.env.*
+
+public type StdDeps = ArrayList<HashMap<String, Array<String>>>
 
 const PACKAGE_REQUIRES = "package-requires"
 const NATIVE_COMPILE_OPTION = "native-compile-option"
@@ -44,15 +47,6 @@ public class ModuleResolve <: Serializable<ModuleResolve> {
             binDeps: HashMap<String, BinDeps>.deserialize(dms.get("binDeps")),
             crossBinDeps: HashMap<String, BinDeps>.deserialize(dms.get("crossBinDeps"))
         )
-    }
-
-    public func forEachPkg(fn: (ResolveItem) -> Bool): Bool {
-        for (v in this.resolves) {
-            if (!fn(v)) {
-                return false
-            }
-        }
-        return true
     }
 }
 
@@ -176,7 +170,7 @@ public class ResolveItem <: Serializable<ResolveItem> {
     public var nativeLinkOption: String = ""
     public var isMacroPackage: Bool = false
     public var requires: HashSet<String> = HashSet<String>()
-    public var stdRequires: HashSet<String> = HashSet<String>()
+    public var stdRequires: StdDeps = StdDeps()
     public let forcedRequires = HashSet<String>()
     public var requireDoublePkgs: ArrayList<(String, String)> = ArrayList<(String, String)>()
     public var cLibs: HashMap<String, String> = HashMap<String, String>()
@@ -251,7 +245,7 @@ func serializeResolve(r: ResolveItem): DataModel {
         .add(field<String>(LINK_OPTION, r.linkOption))
         .add(field<String>(NATIVE_LINK_OPTION, r.nativeLinkOption))
         .add(field<HashSet<String>>("requires", r.requires))
-        .add(field<HashSet<String>>("std-requires", r.stdRequires))
+        .add(field<StdDeps>("std-requires", r.stdRequires))
         .add(field<HashMap<String, String>>(C_LIBS, r.cLibs))
         .add(field<HashMap<String, String>>("cross_c_libs", r.crossCLibs))
         .add(field<Bool>("hasTestFiles", r.hasTestFiles))
@@ -284,7 +278,7 @@ func deserializeResolve(dm: DataModel): ResolveItem {
     result.nativeLinkOption = String.deserialize((dms.get(NATIVE_LINK_OPTION) as DataModelString) ??
         DataModelString(""))
     result.requires = HashSet<String>.deserialize(dms.get("requires"))
-    result.stdRequires = HashSet<String>.deserialize(dms.get("std-requires"))
+    result.stdRequires = StdDeps.deserialize(dms.get("std-requires"))
     result.cLibs = HashMap<String, String>.deserialize(dms.get(C_LIBS))
     result.crossCLibs = HashMap<String, String>.deserialize(dms.get("cross_c_libs"))
     result.hasProdFiles = Bool.deserialize((dms.get("hasProdFiles") as DataModelBool) ?? DataModelBool(false))

@@ -75,7 +75,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
     public var mockUsed: Bool = false
     public var testUsed: Bool = false
     public var dependencies: ArrayList<FullName> = ArrayList<FullName>()
-    public var stdDependencies: ArrayList<FullName> = ArrayList<FullName>()
+    public var stdDependencies: StdDeps = StdDeps()
     public var features: HashSet<Feature> = HashSet()
     public var product: Bool = false
     public var timeStamp: Int64 = 0
@@ -87,7 +87,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
         result.add(field<String>("accessLevel", this.accessLevel))
         result.add(field<Int64>("timeStamp", this.timeStamp))
         result.add(field<ArrayList<FullName>>(DEPENDENCIES, this.dependencies))
-        result.add(field<ArrayList<FullName>>("std-dependencies", this.stdDependencies))
+        result.add(field<StdDeps>("std-dependencies", this.stdDependencies))
         result.add(field("features", features |> map { it => it.toString() } |> collectArray))
         result.add(field("product", product))
         result.add(field<Bool>("testUsed", this.testUsed))
@@ -123,12 +123,8 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
                 break
             }
         }
-        result.dependencies = allDependencies |> filter {dependency: FullName => !dependency.isStdlibPackage} |>
-            collectArrayList<FullName>
-        result.stdDependencies = allDependencies |> filter {dependency: FullName => dependency.isStdlibPackage} |>
-            collectArrayList<FullName>
-        result.stdDependencies.add(all: ArrayList<FullName>.deserialize(
-            (dms.get("std-dependencies") as DataModelSeq) ?? DataModelSeq()))
+        result.dependencies = allDependencies
+        result.stdDependencies = StdDeps.deserialize((dms.get("std-dependencies") as DataModelSeq) ?? DataModelSeq())
         return result
     }
 }
@@ -136,7 +132,7 @@ public class RequiresPackages <: Serializable<RequiresPackages> {
 public class RequiresPackagesInfo <: Serializable<RequiresPackagesInfo> {
     public var isMacroPackage: Bool = false
     public var requires: HashSet<String> = HashSet<String>()
-    public var stdRequires: HashSet<String> = HashSet<String>()
+    public var stdRequires: StdDeps = StdDeps()
     public var cjPath: String = ""
     public var libPath: String = ""
     public var libName: String = ""
@@ -154,7 +150,7 @@ public class RequiresPackagesInfo <: Serializable<RequiresPackagesInfo> {
         return DataModelStruct()
             .add(field<Bool>("isMacroPackage", isMacroPackage))
             .add(field<HashSet<String>>("requires", requires))
-            .add(field<HashSet<String>>("std-requires", stdRequires))
+            .add(field<StdDeps>("std-requires", stdRequires))
             .add(field<String>("cjPath", cjPath))
             .add(field<String>("libPath", libPath))
             .add(field<String>("libName", libName))
@@ -168,7 +164,7 @@ public class RequiresPackagesInfo <: Serializable<RequiresPackagesInfo> {
         var result = RequiresPackagesInfo()
         result.isMacroPackage = Bool.deserialize(dms.get("isMacroPackage"))
         result.requires = HashSet<String>.deserialize(dms.get("requires"))
-        result.stdRequires = HashSet<String>.deserialize(dms.get("std-requires"))
+        result.stdRequires = StdDeps.deserialize(dms.get("std-requires"))
         result.cjPath = String.deserialize(dms.get("cjPath"))
         result.libPath = String.deserialize(dms.get("libPath"))
         result.libName = String.deserialize(dms.get("libName"))
