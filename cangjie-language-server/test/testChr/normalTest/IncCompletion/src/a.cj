@@ -6,14 +6,6 @@
 
 package IncCompletion
 
-func zoo() {
-
-}
-
-func test() {
-    zo
-}
-
-func xoo() {
+func qoo() {
 
 }
