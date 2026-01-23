@@ -221,11 +221,14 @@
 {"completion":{"testFile":"LSP_Completion_Override_003.test","id":"8","useDB":true}}
 {"completion":{"testFile":"LSP_Completion_Override_004.test","id":"19"}}
 {"completion":{"testFile":"LSP_Completion_Override_005.test","id":"31"}}
+{"completion":{"testFile":"LSP_Completion_Private_Topdecl.test","id":"5"}}
 {"completion":{"testFile":"LSP_Completion_2025090945008.test","id":"11"}}
 {"completion":{"testFile":"LSP_Completion_NamedParam_001.test","id":"35"}}
 {"completion":{"testFile":"LSP_Completion_CString_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_2025111713190.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Hide_001.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_002.test","id":"3"}}
+{"completion":{"testFile":"LSP_Completion_Hide_003.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_004.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_005.test","id":"3"}}
 {"completion":{"testFile":"LSP_Completion_Hide_006.test","id":"3"}}
