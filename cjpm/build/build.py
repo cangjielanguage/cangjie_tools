@@ -154,10 +154,9 @@ def build(build_type, target, rpath=None):
     os.makedirs(os.path.join(CURRENT_DIR, 'bin', 'cjpm'), exist_ok=True)
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'dist'), exist_ok=True)
 
+    returncode = 0
     if is_linux or is_macos:
         returncode = build_fswatcher("")
-    #if is_windows:
-    #    returncode = build_fswatcher('-G "MinGW Makefiles" -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF', "mingw32-")
     if is_cross_windows:
         returncode = build_fswatcher("-DCMAKE_TOOLCHAIN_FILE=../mingw-w64-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF")
     if returncode != 0:
