@@ -325,7 +325,7 @@ bool IsInCjlibDir(const std::string &path);
 void CategorizeFiles(
     const std::vector<std::string> &files, std::vector<std::string> &nativeFiles);
 
-bool IsUnderPath(const std::string &basePath, const std::string &targetPath);
+bool IsUnderPath(const std::string &basePath, const std::string &targetPath, bool checkSamePath = false);
 
 std::string GetSubStrBetweenSingleQuote(const std::string& str);
 

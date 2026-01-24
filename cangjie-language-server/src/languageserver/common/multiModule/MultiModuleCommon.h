@@ -25,6 +25,10 @@ struct ModuleInfo {
     std::string modulePath;
     std::unordered_map<std::string, std::string> cjoRequiresMap;
     std::string srcPath;
+    bool isCommonSpecificModule = false;
+    // common root path -> specific root path
+    std::pair<std::string, std::vector<std::string>> commonSpecificPaths;
+    std::vector<std::string> sourceSetNames;
 };
 
 std::string GetLSPServerDir();

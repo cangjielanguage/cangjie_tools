@@ -30,11 +30,14 @@ public:
     std::unordered_set<std::string> GetAllRequiresOneModule(
         const std::string &require, std::unordered_map<std::string, bool> &isVisited);
 
+    void SetCommonSpecificPath(const nlohmann::json &jsonData, const std::string &modulePath);
     void SetPackageRequires(const nlohmann::json &jsonData, const std::string &modulePath);
 
     void SetRequireAllPackages();
 
     std::string GetExpectedPkgName(const Cangjie::AST::File &file);
+
+    bool isCommonSpecificModule(const std::string &filePath);
 
     std::string projectRootPath;
     nlohmann::json multiModuleOption;

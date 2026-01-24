@@ -72,6 +72,9 @@ public:
                 Trace::Elog("dependencies insert failed");
             }
             reverseDependencies[newDep].insert(package);
+            if (edges.find(newDep) == edges.end()) {
+                continue;
+            }
             reverseDependencyEdges[newDep][package] = edges.at(newDep);
         }
     }

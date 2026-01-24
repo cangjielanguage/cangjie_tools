@@ -13,6 +13,7 @@
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include "ArkAST.h"
 #include "CjoManager.h"
@@ -50,14 +51,22 @@ struct SCCParam {
              const std::unordered_map<std::string, bool> &inSt) : dfn(dfn), low(low), inSt(inSt) {};
 };
 
+enum class PkgType {
+    NORMAL,
+    COMMON,
+    SPECIFIC
+};
 struct PkgInfo {
 public:
+    // in common-specific module, this mean common package path
     std::string packagePath{};
     std::string packageName{};
     std::string modulePath{};
     std::string moduleName{};
     bool isSourceDir = false;
     bool needReCompile = false;
+    std::string sourceSetName{};
+    PkgType pkgType = PkgType::NORMAL;
 
     std::mutex pkgInfoMutex;
     std::unique_ptr<CompilerInvocation> compilerInvocation;
@@ -66,7 +75,7 @@ public:
     std::unique_ptr<DiagnosticEngine> diagTrash;
 
     explicit PkgInfo(const std::string &pkgPath, const std::string &curModulePath,
-                        const std::string &curModuleName, Callbacks *callback);
+        const std::string &curModuleName, Callbacks *callback, PkgType pkgType = PkgType::NORMAL);
 
     ~PkgInfo() = default;
 };
@@ -147,11 +156,11 @@ public:
         return stdLibPath;
     }
 
-    std::string GetPathFromPkg(const std::string &pkgName)
+    std::string GetPathFromPkg(const std::string &fullPackageName)
     {
-        auto found = fullPkgNameToPath.find(pkgName);
-        if (found != fullPkgNameToPath.end()) {
-            return fullPkgNameToPath[pkgName];
+        auto found = pkgInfoMap.find(fullPackageName);
+        if (found != pkgInfoMap.end()) {
+            return pkgInfoMap[fullPackageName]->packagePath;
         }
         return {};
     }
@@ -191,6 +200,11 @@ public:
 
     void InitPkgInfoAndParseInModule();
 
+    void ParseAndUpdateDepGraph(
+        std::unique_ptr<LSPCompilerInstance> &pkgCompiler, 
+        PkgInfo &item,
+        const std::unordered_map<std::string, std::string> &bufferCache);
+
     void InitPkgInfoAndParseNotInModule();
 
     void InitPkgInfoAndParse();
@@ -210,7 +224,9 @@ public:
 
     Ptr<Package> GetSourcePackagesByPkg(const std::string &fullPkgName);
 
-    std::string GetModuleSrcPath(const std::string &modulePath);
+    std::string GetModuleSrcPath(const std::string &modulePath, const std::string &targetPath = "");
+
+    std::vector<std::string> GetCommonSpecificModuleSrcPaths(const std::string &modulePath);
 
     void SetHead(const std::string &fullPkgName) const
     {
@@ -261,9 +277,9 @@ public:
             SetHeadByFilePath(aheadPath);
         }
         if (!PkgHasSemaCache(fullPkgName) || !curDecl->curFile ||
-            fullPkgNameToPath.find(fullPkgName) == fullPkgNameToPath.end()) { return curDecl; }
+            pkgInfoMap.find(fullPkgName) == pkgInfoMap.end()) { return curDecl; }
         auto fileName = curDecl->curFile->fileName;
-        auto dirPath = fullPkgNameToPath[fullPkgName];
+        auto dirPath = GetPathFromPkg(fullPkgName);
         if (packageInstanceCache.find(dirPath) == packageInstanceCache.end() ||
             !packageInstanceCache[dirPath]->package) {
             return curDecl;
@@ -447,9 +463,9 @@ public:
         return modulesHome;
     }
 
-    std::unordered_map<std::string, std::string> GetFullPkgNameToPathMap()
+    std::unordered_set<std::string> GetPkgNameList()
     {
-        return fullPkgNameToPath;
+        return Utils::GetKeys(pkgInfoMap);
     }
 
     std::string GetContentByFile(const std::string& filePath)
@@ -489,6 +505,22 @@ public:
 
     void UpdateFileStatusInCI(const std::string& pkgName, const std::string& file,
         CompilerInstance::SrcCodeChangeState state);
+
+    bool IsCommonSpecificPkg(const std::string &realPkgName);
+
+    std::vector<std::string> GetCommonSpecificSourceSetGraph(const std::string &pkgName);
+    
+    PkgType GetPkgType(const std::string &moduelPath, const std::string &path);
+
+    std::string GetSourceSetNameByPath(const std::string &path);
+
+    std::string GetCurSourceSetName(const std::string& fullPackageName);
+
+    std::string GetUpStreamSourceSetName(const std::string &fullPackageName);
+
+    std::string GetFinalDownStreamFullPkgName(const std::string &pkgName);
+
+    std::string GetRealPackageName(const std::string& fullPackageName);
 
 private:
     CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
@@ -563,9 +595,10 @@ private:
     std::unique_ptr<SortModel> model = std::make_unique<SortModel>();
 
     std::unique_ptr<lsp::BackgroundIndexDB> backgroundIndexDb;
-    std::unordered_map<std::string, std::string> fullPkgNameToPath;  // key: fullPkgName
     std::unordered_map<std::string, std::string> pathToFullPkgName;  // key: package path
+    std::unordered_map<std::string, std::unordered_set<std::string>> realPkgToFullPkgName;
     std::mutex cimapMtx;
+    // value used in full compilation, then key will be used in incremental compilation to search package was compiled
     std::unordered_map<std::string, std::unique_ptr<LSPCompilerInstance>> CIMap;
     std::unordered_map<std::string, std::unique_ptr<LSPCompilerInstance>> CIMapNotInSrc;
     std::unique_ptr<LSPCompilerInstance> CIForParse;

@@ -55,6 +55,9 @@ public:
     void RunWithASTCache(
         const std::string &name, const std::string &file, Position pos, std::function<void(InputsAndAST)> action);
 
+    void DoCompletionWithASTCache(
+        const std::string &name, const std::string &file, Position pos, std::function<void(InputsAndAST)> action);
+
     void Stop() noexcept;
 
 private:

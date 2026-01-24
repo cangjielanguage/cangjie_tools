@@ -53,12 +53,22 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
         return false;
     }
     auto symFromIndex = index->GetAimSymbol(decl);
-    if (!symFromIndex.IsInvalidSym() && !symFromIndex.location.fileUri.empty() && !symFromIndex.isCjoSym &&
-        EndsWith(symFromIndex.location.fileUri, ".macrocall") &&
-        !decl.TestAttr(Attribute::IMPLICIT_ADD) && !symFromIndex.curMacroCall.fileUri.empty()) {
-        path = symFromIndex.curMacroCall.fileUri;
-        range.start = symFromIndex.curMacroCall.begin;
-        range.end = symFromIndex.curMacroCall.begin;
+    if (!symFromIndex.IsInvalidSym() && !symFromIndex.location.fileUri.empty() && !symFromIndex.isCjoSym) {
+        if (EndsWith(symFromIndex.location.fileUri, ".macrocall") &&
+            !decl.TestAttr(Attribute::IMPLICIT_ADD) && !symFromIndex.curMacroCall.fileUri.empty()) {
+            path = symFromIndex.curMacroCall.fileUri;
+            range.start = symFromIndex.curMacroCall.begin;
+            range.end = symFromIndex.curMacroCall.begin;
+        } else {
+            std::string idxSourceSet = 
+                CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(symFromIndex.location.fileUri);
+            std::string declSourceSet = CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(path);
+            if (idxSourceSet != declSourceSet) {
+                path = symFromIndex.location.fileUri;
+                range.start = symFromIndex.location.begin;
+                range.end = symFromIndex.location.end;
+            }
+        }
     }
     URIForFile uri = {URI::URIFromAbsolutePath(path).ToString()};
     result.Name = decl.identifier;

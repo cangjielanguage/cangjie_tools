@@ -407,7 +407,7 @@ void NormalCompleterByParse::CompletePackageSpec(const ArkAST &input, bool after
     if (afterDoubleColon) {
         fullPkgName = TrimDollonPkgName(fullPkgName);
     }
-    env.AccessibleByString(fullPkgName, "packageName");
+    env.AccessibleByString(CompilerCangjieProject::GetInstance()->GetRealPackageName(fullPkgName), "packageName");
     env.OutputResult(result);
 }
 

@@ -50,6 +50,8 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         if (value.contains(SRC_PATH)) {
             auto srcPath = value.value(SRC_PATH, "");
             moduleInfoMap[path].srcPath = FileStore::NormalizePath(URI::Resolve(srcPath));
+        } else if (value.contains(COMMON_SPECIFIC_PATHS)) {
+            SetCommonSpecificPath(value, path);
         }
         if (value.contains(COMBINED)) {
             combinedMap[name] = value.value(COMBINED, false);
@@ -68,6 +70,34 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
                 }
                 (void)requirePackages[name].insert(reqKey);
             }
+        }
+    }
+}
+
+void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const std::string &modulePath)
+{
+    if (!jsonData.contains(COMMON_SPECIFIC_PATHS) || !jsonData[COMMON_SPECIFIC_PATHS].is_array()) {
+        return;
+    }
+    moduleInfoMap[modulePath].isCommonSpecificModule = true;
+    for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS]) {
+        if (!member.is_object() || !member.contains(TYPE) || !member.contains(PATH)) {
+            continue;
+        }
+        const auto &type = member.value(TYPE, "");
+        const auto &path = member.value(PATH, "");
+        if (path == "") {
+            continue;
+        }
+        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
+            moduleInfoMap[modulePath].commonSpecificPaths.first = FileStore::NormalizePath(URI::Resolve(path));
+            moduleInfoMap[modulePath].sourceSetNames.push_back("common");
+            continue;
+        }
+        if (type == SPECIFIC) {
+            moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(FileStore::NormalizePath(URI::Resolve(path)));
+            moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME, ""));
+            continue;
         }
     }
 }
@@ -142,7 +172,8 @@ void ModuleManager::SetRequireAllPackages()
 std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)
 {
     for (const auto &iter : moduleInfoMap) {
-        auto curModulePath = CompilerCangjieProject::GetInstance()->GetModuleSrcPath(iter.second.modulePath);
+        auto curModulePath = 
+        CompilerCangjieProject::GetInstance()->GetModuleSrcPath(iter.second.modulePath, file.filePath);
         if (!IsUnderPath(curModulePath, file.filePath)) {
             continue;
         }
@@ -152,6 +183,18 @@ std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)
         }
     }
     std::string path = Normalize(file.filePath);
-    return CompilerCangjieProject::GetInstance()->GetFullPkgName(path);
+    std::string fullPkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(path);
+    return CompilerCangjieProject::GetInstance()->GetRealPackageName(fullPkgName);
+}
+
+bool ModuleManager::isCommonSpecificModule(const std::string &filePath)
+{
+    std::string normalizeFilePath = Normalize(filePath);
+    for (const auto &item : moduleInfoMap) {
+        if (IsUnderPath(item.second.modulePath, normalizeFilePath, true)) {
+            return item.second.isCommonSpecificModule;
+        }
+    }
+    return false;
 }
 } // namespace ark
