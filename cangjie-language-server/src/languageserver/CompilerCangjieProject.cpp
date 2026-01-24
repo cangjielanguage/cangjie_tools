@@ -738,6 +738,13 @@ void CompilerCangjieProject::CompilerOneFile(
         }
         pkgInfoMap[fullPkgName] =
             std::make_unique<PkgInfo>(dirPath, moduleInfo.modulePath, moduleInfo.moduleName, callback, pkgType);
+        std::string upstreamSourceSet = GetUpStreamSourceSetName(fullPkgName);
+        if (pkgInfoMap.find(upstreamSourceSet + "-" + GetRealPackageName(fullPkgName)) != pkgInfoMap.end()) {
+            std::string upstreamFullPkgName = upstreamSourceSet + "-" + GetRealPackageName(fullPkgName);
+            pkgInfoMap[upstreamFullPkgName]->compilerInvocation->globalOptions.outputMode = 
+                Cangjie::GlobalOptions::OutputMode::CHIR;
+            cjoManager->UpdateStatus({upstreamFullPkgName}, DataStatus::STALE);
+        }
         auto found = fullPkgName.find_last_of(DOT);
         if (found != std::string::npos) {
             auto subPkgName = fullPkgName.substr(0, found);
