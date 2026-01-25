@@ -114,6 +114,8 @@ private:
 
     bool ShouldPassInCjdIndexing(Ptr<Node> node);
 
+    void ProcessNode(Node *node, const std::string &filePath, AccessLevel pkgAccess);
+
     void CollectRelations(const std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls);
 
     void CollectNamedParam(Ptr<const Decl> parent, Ptr<const Decl> member);

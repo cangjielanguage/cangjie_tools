@@ -1348,7 +1348,9 @@ bool IsValidIdentifier(const std::string& identifier)
 
 bool DeleteCharForPosition(std::string& text, int row, int column)
 {
-    if (row < 1 || column < 1) return false;
+    if (row < 1 || column < 1) {
+        return false;
+    }
     int r = 1, c = 1;
     for (size_t i = 0; i < text.length(); i++) {
         if (r == row && c == column) {

@@ -249,6 +249,38 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
     });
 }
 
+void FileMove::ProcessSingleReExport(
+    const std::vector<lsp::Symbol> &reExportSyms,
+    lsp::Modifier modifier,
+    const std::string &originPkg,
+    const lsp::SymbolIndex* index, // Change to raw pointer
+    const std::function<void(std::string, lsp::Modifier, std::string, const lsp::Ref&)> &dealRefFunc)
+{
+    for (const auto &sym : reExportSyms) {
+        std::string symName = FileMove::GetRealImportSymName(sym);
+        std::unordered_set<std::string> processedFiles;
+
+        // Explicit captures, avoiding default capture mode [&]
+        auto refHandler = [&symName, &modifier, &originPkg, &processedFiles, &dealRefFunc](const lsp::Ref &ref) {
+            if (processedFiles.count(ref.location.fileUri)) {
+                return;
+            }
+            dealRefFunc(symName, modifier, originPkg, ref);
+            processedFiles.insert(ref.location.fileUri);
+        };
+
+        const lsp::RefsRequest refReq{{sym.id}, lsp::RefKind::REFERENCE};
+        if (index) {
+            index->Refs(refReq, refHandler);
+        }
+
+        const lsp::RefsRequest importRefReq{{sym.id}, lsp::RefKind::IMPORT};
+        if (index) {
+            index->Refs(importRefReq, refHandler);
+        }
+    }
+}
+
 void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const std::string &targetPkg,
     FileRefactor &refactor)
 {
@@ -295,33 +327,6 @@ void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const st
             refactor.MatchRefactor(FileRefactorKind::RefactorReExport, relation, modifier);
     };
 
-    auto DealSingleReExport = [&](std::vector<lsp::Symbol> &reExportSyms,
-                                  lsp::Modifier modifier, std::string originPkg) {
-        for (const auto &sym : reExportSyms) {
-            std::string symName = FileMove::GetRealImportSymName(sym);
-            std::unordered_set<std::string> processedFiles;
-            const lsp::RefsRequest refReq{{sym.id}, lsp::RefKind::REFERENCE};
-            index->Refs(refReq, [&symName, &modifier, &originPkg, &processedFiles, &DealSingleReExportRef]
-                (const lsp::Ref &ref) {
-                if (processedFiles.count(ref.location.fileUri)) {
-                    return;
-                }
-                DealSingleReExportRef(symName, modifier, originPkg, ref);
-                processedFiles.insert(ref.location.fileUri);
-            });
-
-            const lsp::RefsRequest importRefReq{{sym.id}, lsp::RefKind::IMPORT};
-            index->Refs(importRefReq, [&symName, &modifier, &originPkg, &processedFiles, &DealSingleReExportRef]
-                (const lsp::Ref &ref) {
-                if (processedFiles.count(ref.location.fileUri)) {
-                    return;
-                }
-                DealSingleReExportRef(symName, modifier, originPkg, ref);
-                processedFiles.insert(ref.location.fileUri);
-            });
-        }
-    };
-
     for (auto &fileImport : ast->file->imports) {
         if (!fileImport || fileImport->end.IsZero() || !fileImport->modifier) {
             continue;
@@ -344,7 +349,7 @@ void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const st
                 }
                 reExportSyms.emplace_back(sym);
             });
-            DealSingleReExport(reExportSyms, modifier, importFullPkg);
+            ProcessSingleReExport(reExportSyms, modifier, importFullPkg, index, DealSingleReExportRef);
             continue;
         }
         std::string fullImportSym = FileRefactor::GetImportFullSymWithoutAlias(fileImport->content);
@@ -354,7 +359,7 @@ void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const st
                     reExportSyms.emplace_back(sym);
                 }
             });
-        DealSingleReExport(reExportSyms, modifier, importFullPkg);
+        ProcessSingleReExport(reExportSyms, modifier, importFullPkg, index, DealSingleReExportRef);
     }
 }
 
