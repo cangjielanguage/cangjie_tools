@@ -289,6 +289,20 @@ bool SymbolCollector::ShouldPassInCjdIndexing(Ptr<Node> node)
     return CjdIndexer::GetInstance() && CjdIndexer::GetInstance()->GetRunningState() && DynamicCast<FuncDecl *>(node);
 }
 
+void SymbolCollector::ProcessNode(Node *node, const std::string &filePath, AccessLevel pkgAccess)
+{
+    if (auto decl = DynamicCast<Decl *>(node)) {
+        CreateBaseOrExtendSymbol(*decl, filePath, pkgAccess);
+        UpdateScope(*decl);
+    } else if (auto ref = DynamicCast<NameReferenceExpr *>(node)) {
+        CreateRef(*ref, filePath);
+    } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
+        CreateNamedArgRef(*ce);
+    } else if (auto type = DynamicCast<Type *>(node)) {
+        CreateTypeRef(*type, filePath);
+    }
+}
+
 void SymbolCollector::Build(const Package &package)
 {
     Preamble(package);
@@ -324,16 +338,7 @@ void SymbolCollector::Build(const Package &package)
             if (IsHiddenDecl(node)) {
                 return VisitAction::SKIP_CHILDREN;
             }
-            if (auto decl = DynamicCast<Decl *>(node)) {
-                CreateBaseOrExtendSymbol(*decl, filePath, pkgAccess);
-                UpdateScope(*decl);
-            } else if (auto ref = DynamicCast<NameReferenceExpr *>(node)) {
-                CreateRef(*ref, filePath);
-            } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
-                CreateNamedArgRef(*ce);
-            } else if (auto type = DynamicCast<Type *>(node)) {
-                CreateTypeRef(*type, filePath);
-            }
+            ProcessNode(node, filePath, pkgAccess);
             CollectCrossScopes(node);
             return VisitAction::WALK_CHILDREN;
         };
@@ -366,7 +371,7 @@ void SymbolCollector::Build(const Package &package)
             }).Walk();
         }
         if (!CjdIndexer::GetInstance() || !CjdIndexer::GetInstance()->GetRunningState()) {
-           CreateImportRef(*file); 
+           CreateImportRef(*file);
         }
     }
     scopes.pop_back();

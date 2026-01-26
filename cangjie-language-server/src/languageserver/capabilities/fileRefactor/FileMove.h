@@ -21,7 +21,7 @@ public:
     static void FileMoveRefactor(const ArkAST *ast, FileRefactorRespParams &result, const std::string &file, const std::string &selectedElement, const std::string &target);
 
 private:
-    static void FindFileRefactor(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string & targetPath, FileRefactorRespParams &result);
+    static void FindFileRefactor(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string &targetPath, FileRefactorRespParams &result);
 
     static void DealMoveFile(const ArkAST *ast, const std::string &file, const std::string &targetPkg, const std::string &targetPath, FileRefactor &refactor);
 
@@ -51,6 +51,12 @@ private:
 
     static File* GetFileNode(const ArkAST *ast, std::string filePath);
 
+    static void ProcessSingleReExport(const std::vector<lsp::Symbol> &reExportSyms,
+        lsp::Modifier modifier,
+        const std::string &originPkg,
+        const lsp::SymbolIndex *index,
+        const std::function<void(std::string, lsp::Modifier, std::string, const lsp::Ref &)> &dealRefFunc);
+
     static bool ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targetPkg, std::string moveFile);
 
     static std::string GetTargetPath(std::string file);
@@ -60,6 +66,9 @@ private:
     static std::unordered_map<std::string, std::unique_ptr<ArkAST>> astMap;
 
     static std::unordered_map<std::string, std::unique_ptr<PackageInstance>> pkgInstanceMap;
+
+    static void SetRefactorData(FileRefactor &refactor, const lsp::Ref &ref, const std::string &symName,
+        const std::string &fullPkgName, const std::string &targetPkg, const std::string &originPkg, lsp::Modifier modifier);
 
     // if moving a folder, store the move dir
     static std::string moveDirPath;
