@@ -292,6 +292,10 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
     }
 
     if (tomlInfo.profile.build.compilePipelineParallel) {
+        if (!supportCompilePipelineParallel()) {
+            eprintln("Error: field 'compile-pipeline-parallel' is only supported on Linux/macOS/Windows")
+            return Option<ModuleResolve>.None
+        }
         if (buildConfig.isLto) {
             eprintln("Warning: cjpm won't apply pipeline optimization to the build process when field 'profile.build.lto' is 'full' or 'thin'")
         } else if (!state.isExperimental) {
@@ -1478,3 +1482,9 @@ func topoSort(stdDeps: StdDeps): ArrayList<String> {
     topoResult.reverse()
     topoResult
 }
+
+@When[(os != "iOS") && (env != "ohos") && (env != "android")]
+func supportCompilePipelineParallel(): Bool { true }
+
+@When[(os == "iOS") || (env == "ohos") || (env == "android")]
+func supportCompilePipelineParallel(): Bool { false }
