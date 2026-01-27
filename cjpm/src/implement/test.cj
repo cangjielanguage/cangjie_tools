@@ -584,9 +584,9 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
 }
 
 func getTestConditionOption(cmdOption: HashSet<String>, conditionMap: HashMap<String, String>): Array<String> {
-    cmdOption |>
-        filterMap { k: String => conditionMap.get(k) } |>
-        flatMap { k: String => extractOptionByString(k) }|>
+    cmdOption.iterator()
+        .filterMap { k: String => conditionMap.get(k) }
+        .flatMap { k: String => extractOptionByString(k).iterator() }|>
         collectArray
 }
 

@@ -22,7 +22,7 @@ extend <T> ArrayList<T> <: AddIfSome<T> {
     }
 
     public func addIfSome(all!: Iterable<Option<T>>): Unit {
-        let result = all |> filterMap { it: Option<T> => it } |> collectArray
+        let result = all.iterator().filterMap { it: Option<T> => it } |> collectArray
         if (result.size != 0) {
             this.add(all: result)
         }
@@ -37,7 +37,7 @@ extend <T> HashSet<T> <: AddIfSome<T> {
     }
 
     public func addIfSome(all!: Iterable<Option<T>>): Unit {
-        let result = all |> filterMap { it: Option<T> => it } |> collectArray
+        let result = all.iterator().filterMap { it: Option<T> => it } |> collectArray
         if (result.size != 0) {
             this.add(all: result)
         }

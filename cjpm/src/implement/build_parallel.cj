@@ -500,9 +500,13 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
             r.nativeLinkOption
         } else { r.linkOption }
 
+        let sourceSetDAG = r.packagePath.sourceSets
+        let srcDirToTaskId = HashMap<String, TaskIdentifier>()
+        let srcDirToTargetPath = HashMap<String, String>()
+
         // Multiplatform packages need an arbitrary number of `cjc` calls
         // Non-multiplatform packages consist of single `sourceSetEntry`
-        func createForSingleSourceSet(sourceSetEntry: CJMPPackageInfo, prevStage: ?PrevStage): (?ArrayList<CompileTask>, ?PrevStage) {
+        func createForSingleSourceSet(sourceSetEntry: CJMPPackageInfo): ?ArrayList<CompileTask> {
             let packagePath = sourceSetEntry.srcDir.toString()
             let product = sourceSetEntry.product
             let sourceSetDir = sourceSetEntry.outputSuffix.toString()
@@ -544,8 +548,9 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
                 Path(targetDir).join(swapOrgName(rootPkgName)).join(sourceSetDir).toString()
             }
             let logPath = Path(targetDir).join(".build-logs").join(swapOrgName(rootPkgName)).join(sourceSetDir).toString()
+
             if (!createDirectory(targetPath) || !createDirectory(logPath)) {
-                return (None, None)
+                return None
             }
 
             let requireTasks = r.requires.iterator().map { name =>
@@ -562,10 +567,6 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
             if (isMacro && isCrossCompile) {
                 requireTasks.add(TaskIdentifier(fullName, targetConfigName, ""))
             }
-            requireTasks.addIfSome(prevStage?.taskId)
-            let prevStageArtifacts: ?(String, String) = if (let Some(prevStage) <- prevStage) {
-                (prevStage.chir, prevStage.commonCjo)
-            } else { None }
 
             let isSplittable = !isMultiplatform &&
                            !isLto &&
@@ -584,13 +585,15 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
 
             let (outLogFile, errLogFile) = getLogFile(logPath, taskId)
 
-            let thisStage: ?PrevStage = if (!product) {
-                PrevStage(
-                    chir: Path(targetPath).join("${fullName}.chir").toString(),
-                    commonCjo: Path(targetPath).join("${fullName}.cjo").toString(),
-                    taskId: taskId
-                )
-            } else { None } 
+            srcDirToTaskId.add(sourceSetEntry.sourceSetDir.toString(), taskId)
+            srcDirToTargetPath.add(sourceSetEntry.sourceSetDir.toString(), targetPath)
+
+            let previousSourceSets = sourceSetDAG.incoming(sourceSetEntry.sourceSetDir.toString())
+                .map { it => srcDirToTaskId[it] }
+            requireTasks.add(all: previousSourceSets)
+            let prevStageArtifacts: Array<(String, String)> = sourceSetDAG.incoming(sourceSetEntry.sourceSetDir.toString())
+                .map { it => srcDirToTargetPath[it] }
+                .map { it => (Path(it).join("${fullName}.chir").toString(), Path(it).join("${fullName}.cjo").toString()) }
 
             let task = CompileTask(
                 id: taskId,
@@ -699,16 +702,13 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
                 )
                 compileTasks.add(linkTask)
             }
-
-            (compileTasks, thisStage)
+            compileTasks
         }
 
         let sourceSetUnwrap = ArrayList<CompileTask>()
-        var prevStage: ?PrevStage = None
         for (sourceSetEntry in r.packagePath._sources) {
-            let (tasks, thisStage) = createForSingleSourceSet(sourceSetEntry, prevStage)
+            let tasks = createForSingleSourceSet(sourceSetEntry)
             sourceSetUnwrap.add(all: tasks ?? return None)
-            prevStage = thisStage
         }
         sourceSetUnwrap
     }

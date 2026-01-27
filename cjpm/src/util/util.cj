@@ -6,7 +6,8 @@
 
 package cjpm.util
 
-import std.collection.{ArrayList, collectString, map}
+import std.collection.*
+import std.sort.sort
 import std.deriving.Derive
 import stdx.serialization.serialization.*
 
@@ -118,7 +119,7 @@ public struct WithDefault<T> {
     public prop isSet: Bool {
         get() {
             match (_value) {
-                case Set(_) => true
+                case Setted(_) => true
                 case _ => false
             }
         }
@@ -136,19 +137,19 @@ public struct WithDefault<T> {
     public prop value: T {
         get() {
             match (_value) {
-                case Set(x) => x
+                case Setted(x) => x
                 case Default(x) => x
             }
         }
     }
 
     public mut func modify(value: T) {
-        _value = Set(value)
+        _value = Setted(value)
     }
 }
 
 private enum OptionDefault<T> {
-    | Set(T)
+    | Setted(T)
     | Default(T)
 }
 
@@ -159,4 +160,15 @@ public func tryResult<T>(comp: () -> T): Result<T, String> {
     } catch(e: Exception) {
         return Err(e.message)
     }
+}
+
+public func unorderedHash<T>(iter: Iterable<T>): Int64 where T <: Hashable {
+    let hashes = iter.iterator().map { it => it.hashCode() } |> collectArray
+    sort(hashes)
+    var hashser = DefaultHasher()
+    hashser.write(hashes.size)
+    for (hash in hashes) {
+        hashser.write(hash)
+    }
+    hashser.finish()
 }
