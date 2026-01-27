@@ -37,12 +37,22 @@ bool ends_with(const std::string& str, const std::string& suffix) {
     return std::equal(suffix.rbegin(), suffix.rend(), str.rbegin());
 }
 
+#ifdef _WIN32
+    const char sep = '\\';
+#else
+    const char sep = '/';
+#endif
+
 std::string join_path(const std::string& dir, const std::string& filename) {
-    auto last_char_idx = dir.size() - 1;
-    if (dir[last_char_idx] == '/') {
-        return dir + filename;
+    std::string real_name = filename;
+    if (!real_name.empty() && (real_name[0] == sep)) {
+        real_name = real_name.substr(1);
+    }
+    char last_char = dir.back();
+    if (last_char == sep) {
+        return dir + real_name;
     } else {
-        return dir + "/" + filename;
+        return dir + sep + real_name;
     }
 }
 
