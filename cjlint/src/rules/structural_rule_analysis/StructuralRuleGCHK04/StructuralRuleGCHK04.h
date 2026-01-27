@@ -37,7 +37,7 @@ private:
         const std::string refName, std::string &tmpStr);
     std::string GetLitConstExprHelper(Ptr<Cangjie::AST::Expr> expr, const Position start, const Position end,
         const std::string &refName = "");
-    std::set<std::string, Cangjie::Position> regexSet;
+    std::map<std::string, Cangjie::Position> regexSet;
 };
 } // namespace Cangjie::CodeCheck
 #endif // STRUCTURAL_RULE_ANALYSIS_STRUCTURAL_RULE_G_CHK_04_H
