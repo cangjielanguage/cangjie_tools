@@ -51,24 +51,17 @@ private:
 
     static File* GetFileNode(const ArkAST *ast, std::string filePath);
 
-    static void ProcessSingleReExport(const std::vector<lsp::Symbol> &reExportSyms,
-        lsp::Modifier modifier,
-        const std::string &originPkg,
-        const lsp::SymbolIndex *index,
-        const std::function<void(std::string, lsp::Modifier, std::string, const lsp::Ref &)> &dealRefFunc);
-
     static bool ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targetPkg, std::string moveFile);
 
     static std::string GetTargetPath(std::string file);
+
+    static bool isInvalidImport(Ptr<ImportSpec> fileImport);
 
     static std::unordered_map<std::string, std::unique_ptr<Cangjie::LSPCompilerInstance>> ciMap;
 
     static std::unordered_map<std::string, std::unique_ptr<ArkAST>> astMap;
 
     static std::unordered_map<std::string, std::unique_ptr<PackageInstance>> pkgInstanceMap;
-
-    static void SetRefactorData(FileRefactor &refactor, const lsp::Ref &ref, const std::string &symName,
-        const std::string &fullPkgName, const std::string &targetPkg, const std::string &originPkg, lsp::Modifier modifier);
 
     // if moving a folder, store the move dir
     static std::string moveDirPath;

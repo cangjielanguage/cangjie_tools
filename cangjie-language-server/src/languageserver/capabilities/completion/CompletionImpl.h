@@ -100,6 +100,10 @@ private:
 
     static void HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg, const lsp::Symbol &sym,
                                             const lsp::CompletionItem &completionItem, Range textEditRange);
+
+    static std::string GetChainedName(const ArkAST &input, const Cangjie::Position &pos, int index, int firstTokIdxInLine);
+
+    static bool CheckNamedParameter(const ark::ArkAST &input, const int index, int &lparenIndex);
 };
 } // namespace ark
 
