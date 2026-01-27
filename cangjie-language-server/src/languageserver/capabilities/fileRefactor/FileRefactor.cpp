@@ -30,114 +30,35 @@ void FileRefactor::AddImport()
     result.changes[uri].insert({FileRefactorChangeType::ADD, insertRange, insertContent});
 }
 
-// Private helper for MoveFile multi-import deletion logic
-void FileRefactor::ProcessMoveFileMultiDeletion(const std::vector<Ptr<ImportSpec>>& multiImports,
-    std::vector<Ptr<ImportSpec>>& deleteMultiImports, const std::string& uri)
-{
-    for (auto &multiImport : multiImports) {
-        if (GetImportFullPkg(multiImport->content) == refactorPkg) {
-            Position end = multiImport->content.rightCurlPos;
-            end.column++;
-            Range deleteRange = {multiImport->begin, end};
-            deleteRange = TransformFromChar2IDE(deleteRange);
-            result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
-            deleteMultiImports.push_back(multiImport);
-        }
-    }
-}
-
-// Private helper to check if an import should be deleted based on refactor kind
-bool FileRefactor::ShouldDeleteImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
-    const std::vector<Ptr<ImportSpec>>& deleteMultiImports, Position& beginPos, Position& endPos,
-    std::vector<Ptr<ImportSpec>>& multiImports)
-{
-    if (importContent.kind == ImportKind::IMPORT_MULTI) {
-        return false;
-    }
-
-    bool shouldDelete = false;
-    switch (kind) {
-        case FileRefactorKind::RefactorMoveFile: {
-            // check whether single-import is within delete multi-import
-            auto IsInDeleteMultiImport = [&deleteMultiImports, &importContent]() {
-                return std::any_of(deleteMultiImports.begin(), deleteMultiImports.end(),
-                    [&](const auto multiImport) {
-                        return multiImport->begin <= importContent.begin && multiImport->end >= importContent.end;
-                    });
-            };
-            shouldDelete = (GetImportFullPkg(importContent) == refactorPkg && !IsInDeleteMultiImport());
-            break;
-        }
-        case FileRefactorKind::RefactorRefFile: {
-            if (importContent.kind == ImportKind::IMPORT_ALL) {
-                return false;
-            }
-            shouldDelete = (GetImportFullSymWithoutAlias(importContent) == (refactorPkg + CONSTANTS::DOT + sym));
-            break;
-        }
-        case FileRefactorKind::RefactorReExport: {
-            if (importContent.kind == ImportKind::IMPORT_ALL) {
-                return false;
-            }
-            std::string fullSym = GetImportFullSymWithoutAlias(importContent);
-            shouldDelete = (fullSym == (refactorPkg + CONSTANTS::DOT + sym) ||
-                            fullSym == (reExportedPkg + CONSTANTS::DOT + sym));
-            break;
-        }
-        default: return false;
-    }
-
-    if (shouldDelete) {
-        if (!GetDeletePosInMultiImport(multiImports, importContent, beginPos, endPos)) {
-            endPos = fileImport->end;
-        }
-        return true;
-    }
-    return false;
-}
-
 void FileRefactor::DeleteImport()
 {
     if (!fileNode || fileNode->imports.empty()) {
         return;
     }
-
     std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
-
     // collect multi import
     std::vector<Ptr<ImportSpec>> multiImports;
-    for (auto &fileImport : fileNode->imports) {
-        if (fileImport && !fileImport->end.IsZero() &&
-            fileImport->content.kind == ImportKind::IMPORT_MULTI) {
-            multiImports.emplace_back(fileImport);
-            }
-    }
-
-    // Process MoveFile specific multi-import deletion
+    //delete multi import for RefactorMoveFile
     std::vector<Ptr<ImportSpec>> deleteMultiImports;
-    if (kind == FileRefactorKind::RefactorMoveFile) {
-        ProcessMoveFileMultiDeletion(multiImports, deleteMultiImports, uri);
-    }
-
-    // Define a helper to execute the actual deletion to reduce boilerplate
-    auto ExecuteDeletion = [this,&uri](const Position& begin, const Position& end) {
-        Range deleteRange = {begin, end};
-        deleteRange = TransformFromChar2IDE(deleteRange);
-        result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
-    };
-
+    CollectImports(multiImports, deleteMultiImports, uri);
     // delete single import
-    for (auto &fileImport : fileNode->imports) {
+    for (auto &fileImport: fileNode->imports) {
         if (!fileImport || fileImport->end.IsZero()) {
             continue;
         }
-
-        auto& importContent = fileImport->content;
-        Position beginPos = fileImport->begin;
-        Position endPos;
-
-        if (ShouldDeleteImport(importContent, fileImport, deleteMultiImports, beginPos, endPos, multiImports)) {
-            ExecuteDeletion(beginPos, endPos);
+        auto importContent = fileImport.get()->content;
+        switch (kind) {
+            case FileRefactorKind::RefactorMoveFile:
+                DeleteMoveFileSingleImport(importContent, fileImport, multiImports, deleteMultiImports, uri);
+                break;
+            case FileRefactorKind::RefactorRefFile:
+                DeleteRefFileSingleImport(importContent, fileImport, multiImports, uri);
+                break;
+            case FileRefactorKind::RefactorReExport:
+                DeleteReExportSingleImport(importContent, fileImport, multiImports, uri);
+                break;
+            default:
+                break;
         }
     }
 }
@@ -160,7 +81,7 @@ void FileRefactor::ChangeImport()
         }
     }
 
-    auto DealImportAll = [this,&uri](const ImportSpec &importSpec) {
+    auto DealImportAll = [this, &uri](const ImportSpec &importSpec) {
         if (moveDir) {
             auto importContent = importSpec.content;
             Position changeBegin = importContent.prefixPoses[0];
@@ -498,10 +419,8 @@ void FileRefactor::RemoveDuplicateDelete(Position start, Position end, std::stri
 uint8_t FileRefactor::GetRefactorCode(FileRefactorKind fileRefactorKind, PackageRelation packageRelation,
     ark::lsp::Modifier modifier) const
 {
-    constexpr int FILE_REFACTOR_RADIX = 4;
-    constexpr int MODIFIER_RADIX = 2;
-    return (static_cast<uint8_t>(fileRefactorKind) << FILE_REFACTOR_RADIX)
-           + (static_cast<uint8_t>(modifier) << MODIFIER_RADIX)
+    return (static_cast<uint8_t>(fileRefactorKind) << 4) // left shift by four bits
+           + (static_cast<uint8_t>(modifier) << 2)       // left shift by two bits
            + static_cast<uint8_t>(packageRelation);
 }
 
@@ -634,6 +553,117 @@ bool FileRefactor::ContainFullPkgImport()
             }
     }
     return false;
+}
+
+void FileRefactor::CollectImports(std::vector<Ptr<ImportSpec>> &multiImports,
+                                    std::vector<Ptr<ImportSpec>> &deleteMultiImports, const std::string &uri)
+{
+    for (auto &fileImport: fileNode->imports) {
+        if (!fileImport || fileImport->end.IsZero()) {
+            continue;
+        }
+        if (fileImport.get()->content.kind == ImportKind::IMPORT_MULTI) {
+            multiImports.emplace_back(fileImport);
+        }
+    }
+    //delete multi import for RefactorMoveFile
+    if (kind == FileRefactorKind::RefactorMoveFile) {
+        for (auto &multiImport: multiImports) {
+            std::string multiImportFullPkg = GetImportFullPkg(multiImport->content);
+            if (multiImportFullPkg != refactorPkg) {
+                continue;
+            }
+            Position end = multiImport->content.rightCurlPos;
+            end.column++;
+            Range deleteRange = {multiImport->begin, end};
+            deleteRange = TransformFromChar2IDE(deleteRange);
+            result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+            deleteMultiImports.push_back(multiImport);
+        }
+    }
+}
+void FileRefactor::DeleteMoveFileSingleImport(ImportContent &importContent, Ptr<ImportSpec> fileImport,
+    std::vector<Ptr<ImportSpec>> &multiImports, std::vector<Ptr<ImportSpec>> &deleteMultiImports,
+    const std::string &uri)
+{
+    // check whether single-import is within delete multi-import
+    auto IsInDeleteMultiImport = [&deleteMultiImports](const ImportContent& singleImport) {
+        return std::any_of(deleteMultiImports.begin(), deleteMultiImports.end(),
+            [&singleImport](const auto multiImport) {
+                return multiImport->begin <= singleImport.begin && multiImport->end >= singleImport.end;
+            });
+    };
+    if (importContent.kind == ImportKind::IMPORT_MULTI) {
+        return;
+    }
+    std::string importFullPkg = GetImportFullPkg(importContent);
+    if (importFullPkg != refactorPkg || IsInDeleteMultiImport(importContent)) {
+        return;
+    }
+    Position endPos;
+    Position beginPos = fileImport->begin;
+    if (GetDeletePosInMultiImport(multiImports, importContent, beginPos, endPos)) {
+        Range deleteRange = {beginPos, endPos};
+        deleteRange = TransformFromChar2IDE(deleteRange);
+        result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+        return;
+    }
+    Range deleteRange = {fileImport->begin, fileImport->end};
+    deleteRange = TransformFromChar2IDE(deleteRange);
+    result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+}
+
+void FileRefactor::DeleteRefFileSingleImport(ImportContent &importContent,
+    Ptr<ImportSpec> fileImport,
+    std::vector<Ptr<ImportSpec>> &multiImports,
+    const std::string &uri)
+{
+    if (importContent.kind == ImportKind::IMPORT_MULTI || importContent.kind == ImportKind::IMPORT_ALL) {
+        return;
+    }
+    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT + sym;
+    std::string importFullSym = GetImportFullSymWithoutAlias(importContent);
+    if (importFullSym != refactorFullSym) {
+        return;
+    }
+    Position endPos;
+    Position beginPos = fileImport->begin;
+    if (GetDeletePosInMultiImport(multiImports, importContent, beginPos, endPos)) {
+        Range deleteRange = {beginPos, endPos};
+        deleteRange = TransformFromChar2IDE(deleteRange);
+        result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+        return;
+    }
+    Range deleteRange = {fileImport->begin, fileImport->end};
+    deleteRange = TransformFromChar2IDE(deleteRange);
+    result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+}
+
+void FileRefactor::DeleteReExportSingleImport(ImportContent &importContent,
+    Ptr<ImportSpec> fileImport,
+    std::vector<Ptr<ImportSpec>> &multiImports,
+    const std::string &uri)
+{
+    if (importContent.kind == ImportKind::IMPORT_MULTI || importContent.kind == ImportKind::IMPORT_ALL) {
+        return;
+    }
+    std::string reExportFullSym = refactorPkg + CONSTANTS::DOT + sym;
+    std::string reExportedFullSym = reExportedPkg + CONSTANTS::DOT + sym;
+    std::string importFullSym = GetImportFullSymWithoutAlias(importContent);
+    if (importFullSym != reExportFullSym && importFullSym != reExportedFullSym) {
+        return;
+    }
+    Position endPos;
+    Position beginPos = fileImport->begin;
+    if (GetDeletePosInMultiImport(multiImports, importContent, beginPos, endPos)) {
+        Range deleteRange = {beginPos, endPos};
+        deleteRange = TransformFromChar2IDE(deleteRange);
+        result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
+        return;
+    }
+    Range deleteRange = {fileImport->begin, fileImport->end};
+    deleteRange = TransformFromChar2IDE(deleteRange);
+    result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
 }
 
 PackageRelation FileRefactor::GetPackageRelation(const std::string &fullPkgName,

@@ -83,15 +83,6 @@ public:
 
 private:
     void AddImport();
-    void ProcessMoveFileMultiDeletion(const std::vector<Ptr<ImportSpec>> &multiImports,
-        std::vector<Ptr<ImportSpec>> &deleteMultiImports,
-        const std::string &uri);
-    bool ShouldDeleteImport(ImportContent &importContent,
-        Ptr<ImportSpec> fileImport,
-        const std::vector<Ptr<ImportSpec>> &deleteMultiImports,
-        Position &beginPos,
-        Position &endPos,
-        std::vector<Ptr<ImportSpec>> &multiImports);
 
     void DeleteImport();
 
@@ -127,6 +118,19 @@ private:
         std::string refactorFullSym, std::string originFullSym);
 
     bool ContainFullPkgImport();
+
+    void CollectImports(std::vector<Ptr<ImportSpec>> &multiImports, std::vector<Ptr<ImportSpec>> &deleteMultiImports,
+        const std::string &uri);
+
+    void DeleteMoveFileSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, std::vector<Ptr<ImportSpec>> &deleteMultiImports,
+        const std::string &uri);
+
+    void DeleteRefFileSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, const std::string &uri);
+
+    void DeleteReExportSingleImport(ImportContent& importContent, Ptr<ImportSpec> fileImport,
+        std::vector<Ptr<ImportSpec>> &multiImports, const std::string &uri);
 };
 
 using RefactorFunc = void (ark::FileRefactor::*)();
