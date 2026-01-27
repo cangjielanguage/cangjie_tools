@@ -98,9 +98,6 @@ void FileMove::DealMoveFile(const ArkAST *ast, const std::string &file,
     const std::string &targetPkg, const std::string &targetPath, FileRefactor &refactor)
 {
     unsigned int fileId = ast->fileID;
-    if (fileId < 0) {
-        return;
-    }
     std::string fullPkgName = ast->file->curPackage->fullPackageName;
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
