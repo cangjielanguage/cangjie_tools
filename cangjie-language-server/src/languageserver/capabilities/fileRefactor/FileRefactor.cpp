@@ -51,7 +51,9 @@ bool FileRefactor::ShouldDeleteImport(ImportContent& importContent, Ptr<ImportSp
     const std::vector<Ptr<ImportSpec>>& deleteMultiImports, Position& beginPos, Position& endPos,
     std::vector<Ptr<ImportSpec>>& multiImports)
 {
-    if (importContent.kind == ImportKind::IMPORT_MULTI) return false;
+    if (importContent.kind == ImportKind::IMPORT_MULTI) {
+        return false;
+    }
 
     bool shouldDelete = false;
     switch (kind) {
@@ -67,12 +69,16 @@ bool FileRefactor::ShouldDeleteImport(ImportContent& importContent, Ptr<ImportSp
             break;
         }
         case FileRefactorKind::RefactorRefFile: {
-            if (importContent.kind == ImportKind::IMPORT_ALL) return false;
+            if (importContent.kind == ImportKind::IMPORT_ALL) {
+                return false;
+            }
             shouldDelete = (GetImportFullSymWithoutAlias(importContent) == (refactorPkg + CONSTANTS::DOT + sym));
             break;
         }
         case FileRefactorKind::RefactorReExport: {
-            if (importContent.kind == ImportKind::IMPORT_ALL) return false;
+            if (importContent.kind == ImportKind::IMPORT_ALL) {
+                return false;
+            }
             std::string fullSym = GetImportFullSymWithoutAlias(importContent);
             shouldDelete = (fullSym == (refactorPkg + CONSTANTS::DOT + sym) ||
                             fullSym == (reExportedPkg + CONSTANTS::DOT + sym));
