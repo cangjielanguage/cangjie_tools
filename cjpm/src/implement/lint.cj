@@ -8,13 +8,28 @@ package cjpm.implement
 
 import std.collection.*
 import cjpm.config.*
+import std.env.*
+import std.fs.*
 
+@When[os == "macOS"]
+private func exportCjlintDylib(): HashMap<String, String> {
+    let envMap = HashMap<String, String>()
+
+    if (let Some(home) <- getVariable("CANGJIE_HOME") ){
+        envMap["DYLD_LIBRARY_PATH"] = "${home}/tools/lib:"
+    }
+    return envMap
+}
+
+@When[os != "macOS"]
+private func exportCjlintDylib(): HashMap<String, String> {
+    return HashMap<String, String>()
+}
 // Use cjlint to check codes in srcDir
 func buildCodeCheck(buildConfig: BuildConfig): Bool {
     if (!buildConfig.isLint) {
         return true
     }
-
     var tomlInfo = loadModuleFile(DIR_CURRENT) ?? return false
     return doLint(tomlInfo, buildConfig.isVerbose, targetDir: buildConfig.globalConfig.targetDir)
 }
@@ -23,13 +38,14 @@ func doLint(tomlInfo: TomlInfo, isVerbose: Bool, targetDir!: String = TARGET): B
     if (state.isExperimental) {
         var totalflag = true
         var hasErrors = false
+        let cjlintEnv = exportCjlintDylib()
         for (path in tomlInfo.pkg.actualSources.allPaths) {
             // Default operation: cjlint -f srcDir
             if (isVerbose) {
                 let cmdStr: String = "cjlint -f ${path} 2>&1"
                 println("check codes in ${path}: ${cmdStr}")
             }
-            let (flag, outInfo, errInfo) = execWithOutput("cjlint", ArrayList<String>(["-f", path.toString()]), spawnForScript: true)
+            let (flag, outInfo, errInfo) = execWithOutput("cjlint", ArrayList<String>(["-f", path.toString()]), envMap: cjlintEnv, spawnForScript: true)
             let output: String = errInfo + outInfo
             print(output)
             totalflag &&= flag
@@ -51,8 +67,8 @@ func doLint(tomlInfo: TomlInfo, isVerbose: Bool, targetDir!: String = TARGET): B
             let cmdStr: String = "cjlint -f ${tomlInfo.pkg.srcDir.value} 2>&1"
             println("check codes in ${tomlInfo.pkg.srcDir.value}: ${cmdStr}")
         }
-
-        let (flag, outInfo, errInfo) = execWithOutput("cjlint", ArrayList<String>(["-f", tomlInfo.pkg.srcDir.value]), spawnForScript: true)
+        let cjlintEnv = exportCjlintDylib()
+        let (flag, outInfo, errInfo) = execWithOutput("cjlint", ArrayList<String>(["-f", tomlInfo.pkg.srcDir.value]), envMap: cjlintEnv, spawnForScript: true)
         let output: String = errInfo + outInfo
         print(output)
         if (!flag) {
@@ -63,7 +79,6 @@ func doLint(tomlInfo: TomlInfo, isVerbose: Bool, targetDir!: String = TARGET): B
             deleteDirectory(targetDir)
             return false
         }
-
         return true
     }
 }
