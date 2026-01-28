@@ -65,6 +65,8 @@ def download_flatbuffers(args):
 
 
 def generate_flat_header():
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     index_file = os.path.join(HOME_DIR, "generate", "index.fbs")
     flatbuffers_dir = os.path.join(THIRDPARTY_DIR, "flatbuffers")
     new_index_path = os.path.join(flatbuffers_dir, "include", "index.fbs")
@@ -74,15 +76,15 @@ def generate_flat_header():
     if not os.path.exists(flatbuffers_build_dir):
         os.makedirs(flatbuffers_build_dir)
     compile_cmd = ["cmake", flatbuffers_dir, "-G", get_generator(), "-DFLATBUFFERS_BUILD_TESTS=OFF"]
-    subprocess.run(compile_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(compile_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     build_cmd = ["cmake", "--build", flatbuffers_build_dir, "-j8"]
-    subprocess.run(build_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(build_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     flatc_binary = "flatc"
     if IS_WINDOWS:
         flatc_binary = "flatc.exe"
     flac_cmd = os.path.join(flatbuffers_build_dir, flatc_binary)
     generate_cmd = [flac_cmd, "--cpp", index_file]
-    subprocess.run(generate_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(generate_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     header_path = os.path.join(flatbuffers_build_dir, "index_generated.h")
     new_header_path = os.path.join(flatbuffers_dir, "include", "index_generated.h")
     shutil.copy(header_path, new_header_path)
@@ -197,6 +199,8 @@ def generate_cmake_commands(args):
     return result
 
 def build(args):
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     print("start build")
     if os.getenv("CANGJIE_HOME") is None:
         print("build failed, 'CANGJIE_HOME' environment variable not found, please config it first.")
@@ -209,9 +213,9 @@ def build(args):
     build_command = get_build_commands(args)
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
-        subprocess.run(cmake_command, cwd=BUILD_DIR, check=True)
+        subprocess.run(cmake_command, cwd=BUILD_DIR, check=True, env=env)
     print(build_command)
-    subprocess.run(build_command, cwd=BUILD_DIR, check=True)
+    subprocess.run(build_command, cwd=BUILD_DIR, check=True, env=env)
     print("end build")
 
 def redo_with_write(redo_func, path, err):
@@ -288,6 +292,8 @@ def get_run_test_command(cangjie_sdk_path):
     return result
 
 def test(args):
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     print("start run test")
     cangjie_sdk_path = resolve_path(os.getenv("CANGJIE_HOME"))
     if not os.path.exists(cangjie_sdk_path):
@@ -297,7 +303,7 @@ def test(args):
         print("no output/bin path")
         return
     commands = get_run_test_command(cangjie_sdk_path)
-    output = subprocess.run(commands, cwd=OUTPUT_DIR, check=True)
+    output = subprocess.run(commands, cwd=OUTPUT_DIR, check=True, env=env)
     if output.returncode != 0:
         print("test failed with return code:", output.returncode)
         exit(1)
