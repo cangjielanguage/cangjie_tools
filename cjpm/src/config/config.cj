@@ -136,9 +136,9 @@ const NEW_LINE: String = "\r\n"
 @When[os != "Windows"]
 const NEW_LINE: String = "\n"
 @When[os == "Windows"]
-const SPLIT_ENV: String = ";"
+public const SPLIT_ENV: String = ";"
 @When[os != "Windows"]
-const SPLIT_ENV: String = ":"
+public const SPLIT_ENV: String = ":"
 @When[os == "Linux" || os == "macOS"]
 public const WHICH: String = "which"
 @When[os == "Windows"]
