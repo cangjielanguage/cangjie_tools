@@ -1107,6 +1107,7 @@
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Enum_Extend_Twice_001.test","id":"248"}}
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Extend_One_001.test","id":"255"}}
 {"overrideMethods":{"testFile":"LSP_OverrideMethods_Extend_Two_001.test","id":"256"}}
+{"overrideMethods":{"testFile":"LSP_OverrideMethods_Class_Abstract_002.test","id":"100"}}
 
 {"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_func.test","id":"6"}}
 {"crossLanguageDefinition":{"testFile":"LSP_CrossLanguageDefinition_Interop_class.test","id":"6"}}
