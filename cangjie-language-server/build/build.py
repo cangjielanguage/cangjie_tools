@@ -69,6 +69,8 @@ def download_flatbuffers(args):
 
 
 def generate_flat_header():
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     index_file = os.path.join(HOME_DIR, "generate", "index.fbs")
     flatbuffers_dir = os.path.join(THIRDPARTY_DIR, "flatbuffers")
     new_index_path = os.path.join(flatbuffers_dir, "include", "index.fbs")
@@ -78,15 +80,15 @@ def generate_flat_header():
     if not os.path.exists(flatbuffers_build_dir):
         os.makedirs(flatbuffers_build_dir)
     compile_cmd = ["cmake", flatbuffers_dir, "-G", get_generator(), "-DFLATBUFFERS_BUILD_TESTS=OFF"]
-    subprocess.run(compile_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(compile_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     build_cmd = ["cmake", "--build", flatbuffers_build_dir, "-j8"]
-    subprocess.run(build_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(build_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     flatc_binary = "flatc"
     if IS_WINDOWS:
         flatc_binary = "flatc.exe"
     flac_cmd = os.path.join(flatbuffers_build_dir, flatc_binary)
     generate_cmd = [flac_cmd, "--cpp", index_file]
-    subprocess.run(generate_cmd, cwd=flatbuffers_build_dir, check=True)
+    subprocess.run(generate_cmd, cwd=flatbuffers_build_dir, check=True, env=env)
     header_path = os.path.join(flatbuffers_build_dir, "index_generated.h")
     new_header_path = os.path.join(flatbuffers_dir, "include", "index_generated.h")
     shutil.copy(header_path, new_header_path)
@@ -204,6 +206,8 @@ def generate_cmake_commands(args):
     return result
 
 def build(args):
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     print("start build")
     if os.getenv("CANGJIE_HOME") is None:
         print("build failed, 'CANGJIE_HOME' environment variable not found, please config it first.")
@@ -216,9 +220,9 @@ def build(args):
     build_command = get_build_commands(args)
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
-        subprocess.run(cmake_command, cwd=BUILD_DIR, check=True)
+        subprocess.run(cmake_command, cwd=BUILD_DIR, check=True, env=env)
     print(build_command)
-    subprocess.run(build_command, cwd=BUILD_DIR, check=True)
+    subprocess.run(build_command, cwd=BUILD_DIR, check=True, env=env)
     print("end build")
 
 def redo_with_write(redo_func, path, err):
@@ -295,6 +299,8 @@ def get_run_test_command(cangjie_sdk_path):
     return result
 
 def get_test_list(cangjie_sdk_path):
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     gtest_file = "gtest_LSPServer_test"
     env_file = "envsetup.sh"
     if IS_WINDOWS:
@@ -309,7 +315,7 @@ def get_test_list(cangjie_sdk_path):
         list_command = [env_path, "&&", f"{test_path} --gtest_list_tests"]
     
     try:
-        result = subprocess.run(list_command, cwd=OUTPUT_DIR, capture_output=True, text=True)
+        result = subprocess.run(list_command, cwd=OUTPUT_DIR, capture_output=True, text=True, env=env)
         test_list_output = result.stdout
     except subprocess.CalledProcessError as e:
         print(f"Failed to get test list: {e}")
@@ -331,6 +337,8 @@ def get_test_list(cangjie_sdk_path):
     return parallel_test_suites, serial_test_suites
 
 def run_single_test_suite(cangjie_sdk_path, test_suite):
+    env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
     env_file = "envsetup.sh"
     gtest_file = "gtest_LSPServer_test"
     if IS_WINDOWS:
@@ -349,7 +357,7 @@ def run_single_test_suite(cangjie_sdk_path, test_suite):
         command = [env_path, "&&", f"{test_path} --gtest_filter={test_suite}* --gtest_output=json:{test_report_name}"]
     
     try:
-        result = subprocess.run(command, cwd=OUTPUT_DIR, check=True)
+        result = subprocess.run(command, cwd=OUTPUT_DIR, check=True, env=env)
         if result.returncode == 0:
             return True, test_suite, result.stdout, result.stderr
         else:
