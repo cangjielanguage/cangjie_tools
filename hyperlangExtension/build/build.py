@@ -34,7 +34,9 @@ SUPPORTED_TARGET = ["native", "windows-x86_64"]
 # Check command
 def check_call(command):
     try:
-        return subprocess.check_call(command)
+        env = os.environ.copy()
+        env["ZERO_AR_DATE"] = "1"
+        return subprocess.check_call(command, env=env)
     except subprocess.CalledProcessError as e:
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
         sys.exit(e.returncode) 
