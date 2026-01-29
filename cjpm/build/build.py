@@ -20,9 +20,6 @@ CPP_BUILD_DIR = os.path.join(CPP_DIR, "build")
 CPP_OUT_DIR = os.path.join(CPP_DIR, "out")
 LIBFSWATCHER_A_PATH = os.path.join(CPP_BUILD_DIR, "lib", "libfswatcher.a")
 LIBUV_A_PATH = os.path.join(CPP_BUILD_DIR, "lib", "libuv.a")
-LIBUV_DIR = os.path.join(CPP_DIR, "third_party", "libuv")
-LIBUV_BUILD_DIR = os.path.join(LIBUV_DIR, "build")
-THIRD_PARTY_LIBUV_A_PATH = os.path.join(LIBUV_BUILD_DIR, "libuv.a")
 
 # Check command
 def check_call(command, cwd=None):
@@ -33,24 +30,6 @@ def check_call(command, cwd=None):
     except subprocess.CalledProcessError as e:
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
         return e.returncode
-
-# Build libuv
-def build_uv(cmake_option=""):
-    if not os.path.exists(LIBUV_BUILD_DIR):
-        os.makedirs(LIBUV_BUILD_DIR)
-    returncode = check_call(f"cmake .. {cmake_option} -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DUV_BUILD_TESTS=OFF", cwd=LIBUV_BUILD_DIR)
-    if returncode != 0:
-        return returncode
-    returncode = check_call(f"make -j4", cwd=LIBUV_BUILD_DIR)
-    if returncode != 0:
-        return returncode
-    os.makedirs(CPP_OUT_DIR, exist_ok=True)
-    if not os.path.exists(THIRD_PARTY_LIBUV_A_PATH):
-        print(f"error: cannot find {THIRD_PARTY_LIBUV_A_PATH}")
-        return 1
-    shutil.move(THIRD_PARTY_LIBUV_A_PATH, CPP_OUT_DIR)
-    print("Successfully build libuv!")
-    return 0
 
 # Build libfswatcher
 def build_fswatcher(cmake_option="", make_prefix=""):
@@ -75,8 +54,10 @@ def build_fswatcher(cmake_option="", make_prefix=""):
         print(f"error: cannot find {LIBFSWATCHER_A_PATH}")
         return 1
     shutil.move(LIBFSWATCHER_A_PATH, CPP_OUT_DIR)
-    if os.path.exists(LIBUV_A_PATH):
-        shutil.move(LIBUV_A_PATH, CPP_OUT_DIR)
+    if not os.path.exists(LIBUV_A_PATH):
+        print(f"error: cannot find {LIBUV_A_PATH}")
+        return 1
+    shutil.move(LIBUV_A_PATH, CPP_OUT_DIR)
     print("Successfully build libfswatcher!")
     return 0
 
@@ -157,8 +138,10 @@ def build(build_type, target, rpath=None):
     returncode = 0
     if is_linux or is_macos:
         returncode = build_fswatcher("")
+    if is_windows:
+        returncode = build_fswatcher('-DCMAKE_TOOLCHAIN_FILE=../llvm-mingw-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF -G "MinGW Makefiles"', "mingw32-")
     if is_cross_windows:
-        returncode = build_fswatcher("-DCMAKE_TOOLCHAIN_FILE=../mingw-w64-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF")
+        returncode = build_fswatcher("-DCMAKE_TOOLCHAIN_FILE=../cross-windows-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF")
     if returncode != 0:
         return returncode
 
@@ -195,7 +178,7 @@ def build(build_type, target, rpath=None):
                 return 1
         returncode = check_call(f"{cjc} --target=x86_64-windows-gnu {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} \"--link-options=--no-insert-timestamp -static\" -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -L {os.path.join(CURRENT_DIR, '../cpp/out')} -lfswatcher -luv -L /opt/buildtools/llvm-mingw-w64/x86_64-w64-mingw32/lib -lc++ -lunwind -liphlpapi -ldbghelp -luserenv -lole32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
     if is_windows:
-        returncode = check_call(f"{cjc} {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
+        returncode = check_call(f"{cjc} {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -L {os.path.join(CURRENT_DIR, '../cpp/out')} -lfswatcher -luv -L {os.path.join(os.environ['LLVM_MINGW_PATH'], 'x86_64-w64-mingw32', 'lib')} -lc++ -lunwind -liphlpapi -ldbghelp -luserenv -lole32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
     if is_cross_ohos:
         returncode = check_call(f"{cjc} --target={target} {toolchain} {common_option} {rpath_set_option} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
 
