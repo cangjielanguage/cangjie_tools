@@ -29,7 +29,7 @@ Available options:
   -g                          enable debug version
   -V, --verbose               enable verbose
   --skip-script               disable script 'build.cj'
-  -- <values>                  pass all arguments after '--' to the executable product."""
+  -- <values>                 pass all arguments after '--' to the executable product."""
   
 
     init(args: Array<String>) {
