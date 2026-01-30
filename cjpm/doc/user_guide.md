@@ -759,7 +759,7 @@ link-option = "-z noexecstack -z relro -z now --strip-all"
 
 ### "output-type"
 
-The type of compiled output artifact, including executable programs and libraries. The related inputs are shown in the table below. To automatically fill this field as `static` when generating `cjpm.toml`, use the command `cjpm init --type=static --name=modName`. If no type is specified, it defaults to `executable`. Only the main module's `output-type` can be `executable`.
+The type of compiled output artifact, including executable programs and libraries. The related inputs are shown in the table below. To automatically fill this field as `static` when generating `cjpm.toml`, use the command `cjpm init --type=static --name=modName`. If no type is specified, it defaults to `executable`.
 
 |     Input     |               Description |
 | :-----------: | :-----------------------: |
