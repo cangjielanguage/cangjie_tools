@@ -12,8 +12,7 @@ import std.fs.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 
-@When[os == "macOS"]
-import std.env.*
+import std.env.getVariable
 
 public type StdDeps = ArrayList<HashMap<String, Array<String>>>
 
@@ -342,7 +341,15 @@ public func getExtraRuntimePaths(): Array<String> {
     return Array<String>()
 }
 
-@When[os != "macOS"]
+@When[os == "Windows"]
+public func getExtraRuntimePaths(): Array<String> {
+    if (let Some(cangjieHome) <- getVariable("CANGJIE_HOME")) {
+        return [Path(cangjieHome).join("runtime").join("lib").join("windows_x86_64_cjnative").toString()]
+    }
+    return Array<String>()
+}
+
+@When[os == "Linux"]
 public func getExtraRuntimePaths(): Array<String> {
     Array<String>()
 }

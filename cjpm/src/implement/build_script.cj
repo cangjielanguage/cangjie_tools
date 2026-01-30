@@ -120,22 +120,27 @@ public func makeScriptConfig(modulePath: String, debug: Bool, verbose: Bool, cro
 func runScriptExe(scriptConfig: ScriptConfig, commandArg: String): Bool {
     var cmd = ""
     var exePath = ""
-    var envs = HashMap<String, String>()
+    var env = HashMap<String, String>()
     if (RUN_SCRIPT_CMD_MAP.contains(scriptConfig.moduleName)) {
-        (cmd, exePath, envs) = RUN_SCRIPT_CMD_MAP[scriptConfig.moduleName]
+        (cmd, exePath, env) = RUN_SCRIPT_CMD_MAP[scriptConfig.moduleName]
         if (scriptConfig.isVerbose) {
             println(cmd)
         }
     } else {
         exePath = scriptConfig.scriptExe
-        envs = getEnvMap(scriptConfig.scriptLdPath)
+        let envBuilder = getEnvBuilder(scriptConfig.scriptLdPath)
+        let originalEnv = getVariables()
         if (scriptConfig.isVerbose) {
-            cmd = "Run build script: ${getCmdStr(envs, exePath, ArrayList<String>([commandArg]))}"
+            cmd = "Run build script: ${getCmdStr(envBuilder.asCliStrings(originalEnv), exePath, ArrayList<String>([commandArg]))}"
  	        println(cmd)
         }
-        RUN_SCRIPT_CMD_MAP.add(scriptConfig.moduleName, (cmd, exePath, envs))
+        env = envBuilder.finish(HashMap<String, String>())
+        for ((name,value) in env) {
+            env[name] = value + SPLIT_ENV
+        }
+        RUN_SCRIPT_CMD_MAP.add(scriptConfig.moduleName, (cmd, exePath, env))
     }
-    let (flag, outInfo, errInfo) = execWithOutput(exePath, ArrayList<String>([commandArg]), envMap: envs,
+    let (flag, outInfo, errInfo) = execWithOutput(exePath, ArrayList<String>([commandArg]), envMap: env,
         workingDirectory: Path(scriptConfig.modulePath), spawnForScript: true)
     let output: String = errInfo + outInfo
     try {
@@ -329,11 +334,11 @@ func getScriptDepLink(modulePath: String, buildConfig: BuildConfig): Option<Arra
     return getDepLinkCommand(compileTask, buildConfig)
 }
 
-func getEnvMap(ldPath: HashSet<String>): HashMap<String, String> {
+func getEnvBuilder(ldPath: HashSet<String>): EnvironmentBuilder {
     let envBuilder = EnvironmentBuilder()
     envBuilder.prepend(LD_PATH, ldPath)
     envBuilder.prepend(LD_PATH, getExtraRuntimePaths())
-    return envBuilder.asCliStrings(getVariables())
+    return envBuilder
 }
 
 func getCompileArgs(scriptConfig: ScriptConfig, buildConfig: BuildConfig): Option<(HashMap<String, String>, ArrayList<String>)> {
@@ -353,12 +358,17 @@ func getCompileArgs(scriptConfig: ScriptConfig, buildConfig: BuildConfig): Optio
     if (!depLinkList.isEmpty()) {
         cmd += " ${String.join(depLinkList.toArray(), delimiter: " ")} "
     }
-    let env = getEnvMap(scriptConfig.scriptLdPath)
+    let envBuilder = getEnvBuilder(scriptConfig.scriptLdPath)
+    let originalEnv = getVariables()
  	let cmdArgs = extractOptionByString(cmd)
     if (scriptConfig.isVerbose) {
-        println("Compiling build script of `${scriptConfig.moduleName}`: ${getCmdStr(env, COMPILE_TOOL, cmdArgs)}")
+        println("Compiling build script of `${scriptConfig.moduleName}`: ${getCmdStr(envBuilder.asCliStrings(originalEnv), COMPILE_TOOL, cmdArgs)}")
     }
 
+    let env = envBuilder.finish(HashMap<String, String>())
+    for ((name,value) in env) {
+        env[name] = value + SPLIT_ENV
+    }
     return (env, cmdArgs)
 }
 
