@@ -351,6 +351,16 @@ void DataflowRuleGCHK01Check::CheckTuple(CHIR::Tuple* tuple, std::set<std::strin
     }
 }
 
+void DataflowRuleGCHK01Check::CheckStoreElementRef(CHIR::StoreElementRef* storeElementRef,
+    std::set<std::string>& taintedVars)
+{
+    auto base = storeElementRef->GetValue();
+    auto identifier = GetArgName(base);
+    if (taintedVars.count(identifier) > 0) {
+        taintedVars.insert(GetArgName(storeElementRef->GetLocation()));
+    }
+}
+
 void DataflowRuleGCHK01Check::CheckField(CHIR::Field* field, std::set<std::string>& taintedVars)
 {
     auto identifier = GetArgName(field->GetBase());
@@ -402,6 +412,11 @@ void DataflowRuleGCHK01Check::CheckFuncBody(CHIR::Block& entryBlock)
                 if (expr->GetExprKind() == CHIR::ExprKind::TUPLE) {
                     auto tuple = StaticCast<CHIR::Tuple*>(expr);
                     CheckTuple(tuple, taintedVars);
+                    continue;
+                }
+                if (expr->GetExprKind() == CHIR::ExprKind::STORE_ELEMENT_REF) {
+                    auto storeElementRef = StaticCast<CHIR::StoreElementRef*>(expr);
+                    CheckStoreElementRef(storeElementRef, taintedVars);
                     continue;
                 }
                 if (expr->GetExprKind() == CHIR::ExprKind::FIELD) {
