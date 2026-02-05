@@ -63,3 +63,12 @@ public open class P1_REOPEN_C6 <: P1_VISIABLE_C1 {
 public open class P1_CLOSE_C7 <: P1_VISIABLE_C1 {
     public func C1_PUBLIC_F1(): Unit {}
 }
+
+public abstract class P1_ABSTRACT_C1 {
+    public func C1_ABSTRACT_F1(): Unit
+    public prop C1_ABSTRACT_P1: Int32
+    public func C1_ABSTRACT_F2(): Unit {}
+    public prop C1_ABSTRACT_P2: Int32 {
+        get() { 0 }
+    }
+}
