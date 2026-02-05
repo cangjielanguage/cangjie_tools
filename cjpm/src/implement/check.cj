@@ -106,6 +106,15 @@ func dealWithSuperPkg(dm: DepModel): Bool {
         dm.superPkgMap.remove(notSupport)
     }
 
+    if (!checkAllModuleCombined(dm, notSupportSet)) {
+        return false
+    }
+
+    dm.checkSuperPkgDep()
+    true
+}
+
+func checkAllModuleCombined(dm: DepModel, notSupportSet: HashSet<String>): Bool {
     if (!dm.superPkgMap.isEmpty() && !dm.globalConfig.isProjectCombine) {
         var flag = true
         for ((moduleName, _) in dm.depRootMap) {
@@ -117,13 +126,10 @@ func dealWithSuperPkg(dm: DepModel): Bool {
                 flag = false
             }
         }
-        if (!flag) {
-            return flag
-        }
+        return flag
     }
 
-    dm.checkSuperPkgDep()
-    true
+    return true
 }
 
 public func doCheck(memberModule: String, testCheck: Bool): Bool {
