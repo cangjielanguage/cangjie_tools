@@ -109,7 +109,6 @@ std::unique_ptr<CJLintCompilerInstance> CJLintCompilerInvocation::PrePareCompile
     invocation->globalOptions.implicitPrelude = true;
     invocation->globalOptions.moduleSrcPath = commonPath;
     invocation->globalOptions.chirWFC = false;
-    invocation->globalOptions.disableInstantiation = true;
     invocation->globalOptions.parseTest = true;
     invocation->globalOptions.enableAddCommentToAst = true;
     auto cjoPath = configContext.GetCjoPath();
