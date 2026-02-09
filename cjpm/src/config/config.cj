@@ -618,7 +618,7 @@ public struct PackageList {
 public enum CjcParallelConfig {
     | Default
     | Heuristic
-    | Spicific(Int64)
+    | Specific(Int64)
 }
 
 public class BuildConfig <: CommandConfig {

@@ -120,7 +120,7 @@ func checkBuildConfiguration(tomlInfo: TomlInfo, buildConfig: BuildConfig): Bool
                 "in '${Path(buildConfig.globalConfig.modulePath).join(CONFIG_FILE_NAME).toString()}'")
             return false
         }
-        buildConfig.cjcJobs = CjcParallelConfig.Spicific(cjcJobs)
+        buildConfig.cjcJobs = CjcParallelConfig.Specific(cjcJobs)
     } else if (tomlInfo.profile.build.heuristic) {
         buildConfig.cjcJobs = CjcParallelConfig.Heuristic
     }

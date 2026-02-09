@@ -821,7 +821,7 @@ func specifyCjcJobs(args: ArrayList<String>, cjcParallelConfig: CjcParallelConfi
         case CjcParallelConfig.Heuristic =>
             let jobs = calculateParallel(CUR_PARALLEL_SIZE.load())
             args.add("-j${jobs}", at: 0)
-        case CjcParallelConfig.Spicific(v) =>
+        case CjcParallelConfig.Specific(v) =>
             args.add("-j${v}", at: 0)
     }
 }
