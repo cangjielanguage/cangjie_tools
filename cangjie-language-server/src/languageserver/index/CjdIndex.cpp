@@ -88,9 +88,8 @@ void CjdIndexer::ParsePackageDependencies()
     // 2. parse package dependencies
     Trace::Log("ParsePackageDependencies start");
     for (auto &item: pkgMap) {
-        // LCOV_EXCL_START
-        auto ci = std::make_unique<DCompilerInstance>(
-                callback, *item.second->compilerInvocation, *item.second->diag, item.first);
+        auto ci = std::make_unique<DCompilerInstance>(callback, *item.second->compilerInvocation,
+                CompilerCangjieProject::GetInstance()->GetDiagnosticEngine(), item.first);
         ci->cangjieHome = CompilerCangjieProject::GetInstance()->GetModulesHome();
         ci->loadSrcFilesFromCache = true;
         ci->SetBufferCache(item.second->bufferCache);

@@ -49,11 +49,12 @@ std::tuple<std::string, std::string> GetFullPackageNames(const ImportSpec& impor
 }
 
 LSPCompilerInstance::LSPCompilerInstance(ark::Callbacks *cb, CompilerInvocation &invocation,
-                                         DiagnosticEngine &diag, std::string realPkgName,
+                                         std::unique_ptr<DiagnosticEngine> diag, std::string realPkgName,
                                          const std::unique_ptr<ark::ModuleManager> &moduleManger)
-    : CompilerInstance(invocation, diag), callback(cb), pkgNameForPath(std::move(realPkgName)),
+    : CompilerInstance(invocation, *diag), callback(cb), pkgNameForPath(std::move(realPkgName)),
       moduleManger(moduleManger)
 {
+    this->diagOwned = std::move(diag);
     (void)ExecuteCompilerApi("SetSourceCodeImportStatus", &ImportManager::SetSourceCodeImportStatus,
                              &importManager, false);
 }
@@ -234,7 +235,7 @@ void LSPCompilerInstance::CompilePassForComplete(
     const auto filePath = GetSourceManager().GetSource(pos.fileID).path;
     auto file = GetFileByPath(filePath).get();
     // If the position is not in ImportSpec, do not need to ImportPackage.
-    if (file && !ark::InImportSpec(*file, pos) && name != "SignatureHelp") {
+    if (file && !ark::InImportSpec(*file, pos)) {
         return;
     }
     ImportCjoToManager(cjoManager, graph);

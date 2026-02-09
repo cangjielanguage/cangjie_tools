@@ -20,9 +20,9 @@ namespace Cangjie {
 // LCOV_EXCL_START
 class DCompilerInstance final : public LSPCompilerInstance {
 public:
-    explicit DCompilerInstance(
-            ark::Callbacks *cb, CompilerInvocation &invocation, DiagnosticEngine &diag, const std::string& pkgName)
-        : LSPCompilerInstance(cb, invocation, diag, pkgName, moduleMgr)
+    explicit DCompilerInstance(ark::Callbacks *cb, CompilerInvocation &invocation,
+        std::unique_ptr<DiagnosticEngine> diag, const std::string& pkgName)
+        : LSPCompilerInstance(cb, invocation, std::move(diag), pkgName, moduleMgr)
     {
     }
 

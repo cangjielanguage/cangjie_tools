@@ -7,7 +7,9 @@
 #ifndef LSPSERVER_THRDPOOL_H
 #define LSPSERVER_THRDPOOL_H
 
+#include <cstddef>
 #include <functional>
+#include <memory>
 #include <queue>
 #include <thread>
 #include <unordered_set>
@@ -24,7 +26,11 @@ namespace ark {
  */
 class ThrdPool {
 public:
-    using Task = std::function<void()>;
+    struct Task {
+        std::function<void()> task;
+        uint64_t id;
+        bool running = false;
+    };
 #ifdef __APPLE__
     explicit ThrdPool(const size_t threads) : stop(false)
     {
@@ -50,17 +56,18 @@ public:
         for (size_t i = 0; i < threads; ++i) {
             workers.emplace_back([this] {
                 for (;;) {
-                    std::function<void()> task;
+                    std::shared_ptr<Task> task = nullptr;
                     {
                         std::unique_lock<std::mutex> lock(this->queueMu);
                         this->cv.wait(lock, [this] { return this->stop || !this->readyTasks.empty(); });
                         if (this->stop && this->readyTasks.empty()) {
                             return;
                         }
-                        task = std::move(this->readyTasks.front());
+                        task = this->readyTasks.front();
+                        task->running = true;
                         this->readyTasks.pop();
                     }
-                    task();
+                    task->task();
                 }
             });
         }
@@ -70,16 +77,16 @@ public:
     template <class F, class... Args>
     void AddTask(const uint64_t taskId, const std::unordered_set<uint64_t> &dependencies, F &&func, Args &&...args)
     {
-        {
-            std::unique_lock<std::mutex> lock(queueMu);
-            ++tasksRemaining; // Increment the count of remaining tasks
+        std::shared_ptr<Task> task = std::make_unique<Task>(Task{std::bind(std::forward<F>(func)), taskId});
+        if (!task) {
+            return;
         }
 
-        using TaskType = std::function<void()>;
-        TaskType task = std::bind(std::forward<F>(func), std::forward<Args>(args)...);
-
         {
             std::unique_lock<std::mutex> lock(queueMu);
+            if (taskMap.find(taskId) == taskMap.end()) {
+                 ++tasksRemaining; // Increment the count of remaining tasks
+            }
             taskMap[taskId] = task;
 
             for (uint64_t dep : dependencies) {
@@ -97,6 +104,10 @@ public:
     void TaskCompleted(const uint64_t taskId, bool inPool = true)
     {
         std::unique_lock<std::mutex> lock(queueMu);
+        if (taskMap.find(taskId) == taskMap.end() || (taskMap[taskId] && !taskMap[taskId]->running)) {
+            return;
+        }
+
         for (uint64_t dep : dependentTasks[taskId]) {
             taskDependencies[dep].erase(taskId);
             if (taskDependencies[dep].empty()) {
@@ -147,17 +158,18 @@ private:
         void operator()()
         {
             for (;;) {
-                std::function<void()> task;
+                std::shared_ptr<Task> task = nullptr;
                 {
                     std::unique_lock<std::mutex> lock(pool_->queueMu);
                     pool_->cv.wait(lock, [this] { return pool_->stop || !pool_->readyTasks.empty(); });
                     if (pool_->stop && pool_->readyTasks.empty()) {
                         return;
                     }
-                    task = std::move(pool_->readyTasks.front());
+                    task = pool_->readyTasks.front();
+                    task->running = true;
                     pool_->readyTasks.pop();
                 }
-                task();
+                task->task();
             }
         }
 
@@ -177,10 +189,10 @@ private:
 #else
     std::vector<std::thread> workers;
 #endif
-    std::unordered_map<uint64_t, Task> taskMap;
+    std::unordered_map<uint64_t, std::shared_ptr<Task>> taskMap;
     std::unordered_map<uint64_t, std::unordered_set<uint64_t>> taskDependencies;
     std::unordered_map<uint64_t, std::unordered_set<uint64_t>> dependentTasks;
-    std::queue<Task> readyTasks;
+    std::queue<std::shared_ptr<Task>> readyTasks;
     std::mutex queueMu;
     std::condition_variable cv;
     std::condition_variable completionCv;
