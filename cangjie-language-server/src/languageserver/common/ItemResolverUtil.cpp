@@ -5,9 +5,12 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include <string>
+#include "cangjie/AST/Node.h"
+#include "cangjie/AST/Types.h"
 #include "cangjie/Basic/Match.h"
 #include "../logger/Logger.h"
 #include "Utils.h"
+#include "cangjie/Utils/CastingTemplate.h"
 #include "ItemResolverUtil.h"
 
 using namespace Cangjie;
@@ -21,6 +24,11 @@ bool CheckSourceType(Ptr<Cangjie::AST::Type> type)
     }
     std::unordered_set<ASTKind> sourceTypes = {ASTKind::TUPLE_TYPE};
     return sourceTypes.find(type->astKind) != sourceTypes.end();
+}
+
+bool StartsWith(const std::string& str, const std::string prefix)
+{
+    return (str.rfind(prefix, 0) == 0);
 }
 } // namespace
 
@@ -1624,6 +1632,20 @@ void ItemResolverUtil::DealTypeDetail(std::string &detail, Ptr<Cangjie::AST::Typ
         return;
     }
     auto typeString = FetchTypeString(*type);
+    if (type && type->astKind == ASTKind::REF_TYPE && StartsWith(typeString, "Range")) {
+        auto refTye = DynamicCast<RefType>(type);
+        if (!refTye || refTye->typeArguments.empty()) {
+            detail += typeString;
+            return;
+        }
+        std::string typeName = refTye->ref.identifier.Val();
+        auto paramType = DynamicCast<RefType>(refTye->typeArguments.begin()->get());
+        if (paramType) {
+            auto paramName = paramType->ref.identifier.Val();
+            detail += (typeName + "<" + paramName + ">");
+            return;
+        }
+    }
     if (CheckSourceType(type) || typeString == "UnknownType") {
         AddTypeByNodeAndType(detail, filePath, type, sourceManager);
         return;
@@ -1658,11 +1680,9 @@ bool ItemResolverUtil::IsCustomAnnotation(const Cangjie::AST::Decl &decl)
 
 void ItemResolverUtil::DealAliasType(Ptr<Cangjie::AST::Type> type, std::string &detail)
 {
-    // if (!type || !Ty::IsInitialTy(type->aliasTy)) { return false; }
     if (!type || !type->aliasTy) {
         return;
     }
-    // detail += ": ";
     if (type->astKind == ASTKind::TUPLE_TYPE) {
         auto tupleType = DynamicCast<TupleType>(type.get());
         if (!tupleType) {
@@ -1703,22 +1723,31 @@ void ItemResolverUtil::DealAliasType(Ptr<Cangjie::AST::Type> type, std::string &
         detail += name;
         return;
     }
+    if (type->astKind == ASTKind::REF_TYPE && (type->ty && type->ty->kind == Cangjie::AST::TypeKind::TYPE_VARRAY)) {
+        detail += GetTypeString(*type);
+        return;
+    }
     auto typeName = type->ToString();
-    auto typeName2 = type->aliasTy->name;
-
     detail += typeName;
-    // GetInitializerInfo(detail, decl, sourceManager, true);
     return;
 }
 
 std::string ItemResolverUtil::GetTypeString(const Cangjie::AST::Type &type)
 {
-    if (type.ty == nullptr) {
-        return "";
-    }
-
     std::string identifier{};
-    return Meta::match(type)([](const RefType &type) { return type.ref.identifier.Val(); },
+    return Meta::match(type)(
+        [](const RefType &type) { 
+            if (type.ty && type.ty->kind == Cangjie::AST::TypeKind::TYPE_VARRAY && !type.typeArguments.empty()) {
+                auto paramType = type.typeArguments.begin()->get();
+                auto varrayTy = DynamicCast<VArrayTy>(type.ty);
+                if (!varrayTy || !paramType) {
+                    return type.ref.identifier.Val();
+                }
+                auto name = "VArray<" + GetTypeString(*paramType) + ", $" + std::to_string(varrayTy->size) + ">";
+                return name;
+            }
+            return type.ref.identifier.Val(); 
+        },
         [](const Cangjie::AST::Type &type) {
             auto name = type.ToString();
             return name;
