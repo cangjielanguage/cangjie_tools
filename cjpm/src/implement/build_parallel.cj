@@ -232,13 +232,10 @@ class ParallelBuilder {
         let logger = BoundedFileLogger(taskMap.size)
         logger.start()
 
-        let cjoFlagFiles = HashSet<String>()
-        let collectCjoFlagFiles = { file => cjoFlagFiles.add(file) }
-
         let (cjo2Task, listenDirs) = getCjo2TaskAndListenDirs()
 	    let watchFSFuture = spawn { =>
             if (buildConfig.isCompilePipelineParallel) {
-                watchFS(cjo2Task, listenDirs, notify, collectCjoFlagFiles, buildConfig.isVerbose)
+                watchFS(cjo2Task, listenDirs, notify, buildConfig.isVerbose)
             }
         }
 
@@ -335,8 +332,8 @@ class ParallelBuilder {
         }
         watchFSFuture.get()
 
-        for (file in cjoFlagFiles) {
-            if (!deleteFile(file)) {
+        for ((cjoFlagFile, _) in cjo2Task) {
+            if (!deleteFile(cjoFlagFile)) {
                 buildResult = false
             }
         }
@@ -872,7 +869,7 @@ var watcherCb: (String) -> Unit = { _ => }
 
 @When[(os != "iOS") && (env != "ohos") && (env != "android")]
 func watchFS(cjo2task: HashMap<String, TaskIdentifier>, listenDirs: HashSet<String>,
-    notify: (TaskIdentifier, Notification) -> Unit, collectCjoFlagFiles: (String) -> Bool, verbose: Bool): Unit {
+    notify: (TaskIdentifier, Notification) -> Unit, verbose: Bool): Unit {
     let dirs = StringBuilder()
     for (dir in listenDirs) {
         if (!exists(dir)) {
@@ -880,10 +877,7 @@ func watchFS(cjo2task: HashMap<String, TaskIdentifier>, listenDirs: HashSet<Stri
         }
         dirs.append("${dir},")
     }
-    watcherCb = { cjo =>
-        collectCjoFlagFiles(cjo)
-        notify(cjo2task[cjo], CjoReady) 
-    }
+    watcherCb = { cjo => notify(cjo2task[cjo], CjoReady) }
     unsafe {
         let cs = LibC.mallocCString(dirs.toString())
         let res = initFSWatcher(cs, { cjo => watcherCb(cjo.toString()) }, verbose)
@@ -897,7 +891,7 @@ func watchFS(cjo2task: HashMap<String, TaskIdentifier>, listenDirs: HashSet<Stri
 
 @When[(os == "iOS") || (env == "ohos") || (env == "android")]
 func watchFS(_: HashMap<String, TaskIdentifier>, _: HashSet<String>,
-    _: (TaskIdentifier, Notification) -> Unit, _: (String) -> Bool, verbose: Bool): Unit {}
+    _: (TaskIdentifier, Notification) -> Unit, verbose: Bool): Unit {}
 
 @When[(os != "iOS") && (env != "ohos") && (env != "android")]
 func stopWatchFS(isVerbose: Bool): Unit {
