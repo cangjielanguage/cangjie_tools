@@ -13,6 +13,17 @@ public func replaceNativeInfo(oriInfo: TargetInfo, newInfo: TargetInfo): Unit {
     return
 }
 
+public func makeTargetMacroName(fileName: String, target: String): String {
+    let processedFileName = swapOrgName(fileName)
+    if (target.contains("mingw32") || target.contains("windows-gnu")) {
+        return "lib-macro_${processedFileName}.dll"
+    } else if (target.contains("apple-ios") || target.contains("darwin")) {
+        return "lib-macro_${processedFileName}.dylib"
+    } else {
+        return "lib-macro_${processedFileName}.so"
+    }
+}
+
 public func makeTargetDylibName(fileName: String, target: String): String {
     let processedFileName = swapOrgName(fileName)
     if (target.contains("mingw32") || target.contains("windows-gnu")) {

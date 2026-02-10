@@ -52,7 +52,6 @@ class DepModel {
     public var sourceCodePkgList: ArrayList<String> = ArrayList<String>()
     // Record all module.json information.
     public var jsonMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
-    public var pkgCacheMap: HashMap<String, CacheItem> = HashMap<String, CacheItem>()
     let packageMtx: Mutex = Mutex()
     let errPrintMtx: Mutex = Mutex()
     let scanCjoMtx: Mutex = Mutex()
@@ -1144,7 +1143,7 @@ class DepModel {
                     pkgInfo.hasTestFiles = pkg.hasTestFiles
                     pkgInfo.features = features
                     pkgInfo.featureDeducer = deducer
-                    let (flag, mockUsed) = runPackageTask(pkgInfo, pkg.hashCode, pkg.timeStamp, directDeps)
+                    let (flag, mockUsed) = runPackageTask(pkgInfo, directDeps)
                     scanDepSem.release()
                     return (flag, mockUsed)
                 })
@@ -1165,8 +1164,7 @@ class DepModel {
         return (checkSuccessful, mockUsed)
     }
 
-    func runPackageTask(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64,
-        directDeps: HashSet<String>): BuildCheckResult {
+    func runPackageTask(pkgInfo: ResolveItem, directDeps: HashSet<String>): BuildCheckResult {
 
         let info = getPackageInfo(pkgInfo.packagePath, pkgInfo.compileOption, pkgInfo.customizedOption, timeStamp) ??
             return FAILED_BUILD_CHECK_RESULT
@@ -1181,7 +1179,7 @@ class DepModel {
         if (!packageCheck(pkgInfo)) {
             return FAILED_BUILD_CHECK_RESULT
         }
-        if (!appendPkgInfo(pkgInfo, fileNameHash, timeStamp)) {
+        if (!appendPkgInfo(pkgInfo)) {
             synchronized(this.errPrintMtx) {
                 eprintln("Error: different package with same name '${pkgInfo.fullName}' is not supported")
             }
@@ -1265,13 +1263,12 @@ class DepModel {
         return isValid
     }
 
-    func appendPkgInfo(pkgInfo: ResolveItem, fileNameHash: String, timeStamp: Int64): Bool {
+    func appendPkgInfo(pkgInfo: ResolveItem): Bool {
         synchronized(this.packageMtx) {
             if (this.sourceCodePkgList.contains(pkgInfo.fullName)) {
                 return false
             }
             this.sourceCodePkgList.add(pkgInfo.fullName)
-            this.pkgCacheMap[pkgInfo.fullName] = CacheItem(pkgInfo.rootPkgName, fileNameHash, timeStamp)
         }
         return true
     }
@@ -1501,26 +1498,16 @@ func getAllPkgs(srcDir: CJMPSource, rootPkgName: String): Array<PackageInfo> {
 func initPackageInfo(pkgDir: CJMPSource): Result<PackageInfo, String> {
     var hasTestFile = false
     var hasProdFile = false
-    var fileList = ArrayList<String>()
-    var timeStamp: Int64 = Int64.Min
     for (fileInfo in pkgDir.files()) {
         let path = canonicalize(fileInfo.path)
         if (path.fileName.endsWith("_test.cj")) {
             hasTestFile = true
-            fileList.add(path.toString())
-            timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
         } else if (path.extensionName == "cj") {
             hasProdFile = true
-            fileList.add(path.toString())
-            timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
         }
     }
     if (hasTestFile || hasProdFile) {
-        sort(fileList, by: cmpStr, stable: true)
-        return Ok(PackageInfo(
-            pkgDir, bufferHashCode(fileList),
-            timeStamp, hasTestFile, hasProdFile
-        ))
+        return Ok(PackageInfo(pkgDir, hasTestFile, hasProdFile))
     }
     if (pkgDir.allPaths.size == 1) {
         return Err("Warning: there is no '.cj' file in directory '${pkgDir.allPaths[0]}', and its subdirectories will not be scanned as source code")
