@@ -48,6 +48,7 @@ add_subdirectory(featureTest/typeHierarchy)
 add_subdirectory(featureTest/breakpoints)
 add_subdirectory(featureTest/callHierarchy)
 add_subdirectory(featureTest/codeLens)
+add_subdirectory(unitTests)
 
 # Add test main file
 add_executable(gtest_LSPServer_test main.cpp)
@@ -77,6 +78,7 @@ target_link_libraries(gtest_LSPServer_test
     BreakpointsTest
     CallHierarchyTest
     CodeLensTest
+    UnitTests
     Common
     libflatbuffers.a
     ffi

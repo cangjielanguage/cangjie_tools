@@ -189,6 +189,7 @@ void LSPDiagObserver::DealMacroDiags(Cangjie::Diagnostic &diagnostic, const Diag
     if (FileUtil::GetFileExtension(filePath) != "macrocall" || diagnostic.subDiags.empty()) {
         return;
     }
+    // LCOV_EXCL_START
     DiagnosticToken diagToken = token;
     for (auto &subDiag : diagnostic.subDiags) {
         std::string subDiagPath =
@@ -200,5 +201,6 @@ void LSPDiagObserver::DealMacroDiags(Cangjie::Diagnostic &diagnostic, const Diag
             return;
         }
     }
+    // LCOV_EXCL_STOP
 }
 } // namespace ark

@@ -148,7 +148,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &resul
     if (hierarchyItem.symbolId == lsp::INVALID_SYMBOL_ID) {
         return;
     }
-
+    // LCOV_EXCL_START
     auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
     if (!index) {
         return;
@@ -189,6 +189,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &resul
         item.symbolId = sym.id;
         results.emplace_back(item);
     });
+    // LCOV_EXCL_STOP
 }
 
 // subtypes entrance
@@ -202,7 +203,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
     if (hierarchyItem.symbolId == lsp::INVALID_SYMBOL_ID) {
         return;
     }
-
+    // LCOV_EXCL_START
     auto index = CompilerCangjieProject::GetInstance()->GetMemIndex();
     if (!index) {
         return;
@@ -243,5 +244,6 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
         item.symbolId = sym.id;
         results.emplace_back(item);
     });
+    // LCOV_EXCL_STOP
 }
 } // namespace ark

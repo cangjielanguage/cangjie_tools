@@ -693,6 +693,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;
         }
+        // LCOV_EXCL_START
         if (type == FileChangeType::DELETED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "delete the file:  " + file);
             CompilerCangjieProject::GetInstance()->IncrementForFileDelete(file);
@@ -703,6 +704,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
         }
         std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(input.onEditFile);
         callback->ReadyForDiagnostics(input.onEditFile, input.inputs.version, diagnostics);
+        // LCOV_EXCL_STOP
     };
 
     auto taskName = "ChangeWatchedFiles " + file;

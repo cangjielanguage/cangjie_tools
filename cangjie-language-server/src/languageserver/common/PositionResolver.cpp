@@ -45,13 +45,17 @@ bool IsUTF8(const std::string &str)
 
 std::basic_string<char32_t> UTF8ToChar32(const std::string &str)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
         return conv.from_bytes(str);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception& e) {
         // deal with illegal utf-8 string
         return std::u32string();
     }
+#endif
 }
 
 std::string Char32ToUTF8(const std::basic_string<char32_t>& str)
