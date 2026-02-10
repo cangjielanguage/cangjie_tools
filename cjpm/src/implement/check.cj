@@ -74,9 +74,16 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
 
 func dealWithSuperPkg(dm: DepModel, isProjectCombine: Bool): Bool {
     let notSupportSet = HashSet<String>()
+    var superPkgInValidFlag = false;
     for ((superPkgName, superPkgCfg) in dm.superPkgMap) {
+        if (!dm.packageDepMap.contains(superPkgName)) {
+            superPkgInValidFlag = true;
+            eprintln("Error: field 'profile.build.combined' is not supported for root package '${superPkgName}' " +
+                "which contain no source code for compilation")
+            continue
+        }
         if (dm.packageDepMap[superPkgName].isMacroPackage) {
-            println("Warning: field 'profile.build.combined' is not supported for macro root package ${superPkgName}")
+            println("Warning: field 'profile.build.combined' is not supported for macro root package '${superPkgName}'")
             notSupportSet.add(superPkgName)
             continue
         }
@@ -102,6 +109,9 @@ func dealWithSuperPkg(dm: DepModel, isProjectCombine: Bool): Bool {
                 "final output will be dynamic library")
             dm.packageDepMap[superPkgName].outputType = Dynamic
         }
+    }
+    if (superPkgInValidFlag) {
+        return false
     }
     for (notSupport in notSupportSet) {
         dm.superPkgMap.remove(notSupport)
