@@ -188,10 +188,11 @@ public class EnvironmentBuilder {
         }
 
         if (let Some(varname) <- metPath) {
-            let tmp = result[varname]
-            result["PATH"] = tmp
-            result["path"] = tmp
-            result["Path"] = tmp
+             if (let Some(tmp) <- result.get(varname)) {
+                result["PATH"] = tmp
+                result["path"] = tmp
+                result["Path"] = tmp
+            }
         }
 
         result
