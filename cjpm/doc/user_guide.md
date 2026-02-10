@@ -1020,7 +1020,7 @@ hello = { path = "./src/" }
 
 ```text
 [profile.build]
-lto = "full"  # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on `Linux` platforms.
+lto = "full"  # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on target platforms of `Linux/OHOS`.
 incremental = true # Whether to enable incremental compilation by default
 ```
 
@@ -1072,7 +1072,7 @@ Test configuration supports specifying options for compiling and running test ca
 Used to specify supported compilation options, including:
 
 - `compile-option`: A string containing additional `cjc` compilation options, supplementing the top-level `compile-option` field.
-- `lto`: Specifies whether to enable `LTO` optimization compilation mode, with values `thin` or `full`. This feature is only supported on `Linux` platforms.
+- `lto`: Specifies whether to enable `LTO` optimization compilation mode, with values `thin` or `full`. This feature is only supported on target platforms of `Linux/OHOS`.
 - `mock`: Explicitly sets the `mock` mode, with possible options: `on`, `off`, `runtime-error`. The default value for `test`/`build` subcommands is `on`, and for `bench` subcommands, it is `runtime-error`.
 
 #### "profile.test.env"
