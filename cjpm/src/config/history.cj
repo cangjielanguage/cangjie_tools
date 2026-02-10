@@ -11,7 +11,8 @@ import std.fs.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 
-import std.env.getVariable
+@When[os == "macOS"]	 
+import std.env.*
 
 const PACKAGE_REQUIRES = "package-requires"
 const NATIVE_COMPILE_OPTION = "native-compile-option"
@@ -347,15 +348,7 @@ public func getExtraRuntimePaths(): Array<String> {
     return Array<String>()
 }
 
-@When[os == "Windows"]
-public func getExtraRuntimePaths(): Array<String> {
-    if (let Some(cangjieHome) <- getVariable("CANGJIE_HOME")) {
-        return [Path(cangjieHome).join("runtime").join("lib").join("windows_x86_64_cjnative").toString()]
-    }
-    return Array<String>()
-}
-
-@When[os == "Linux"]
+@When[os != "macOS"]
 public func getExtraRuntimePaths(): Array<String> {
     Array<String>()
 }
