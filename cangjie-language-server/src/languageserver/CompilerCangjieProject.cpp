@@ -328,7 +328,11 @@ void CompilerCangjieProject::IncrementCompile(const std::string &filePath, const
     if (cycles.second) {
         ReportCircularDeps(cycles.first);
     }
-    EmitDiagsOfFile(filePath);
+    if (isDelete) {
+        callback->RemoveDocByFile(filePath);
+    } else {
+        EmitDiagsOfFile(filePath);
+    }
 
     // 4. build symbol index
     if (CompilerCangjieProject::GetInstance() && CompilerCangjieProject::GetInstance()->GetBgIndexDB()) {
