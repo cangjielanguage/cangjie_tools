@@ -1159,10 +1159,7 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     for (forcedLib in compileTask.subPkgSet) {
         forcedLibSet.add(all: getDepSet(forcedLib, buildConfig))
     }
-    for (depName in forcedLibSet) {
-        if (linkSort.contains(depName)) {
-            continue
-        }
+    for (depName in forcedLibSet where !linkSort.contains(depName)) {
         if (buildConfig.superPkgMap.contains(compileTask.fullName) &&
             buildConfig.superPkgMap.contains(depName.split(".")[0]) &&
             compileTask.fullName != depName.split(".")[0]) {
@@ -1177,21 +1174,19 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
         }
         let libPath = Path(compileTask.targetDir).join(depRootName).toString()
         let linkArray: ArrayList<String> = forcedLinkPackage(depName, libPath, compileTask.isLto)
-        if (linkArray.size <= 1) {
+        if (linkArray.size <= 1 || libPathSet.add(libPath)) {
             allOptions.add(all: linkArray)
-            binDepSet.add(all: getDepSet(depName, buildConfig))
-            continue
-        }
-        if (libPathSet.contains(libPath)) {
-            allOptions.add(linkArray[linkArray.size - 1])
         } else {
-            allOptions.add(all: linkArray)
-            libPathSet.add(libPath)
+            allOptions.add(linkArray[linkArray.size - 1])
         }
-
         binDepSet.add(all: getDepSet(depName, buildConfig))
     }
 
+    // If a binary artifact is depended by the main package directly or indirectly, it will be collected by `getBuildArgs`.
+    // But if it's also depended by a child package which is not depended by the main package directly or indirectly,
+    // it will be added into `binDepSet`.
+    // So we should remove it from `binDepSet` because we only need link it once.
+    binDepSet.remove(all: linkSort)
     allOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet, cLibNameList))
     addForcedLibArgs(res, allOptions, compileTask.target)
     if (let Some(stdLinks) <- addStdLibsLink(compileTask.target)) {
