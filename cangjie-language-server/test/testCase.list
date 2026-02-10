@@ -248,6 +248,7 @@
 {"completion":{"testFile":"LSP_Completion_PkgAlias_001.test","id":"19"}}
 {"completion":{"testFile":"LSP_Completion_PkgAlias_002.test","id":"19"}}
 {"completion":{"testFile":"LSP_Completion_ImportAs_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_EnumConstructor_001.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
