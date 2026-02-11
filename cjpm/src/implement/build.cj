@@ -1228,6 +1228,11 @@ func getForcedLibArgs(resolveConfig: ResolveConfig, superPkgCfg: SuperPackageCon
             isForMacroRequire: buildConfig.packageList.macros.contains(depName)))
     }
 
+    // If a binary artifact is depended by the main package directly or indirectly, it will be collected by `getBuildArgs`.
+    // But if it's also depended by a child package which is not depended by the main package directly or indirectly,
+    // it will be added into `binDepSet`.
+    // So we should remove it from `binDepSet` because we only need link it once.
+    binDepSet.remove(all: linkSort)
     allOptions.add(all: getForcedBinDep(buildConfig, binDepSet, cLibNameList, isNativeForCross))
 
     var compileTarget: String = targetConfigName
