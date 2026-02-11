@@ -1150,6 +1150,13 @@ void ArkLanguageServer::RemoveDiagOfCurPkg(const std::string& dirName)
     }
 }
 
+void ArkLanguageServer::RemoveDiagOfCurFile(const std::string& filePath)
+{
+    std::lock_guard<std::mutex> lock(fixItsMutex);
+    std::string normalizeFilePath = NormalizePath(filePath);
+    (void)fixItsMap.erase(normalizeFilePath);
+}
+
 void ArkLanguageServer::UpdateDiagnostic(std::string file, DiagnosticToken diagToken)
 {
     std::lock_guard<std::mutex> lock(fixItsMutex);
