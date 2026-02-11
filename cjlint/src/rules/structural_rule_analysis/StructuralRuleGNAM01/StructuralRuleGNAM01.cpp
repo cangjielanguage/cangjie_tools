@@ -38,7 +38,7 @@ using namespace Cangjie;
 using namespace AST;
 using namespace Meta;
 
-const std::string REGEX = "^[a-z_]+[a-z0-9_]*(\\.[a-z_][a-z0-9_]*)*$";
+const std::string REGEX = "^_?[a-z][a-z0-9_]*(\\._?[a-z][a-z0-9_]*)*$";
 
 /*
  * This method is used to check whether the package name complies with the regular expression.
