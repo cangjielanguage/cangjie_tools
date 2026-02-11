@@ -277,12 +277,14 @@ private:
     unsigned int filter = 0;
 
     bool isCompleteFunction = false;
-    
+
     SyscapCheck syscap;
 
     bool IsSignatureInItems(const std::string &name, const std::string &signature);
 
     void CompleteFunctionName(CodeCompletion &completion, bool isRawIdentifier);
+
+    bool IsInEnumConstructor(OwnedPtr<Decl>& constor, Position pos);
 };
 
 using StatusFunc = void (ark::CompletionEnv::*)(Ptr<Node>, Position);
