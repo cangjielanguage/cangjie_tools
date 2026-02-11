@@ -56,7 +56,7 @@ void ArkASTWorker::Update(const ParseInputs &inputs, NeedDiagnostics needDiag)
         callback->ReadyForDiagnostics(realName, inputs.version, diagnostics);
     };
 
-    StartTask(taskName, std::move(task), needDiag);
+    StartTask(taskName, std::move(task), needDiag, "");
 }
 
 void ArkASTWorker::Run()
@@ -133,21 +133,22 @@ void ArkASTWorker::Stop() noexcept
     }
 }
 
-void ArkASTWorker::StartTask(std::string name, std::function<void()> task, NeedDiagnostics needDiag)
+void ArkASTWorker::StartTask(std::string name, std::function<void()> task,
+    NeedDiagnostics needDiag, std::string filePath)
 {
     {
         std::lock_guard<std::mutex> lock(mutex);
 
         // remove old request with the same name
         requests.erase(
-            std::remove_if(requests.begin(), requests.end(), [&name](const Request& req) {
-                return req.name == name;
+            std::remove_if(requests.begin(), requests.end(), [&name, &filePath](const Request& req) {
+                return req.name == name && req.filePath == filePath;
             }),
             requests.end()
         );
 
         // Allow this request to be cancelled if invalidated.
-        requests.push_back({std::move(task), std::move(name), needDiag});
+        requests.push_back({std::move(task), std::move(name), filePath, needDiag});
     }
     requestsCV.notify_all();
 }
@@ -218,7 +219,7 @@ void ArkASTWorker::RunWithAST(const std::string &name,
         action(InputsAndAST{inputs, ast, curOnEditName, useASTCache});
     };
 
-    StartTask(name, std::move(task), needDiag);
+    StartTask(name, std::move(task), needDiag, file);
 }
 
 void ArkASTWorker::RunWithASTCache(
