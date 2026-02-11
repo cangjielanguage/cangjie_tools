@@ -13,6 +13,7 @@ import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 import stdx.compress.*
 import cjpm.config.*
+import stdx.crypto.common.CryptoException
 
 let README_FILE = "README.md"
 let README_ZH_FILE = "README_zh.md"
@@ -53,6 +54,7 @@ public func doBundle(bundleConfig: BundleConfig): Bool {
         tomlInfo.pkg.tag,
         tomlInfo.pkg.category,
         tomlInfo.pkg.license,
+        tomlInfo.pkg.cjcVersion,
         ArtifactIndex(
             tomlInfo.pkg.organization,
             tomlInfo.pkg.name,
@@ -216,7 +218,17 @@ func compressCjp(bundleConfig: BundleConfig, tomlInfo: TomlInfo, metaData: MetaD
     }
 
     // generate check sum
-    if (!metaData.index.genFileCheckSum(tarPath)) {
+    try {
+        if (!metaData.index.genFileCheckSum(tarPath)) {
+            eprintln("Error: failed to generate check-sum of artifact package '${tarPath}")
+            return false
+        }
+    } catch (e: CryptoException) { 
+        eprintln("Error: ${e.message}")
+        eprintln("Error: please ensure that openssl has been correctly installed and configured according to the \"Usage Instruction\" section of the documentation")
+        return false
+    } catch (e: Exception) {
+        eprintln("Error: ${e.message}")
         eprintln("Error: failed to generate check-sum of artifact package '${tarPath}")
         return false
     }
@@ -235,6 +247,11 @@ func compressCjp(bundleConfig: BundleConfig, tomlInfo: TomlInfo, metaData: MetaD
 func getBundleFileList(dir: String, fileSet: HashSet<String>, bundleConfig: BundleConfig, tomlInfo: TomlInfo): Unit {
     // deal with files
     for (fileInfo in getFileList(dir)) {
+        // hidden check
+        if (fileInfo.isHidden()) {
+            continue
+        }
+
         // binary check
         if (isBinary(fileInfo)) {
             continue
@@ -246,53 +263,61 @@ func getBundleFileList(dir: String, fileSet: HashSet<String>, bundleConfig: Bund
             removePrefix(PATH_SPLIT_CHAR).
             replace("\\", "/")
 
-        // cjpm.toml and README.md
-        if ((fileRelativePath == CONFIG_FILE_NAME) || (fileRelativePath == README_FILE) || (fileRelativePath == README_ZH_FILE)) {
+        if (shouldBundlePath(fileRelativePath, tomlInfo)) {
             fileSet.add(fileCanonicalPath)
-            continue
         }
-
-        // cjpm.lock && cangjie-repo.toml
-        if ((fileRelativePath == LOCK_FILE_NAME) || (fileRelativePath == REPO_CONFIG_FILE_NAME)) {
-            continue
-        }
-
-        // include check
-        var isInclude = false
-        for (rule in tomlInfo.pkg.includeRules) {
-            if (isPathIncluded(fileRelativePath, rule)) {
-                isInclude = true
-                break
-            }
-        }
-        if (!tomlInfo.pkg.includeRules.isEmpty() && !isInclude) {
-            continue
-        }
-
-        // exclude check
-        isInclude = true
-        for (rule in tomlInfo.pkg.excludeRules) {
-            if (isPathIncluded(fileRelativePath, rule)) {
-                isInclude = false
-                break
-            }
-        }
-        if (!isInclude) {
-            continue
-        }
-
-        // file is included
-        fileSet.add(fileCanonicalPath)
     }
 
     // deal with directories
     for (dirInfo in getDirectoryList(dir)) {
+        if (dirInfo.isHidden()) {
+            continue
+        }
+
         let dirPath = getCanonicalPath(dirInfo.path.toString())
         if ((dirPath == bundleConfig.targetDir) || (dirPath == bundleConfig.scriptDir)) {
             continue
         }
         getBundleFileList(dirPath, fileSet, bundleConfig, tomlInfo)
     }
+}
+
+func shouldBundlePath(fileRelativePath: String, tomlInfo: TomlInfo): Bool {
+    // cjpm.toml and README.md
+    if ((fileRelativePath == CONFIG_FILE_NAME) || (fileRelativePath == README_FILE) || (fileRelativePath == README_ZH_FILE)) {
+        return true
+    }
+
+    // cjpm.lock && cangjie-repo.toml
+    if ((fileRelativePath == LOCK_FILE_NAME) || (fileRelativePath == REPO_CONFIG_FILE_NAME)) {
+        return false
+    }
+
+    // include check
+    var isInclude = false
+    if (tomlInfo.pkg.includeRules.isEmpty()) {
+        isInclude = true
+    } else {
+        for (rule in tomlInfo.pkg.includeRules) {
+            if (isPathIncluded(fileRelativePath, rule)) {
+                isInclude = true
+                break
+            }
+        }
+    }
+    
+    if (!isInclude) {
+        return false
+    }
+
+    // exclude check
+    for (rule in tomlInfo.pkg.excludeRules) {
+        if (isPathIncluded(fileRelativePath, rule)) {
+            return false
+        }
+    }
+
+    return true
 }
 
 /*

@@ -8,6 +8,8 @@ package cjpm.implement
 
 import std.fs.*
 import cjpm.config.*
+import stdx.crypto.common.CryptoException
+import stdx.net.tls.common.TlsException
 
 func processRepoDependencyModule(name: String, version: String, modulePath: String): (Bool, String) {
     if (version.isEmpty()) {
@@ -50,26 +52,42 @@ public func setRepoRoot(installConfig: InstallConfig, artifact: String): Bool {
                 installConfig.globalConfig.targetDir = getPath(installConfig.globalConfig.rootPath, TARGET)
                 return true
             }
-            if (!depot.updateIndex(name, org)) {
-                return false
+            if (downloadArtifact(depot, name, org, params[1], installConfig)) {
+                installConfig.globalConfig.targetDir = getPath(installConfig.globalConfig.rootPath, TARGET)
+                return true
             }
-            let (result, output) = depot.download(name, org, params[1])
-            if (!result) {
-                eprintln("Error: ${output}")
-                return false
-            }
-            if (installConfig.verbose) {
-                println(output)
-            }
-            installConfig.globalConfig.targetDir = getPath(installConfig.globalConfig.rootPath, TARGET)
-            return true
+            return false
         } else {
             return false
         }
+    } catch (e: CryptoException | TlsException) {
+        eprintln("Error: ${e.message}")
+        eprintln("Error: please ensure that openssl has been correctly installed and configured according to the \"Usage Instruction\" section of the documentation")
+        return false
     } catch (e: Exception) {
-        println("Error: load module failed with network connection error")
+        eprintln("Error: ${e.message}")
+        if (e.message.contains("HttpEngine1#connect")) {
+            eprintln("Error: unable to connect to https server.") 
+        } else {
+            eprintln("Error: load module failed with network connection error") 
+        }
         return false
     }
+}
+
+func downloadArtifact(depot: Depot, name: String, org: String, version: String, installConfig: InstallConfig): Bool {
+    if (!depot.updateIndex(name, org)) {
+        return false
+    }
+    let (result, output) = depot.download(name, org, version)
+    if (!result) {
+        eprintln("Error: ${output}")
+        return false
+    }
+    if (installConfig.verbose) {
+        println(output)
+    }
+    return true
 }
 
 func loadModuleFromRepo(name: String, version: String): (Bool, String) {
@@ -99,8 +117,15 @@ func loadModuleFromRepo(fullName: String, version: String, depot: Depot): (Bool,
             return (false, output)
         }
         return (true, dependencyPath)
+    } catch (e: CryptoException | TlsException) {
+        eprintln("Error: ${e.message}")
+        eprintln("Error: please ensure that openssl has been correctly installed and configured according to the \"Usage Instruction\" section of the documentation")
+        return (false, "catch exception while downloading ${name}-${version} from central repository")
     } catch (e: Exception) {
-        eprintln(e.message)
+        eprintln("Error: ${e.message}")
+        if (e.message.contains("HttpEngine1#connect")) {
+            eprintln("Error: unable to connect to https server.")
+        }
         return (false, "catch exception while downloading ${name}-${version} from central repository")
     }
 }

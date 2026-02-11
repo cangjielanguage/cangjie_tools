@@ -19,6 +19,7 @@ import stdx.encoding.hex.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 import cjpm.config.*
+import stdx.crypto.common.CryptoException
 
 const CONNECT_TIMEOUT = 30
 const READ_TIMEOUT = 60
@@ -202,6 +203,10 @@ public class Depot {
             if (!checkSumFlag) {
                 return (false, "cannot find index data while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
             }
+        } catch (e: CryptoException) {
+            eprintln("Error: ${e.message}")
+            eprintln("Error: please ensure that openssl has been correctly installed and configured according to the \"Usage Instruction\" section of the documentation")
+            return (false, "failed to check sha256 check-sum due to missing OpenSSL")
         } catch (e: Exception) {
             return (false, "failed to check sha256 check-sum while downloading ${name}-${version} ${orgStr}, please try 'cjpm update'")
         }
