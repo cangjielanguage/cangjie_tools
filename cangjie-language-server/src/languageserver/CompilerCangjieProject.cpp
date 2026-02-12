@@ -1356,7 +1356,7 @@ void CompilerCangjieProject::ReleaseMemoryAsync() {
         (void) malloc_trim(0);
 #elif __APPLE__
         (void) malloc_zone_pressure_relief(malloc_default_zone(), 0);
-#endif  
+#endif
     };
     thrdPool->AddTask(taskId, {}, deleteTask);
 }

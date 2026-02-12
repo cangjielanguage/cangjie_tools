@@ -410,8 +410,9 @@ int CountUnicodeCharacters(const std::string& utf8Str)
     int twoByteOffset = 6;
     int threeByteOffset = 12;
     int fourByteOffset = 18;
+    int rawLength = utf8Str.length();
 
-    while (i < static_cast<int>(utf8Str.size())) {
+    while (i < rawLength) {
         auto ch = static_cast<unsigned char>(utf8Str[i]);
         unsigned int codepoint = 0;
 
@@ -419,23 +420,25 @@ int CountUnicodeCharacters(const std::string& utf8Str)
             // 1 byte char (ASCII)
             codepoint = ch;
             i += oneByte;
-        } else if ((ch & 0xE0) == 0xC0) {
+        } else if ((ch & 0xE0) == 0xC0 && (i + oneByte) < rawLength) {
             // 2 byte char
             codepoint = ((ch & 0x1F) << twoByteOffset) | (static_cast<unsigned char>(utf8Str[i + oneByte]) & 0x3F);
             i += twoByte;
-        } else if ((ch & 0xF0) == 0xE0) {
+        } else if ((ch & 0xF0) == 0xE0 && (i + twoByte) < rawLength) {
             // 3 byte char
             codepoint = ((ch & 0x0F) << threeByteOffset) |
                         ((static_cast<unsigned char>(utf8Str[i + oneByte]) & 0x3F) << twoByteOffset) |
                         (static_cast<unsigned char>(utf8Str[i + twoByte]) & 0x3F);
             i += threeByte;
-        } else if ((ch & 0xF8) == 0xF0) {
+        } else if ((ch & 0xF8) == 0xF0 && (i + threeByte) < rawLength) {
             // 4 byte char
             codepoint = ((ch & 0x07) << fourByteOffset) |
                         ((static_cast<unsigned char>(utf8Str[i + oneByte]) & 0x3F) << threeByteOffset) |
                         ((static_cast<unsigned char>(utf8Str[i + twoByte]) & 0x3F) << twoByteOffset) |
                         (static_cast<unsigned char>(utf8Str[i + threeByte]) & 0x3F);
             i += fourByte;
+        } else {
+            break;
         }
 
         // Proxy pairs count as 2 characters

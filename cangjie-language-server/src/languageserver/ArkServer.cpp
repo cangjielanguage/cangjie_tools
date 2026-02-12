@@ -84,7 +84,7 @@ void ArkServer::FindDocumentHighlights(const std::string &file, const TextDocume
         }
 
         DocumentHighlightImpl::FindDocumentHighlights(*(inputAST.ast), result, pos);
-        
+
         if (inputAST.useASTCache) {
             std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
             UpdateModifierDiag(inputAST, diagnostics, file);
@@ -651,19 +651,8 @@ void ArkServer::FindCompletion(const CompletionParams &params, const std::string
         reply(value);
     };
 
-    int fileId;
-    if (Options::GetInstance().IsOptionSet("test")) {
-        fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-    } else {
-        fileId = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
-    }
-    if (fileId < 0) {
-        nullValueReply();
-        return;
-    }
-
     Cangjie::Position pos = {
-        static_cast<unsigned int>(fileId),
+        static_cast<unsigned int>(0),
         params.position.line,
         params.position.column
     };
@@ -742,24 +731,9 @@ void ArkServer::FindSignatureHelp(const SignatureHelpParams &params, const std::
         ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
         reply(value);
     };
-    auto nullValueReply = [reply]() {
-        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-        reply(value);
-    };
- 
-    int fileId;
-    if (Options::GetInstance().IsOptionSet("test")) {
-        fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-    } else {
-        fileId = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
-    }
-    if (fileId < 0) {
-        nullValueReply();
-        return;
-    }
- 
+
     Cangjie::Position pos = {
-        static_cast<unsigned int>(fileId),
+        static_cast<unsigned int>(0),
         params.position.line,
         params.position.column
     };
