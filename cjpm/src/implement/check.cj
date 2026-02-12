@@ -72,6 +72,23 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
     return (dm, true, mockUsed)
 }
 
+func checkCombinedConfiguration(dm: DepModel, isProjectCombine: Bool, notSupportSet: HashSet<String>): Bool {
+    if (!dm.superPkgMap.isEmpty() && !isProjectCombine) {
+        var flag = true
+        for ((moduleName, _) in dm.depAnalysisEngine.finalDepMap) {
+            if (!dm.superPkgMap.contains(moduleName) &&
+                !notSupportSet.contains(moduleName) &&
+                dm.packageDepMap.contains(moduleName) &&
+                !dm.packageDepMap[moduleName].isMacroPackage) {
+                eprintln("Error: field 'profile.build.combined' must be configured to combine module '${moduleName}'")
+                flag = false
+            }
+        }
+        return flag
+    }
+    true
+}
+
 func dealWithSuperPkg(dm: DepModel, isProjectCombine: Bool): Bool {
     let notSupportSet = HashSet<String>()
     var superPkgInValidFlag = false;
@@ -113,24 +130,11 @@ func dealWithSuperPkg(dm: DepModel, isProjectCombine: Bool): Bool {
     if (superPkgInValidFlag) {
         return false
     }
-    for (notSupport in notSupportSet) {
-        dm.superPkgMap.remove(notSupport)
-    }
 
-    if (!dm.superPkgMap.isEmpty() && !isProjectCombine) {
-        var flag = true
-        for ((moduleName, _) in dm.depAnalysisEngine.finalDepMap) {
-            if (!dm.superPkgMap.contains(moduleName) &&
-                !notSupportSet.contains(moduleName) &&
-                dm.packageDepMap.contains(moduleName) &&
-                !dm.packageDepMap[moduleName].isMacroPackage) {
-                eprintln("Error: field 'profile.build.combined' must be configured to combine module '${moduleName}'")
-                flag = false
-            }
-        }
-        if (!flag) {
-            return flag
-        }
+    dm.superPkgMap.remove(all: notSupportSet)
+    
+    if (!checkCombinedConfiguration(dm, isProjectCombine, notSupportSet)) {
+        return false
     }
 
     dm.checkSuperPkgDep()
