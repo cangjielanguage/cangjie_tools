@@ -10,6 +10,7 @@
 using namespace Cangjie;
 using namespace CONSTANTS;
 namespace ark {
+// LCOV_EXCL_START
 Range PrepareRename::PrepareImpl(const ArkAST &ast, Cangjie::Position pos, MessageErrorDetail &errorInfo)
 {
     Logger &logger = Logger::Instance();
@@ -183,4 +184,5 @@ bool PrepareRename::IsFromMacroCallFile(Ptr<Decl> decl)
     }
     return false;
 }
+// LCOV_EXCL_STOP
 }

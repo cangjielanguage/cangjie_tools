@@ -47,9 +47,14 @@ public:
     static void ResolveMacroParams(std::string &detail,
         const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists);
 
-private:
+    static std::string GetGenericParamByDecl(Ptr<Cangjie::AST::Generic> genericDecl);
+
+    static bool IsCustomAnnotation(const Cangjie::AST::Decl &decl);
+
     static std::string FetchTypeString(const Cangjie::AST::Type &type);
 
+    static int AddGenericInsertByDecl(std::string &detail, Ptr<Cangjie::AST::Generic> genericDecl);
+private:
     template <typename T>
     static std::string GetGenericString(const T &t);
 
@@ -95,10 +100,6 @@ private:
     static void ResolveEnumDeclDetail(std::string &detail, const Cangjie::AST::EnumDecl &decl,
                                       Cangjie::SourceManager *sourceManager = nullptr);
 
-    static std::string GetGenericParamByDecl(Ptr<Cangjie::AST::Generic> genericDecl);
-
-    static int AddGenericInsertByDecl(std::string &detail, Ptr<Cangjie::AST::Generic> genericDecl);
-
     static void ResolveFuncDeclSignature(std::string &detail, const Cangjie::AST::FuncDecl &decl,
                                          Cangjie::SourceManager *sourceManager = nullptr,
                                          bool isCompletionInsert = false,
@@ -124,8 +125,6 @@ private:
  
     static void ResolveMacroParamsInsert(std::string &detail,
                                          const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists);
-
-    static bool IsCustomAnnotation(const Cangjie::AST::Decl &decl);
 
     static const int detailMaxLen = 256;
 };

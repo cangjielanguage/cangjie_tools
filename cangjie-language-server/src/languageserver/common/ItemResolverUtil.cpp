@@ -526,15 +526,19 @@ void AddTypeByNodeAndType(std::string &detail, const std::string filePath, Ptr<C
                                                       {type->GetEnd().line, type->GetEnd().column});
         }
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         if (result.empty() && !type->ToString().empty()) {
             std::string temp = type->ToString();
             Utils::TrimString(temp);
             result += temp;
         }
+#ifndef NO_EXCEPTIONS
     } catch (NullPointerException &e) {
         Trace::Log("Invoke compiler api ToString() catch a NullPointerException");
     }
+#endif
     detail += result;
 }
 
@@ -809,15 +813,19 @@ void ItemResolverUtil::ResolveFuncParams(std::string &detail,
             } else {
                 detail += GetString(*param->ty);
             }
+#ifndef NO_EXCEPTIONS
             try {
+#endif
                 if (param->assignment != nullptr && param->assignment.get() &&
                     !param->assignment.get()->ToString().empty()) {
                     detail += " = ";
                     AddTypeByNodeAndType(detail, filePath, param->assignment.get(), sourceManager);
                 }
+#ifndef NO_EXCEPTIONS
             } catch (NullPointerException &e) {
                 Trace::Log("Invoke compiler api catch a NullPointerException");
             }
+#endif
         }
         size_t variadicIndex = paramList->variadicArgIndex;
         if (variadicIndex > 0) {

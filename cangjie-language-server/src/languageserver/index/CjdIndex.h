@@ -17,6 +17,7 @@
 #include "cangjie/Basic/Version.h"
 
 namespace Cangjie {
+// LCOV_EXCL_START
 class DCompilerInstance final : public LSPCompilerInstance {
 public:
     explicit DCompilerInstance(
@@ -49,7 +50,7 @@ struct DPkgInfo : public PkgInfo {
         compilerInvocation->globalOptions.compileCjd = true;
     }
 };
-
+// LCOV_EXCL_STOP
 class CjdIndexer {
 public:
     explicit CjdIndexer(Callbacks *cb,

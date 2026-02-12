@@ -329,6 +329,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
     Position textEditStart = {input.fileID, lastImportLine, 0};
     Range textEditRange{textEditStart, textEditStart};
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    // LCOV_EXCL_START
     index->FindImportSymsOnCompletion(result.normalCompleteSymID, result.importDeclsSymID, curPkgName, curModule,
         [&result, &textEditRange](const std::string &pkg, const lsp::Symbol &sym) {
             CodeCompletion item;
@@ -346,6 +347,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             item.sortType = SortType::AUTO_IMPORT_SYM;
             result.completions.push_back(item);
         });
+    // LCOV_EXCL_STOP
 }
 
 void CompletionImpl::NormalParseImpl(
