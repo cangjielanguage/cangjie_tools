@@ -9,18 +9,17 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
-import tpc.AbilityKit.common
 import std.collection.{ HashMap }
 
 
-/*interface AutoGenType0 {
+/*interface AutoGenType0Ininterface {
     city: string;
     zipCode: string;
     }*/
 
-public open class AutoGenType0 {
+public open class AutoGenType0Ininterface {
     
-    protected AutoGenType0(public var city: String,
+    protected AutoGenType0Ininterface(public var city: String,
     public var zipCode: String) { }
     
     
@@ -31,9 +30,9 @@ public open class AutoGenType0 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0Ininterface {
         let obj = input.asObject()
-        AutoGenType0(
+        AutoGenType0Ininterface(
         String.fromJSValue(context, obj["city"]),
         String.fromJSValue(context, obj["zipCode"])
         )
@@ -49,7 +48,7 @@ public open class AutoGenType0 {
 
 public open class Calculator {
     
-    protected Calculator(public var arkts_object: JSObject) { }
+    protected Calculator(var arkts_object: JSObject) { }
     
     
     /**
@@ -69,7 +68,7 @@ public open class Calculator {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Calculator {
+    public static func fromJSValue(context: JSContext, input: JSValue): Calculator {
         Calculator(input.asObject())
     }
 }
@@ -80,7 +79,7 @@ public open class Calculator {
 
 public open class Callback1 {
     
-    protected Callback1(public var arkts_object: JSObject) { }
+    protected Callback1(var arkts_object: JSObject) { }
     
     
     
@@ -88,7 +87,7 @@ public open class Callback1 {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Callback1 {
+    public static func fromJSValue(context: JSContext, input: JSValue): Callback1 {
         Callback1(input.asObject())
     }
 }
@@ -122,7 +121,7 @@ public open class ClockConstructor {
 
 public open class Config {
     
-    protected Config(public var arkts_object: JSObject) { }
+    protected Config(var arkts_object: JSObject) { }
     
     
     
@@ -130,7 +129,7 @@ public open class Config {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Config {
+    public static func fromJSValue(context: JSContext, input: JSValue): Config {
         Config(input.asObject())
     }
 }
@@ -141,7 +140,7 @@ public open class Config {
 
 public open class Dictionary {
     
-    protected Dictionary(public var arkts_object: JSObject) { }
+    protected Dictionary(var arkts_object: JSObject) { }
     
     
     
@@ -149,7 +148,7 @@ public open class Dictionary {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Dictionary {
+    public static func fromJSValue(context: JSContext, input: JSValue): Dictionary {
         Dictionary(input.asObject())
     }
 }
@@ -157,13 +156,11 @@ public open class Dictionary {
 /*interface ExportKeyword IWBAPI {
     authorize(context: common.UIAbilityContext, listener: WbASListener): void
     authorizeClient(context: Context, listener: WbASListener): void
-    authorizeClient(context: BaseContext, listener: WbASListener): void
-    authorizeClient(context: common.Context, listener: WbASListener): void
     }*/
 
 public open class IWBAPI {
     
-    protected IWBAPI(public var arkts_object: JSObject) { }
+    protected IWBAPI(var arkts_object: JSObject) { }
     
     
     /**
@@ -178,24 +175,12 @@ public open class IWBAPI {
     public func authorizeClient(context: JSValue/* FIXME: `JSValue/* FIXME: `Context` */` */, listener: JSValue/* FIXME: `WbASListener` */): Unit {
         jsObjApiCall < Unit >( arkts_object, "authorizeClient", { ctx =>[context, listener] })
     }
-    /**
-	 * @brief authorizeClient(context: BaseContext, listener: WbASListener): void
-	 */
-    public func authorizeClient(context: JSValue/* FIXME: `JSValue/* FIXME: `BaseContext` */` */, listener: JSValue/* FIXME: `WbASListener` */): Unit {
-        jsObjApiCall < Unit >( arkts_object, "authorizeClient", { ctx =>[context, listener] })
-    }
-    /**
-	 * @brief authorizeClient(context: common.Context, listener: WbASListener): void
-	 */
-    public func authorizeClient(context: JSValue/* FIXME: `JSValue/* FIXME: `common.Context` */` */, listener: JSValue/* FIXME: `WbASListener` */): Unit {
-        jsObjApiCall < Unit >( arkts_object, "authorizeClient", { ctx =>[context, listener] })
-    }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): IWBAPI {
+    public static func fromJSValue(context: JSContext, input: JSValue): IWBAPI {
         IWBAPI(input.asObject())
     }
 }
@@ -207,7 +192,7 @@ public open class IWBAPI {
 
 public open class List {
     
-    protected List(private var items: Array<String>) { }
+    protected List(public var items: Array<String>) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -234,7 +219,7 @@ public open class List {
 
 public open class LoggerAdapter {
     
-    protected LoggerAdapter(public var arkts_object: JSObject) { }
+    protected LoggerAdapter(var arkts_object: JSObject) { }
     
     
     /**
@@ -247,32 +232,29 @@ public open class LoggerAdapter {
 	 * @brief printDiagnoseLog(level: LogLevel, tag: string, msg: string, e: Error | null): void
 	 */
     public func printDiagnoseLog(level: JSValue/* FIXME: `LogLevel` */, tag: String, msg: String, e: Option<JSValue/* FIXME: `Error` */>): Unit {
-        jsObjApiCall < Unit >( arkts_object, "printDiagnoseLog", { ctx =>[level, tag.toJSValue(ctx), msg.toJSValue(ctx), e.getOrDefault({ => ctx.object().toJSValue() })] })
+        jsObjApiCall < Unit >( arkts_object, "printDiagnoseLog", { ctx =>[level, tag.toJSValue(ctx), msg.toJSValue(ctx), match(e) {
+                case None => ctx.undefined().toJSValue()
+                case _ => e.getOrThrow()
+            }] })
     }
     /**
 	 * @brief getPubKey(): String
 	 */
     public func getPubKey(): String {
-        jsObjApiCall < String >( arkts_object, "getPubKey", emptyArg)
+        jsObjApiCall < String >( arkts_object, "getPubKey", EMPTY_ARG)
     }
     /**
 	 * @brief getLogPaths(): Array<String>
 	 */
     public func getLogPaths(): Array<String> {
-        jsObjApiCall < Array<String> >( arkts_object, "getLogPaths", emptyArg) {
-            ctx, info =>
-            let retArr = info.asArray()
-            Array < String >(retArr.size) {
-                index => String.fromJSValue(ctx, retArr[index])
-            }
-        }
+        jsObjApiCall < Array<String> >( arkts_object, "getLogPaths", EMPTY_ARG) { ctx, info => fromJSArray < String >(ctx, info) }
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): LoggerAdapter {
+    public static func fromJSValue(context: JSContext, input: JSValue): LoggerAdapter {
         LoggerAdapter(input.asObject())
     }
 }
@@ -285,7 +267,7 @@ public open class LoggerAdapter {
 
 public open class Person {
     
-    protected Person(public var arkts_object: JSObject) { }
+    protected Person(var arkts_object: JSObject) { }
     
     
     public mut prop name: String {
@@ -306,14 +288,14 @@ public open class Person {
 	 * @brief greet(): String
 	 */
     public func greet(): String {
-        jsObjApiCall < String >( arkts_object, "greet", emptyArg)
+        jsObjApiCall < String >( arkts_object, "greet", EMPTY_ARG)
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): Person {
+    public static func fromJSValue(context: JSContext, input: JSValue): Person {
         Person(input.asObject())
     }
 }
@@ -325,31 +307,32 @@ public open class Person {
 
 public open class PluginContainer {
     
-    protected PluginContainer(public var arkts_object: JSObject) { }
+    protected PluginContainer(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief registryPlugin(plugin: BasePlugin, cfg: UMConfig): BasePlugin
 	 */
     public func registryPlugin(plugin: BasePlugin, cfg: UMConfig): BasePlugin {
-        jsObjApiCall < BasePlugin >( arkts_object, "registryPlugin", { ctx =>[plugin.toJSValue(ctx), cfg.toJSValue(ctx)] }) {
-            ctx, info => BasePlugin.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < BasePlugin >( arkts_object, "registryPlugin", { ctx =>[plugin.toJSValue(ctx), cfg.toJSValue(ctx)] }) { ctx, info => BasePlugin.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief getPluginById(pluginId: string): BasePlugin | undefined
 	 */
     public func getPluginById(pluginId: String): Option<BasePlugin> {
-        jsObjApiCall < Option<BasePlugin> >( arkts_object, "getPluginById", { ctx =>[pluginId.toJSValue(ctx)] }) {
-            ctx, info => Option<BasePlugin>.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < Option<BasePlugin> >( arkts_object, "getPluginById", { ctx =>[pluginId.toJSValue(ctx)] }) { ctx, info =>
+            if(info.isNull()) {
+                None < BasePlugin >
+            } else {
+                BasePlugin.fromJSValue(ctx, info)
+            } }
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): PluginContainer {
+    public static func fromJSValue(context: JSContext, input: JSValue): PluginContainer {
         PluginContainer(input.asObject())
     }
 }
@@ -361,8 +344,8 @@ public open class PluginContainer {
 
 public open class Point {
     
-    protected Point(private let x: Float64,
-    private let y: Float64) { }
+    protected Point(public let x: Float64,
+    public let y: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -388,7 +371,7 @@ public open class Point {
 
 public open class Product {
     
-    protected Product(private var price!: Option<Float64> = None) { }
+    protected Product(public var price!: Option<Float64> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -402,7 +385,12 @@ public open class Product {
     public static func fromJSValue(context: JSContext, input: JSValue): Product {
         let obj = input.asObject()
         Product(
-        price: Option < Float64 >.fromJSValue(context, obj["price"])
+        price:
+        if(obj["price"].isNull()) {
+            None < Float64 >
+        } else {
+            Float64.fromJSValue(context, obj["price"])
+        }
         )
     }
     
@@ -415,31 +403,43 @@ public open class Product {
 
 public open class UnionInterface {
     
-    protected UnionInterface(public var arkts_object: JSObject) { }
+    protected UnionInterface(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief foo(a: string|null): null | String
 	 */
     public func foo(a: Option<String>): Option<String> {
-        jsObjApiCall < Option<String> >( arkts_object, "foo", { ctx =>[a.toJSValue(ctx)] }) {
-            ctx, info => Option<String>.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < Option<String> >( arkts_object, "foo", { ctx =>[match(a) {
+                case None => ctx.undefined().toJSValue()
+                case _ => a.getOrThrow().toJSValue(ctx)
+            }] }) { ctx, info =>
+            if(info.isNull()) {
+                None < String >
+            } else {
+                String.fromJSValue(ctx, info)
+            } }
     }
     /**
 	 * @brief goo(b: undefined | string): String | undefined
 	 */
     public func goo(b: Option<String>): Option<String> {
-        jsObjApiCall < Option<String> >( arkts_object, "goo", { ctx =>[b.toJSValue(ctx)] }) {
-            ctx, info => Option<String>.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < Option<String> >( arkts_object, "goo", { ctx =>[match(b) {
+                case None => ctx.undefined().toJSValue()
+                case _ => b.getOrThrow().toJSValue(ctx)
+            }] }) { ctx, info =>
+            if(info.isNull()) {
+                None < String >
+            } else {
+                String.fromJSValue(ctx, info)
+            } }
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): UnionInterface {
+    public static func fromJSValue(context: JSContext, input: JSValue): UnionInterface {
         UnionInterface(input.asObject())
     }
 }
@@ -455,9 +455,9 @@ public open class UnionInterface {
 
 public open class UserProfile {
     
-    protected UserProfile(private var id: Float64,
-    private var name: String,
-    private var address: AutoGenType0) { }
+    protected UserProfile(public var id: Float64,
+    public var name: String,
+    public var address: AutoGenType0Ininterface) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -473,7 +473,7 @@ public open class UserProfile {
         UserProfile(
         Float64.fromJSValue(context, obj["id"]),
         String.fromJSValue(context, obj["name"]),
-        AutoGenType0.fromJSValue(context, obj["address"])
+        AutoGenType0Ininterface.fromJSValue(context, obj["address"])
         )
     }
     
@@ -497,21 +497,21 @@ public open class UserProfile {
 
 public open class BasePlugin {
     
-    protected BasePlugin(public var arkts_object: JSObject) { }
+    protected BasePlugin(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(d12: Biz_Type): void
 	 */
     public init(d12: JSValue/* FIXME: `Biz_Type` */) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass(__ctx)
-            clazz.new(d12.toJSValue(__ctx)).asObject()
+            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass()
+            clazz.new(d12).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass()
             clazz.new().asObject()
         }
     }
@@ -604,9 +604,7 @@ public open class BasePlugin {
 	 * @brief getPluginId(): Biz_Type
 	 */
     public func getPluginId(): JSValue/* FIXME: `Biz_Type` */ {
-        jsObjApiCall < JSValue/* FIXME: `Biz_Type` */ >( arkts_object, "getPluginId", emptyArg) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `Biz_Type` */ >( arkts_object, "getPluginId", EMPTY_ARG) { ctx, info => info }
     }
     /**
 	 * @brief install(b12: UMConfig, c12: PluginContainer): void
@@ -618,36 +616,35 @@ public open class BasePlugin {
 	 * @brief uninstall(): void
 	 */
     public func uninstall(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "uninstall", emptyArg)
+        jsObjApiCall < Unit >( arkts_object, "uninstall", EMPTY_ARG)
     }
     /**
 	 * @brief agree(): Promise<void>
 	 */
     public func agree(callback: AsyncCallback < JSValue/* FIXME: `Promise<void>` */ >): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<void>` */ >( arkts_object, "agree", callback, emptyArg) {
-            ctx, info => info
-        }
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<void>` */ >( arkts_object, "agree", callback, EMPTY_ARG) { ctx, info => info }
     }
     /**
 	 * @brief write(x11: string, y11: Record<string, string | number>, z11: number, a12?: string): void
 	 */
     public func write(x11: String, y11: HashMap<String, JSValue/* FIXME: `string | number` */>, z11: Float64, a12!: Option < String >= None): Unit {
-        jsObjApiCall < Unit >( arkts_object, "write", { ctx =>[x11.toJSValue(ctx), hashmap2Record<JSValue/* FIXME: `string | number` */>(ctx, y11, { context, i => i.toJSValue(context) }), z11.toJSValue(ctx), a12.toJSValue(ctx)] })
+        jsObjApiCall < Unit >( arkts_object, "write", { ctx =>[x11.toJSValue(ctx), hashmap2Record<String, JSValue/* FIXME: `string | number` */>(ctx, y11, { context, i => i }), z11.toJSValue(ctx), match(a12) {
+                case None => ctx.undefined().toJSValue()
+                case _ => a12.getOrThrow().toJSValue(ctx)
+            }] })
     }
     /**
 	 * @brief beforeEncode(w11: buffer.Buffer): Promise<buffer.Buffer>
 	 */
     public func beforeEncode(callback: AsyncCallback < JSValue/* FIXME: `Promise<buffer.Buffer>` */ >, w11: JSValue/* FIXME: `buffer.Buffer` */): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<buffer.Buffer>` */ >( arkts_object, "beforeEncode", callback, { ctx =>[w11] }) {
-            ctx, info => info
-        }
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<buffer.Buffer>` */ >( arkts_object, "beforeEncode", callback, { ctx =>[w11] }) { ctx, info => info }
     }
     
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): BasePlugin {
+    public static func fromJSValue(context: JSContext, input: JSValue): BasePlugin {
         BasePlugin(input.asObject())
     }
 }
@@ -661,16 +658,16 @@ public open class BasePlugin {
 
 public class DefaultPluginContainer <: PluginContainer {
     
-    protected DefaultPluginContainer(public var arkts_object: JSObject) { super(arkts_object) }
+    protected DefaultPluginContainer(arkts_object: JSObject) { super(arkts_object) }
     /**
 	 * @brief constructor(): void
 	 */
     public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
+        super(checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "DefaultPluginContainer").toJSValue().asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_interface", "DefaultPluginContainer").toJSValue().asClass()
             clazz.new().asObject()
-        }
+        })
     }
     
     public prop _pluginMap: Array<BasePlugin> {
@@ -682,28 +679,110 @@ public class DefaultPluginContainer <: PluginContainer {
     }
     
     /**
-	 * @brief registryPlugin(g12: BasePlugin, h12: UMConfig): BasePlugin
-	 */
-    public func registryPlugin(g12: BasePlugin, h12: UMConfig): BasePlugin {
-        jsObjApiCall < BasePlugin >( arkts_object, "registryPlugin", { ctx =>[g12.toJSValue(ctx), h12.toJSValue(ctx)] }) {
-            ctx, info => BasePlugin.fromJSValue(ctx, info)
-        }
-    }
-    /**
 	 * @brief getPluginById(e12: Biz_Type): BasePlugin | undefined
 	 */
     public func getPluginById(e12: JSValue/* FIXME: `Biz_Type` */): Option<BasePlugin> {
-        jsObjApiCall < Option<BasePlugin> >( arkts_object, "getPluginById", { ctx =>[e12] }) {
-            ctx, info => Option<BasePlugin>.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < Option<BasePlugin> >( arkts_object, "getPluginById", { ctx =>[e12] }) { ctx, info =>
+            if(info.isNull()) {
+                None < BasePlugin >
+            } else {
+                BasePlugin.fromJSValue(ctx, info)
+            } }
     }
     
     public func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public  static func fromJSValue(context: JSContext, input: JSValue): DefaultPluginContainer {
+    public static func fromJSValue(context: JSContext, input: JSValue): DefaultPluginContainer {
         DefaultPluginContainer(input.asObject())
+    }
+}
+
+/*class ExportKeyword DeclareKeyword UMConfig {
+    appKey?: String;
+    channel?: String;
+    enableLog?: boolean;
+    }*/
+
+public class UMConfig {
+    
+    protected UMConfig(var arkts_object: JSObject) { }
+    
+    
+    public mut prop appKey: ?String {
+        get() {
+            checkThreadAndCall < ?String >(getMainContext()) {
+                ctx: JSContext =>
+                if(arkts_object["appKey"].isNull()) {
+                    None < String >
+                } else {
+                    String.fromJSValue(ctx, arkts_object["appKey"])
+                }
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["appKey"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
+            }
+        }
+        
+    }
+    
+    public mut prop channel: ?String {
+        get() {
+            checkThreadAndCall < ?String >(getMainContext()) {
+                ctx: JSContext =>
+                if(arkts_object["channel"].isNull()) {
+                    None < String >
+                } else {
+                    String.fromJSValue(ctx, arkts_object["channel"])
+                }
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["channel"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
+            }
+        }
+        
+    }
+    
+    public mut prop enableLog: ?Bool {
+        get() {
+            checkThreadAndCall < ?Bool >(getMainContext()) {
+                ctx: JSContext =>
+                if(arkts_object["enableLog"].isNull()) {
+                    None < Bool >
+                } else {
+                    Bool.fromJSValue(ctx, arkts_object["enableLog"])
+                }
+            }
+        }
+        set(v) {
+            checkThreadAndCall < Unit >(getMainContext()) {
+                ctx: JSContext => arkts_object["enableLog"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
+            }
+        }
+        
+    }
+    
+    
+    func toJSValue(context: JSContext): JSValue {
+        arkts_object.toJSValue()
+    }
+    
+    static func fromJSValue(context: JSContext, input: JSValue): UMConfig {
+        UMConfig(input.asObject())
     }
 }
 

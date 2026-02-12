@@ -10,30 +10,30 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
-public enum AutoGenType5 {
-    | AUTOGENTYPE3(AutoGenType3)
-    | AUTOGENTYPE4(AutoGenType4)
+public enum AutoGenType5InanonymousClass {
+    | AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(AutoGenType3InanonymousClass)
+    | AutoGenType5InanonymousClassAUTOGENTYPE4INANONYMOUSCLASS(AutoGenType4InanonymousClass)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
-            case AUTOGENTYPE3(x) => x.toJSValue(context)
-            case AUTOGENTYPE4(x) => x.toJSValue(context)
+            case AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(x) => x.toJSValue(context)
+            case AutoGenType5InanonymousClassAUTOGENTYPE4INANONYMOUSCLASS(x) => x.toJSValue(context)
         }
     }
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5InanonymousClass {
         
         throw Exception("unsupport type!")
     }
 }
 
 
-/*interface AutoGenType0 {
+/*interface AutoGenType0InanonymousClass {
     n: number;
     }*/
 
-public open class AutoGenType0 {
+public open class AutoGenType0InanonymousClass {
     
-    protected AutoGenType0(public var n: Float64) { }
+    protected AutoGenType0InanonymousClass(public var n: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -42,22 +42,22 @@ public open class AutoGenType0 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0InanonymousClass {
         let obj = input.asObject()
-        AutoGenType0(
+        AutoGenType0InanonymousClass(
         Float64.fromJSValue(context, obj["n"])
         )
     }
     
 }
 
-/*interface AutoGenType1 {
+/*interface AutoGenType1InanonymousClass {
     n: number;
     }*/
 
-public open class AutoGenType1 {
+public open class AutoGenType1InanonymousClass {
     
-    protected AutoGenType1(public var n: Float64) { }
+    protected AutoGenType1InanonymousClass(public var n: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -66,22 +66,22 @@ public open class AutoGenType1 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1InanonymousClass {
         let obj = input.asObject()
-        AutoGenType1(
+        AutoGenType1InanonymousClass(
         Float64.fromJSValue(context, obj["n"])
         )
     }
     
 }
 
-/*interface AutoGenType2 {
+/*interface AutoGenType2InanonymousClass {
     msg: string;
     }*/
 
-public open class AutoGenType2 {
+public open class AutoGenType2InanonymousClass {
     
-    protected AutoGenType2(public var msg: String) { }
+    protected AutoGenType2InanonymousClass(public var msg: String) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -90,24 +90,24 @@ public open class AutoGenType2 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2InanonymousClass {
         let obj = input.asObject()
-        AutoGenType2(
+        AutoGenType2InanonymousClass(
         String.fromJSValue(context, obj["msg"])
         )
     }
     
 }
 
-/*interface AutoGenType3 {
+/*interface AutoGenType3InanonymousClass {
     msg: string;
     data: string;
     code?: undefined;
     }*/
 
-public open class AutoGenType3 {
+public open class AutoGenType3InanonymousClass {
     
-    protected AutoGenType3(public var msg: String,
+    protected AutoGenType3InanonymousClass(public var msg: String,
     public var data: String,
     public var code!: Option<JSValue/* FIXME: `undefined` */> = None) { }
     
@@ -122,9 +122,9 @@ public open class AutoGenType3 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InanonymousClass {
         let obj = input.asObject()
-        AutoGenType3(
+        AutoGenType3InanonymousClass(
         String.fromJSValue(context, obj["msg"]),
         String.fromJSValue(context, obj["data"]),
         code: obj["code"]
@@ -133,15 +133,15 @@ public open class AutoGenType3 {
     
 }
 
-/*interface AutoGenType4 {
+/*interface AutoGenType4InanonymousClass {
     code: number;
     msg: string;
     data?: undefined;
     }*/
 
-public open class AutoGenType4 {
+public open class AutoGenType4InanonymousClass {
     
-    protected AutoGenType4(public var code: Float64,
+    protected AutoGenType4InanonymousClass(public var code: Float64,
     public var msg: String,
     public var data!: Option<JSValue/* FIXME: `undefined` */> = None) { }
     
@@ -156,9 +156,9 @@ public open class AutoGenType4 {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4 {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4InanonymousClass {
         let obj = input.asObject()
-        AutoGenType4(
+        AutoGenType4InanonymousClass(
         Float64.fromJSValue(context, obj["code"]),
         String.fromJSValue(context, obj["msg"]),
         data: obj["data"]
@@ -192,28 +192,22 @@ public class AnonymousClass {
     /**
 	 * @brief f1(p: {n: number}): {n: number}
 	 */
-    public func f1(p: AutoGenType0): AutoGenType1 {
-        jsObjApiCall < AutoGenType1 >( arkts_object, "f1", { ctx =>[p.toJSValue(ctx)] }) {
-            ctx, info => AutoGenType1.fromJSValue(ctx, info)
-        }
+    public func f1(p: AutoGenType0InanonymousClass): AutoGenType1InanonymousClass {
+        jsObjApiCall < AutoGenType1InanonymousClass >( arkts_object, "f1", { ctx =>[p.toJSValue(ctx)] }) { ctx, info => AutoGenType1InanonymousClass.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief f2(n: number): Promise<String>
 	 */
     public func f2(callback: AsyncCallback < JSValue/* FIXME: `Promise<string>` */ >, n: Float64): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f2", callback, { ctx =>[n.toJSValue(ctx)] }) {
-            ctx, info => info
-        }
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f2", callback, { ctx =>[n.toJSValue(ctx)] }) { ctx, info => info }
     }
     /**
 	 * @brief f3(n: number): Promise<{
         msg: String;
     }>
 	 */
-    public func f3(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType2>` */ >, n: Float64): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType2>` */ >( arkts_object, "f3", callback, { ctx =>[n.toJSValue(ctx)] }) {
-            ctx, info => info
-        }
+    public func f3(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType2InanonymousClass>` */ >, n: Float64): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType2InanonymousClass>` */ >( arkts_object, "f3", callback, { ctx =>[n.toJSValue(ctx)] }) { ctx, info => info }
     }
     /**
 	 * @brief f4(): Promise<{
@@ -226,17 +220,15 @@ public class AnonymousClass {
         data?: undefined;
     }>
 	 */
-    public func f4(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType5>` */ >): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType5>` */ >( arkts_object, "f4", callback, emptyArg) {
-            ctx, info => info
-        }
+    public func f4(callback: AsyncCallback < JSValue/* FIXME: `Promise<AutoGenType5InanonymousClass>` */ >): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType5InanonymousClass>` */ >( arkts_object, "f4", callback, EMPTY_ARG) { ctx, info => info }
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): AnonymousClass {
+    static func fromJSValue(context: JSContext, input: JSValue): AnonymousClass {
         AnonymousClass(input.asObject())
     }
 }

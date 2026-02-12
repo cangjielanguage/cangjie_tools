@@ -3,6 +3,6 @@
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
-interface i extends e {}
+interface i {}
 
-export class c extends e {}
+export class c extends i {}

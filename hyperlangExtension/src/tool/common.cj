@@ -42,9 +42,13 @@ public let stropToken: Token = Token(TokenKind.IDENTIFIER, "?String")
 public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
-public let cangjieKeyword = ["type", "in", "func", "enum", "package", "import", "class", "interface", "let", "var",
-    "const", "init", "this", "super", "if", "else", "case", "try", "catch", "finally", "for", "do", "while", "throw",
-    "return", "continue", "break", "is", "as", "match", "where", "extend", "spawn", "macro", "quote"]
+public let cangjieKeyword = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
+"do", "else", "enum", "extend", "for", "func", "false", "finally", "foreign", "Float16", "Float32", "Float64", "if",
+"in", "is", "init", "import", "interface", "Int8", "Int16", "Int32", "Int64", "IntNative", "let", "mut","main",
+"macro", "match", "Nothing", "open", "operator", "override", "prop", "public", "package", "private", "protected",
+"quote", "redef", "return", "spawn", "super", "static", "struct", "synchronized", "try", "this", "true", "type",
+"throw", "This", "unsafe", "Unit", "UInt8", "UInt16", "UInt32", "UInt64", "UIntNative", "var", "VArray", "where",
+"while"]
 public let ViewBase: Array<String> = ["AlphabetIndexer", "Blank", "Button", "Checkbox", "CheckboxGroup", "DataPanel",
     "Datepicker", "Divider", "Gauge", "Image", "ImageSpan", "LoadingProgress", "Menu", "MenuItem", "MenuItemGroup",
     "Progress", "QRCode", "Radio", "Rating", "RichEditor", "RichText", "ScrollBar", "Search", "Select", "Slider", "Span",
@@ -56,7 +60,7 @@ public let ContainerBase: Array<String> = ["Badge", "Column", "ColumnSplit", "Fl
 public let ShapeComponent: Array<String> = ["Circle", "Line", "Path", "Rect", "Shape", "Polygon"]
 
 // 记录用户自定义的类型名称（定义类、接口、枚举、泛型类型时更新）
-public var userDefinedNames: HashSet<String> = HashSet<String>(interopTypes)
+public var userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn"])
 
 //记录一个namespace的内容
 public class NameSpace {
@@ -185,13 +189,12 @@ public class EnumType <: Serializable<EnumType> {
 }
 
 //描述一个函数，可以是全局函数，也可以是成员函数
-public class MethodType <: Serializable<MethodType> {
+public class MethodType <: Serializable<MethodType> & Equatable < MethodType > {
     public var namespace: ?NameSpace = None
     public var obj: ?ObjectType = None
     public var name: String = ""
     public var modifiers: ArrayList<String> = ArrayList<String>()
     public var params: ArrayList<String> = ArrayList<String>()
-    let convertedParams: ArrayList<Parameter> = ArrayList<Parameter>()
     public var parameters: ArrayList<TsParameter> = ArrayList<TsParameter>()
     public var isConstructor: Bool = false
     public var returns: String = ""
@@ -257,6 +260,22 @@ public class MethodType <: Serializable<MethodType> {
             result.returnTypeNode = TsVoid  // Fallback to void if parsing fails
         }
         return result
+    }
+
+    public override operator func ==(that: MethodType): Bool {
+        if (name != that.name || parameters.size != that.parameters.size) {
+            return false
+        }
+        for (i in 0..parameters.size) {
+            if (parameters[i].ty.toString() != that.parameters[i].ty.toString()) {
+                return false
+            }
+        }
+        return true
+    }
+    
+    public override operator func !=(that: MethodType): Bool {
+        !(this == that)
     }
 }
 
@@ -371,8 +390,24 @@ public class TypeType <: Serializable<TypeType> {
             case data: DataModelStruct => data
             case _ => throw IllegalArgumentException("this data is not DataModelStruct")
         }
-        let result = TypeType(String.deserialize(dms2.get("name")), String.deserialize(dms2.get("comment")),
-            String.deserialize(dms2.get("type")), TsType.fromSExp(String.deserialize(dms2.get("typeNode"))))
+        var typeName: String = String.deserialize(dms2.get("name"))
+        let tsType: TsType = TsType.fromSExp(String.deserialize(dms2.get("typeNode")))
+        match (tsType) {
+            case TsFunction(_, _, arrayTsGeneric)=> 
+                if (arrayTsGeneric.size != 0) {
+                    typeName = typeName + "< "
+                    for (i in 0..arrayTsGeneric.size) {
+                        typeName = typeName + arrayTsGeneric[i].name
+                        if (i != arrayTsGeneric.size - 1) {
+                            typeName = typeName + ", "
+                        }
+                    }
+                    typeName = typeName + " >"
+                }
+            case _ => ()
+        }
+        let result = TypeType(typeName, String.deserialize(dms2.get("comment")),
+            String.deserialize(dms2.get("type")), tsType)
         userDefinedNames.add(result.name)
         return result
     }
@@ -389,8 +424,6 @@ public class Property <: Serializable<Property> & Comparable<Property> {
     public var defValue: ?String = None
     public var cjKey: String = ""
     public var cjType: String = ""
-    public var isCallbackType: Bool = false
-    public var callbackType: CallbackType = CallbackType()
     public var typeNode: TsType = TsAny
     public var inferredType: TsType = TsAny
 
@@ -463,8 +496,8 @@ public class Property <: Serializable<Property> & Comparable<Property> {
             }
         }
         result.cjKey = checkCangjieKeyword(result.propKey)
-        result.cjType = TypeMap.typeMap(result.propType)
         result.typeNode = TsType.fromSExp(String.deserialize(dms2.get("typeNode")))
+        result.cjType = result.typeNode.toCJType()
         return result
     }
 }
@@ -592,61 +625,61 @@ public class UnionType {
                     "${ctxName}.global[\"Uint8Array\"].asClass().new(x.toJSValue(${ctxName}))", ###"
         if (instanceof(input, "Uint8Array")) {
             let jsArray: JSValue = context.global["Uint8Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt8>(context, jsArray))
+            return BYTEARRAY(fromJSArray<UInt8>(context, jsArray))
         }"###)),
             ("Float32Array", ("FLOAT32ARRAY(Array<Float32>)", "FLOAT32ARRAY(x)",
                     "${ctxName}.global[\"Float32Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Float32Array")) {
             let jsArray: JSValue = context.global["Float32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Float32>(context, jsArray))
+            return FLOAT32ARRAY(fromJSArray<Float32>(context, jsArray))
         }"###)),
             ("Int8Array", ("INT8ARRAY(Array<Int8>)", "INT8ARRAY(x)",
                     "${ctxName}.global[\"Int8Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Int8Array")) {
             let jsArray: JSValue = context.global["Int8Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int8>(context, jsArray))
+            return INT8ARRAY(fromJSArray<Int8>(context, jsArray))
         }"###)),
             ("Int16Array", ("INT16ARRAY(Array<Int16>)", "INT16ARRAY(x)",
                     "${ctxName}.global[\"Int16Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Int16Array")) {
             let jsArray: JSValue = context.global["Int16Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int16>(context, jsArray))
+            return INT16ARRAY(fromJSArray<Int16>(context, jsArray))
         }"###)),
             ("Uint16Array", ("UINT16ARRAY(Array<UInt16>)", "UINT16ARRAY(x)",
                     "${ctxName}.global[\"Uint16Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Uint16Array")) {
             let jsArray: JSValue = context.global["Uint16Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt16>(context, jsArray))
+            return UINT16ARRAY(fromJSArray<UInt16>(context, jsArray))
         }"###)),
             ("Uint32Array", ("UINT32ARRAY(Array<UInt32>)", "UINT32ARRAY(x)",
                     "${ctxName}.global[\"Uint32Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Uint32Array")) {
             let jsArray: JSValue = context.global["Uint32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt32>(context, jsArray))
+            return UINT32ARRAY(fromJSArray<UInt32>(context, jsArray))
         }"###)),
             ("Int32Array", ("INT32ARRAY(Array<Int32>)", "INT32ARRAY(x)",
                     "${ctxName}.global[\"Int32Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Int32Array")) {
             let jsArray: JSValue = context.global["Int32Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int32>(context, jsArray))
+            return INT32ARRAY(fromJSArray<Int32>(context, jsArray))
         }"###)),
             ("BigInt64Array", ("INT64ARRAY(Array<Int64>)", "INT64ARRAY(x)",
                     "${ctxName}.global[\"BigInt64Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "BigInt64Array")) {
             let jsArray: JSValue = context.global["BigInt64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Int64>(context, jsArray))
+            return INT64ARRAY(fromJSArray<Int64>(context, jsArray))
         }"###)),
             ("BigUint64Array", ("UINT64ARRAY(Array<UInt64>)", "UINT64ARRAY(x)",
                     "${ctxName}.global[\"BigUint64Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "BigUint64Array")) {
             let jsArray: JSValue = context.global["BigUint64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<UInt64>(context, jsArray))
+            return UINT64ARRAY(fromJSArray<UInt64>(context, jsArray))
         }"###)),
             ("Float64Array", ("FLOAT64ARRAY(Array<Float64>)", "FLOAT64ARRAY(x)",
                     "${ctxName}.global[\"Float64Array\"].asClass().new(${ctxName}.arrayBuffer(x).toJSValue())", ###"
         if (instanceof(input, "Float64Array")) {
             let jsArray: JSValue = context.global["Float64Array"].asObject().callMethod("from", [input])
-            return UINT8ARRAY(fromJSArray<Float64>(context, jsArray))
+            return FLOAT64ARRAY(fromJSArray<Float64>(context, jsArray))
         }"###)),
             ("bigint", ("BIGINT(BigInt)", "BIGINT(x)", "${ctxName}.bigint(x).toJSValue()", ###"
         if (input.isBigInt()) {
@@ -702,7 +735,7 @@ public class UnionType {
             t + 0.toString() + "(${t})"
         } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
             // handle user-defined type
-            t.toAsciiUpper() + "(${t})"
+            "${name}" + t.toAsciiUpper() + "(${t})"
         } else if (isStringLiteral(t)) {
             // String Literal
             t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'").toAsciiUpper()
@@ -720,7 +753,7 @@ public class UnionType {
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
             (x, y)
         } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
-            let x = Token(TokenKind.IDENTIFIER, t.toAsciiUpper() + "(x)")
+            let x = Token(TokenKind.IDENTIFIER, "${name}" + t.toAsciiUpper() + "(x)")
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
             (x, y)
         } else if (isStringLiteral(t)) {
@@ -773,90 +806,6 @@ public class UnionType {
         ret.append(quote(}) + nl)
 
         ret
-    }
-}
-
-struct Parameter {
-    let paramName: String
-    let paramType: String // todo: Consider nested callbacks. This should be a callback type.
-    let isOptional: Bool
-
-    init(_name: String, _type: String, _isOptional: Bool) {
-        paramName = _name
-        paramType = TypeMap.typeMap(_type)
-        isOptional = _isOptional
-    }
-
-    // Automatically analyse forms like `name?: type`.
-    init(str: String) {
-        let splits = str.split(":", 2)
-        if (splits[0].endsWith("?")) {
-            paramName = splits[0][..splits[0].size - 1]
-            isOptional = true
-        } else {
-            paramName = splits[0]
-            isOptional = false
-        }
-        paramType = TypeMap.typeMap(splits[1])
-    }
-
-    func print(inMethod!: ?Bool = false): String {
-        var symbol = ": "
-        if (let Some(v) <- inMethod) {
-            if (v) {
-                symbol = "!" + symbol
-            }
-        }
-        return paramName + symbol + if (isOptional) {
-            "?"
-        } else {
-            ""
-        } + paramType
-    }
-}
-
-//描述一个回调类型
-public class CallbackType {
-    let params: ArrayList<Parameter> = ArrayList<Parameter>()
-    let returnType: String
-
-    public init() {
-        returnType = ""
-    }
-
-    public init(str: String) {
-        /* Analyse forms like
-            `Callback<void>`
-            `Callback<type>`
-            `Callback<type, returnType>`
-         */
-        if (str.startsWith("Callback")) {
-            let param = str["Callback<".size..str.size - 1].replace(" ", "")
-            // If no return type, let `splits[1]` convert to `unit`.
-            let splits = (param + ",void").split(",")
-            // `type == void` means no parameters.
-            if (splits[0] != "void") {
-                params.add(Parameter("parameter", splits[0], false))
-            }
-            returnType = TypeMap.typeMap(splits[1])
-            return
-        }
-            // Analyse forms like `(name: type, name1?: type1) => returnType`.
-            else {
-            let splits = str.replace(" ", "").split("=>")
-            for (param in splits[0][1..splits[0].size - 1].split(",")) {
-                params.add(Parameter(param))
-            }
-            returnType = TypeMap.typeMap(splits[1])
-        }
-    }
-
-    public func print(): String {
-        return "(" + (params |> map {p => p.print()} |> collectString<String>(delimiter: ", ")) + ") -> " + returnType
-    }
-
-    public func printParams(): String {
-        return params |> map {p => p.print()} |> collectString<String>(delimiter: ", ")
     }
 }
 

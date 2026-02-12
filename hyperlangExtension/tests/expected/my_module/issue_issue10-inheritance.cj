@@ -19,8 +19,8 @@ import ohos.base.*
 
 public open class I {
     
-    protected I(private var p: Float64,
-    private var p1: Float64) { }
+    protected I(public var p: Float64,
+    public var p1: Float64) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -47,45 +47,17 @@ public open class I {
 
 public class C <: I {
     
-    protected C(public var arkts_object: JSObject) {
+    protected C(var arkts_object: JSObject) {
         super(Float64.fromJSValue(getMainContext(), arkts_object["p"]),
         Float64.fromJSValue(getMainContext(), arkts_object["p1"])) }
     
-    
-    public mut prop p: Float64 {
-        get() {
-            checkThreadAndCall < Float64 >(getMainContext()) {
-                ctx: JSContext => Float64.fromJSValue(ctx, arkts_object["p"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["p"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
-    
-    public mut prop p1: Float64 {
-        get() {
-            checkThreadAndCall < Float64 >(getMainContext()) {
-                ctx: JSContext => Float64.fromJSValue(ctx, arkts_object["p1"])
-            }
-        }
-        set(v) {
-            checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["p1"] = v.toJSValue(ctx)
-            }
-        }
-        
-    }
     
     
     public func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public  static func fromJSValue(context: JSContext, input: JSValue): C {
+    public static func fromJSValue(context: JSContext, input: JSValue): C {
         C(input.asObject())
     }
 }

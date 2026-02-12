@@ -20,9 +20,9 @@ import ohos.base.*
 
 public open class Item<T> where T <: JSInteropType<T> {
     
-    protected Item(private var id: Float64,
-    private var name: String,
-    private var category: T) { }
+    protected Item(public var id: Float64,
+    public var name: String,
+    public var category: T) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -52,9 +52,9 @@ public open class Item<T> where T <: JSInteropType<T> {
 
 public open class Item1<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
     
-    protected Item1(private var id: Float64,
-    private var name: U,
-    private var category: T) { }
+    protected Item1(public var id: Float64,
+    public var name: U,
+    public var category: T) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {

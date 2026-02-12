@@ -39,7 +39,7 @@ type TA700 = Record<string, unknown> | null;
 type TA710 = "aaa" | "bbb" | "ccc" | "ddd";
 type TA720 = number | string;
 type TA730 = Promise<string> | string;
-type TA740 = "111" | TA710;
+type TA740 = "aaa" | TA710;
 
 type TA810 = { x: number; y: string };
 type TA820 = { [p: number]: string };

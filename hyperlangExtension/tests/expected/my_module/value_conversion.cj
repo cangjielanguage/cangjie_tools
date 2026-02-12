@@ -32,15 +32,15 @@ import std.collection.{ HashMap }
 
 public open class I1 {
     
-    protected I1(private var a: Float64,
-    private var c: Array<UInt8>,
-    private var e: Array<Float32>,
-    private var g: HashMap<String, Array<UInt8>>,
-    private var h: MyStringEnum,
-    private var i: BigInt,
-    private var b!: Option<String> = None,
-    private var d!: Option<Array<UInt8>> = None,
-    private var f!: Option<Bool> = None) { }
+    protected I1(public var a: Float64,
+    public var c: Array<UInt8>,
+    public var e: Array<Float32>,
+    public var g: HashMap<String, Array<UInt8>>,
+    public var h: MyStringEnum,
+    public var i: BigInt,
+    public var b!: Option<String> = None,
+    public var d!: Option<Array<UInt8>> = None,
+    public var f!: Option<Bool> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -48,9 +48,9 @@ public open class I1 {
         obj["a"] = a.toJSValue(context)
         obj["c"] = toJSArray < UInt8 >(context, c, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) })
         obj["e"] = toJSArray < Float32 >(context, e, { ctx: JSContext, val: Float32 => val.toJSValue(ctx) })
-        obj["g"] = hashmap2Record<Array<UInt8>>(context, g, { context, i => i.toJSValue(context) })
+        obj["g"] = hashmap2Record<String, Array<UInt8>>(context, g, { context, i => i.toJSValue(context) })
         obj["h"] = h.get().toJSValue(context)
-        obj["i"] = context.bigint(i).toJSValue(context)
+        obj["i"] = context.bigint(i).toJSValue()
         if(let Some(v) <- b) {
             obj["b"] = v.toJSValue(context)
         }
@@ -69,12 +69,22 @@ public open class I1 {
         Float64.fromJSValue(context, obj["a"]),
         fromJSArray < UInt8 >(context, obj["c"], { ctx: JSContext, val: JSValue => UInt8.fromJSValue(ctx, val) }),
         fromJSArray < Float32 >(context, obj["e"], { ctx: JSContext, val: JSValue => Float32.fromJSValue(ctx, val) }),
-        record2Hashmap<Array<UInt8>>(context, obj["g"], { context, i => Array<UInt8>.fromJSValue(context, i) }),
+        record2Hashmap<Array<UInt8>>(context, obj["g"], { context, i => fromJSArray < UInt8 >(context, i, { ctx: JSContext, val: JSValue => UInt8.fromJSValue(ctx, val) }) }),
         MyStringEnum.parse(String.fromJSValue(context, obj["h"])),
-        obj["i"].asBigInt(context).toBigInt(),
-        b: Option < String >.fromJSValue(context, obj["b"]),
+        obj["i"].asBigInt().toBigInt(),
+        b:
+        if(obj["b"].isNull()) {
+            None < String >
+        } else {
+            String.fromJSValue(context, obj["b"])
+        },
         d: fromJSArrayOption < UInt8 >(context, obj["d"], { ctx: JSContext, val: JSValue => UInt8.fromJSValue(ctx, val) }),
-        f: Option < Bool >.fromJSValue(context, obj["f"])
+        f:
+        if(obj["f"].isNull()) {
+            None < Bool >
+        } else {
+            Bool.fromJSValue(context, obj["f"])
+        }
         )
     }
     
@@ -173,12 +183,20 @@ public class C1 {
     public static mut prop sc: ?String {
         get() {
             checkThreadAndCall < ?String >(getMainContext()) {
-                ctx: JSContext => Option < String >.fromJSValue(ctx, getClassConstructorObj("my_module_valueConversion", "C1")["sc"])
+                ctx: JSContext =>
+                if(getClassConstructorObj("my_module_valueConversion", "C1")["sc"].isNull()) {
+                    None < String >
+                } else {
+                    String.fromJSValue(ctx, getClassConstructorObj("my_module_valueConversion", "C1")["sc"])
+                }
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => getClassConstructorObj("my_module_valueConversion", "C1")["sc"] = v.toJSValue(ctx)
+                ctx: JSContext => getClassConstructorObj("my_module_valueConversion", "C1")["sc"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
             }
         }
         
@@ -192,7 +210,10 @@ public class C1 {
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["vc"] = v.get().toJSValue(ctx)
+                ctx: JSContext => arkts_object["vc"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().get().toJSValue(ctx)
+                }
             }
         }
         
@@ -201,12 +222,20 @@ public class C1 {
     public mut prop vd: ?String {
         get() {
             checkThreadAndCall < ?String >(getMainContext()) {
-                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["vd"])
+                ctx: JSContext =>
+                if(arkts_object["vd"].isNull()) {
+                    None < String >
+                } else {
+                    String.fromJSValue(ctx, arkts_object["vd"])
+                }
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["vd"] = v.toJSValue(ctx)
+                ctx: JSContext => arkts_object["vd"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
             }
         }
         
@@ -215,12 +244,12 @@ public class C1 {
     public mut prop ve: ?Array<BigInt> {
         get() {
             checkThreadAndCall < ?Array<BigInt> >(getMainContext()) {
-                ctx: JSContext => fromJSArrayOption < BigInt >(ctx, arkts_object["ve"], { ctx: JSContext, val: JSValue => val.asBigInt(ctx).toBigInt() })
+                ctx: JSContext => fromJSArrayOption < BigInt >(ctx, arkts_object["ve"], { ctx: JSContext, val: JSValue => val.asBigInt().toBigInt() })
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["ve"] = toJSArray < BigInt >(ctx, v, { ctx: JSContext, val: BigInt => ctx.bigint(val).toJSValue(ctx) })
+                ctx: JSContext => arkts_object["ve"] = toJSArray < BigInt >(ctx, v, { ctx: JSContext, val: BigInt => ctx.bigint(val).toJSValue() })
             }
         }
         
@@ -231,7 +260,7 @@ public class C1 {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): C1 {
+    static func fromJSValue(context: JSContext, input: JSValue): C1 {
         C1(input.asObject())
     }
 }

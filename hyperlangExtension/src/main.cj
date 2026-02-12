@@ -394,6 +394,14 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
         arkJson = jsonDir + prefix + arkFileName.replace("d.ets", "json")
     }
 
+    var fileName = ""
+    if (arkFileName.endsWith(".d.ts")) {
+        fileName = prefix + arkFileName.replace(".d.ts", "")
+    } else if (arkFileName.endsWith(".d.ets")) {
+        fileName = prefix + arkFileName.replace(".d.ets", "")
+    }
+    fileName = fileName.replace("/", "_").replace("-", "_")
+
     if (!exists(arkJson)) {
         println("Warning: ${arkJson} generation failed! ${arkFileName} is skipped.\n")
         return
@@ -440,7 +448,7 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
     } else {
         arkTSModuleName
     }
-    gconfig.load(transform, prefix + moduleName, name, arkTSModuleName, outCJPath)
+    gconfig.load(transform, prefix + moduleName, name, arkTSModuleName, outCJPath, fileName)
     gconfig.showConfig()
 }
 

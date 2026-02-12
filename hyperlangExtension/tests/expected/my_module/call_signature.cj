@@ -27,7 +27,7 @@ public const when = 0/* FIXME: Initialization is required */
 
 public open class VerificationMode {
     
-    protected VerificationMode(public var arkts_object: JSObject) { }
+    protected VerificationMode(var arkts_object: JSObject) { }
     
     
     /**
@@ -40,13 +40,13 @@ public open class VerificationMode {
 	 * @brief never(): void
 	 */
     public func never(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "never", emptyArg)
+        jsObjApiCall < Unit >( arkts_object, "never", EMPTY_ARG)
     }
     /**
 	 * @brief once(): void
 	 */
     public func once(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "once", emptyArg)
+        jsObjApiCall < Unit >( arkts_object, "once", EMPTY_ARG)
     }
     /**
 	 * @brief atLeast(count: Number): void
@@ -65,7 +65,7 @@ public open class VerificationMode {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): VerificationMode {
+    public static func fromJSValue(context: JSContext, input: JSValue): VerificationMode {
         VerificationMode(input.asObject())
     }
 }
@@ -80,32 +80,26 @@ public open class VerificationMode {
 
 public open class when {
     
-    protected when(public var arkts_object: JSObject) { }
+    protected when(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief afterReturn(value: any): any
 	 */
     public func afterReturn(value: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
-        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterReturn", { ctx =>[value] }) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterReturn", { ctx =>[value] }) { ctx, info => info }
     }
     /**
 	 * @brief afterReturnNothing(): undefined
 	 */
     public func afterReturnNothing(): JSValue/* FIXME: `undefined` */ {
-        jsObjApiCall < JSValue/* FIXME: `undefined` */ >( arkts_object, "afterReturnNothing", emptyArg) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `undefined` */ >( arkts_object, "afterReturnNothing", EMPTY_ARG) { ctx, info => info }
     }
     /**
 	 * @brief afterAction(action: any): any
 	 */
     public func afterAction(action: JSValue/* FIXME: `any` */): JSValue/* FIXME: `any` */ {
-        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterAction", { ctx =>[action] }) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "afterAction", { ctx =>[action] }) { ctx, info => info }
     }
     /**
 	 * @brief afterThrow(e_msg: string): String
@@ -118,7 +112,7 @@ public open class when {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): when {
+    public static func fromJSValue(context: JSContext, input: JSValue): when {
         when(input.asObject())
     }
 }
@@ -233,7 +227,7 @@ public class ArgumentMatchers {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): ArgumentMatchers {
+    static func fromJSValue(context: JSContext, input: JSValue): ArgumentMatchers {
         ArgumentMatchers(input.asObject())
     }
 }
@@ -257,7 +251,7 @@ public class MockKit {
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_callSignature", "MockKit").toJSValue().asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_callSignature", "MockKit").toJSValue().asClass()
             clazz.new().asObject()
         }
     }
@@ -266,25 +260,19 @@ public class MockKit {
 	 * @brief mockFunc(obj: Object, func: Function): Function
 	 */
     public func mockFunc(obj: JSValue/* FIXME: `Object` */, `func`: JSValue/* FIXME: `Function` */): JSValue/* FIXME: `Function` */ {
-        jsObjApiCall < JSValue/* FIXME: `Function` */ >( arkts_object, "mockFunc", { ctx =>[obj, `func`] }) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `Function` */ >( arkts_object, "mockFunc", { ctx =>[obj, `func`] }) { ctx, info => info }
     }
     /**
 	 * @brief mockObject(obj: Object): Object
 	 */
     public func mockObject(obj: JSValue/* FIXME: `Object` */): JSValue/* FIXME: `Object` */ {
-        jsObjApiCall < JSValue/* FIXME: `Object` */ >( arkts_object, "mockObject", { ctx =>[obj] }) {
-            ctx, info => info
-        }
+        jsObjApiCall < JSValue/* FIXME: `Object` */ >( arkts_object, "mockObject", { ctx =>[obj] }) { ctx, info => info }
     }
     /**
 	 * @brief verify(methodName: String, argsArray: Array<any>): VerificationMode
 	 */
     public func verify(methodName: String, argsArray: Array<JSValue/* FIXME: `any` */>): VerificationMode {
-        jsObjApiCall < VerificationMode >( arkts_object, "verify", { ctx =>[methodName.toJSValue(ctx), toJSArray < JSValue/* FIXME: `any` */ >(ctx, argsArray, { ctx: JSContext, val: JSValue/* FIXME: `any` */ => val })] }) {
-            ctx, info => VerificationMode.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < VerificationMode >( arkts_object, "verify", { ctx =>[methodName.toJSValue(ctx), toJSArray < JSValue/* FIXME: `any` */ >(ctx, argsArray, { ctx: JSContext, val: JSValue/* FIXME: `any` */ => val })] }) { ctx, info => VerificationMode.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief ignoreMock(obj: Object, func: Function): void
@@ -302,14 +290,14 @@ public class MockKit {
 	 * @brief clearAll(): void
 	 */
     public func clearAll(): Unit {
-        jsObjApiCall < Unit >( arkts_object, "clearAll", emptyArg)
+        jsObjApiCall < Unit >( arkts_object, "clearAll", EMPTY_ARG)
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MockKit {
+    static func fromJSValue(context: JSContext, input: JSValue): MockKit {
         MockKit(input.asObject())
     }
 }
@@ -318,15 +306,15 @@ public class MockKit {
 /**
 	 * @brief MockSetup(target: Object, propertyName: string | Symbol, descriptor: TypedPropertyDescriptor<() => void>): void
 	 */
-public func MockSetup(target: JSValue/* FIXME: `Object` */, propertyName: String, descriptor: TypedPropertyDescriptor<() -> Unit>): Unit {
-    hmsGlobalApiCall < Unit >( "my_module_callSignature", "MockSetup", { ctx =>[target, propertyName.toJSValue(ctx), descriptor.toJSValue(ctx)] })
+public func MockSetup(target: JSValue/* FIXME: `Object` */, propertyName: String, descriptor: JSValue/* FIXME: `TypedPropertyDescriptor` */): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_callSignature", "MockSetup", { ctx =>[target, propertyName.toJSValue(ctx), descriptor] })
 }
 
 /**
 	 * @brief MockSetup(target: Object, propertyName: string | Symbol, descriptor: TypedPropertyDescriptor<() => void>): void
 	 */
-public func MockSetup(target: JSValue/* FIXME: `Object` */, propertyName: JSValue/* FIXME: `Symbol` */, descriptor: TypedPropertyDescriptor<() -> Unit>): Unit {
-    hmsGlobalApiCall < Unit >( "my_module_callSignature", "MockSetup", { ctx =>[target, propertyName, descriptor.toJSValue(ctx)] })
+public func MockSetup(target: JSValue/* FIXME: `Object` */, propertyName: JSValue/* FIXME: `Symbol` */, descriptor: JSValue/* FIXME: `TypedPropertyDescriptor` */): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_callSignature", "MockSetup", { ctx =>[target, propertyName, descriptor] })
 }
 
 
