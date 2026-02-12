@@ -12,6 +12,7 @@ import std.fs.*
 import stdx.serialization.serialization.*
 import stdx.crypto.digest.*
 import stdx.encoding.hex.*
+import stdx.crypto.common.CryptoException
 
 // version of metadata and index
 public let META_DATA_VERSION_BYTE: Byte = 1
@@ -32,6 +33,7 @@ const META_DOCUMENTATION = "documentation"
 const META_TAG = "tag"
 const META_CATEGORY = "category"
 const META_LICENSE = "license"
+const META_CJC_VERSION = "cjc-version"
 const META_INDEX = "index"
 const META_META_VERSION = "meta-version"
 
@@ -178,6 +180,10 @@ public class ArtifactIndex <: Serializable<ArtifactIndex> {
             sha256Instance.write(fileArr)
             this.sha256sum = toHexString(sha256Instance.finish())
             return true
+        } catch (e: CryptoException) { 
+            eprintln("Error: ${e.message}")
+            eprintln("Error: please ensure that openssl has been correctly installed and configured according to the \"Usage Instruction\" section of the documentation")
+            return false
         } catch (e: Exception) {
             eprintln(e.message)
             eprintln("Error: failed to generate sha256 check-sum for tarball '${filePath}'")
@@ -258,6 +264,7 @@ public class MetaData <: Serializable<MetaData> {
         public let tag: Array<String>,
         public let category: Array<String>,
         public let license: Array<String>,
+        public let cjcVersion: String,
         public let index: ArtifactIndex,
         public let metaVersion: Byte
     ) {}
@@ -277,6 +284,7 @@ public class MetaData <: Serializable<MetaData> {
             .add(field<Array<String>>(META_TAG, this.tag))
             .add(field<Array<String>>(META_CATEGORY, this.category))
             .add(field<Array<String>>(META_LICENSE, this.license))
+            .add(field<String>(META_CJC_VERSION, this.cjcVersion))
             .add(field<ArtifactIndex>(META_INDEX, this.index))
             .add(field<Byte>(META_META_VERSION, this.metaVersion))
     }
@@ -300,6 +308,7 @@ public class MetaData <: Serializable<MetaData> {
             Array<String>.deserialize((dms.get(META_TAG) as DataModelSeq) ?? DataModelSeq()),
             Array<String>.deserialize((dms.get(META_CATEGORY) as DataModelSeq) ?? DataModelSeq()),
             Array<String>.deserialize((dms.get(META_LICENSE) as DataModelSeq) ?? DataModelSeq()),
+            String.deserialize((dms.get(META_CJC_VERSION) as DataModelString) ?? DataModelString("")),
             ArtifactIndex.deserialize((dms.get(META_INDEX) as DataModelStruct) ?? DataModelStruct()),
             Byte.deserialize((dms.get(META_META_VERSION) as DataModelInt) ?? DataModelInt(1))
         )
