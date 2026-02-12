@@ -354,7 +354,7 @@ public:
     // after workspace init, can use it. pair::second = ModulePath
     std::pair<CangjieFileKind, std::string> GetCangjieFileKind(const std::string &filePath, bool isPkg = false) const;
 
-    int GetFileID(const std::string &fileName);
+    std::optional<unsigned int> GetFileID(const std::string &fileName);
 
     int GetFileIDForCompete(const std::string &fileName);
 

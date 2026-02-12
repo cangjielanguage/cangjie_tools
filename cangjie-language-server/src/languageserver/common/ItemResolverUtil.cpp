@@ -541,9 +541,9 @@ void ItemResolverUtil::AddTypeByNodeAndType(std::string &detail, const std::stri
     if (type == nullptr) { return; }
     std::string result;
     if (!filePath.empty() && sourceManager) {
-        int fileId = sourceManager->GetFileID(filePath);
-        if (fileId >= 0) {
-            result = sourceManager->GetContentBetween(static_cast<unsigned int>(fileId),
+        auto fileId = sourceManager->TryGetFileID(filePath);
+        if (fileId) {
+            result = sourceManager->GetContentBetween(fileId.value_or(0),
                                                       {type->GetBegin().line, type->GetBegin().column},
                                                       {type->GetEnd().line, type->GetEnd().column});
         }

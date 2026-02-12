@@ -92,11 +92,11 @@ Ptr<Decl> ArkAST::FindDeclByNode(Ptr<Node> node) const
 
 void ArkAST::DoLexer(const std::string &contents, const std::string &fileName)
 {
-    if (sourceManager == nullptr || sourceManager->GetFileID(fileName) < 0) {
+    if (sourceManager == nullptr || !sourceManager->TryGetFileID(fileName)) {
         return;
     }
-    const unsigned int curFileID = static_cast<unsigned int>(sourceManager->GetFileID(fileName));
-    Lexer lexer(curFileID, contents, diag, *sourceManager);
+    auto curFileID = sourceManager->TryGetFileID(fileName);
+    Lexer lexer(curFileID.value_or(0), contents, diag, *sourceManager);
     for (;;) {
         Token tok = lexer.Next();
         if (tok.kind == TokenKind::END) {

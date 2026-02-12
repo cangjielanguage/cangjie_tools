@@ -258,7 +258,7 @@ TEST_F(CompilerCangjieProjectTest, GetFileIDTest) {
     std::string fileName = "test_workspace/src/test_pkg/test_file.cj";
 
     // Test file ID retrieval
-    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(fileName);
+    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(fileName).value_or(0);
     EXPECT_GE(fileId, 0);
 }
 

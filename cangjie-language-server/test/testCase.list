@@ -250,6 +250,8 @@
 {"completion":{"testFile":"LSP_Completion_PkgAlias_003.test","id":"19"}}
 {"completion":{"testFile":"LSP_Completion_ImportAs_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_EnumConstructor_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Common_Specific_01.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Common_Specific_02.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
@@ -558,6 +560,7 @@
 {"goToDefinition":{"testFile":"LSP_GoToDefinitionImport_004.test","id":"157"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_IncrementCompile_001.test","id":"5"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_IncrementCompile_002.test","id":"5"}}
+{"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific.test","id":"9"}}
 
 {"hover":{"testFile":"LSP_Hover_String_001.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Interface_001.test","id":"110"}}
@@ -740,6 +743,7 @@
 {"references":{"testFile":"LSP_References_2024062203301.test","id":"6"}}
 {"references":{"testFile":"LSP_References_Config_Src.test","id":"7"}}
 {"references":{"testFile":"LSP_References_ModuleCondition_001.test","id":"9"}}
+{"references":{"testFile":"LSP_References_Common_Specific.test","id":"9"}}
 
 {"rename":{"testFile":"LSP_Rename_String_001.test","id":"7","useDB":true}}
 {"rename":{"testFile":"LSP_Rename_Interface_001.test","id":"110"}}
@@ -828,6 +832,7 @@
 {"rename":{"testFile":"LSP_Rename_InterplationString_001.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_InterplationString_002.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_2025072323710.test","id":"7","useDB":true}}
+{"rename":{"testFile":"LSP_Rename_Common_Specific.test","id":"9"}}
 
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_String_001.test","id":"7"}}
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_Interface_001.test","id":"110"}}
