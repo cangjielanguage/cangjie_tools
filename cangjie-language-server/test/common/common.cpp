@@ -169,6 +169,9 @@ namespace {
 
         nlohmann::json root;
         std::string errs;
+        if (message == "\r") {
+            return "";
+        }
 #ifndef NO_EXCEPTIONS
         try {
 #endif
@@ -222,7 +225,9 @@ namespace {
 
         nlohmann::json root;
         std::string errs;
-
+        if (message == "\r") {
+            return pair;
+        }
 #ifndef NO_EXCEPTIONS
         try {
 #endif
@@ -842,6 +847,9 @@ namespace test::common {
             if (loc != std::string::npos) {
                 message = message.substr(0, loc);
             }
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -883,6 +891,9 @@ namespace test::common {
             auto loc = message.find("Content-Length");
             if (loc != std::string::npos) {
                 message = message.substr(0, loc);
+            }
+            if (message == "\r") {
+                continue;
             }
 #ifndef NO_EXCEPTIONS
             try {
@@ -1225,7 +1236,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
-
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -1267,6 +1280,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -1591,6 +1607,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -1778,6 +1797,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -1856,6 +1878,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -1942,6 +1967,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
@@ -2022,6 +2050,9 @@ namespace test::common {
             char buf[MAX_LEN] = {0};
             infile.getline(buf, MAX_LEN);
             std::string message = std::string(buf);
+            if (message == "\r") {
+                continue;
+            }
 #ifndef NO_EXCEPTIONS
             try {
 #endif
