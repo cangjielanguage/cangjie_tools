@@ -268,6 +268,9 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
 
     if (!tomlInfo.profile.build.ltoValue.isEmpty()) {
         buildConfig.isLto = supportLto()
+        if (!buildConfig.isLto) {
+            println("Warning: configuration failed, field 'profile.build.lto' settings only support compilation for Linux/OHOS")
+        }
         buildConfig.ltoValue = tomlInfo.profile.build.ltoValue
     }
 
