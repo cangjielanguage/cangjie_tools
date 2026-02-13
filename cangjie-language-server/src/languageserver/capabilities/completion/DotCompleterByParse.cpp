@@ -206,9 +206,9 @@ void DotCompleterByParse::NestedMacroComplete(const ArkAST &input, const Positio
         auto arkAST = std::make_unique<ArkAST>(paths, file.get(), ci->diag,
             pkgInstance.get(), &ci->GetSourceManager());
         std::string absName = FileStore::NormalizePath(file->filePath);
-        int fileId = ci->GetSourceManager().GetFileID(absName);
-        if (fileId >= 0) {
-            arkAST->fileID = static_cast<unsigned int>(fileId);
+        auto fileId = ci->GetSourceManager().TryGetFileID(absName);
+        if (fileId) {
+            arkAST->fileID = fileId.value_or(0);
         }
         newSemaCache = std::move(arkAST);
         break;

@@ -336,14 +336,14 @@ void ArkServer::GetExportsName(
         const std::string &file, const ExportsNameParams &params, const Callback<ValueOrError> &reply) const
 {
     auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
-        int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-        if (fileId < 0) {
+        auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (!fileId) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
             reply(value);
             return;
         }
         Cangjie::Position pos =
-                Cangjie::Position{static_cast<unsigned int>(fileId), params.position.line, params.position.column};
+                Cangjie::Position{fileId.value_or(0), params.position.line, params.position.column};
         ReferencesResult result;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -651,19 +651,20 @@ void ArkServer::FindCompletion(const CompletionParams &params, const std::string
         reply(value);
     };
 
-    int fileId;
+    std::optional<unsigned int> fileId;
     if (Options::GetInstance().IsOptionSet("test")) {
         fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
     } else {
         fileId = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
     }
-    if (fileId < 0) {
+    if (!fileId) {
+        Trace::Log("ArkServer::FindCompletion fileId is null.");
         nullValueReply();
         return;
     }
 
     Cangjie::Position pos = {
-        static_cast<unsigned int>(fileId),
+        fileId.value_or(0),
         params.position.line,
         params.position.column
     };
@@ -747,19 +748,19 @@ void ArkServer::FindSignatureHelp(const SignatureHelpParams &params, const std::
         reply(value);
     };
  
-    int fileId;
+    std::optional<unsigned int> fileId;
     if (Options::GetInstance().IsOptionSet("test")) {
         fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
     } else {
         fileId = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
     }
-    if (fileId < 0) {
+    if (!fileId) {
         nullValueReply();
         return;
     }
  
     Cangjie::Position pos = {
-        static_cast<unsigned int>(fileId),
+        fileId.value_or(0),
         params.position.line,
         params.position.column
     };
@@ -801,12 +802,12 @@ void ArkServer::Rename(const std::string &file, const RenameParams &params,
                        const Callback<ValueOrError> &reply) const
 {
     auto action = [this, file, params, reply = std::move(reply)](const InputsAndAST &inputAST) mutable {
-        int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-        if (fileId < 0) {
+        auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (!fileId) {
             return;
         }
         const Cangjie::Position pos = {
-            static_cast<unsigned int>(fileId),
+            fileId.value_or(0),
             params.position.line,
             params.position.column
         };
@@ -1030,12 +1031,12 @@ void ArkServer::FindOverrideMethods(const std::string &file,
 Cangjie::Position ArkServer::AlterPosition(const std::string &file,
                                            const TextDocumentPositionParams &params) const
 {
-    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-    if (fileId < 0) {
+    auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+    if (!fileId) {
         return INVALID_POSITION;
     }
     return Cangjie::Position{
-            static_cast<unsigned int>(fileId),
+            fileId.value_or(0),
             params.position.line,
             params.position.column
     };

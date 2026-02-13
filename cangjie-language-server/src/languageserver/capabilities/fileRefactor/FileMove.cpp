@@ -439,9 +439,9 @@ std::unique_ptr<ArkAST> FileMove::CreateArkAST(LSPCompilerInstance *ci,
         auto arkAST = std::make_unique<ArkAST>(paths, f.get(), ci->diag,
             pkgInstance, &ci->GetSourceManager());
         std::string absName = FileStore::NormalizePath(f->filePath);
-        int fileId = ci->GetSourceManager().GetFileID(absName);
-        if (fileId >= 0) {
-            arkAST->fileID = static_cast<unsigned int>(fileId);
+        auto fileId = ci->GetSourceManager().TryGetFileID(absName);
+        if (fileId) {
+            arkAST->fileID = fileId.value_or(0);
         }
         return arkAST;
     }

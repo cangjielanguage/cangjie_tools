@@ -971,9 +971,9 @@ void CompilerCangjieProject::InitParseCache(const std::unique_ptr<LSPCompilerIns
                                                    this->packageInstanceCacheForParse.get(),
                                                    &lspCI->GetSourceManager());
             std::string absName = FileStore::NormalizePath(file->filePath);
-            int fileId = lspCI->GetSourceManager().GetFileID(absName);
-            if (fileId >= 0) {
-                arkAST->fileID = static_cast<unsigned int>(fileId);
+            auto fileId = lspCI->GetSourceManager().TryGetFileID(absName);
+            if (fileId) {
+                arkAST->fileID = fileId.value_or(0);
             }
             {
                 std::unique_lock<std::mutex> lock(fileMtx);
@@ -1070,9 +1070,9 @@ bool CompilerCangjieProject::InitCache(const std::unique_ptr<LSPCompilerInstance
             auto arkAST = std::make_unique<ArkAST>(paths, file.get(), lspCI->diag, pkgInstance.get(),
                                                    &lspCI->GetSourceManager());
             std::string absName = FileStore::NormalizePath(filePath);
-            int fileId = lspCI->GetSourceManager().GetFileID(absName);
-            if (fileId >= 0) {
-                arkAST->fileID = static_cast<unsigned int>(fileId);
+            auto fileId = lspCI->GetSourceManager().TryGetFileID(absName);
+            if (fileId) {
+                arkAST->fileID = fileId.value_or(0);
             }
             {
                 std::unique_lock<std::recursive_mutex> lock(fileCacheMtx);
@@ -1963,15 +1963,15 @@ bool CompilerCangjieProject::CheckPackageModifier(const File &needCheckedFile, c
     return true;
 }
 
-int CompilerCangjieProject::GetFileID(const std::string &fileName)
+std::optional<unsigned int> CompilerCangjieProject::GetFileID(const std::string &fileName)
 {
     std::string fullPkgName = GetFullPkgName(fileName);
     if (pLRUCache->HasCache(fullPkgName)) {
-        return pLRUCache->Get(fullPkgName)->GetSourceManager().GetFileID(fileName);
+        return pLRUCache->Get(fullPkgName)->GetSourceManager().TryGetFileID(fileName);
     }
     std::string dirPath = GetDirPath(fileName);
     if (pLRUCache->HasCache(dirPath)) {
-        return pLRUCache->Get(dirPath)->GetSourceManager().GetFileID(fileName);
+        return pLRUCache->Get(dirPath)->GetSourceManager().TryGetFileID(fileName);
     }
     return 0;
 }
@@ -2191,9 +2191,9 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
             auto digest = Digest(absName);
             fileInfo.emplace_back(digest);
             fileMap.insert(std::make_pair(id, fileInfo));
-            int fileId = ci->GetSourceManager().GetFileID(absName);
-            if (fileId >= 0) {
-                arkAST->fileID = static_cast<unsigned int>(fileId);
+            auto fileId = ci->GetSourceManager().TryGetFileID(absName);
+            if (fileId) {
+                arkAST->fileID = fileId.value_or(0);
             }
             {
                 std::unique_lock<std::recursive_mutex> lock(fileCacheMtx);
