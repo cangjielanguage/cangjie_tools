@@ -58,7 +58,7 @@ public class A2CJ {
 
         mtx.lock()
         generateTemplateFile("${outSrcDir}/ark_api_call_async.cj", createArkAPICallAsync(gconfig))
-        generateTemplateFile("${outSrcDir}/basic_service_kit.cj", createBasicServiceKit(gconfig))
+        generateTemplateFile("${outSrcDir}/business_exception.cj", createBusinessExceptioinKit(gconfig))
         generateTemplateFile("${outSrcDir}/callback_manager.cj", createCallbackManager(gconfig))
         mtx.unlock()
     }
@@ -190,7 +190,6 @@ public class A2CJ {
     public func transMethod(methodType: MethodType): Tokens {
         let tm = TransMethod(methodType, "", gconfig)
         return tm.generateFunc() + nl //按照非成员函数生成
-
     }
 
     public func transType(typeType: TypeType): Tokens {
@@ -246,7 +245,6 @@ public class A2CJ {
         handleDefault(out)
         handleAsyncPlan(out)
         handleUseBigInt(gconfig, out)
-        handleUseContext(gconfig, out)
         handleHashMap(gconfig, out)
         handleTypeImport(gconfig, out)
     }

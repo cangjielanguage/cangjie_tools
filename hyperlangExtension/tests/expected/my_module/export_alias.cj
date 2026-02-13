@@ -189,7 +189,7 @@ public class ExportedClass {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): ExportedClass {
+    static func fromJSValue(context: JSContext, input: JSValue): ExportedClass {
         ExportedClass(input.asObject())
     }
 }
@@ -207,7 +207,7 @@ public class MyClass {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MyClass {
+    static func fromJSValue(context: JSContext, input: JSValue): MyClass {
         MyClass(input.asObject())
     }
 }
@@ -217,14 +217,14 @@ public class MyClass {
 	 * @brief aliasedFunc(): void
 	 */
 public func aliasedFunc(): Unit {
-    hmsGlobalApiCall < Unit >( "my_module_exportAlias", "aliasedFunc", emptyArg)
+    hmsGlobalApiCall < Unit >( "my_module_exportAlias", "aliasedFunc", EMPTY_ARG)
 }
 
 /**
 	 * @brief anotherFunc(): void
 	 */
 public func anotherFunc(): Unit {
-    hmsGlobalApiCall < Unit >( "my_module_exportAlias", "anotherFunc", emptyArg)
+    hmsGlobalApiCall < Unit >( "my_module_exportAlias", "anotherFunc", EMPTY_ARG)
 }
 
 

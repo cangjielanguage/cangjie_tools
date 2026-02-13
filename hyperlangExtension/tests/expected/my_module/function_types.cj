@@ -18,16 +18,20 @@ public type ErrorCode = Float64
 /***********ENUM***********/
 
 /* enum EventType {
+	 DefaultEvent
 	}*/
 public enum EventType <: ToString & Equatable < EventType > {
-    
+    | DefaultEvent 
+
     func get(): Int32 {
         match(this) {
+            case DefaultEvent => 0  //todo: please check the value
         }
     }
     
     static func parse(val: Int32): EventType {
         match(val) {
+            case 0 => DefaultEvent  //todo: please check the value
             case _ => throw IllegalArgumentException("unknown value ${val}")
         }
     }
@@ -41,11 +45,13 @@ public enum EventType <: ToString & Equatable < EventType > {
     
     public func toString(): String {
         match(this) {
+            case DefaultEvent => "DefaultEvent"
         }
     }
     
     public override operator func ==(that: EventType): Bool {
         match((this, that)) {
+            case(DefaultEvent, DefaultEvent) => true
             case _ => false
         }
     }
@@ -166,53 +172,44 @@ public open class MyListener {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener(public var arkts_object: JSObject) { }
+    protected MyListener(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief on(key: string, cb: (r: Record<string, string>) => void): void
 	 */
-    public func on(key: String, cb: Callback1Argument<JSValue/* FIXME: `Record` */>): Unit {
-        let key = key.toString()
-        if(callbackManager.findCallbackObject(key, cb).isSome()) {
+    public func on(key: String, cb: Callback1Argument<HashMap<String, String>>): Unit {
+        let keyString = key.toString()
+        if(callbackManager.findCallbackObject(keyString, cb).isSome()) {
             return
         }
         let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
             __ctx => __ctx.function {
                 __ctx: JSContext, info: JSCallInfo =>
-                let arg0 = Record<JSValue/* FIXME: `stringstring` */>.fromJSValue(__ctx, info[0])
+                let arg0 = record2Hashmap<String>(__ctx, info[0], { context, i => String.fromJSValue(context, i) })
                 cb.invoke(arg0)
                 __ctx.undefined().toJSValue()
             }.toJSValue()
         }
-        callbackManager.put(key,(cb, jsCallback))
-        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
-    }
-    /**
+        callbackManager.put(keyString,(cb, jsCallback))
+        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[keyString.toJSValue(__ctx), jsCallback] })
+    } /**
 	 * @brief off(key: string, cb: (r: Record<string, string>, t:number) => void): void
 	 */
-    public func off(key: String, cb: Callback2Argument<JSValue/* FIXME: `Record` */>): Unit {
+    public func off(key: String, cb: Callback2Argument<HashMap<String, String>, Float64>): Unit {
         let __ctx = getMainContext()
-        let key = key.toString()
-        if(let Some(v) <- cb) {
-            let jsCallback = callbackManager.findCallbackObject(key, v, remove: true)
-            if(jsCallback.isNone()) {
-                throw BusinessException(401, "Callback does not exist.")
-            }
-            jsObjApiCall < Unit >( arkts_object, "off", { __ctx =>[key.toJSValue(__ctx), jsCallback ?? __ctx.undefined().toJSValue()] })
-        } else {
-            if(callbackManager.isCallbackExist(key)) {
-                callbackManager.clear(key)
-                jsObjApiCall < Unit >( arkts_object, "off", { __ctx =>[key.toJSValue(__ctx)] })
-            }
+        let keyString = key.toString()
+        let jsCallback = callbackManager.findCallbackObject(keyString, cb, remove: true)
+        if(jsCallback.isNone()) {
+            throw BusinessException(401, "Callback does not exist.")
         }
+        jsObjApiCall < Unit >( arkts_object, "off", { __ctx =>[keyString.toJSValue(__ctx), jsCallback ?? __ctx.undefined().toJSValue()] })
     }
-    
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener {
+    public static func fromJSValue(context: JSContext, input: JSValue): MyListener {
         MyListener(input.asObject())
     }
 }
@@ -225,15 +222,15 @@ public open class MyListener2 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener2(public var arkts_object: JSObject) { }
+    protected MyListener2(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief on(key: string, cb: (r: ListenerStatusNumeric) => void): void
 	 */
     public func on(key: String, cb: Callback1Argument<ListenerStatusNumeric>): Unit {
-        let key = key.toString()
-        if(callbackManager.findCallbackObject(key, cb).isSome()) {
+        let keyString = key.toString()
+        if(callbackManager.findCallbackObject(keyString, cb).isSome()) {
             return
         }
         let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
@@ -244,15 +241,14 @@ public open class MyListener2 {
                 __ctx.undefined().toJSValue()
             }.toJSValue()
         }
-        callbackManager.put(key,(cb, jsCallback))
-        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
+        callbackManager.put(keyString,(cb, jsCallback))
+        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[keyString.toJSValue(__ctx), jsCallback] })
     }
-    
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener2 {
+    public static func fromJSValue(context: JSContext, input: JSValue): MyListener2 {
         MyListener2(input.asObject())
     }
 }
@@ -265,15 +261,15 @@ public open class MyListener3 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener3(public var arkts_object: JSObject) { }
+    protected MyListener3(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief on(key: string, cb: (r: ListenerStatusString) => void): void
 	 */
     public func on(key: String, cb: Callback1Argument<ListenerStatusString>): Unit {
-        let key = key.toString()
-        if(callbackManager.findCallbackObject(key, cb).isSome()) {
+        let keyString = key.toString()
+        if(callbackManager.findCallbackObject(keyString, cb).isSome()) {
             return
         }
         let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
@@ -284,15 +280,14 @@ public open class MyListener3 {
                 __ctx.undefined().toJSValue()
             }.toJSValue()
         }
-        callbackManager.put(key,(cb, jsCallback))
-        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
+        callbackManager.put(keyString,(cb, jsCallback))
+        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[keyString.toJSValue(__ctx), jsCallback] })
     }
-    
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener3 {
+    public static func fromJSValue(context: JSContext, input: JSValue): MyListener3 {
         MyListener3(input.asObject())
     }
 }
@@ -305,15 +300,15 @@ public open class MyListener5 {
     let callbackManager = CallbackManager < String, JSValue >()
     
     
-    protected MyListener5(public var arkts_object: JSObject) { }
+    protected MyListener5(var arkts_object: JSObject) { }
     
     
     /**
 	 * @brief on(key: string, cb: Callback<number>): void
 	 */
     public func on(key: String, cb: Callback1Argument<Float64>): Unit {
-        let key = key.toString()
-        if(callbackManager.findCallbackObject(key, cb).isSome()) {
+        let keyString = key.toString()
+        if(callbackManager.findCallbackObject(keyString, cb).isSome()) {
             return
         }
         let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
@@ -324,15 +319,14 @@ public open class MyListener5 {
                 __ctx.undefined().toJSValue()
             }.toJSValue()
         }
-        callbackManager.put(key,(cb, jsCallback))
-        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
+        callbackManager.put(keyString,(cb, jsCallback))
+        jsObjApiCall < Unit >( arkts_object, "on", { __ctx =>[keyString.toJSValue(__ctx), jsCallback] })
     }
-    
     public open func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public open  static func fromJSValue(context: JSContext, input: JSValue): MyListener5 {
+    public static func fromJSValue(context: JSContext, input: JSValue): MyListener5 {
         MyListener5(input.asObject())
     }
 }
@@ -347,11 +341,11 @@ public open class MyListener5 {
 
 public open class TestListener {
     
-    protected TestListener(private var onStart!: Option<() -> Unit> = None,
-    private var onDestroy!: Option<() -> Unit> = None,
-    private var onError!: Option<(code: ErrorCode, msg: String) -> Unit> = None,
-    private var onTouch!: Option<() -> Unit> = None,
-    private var onEvent!: Option<(e: EventType) -> Unit> = None) { }
+    protected TestListener(public var onStart!: Option<() -> Unit> = None,
+    public var onDestroy!: Option<() -> Unit> = None,
+    public var onError!: Option<(ErrorCode, String) -> Unit> = None,
+    public var onTouch!: Option<() -> Unit> = None,
+    public var onEvent!: Option<(EventType) -> Unit> = None) { }
     
     
     public open func toJSValue(context: JSContext): JSValue {
@@ -453,8 +447,6 @@ public open class TestListener {
     }*/
 
 public class MyListener4 {
-    let callbackManager = CallbackManager < String, JSValue >()
-    
     
     protected MyListener4(var arkts_object: JSObject) { }
     
@@ -462,28 +454,19 @@ public class MyListener4 {
     /**
 	 * @brief on(key: string, cb: (r: ListenerStatusString) => void): void
 	 */
-    public static func on(key: String, cb: Callback1Argument<ListenerStatusString>): Unit {
-        let key = key.toString()
-        if(callbackManager.findCallbackObject(key, cb).isSome()) {
-            return
-        }
-        let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
-            __ctx => __ctx.function {
-                __ctx: JSContext, info: JSCallInfo =>
-                let arg0 = ListenerStatusString.parse(String.fromJSValue(__ctx, info[0]))
-                cb.invoke(arg0)
-                __ctx.undefined().toJSValue()
-            }.toJSValue()
-        }
-        callbackManager.put(key,(cb, jsCallback))
-        jsObjApiCall < Unit >(getClassConstructorObj("my_module_functionTypes", "MyListener4"), arkts_object, "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
+    public static func on(key: String, cb: (ListenerStatusString) -> Unit): Unit {
+        jsObjApiCall < Unit >(getClassConstructorObj("my_module_functionTypes", "MyListener4"),  "on", { ctx =>[key.toJSValue(ctx), ctx.function({ ctx, info =>
+                let p0 = ListenerStatusString.parse(String.fromJSValue(ctx, info[0]))
+                cb(p0)
+                ctx.undefined().toJSValue()
+            }).toJSValue()] })
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MyListener4 {
+    static func fromJSValue(context: JSContext, input: JSValue): MyListener4 {
         MyListener4(input.asObject())
     }
 }
@@ -494,43 +477,41 @@ let callbackManager = CallbackManager < String, JSValue >()
 /**
 	 * @brief on(key: string, cb: (r: Record<string, string>, option, t?:number) => void): void
 	 */
-public func on(key: String, cb: Callback3Argument<JSValue/* FIXME: `Record` */>): Unit {
-    let key = key.toString()
-    if(callbackManager.findCallbackObject(key, cb).isSome()) {
+public func on(key: String, cb: Callback3Argument<HashMap<String, String>, JSValue/* FIXME: `any` */, Float64>): Unit {
+    let keyString = key.toString()
+    if(callbackManager.findCallbackObject(keyString, cb).isSome()) {
         return
     }
     let jsCallback = checkThreadAndCall < JSValue >(getMainContext()) {
         __ctx => __ctx.function {
             __ctx: JSContext, info: JSCallInfo =>
-            let arg0 = Record<JSValue/* FIXME: `stringstring` */>.fromJSValue(__ctx, info[0])
-            let arg1 = JSValue/* FIXME: `option` */.fromJSValue(__ctx, info[1])
+            let arg0 = record2Hashmap<String>(__ctx, info[0], { context, i => String.fromJSValue(context, i) })
+            let arg1 = info[1]
             let arg2 = Float64.fromJSValue(__ctx, info[2])
             cb.invoke(arg0, arg1, arg2)
             __ctx.undefined().toJSValue()
         }.toJSValue()
     }
-    callbackManager.put(key,(cb, jsCallback))
-    hmsGlobalApiCall < Unit >( "my_module_functionTypes", "on", { __ctx =>[key.toJSValue(__ctx), jsCallback] })
+    callbackManager.put(keyString,(cb, jsCallback))
+    hmsGlobalApiCall < Unit >( "my_module_functionTypes", "on", { __ctx =>[keyString.toJSValue(__ctx), jsCallback] })
 }
-
 /**
 	 * @brief off(key: string, cb?: (r: Record<string, string>, t:number) => void): void
 	 */
-public func off(key: String, cb!:?Callback2Argument<JSValue/* FIXME: `Record` */> = None): Unit {
+public func off(key: String, cb!: Option < Callback2Argument<HashMap<String, String>, Float64> >= None): Unit {
     let __ctx = getMainContext()
-    let key = key.toString()
+    let keyString = key.toString()
     if(let Some(v) <- cb) {
-        let jsCallback = callbackManager.findCallbackObject(key, v, remove: true)
+        let jsCallback = callbackManager.findCallbackObject(keyString, v, remove: true)
         if(jsCallback.isNone()) {
             throw BusinessException(401, "Callback does not exist.")
         }
-        hmsGlobalApiCall < Unit >("my_module_functionTypes", "off", { __ctx =>[key.toJSValue(__ctx), jsCallback ?? __ctx.undefined().toJSValue()] })
+        hmsGlobalApiCall < Unit >("my_module_functionTypes", "off", { __ctx =>[keyString.toJSValue(__ctx), jsCallback ?? __ctx.undefined().toJSValue()] })
     } else {
-        if(callbackManager.isCallbackExist(key)) {
-            callbackManager.clear(key)
-            hmsGlobalApiCall < Unit >("my_module_functionTypes", "off", { __ctx =>[key.toJSValue(__ctx)] })
+        if(callbackManager.isCallbackExist(keyString)) {
+            callbackManager.clear(keyString)
+            hmsGlobalApiCall < Unit >("my_module_functionTypes", "off", { __ctx =>[keyString.toJSValue(__ctx)] })
         }
     }
 }
-
 

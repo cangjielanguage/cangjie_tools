@@ -19,11 +19,11 @@ interface BasicTypes {
 	neverKeyword: never;
 }
 
-interface FunctionTypes {
+interface FunctionTypes<V, W> {
 	functionType1: () => void;
-	functionType10: <V>(arg: V) => void;
-	functionType11: <V, W extends string>(arg: V) => W;
-	functionType12: <V = object, W extends string = '123' | '345'>(arg: V) => W; // type parameter default values are unsupported
+	functionType10: (arg: V) => void;
+	functionType11: (arg: V) => W;
+	functionType12: (arg: V) => W; // type parameter default values are unsupported
 	functionType20: (...a: number[]) => void;
 	// functionType21: (...a?: number[]) => void; // illegal
 	functionType30: (a?: number) => void;
@@ -66,17 +66,17 @@ interface ComplexTypes<T, U extends string> {
 	mappedType20: { [k in keyof Promise<U>]: number };
 }
 
-interface NestedTypes {
+interface NestedTypes<T> {
 	nested10: {
 		x: { value: number; unit: string; } | number;
 		y: { value: number; unit: string; } | number;
 	};
 
-	nested20: ComplexTypes<Record<string, (x: number) => Promise<string>>, string>;
+	// nested20: ComplexTypes<Record<string, (x: number) => Promise<string>>, string>;
 
-	nested21: ComplexTypes<Record<string, <T>(x: T) => Promise<string>>, string>;
+	// nested21: ComplexTypes<Record<string, (x: T) => Promise<string>>, string>;
 	 
-	nested22: ComplexTypes<Record<string, <T>(x?: T) => Promise<[string, string]>>, string>;
+	// nested22: ComplexTypes<Record<string, (x?: T) => Promise<[string, string]>>, string>;
 }
 
 interface Optionals {

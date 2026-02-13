@@ -23,17 +23,15 @@ public class MessagePackage {
     /**
 	 * @brief getDataAsync(p: typeof MessagePackage): Promise<typeof MessagePackage>
 	 */
-    public static func getDataAsync(callback: AsyncCallback < JSValue/* FIXME: `Promise<UnsupportedType[TypeQuery]>` */ >, p: JSValue/* FIXME: `typeof MessagePackage` */): Unit {
-        jsObjApiCallPromise < JSValue/* FIXME: `Promise<UnsupportedType[TypeQuery]>` */ >(getClassConstructorObj("my_module_typeofType", "MessagePackage"), "getDataAsync", callback, { ctx =>[p] }) {
-            ctx, info => info
-        }
+    public static func getDataAsync(callback: AsyncCallback < JSValue/* FIXME: `Promise<UnsupportedType[TypeQuery]>` */ >, p: JSValue/* FIXME: `UnsupportedType[TypeQuery]` */): Unit {
+        jsObjApiCallPromise < JSValue/* FIXME: `Promise<UnsupportedType[TypeQuery]>` */ >(getClassConstructorObj("my_module_typeofType", "MessagePackage"), "getDataAsync", callback, { ctx =>[p] }) { ctx, info => info }
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
+    static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
     }
 }

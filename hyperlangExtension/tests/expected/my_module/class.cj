@@ -9,6 +9,10 @@ package my_module
 import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
+/***********IMPORT***********/
+/*FIXME: Import details need to be verified and rewritten by user.*/
+/*import { LoggerAdapter } from './interface'*/
+
 
 
 /*class ExportKeyword DeclareKeyword TDDiagBuilder {
@@ -17,7 +21,7 @@ import ohos.base.*
     appId: String;
     appKey: String;
     appVersion: String;
-    platform: number;
+    platform1: number;
     loggerAdapter: LoggerAdapter | null | undefined;
     xgTrafficQuota: number;
     platform: String | null;
@@ -36,7 +40,7 @@ public class TDDiagBuilder {
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
             __ctx =>
-            let clazz = getClassConstructorObj("cases_class", "TDDiagBuilder").toJSValue().asClass(__ctx)
+            let clazz = getClassConstructorObj("cases_class", "TDDiagBuilder").toJSValue().asClass()
             clazz.new().asObject()
         }
     }
@@ -99,15 +103,15 @@ public class TDDiagBuilder {
         
     }
     
-    public mut prop platform: Float64 {
+    public mut prop platform1: Float64 {
         get() {
             checkThreadAndCall < Float64 >(getMainContext()) {
-                ctx: JSContext => Float64.fromJSValue(ctx, arkts_object["platform"])
+                ctx: JSContext => Float64.fromJSValue(ctx, arkts_object["platform1"])
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["platform"] = v.toJSValue(ctx)
+                ctx: JSContext => arkts_object["platform1"] = v.toJSValue(ctx)
             }
         }
         
@@ -116,12 +120,20 @@ public class TDDiagBuilder {
     public mut prop loggerAdapter: Option<LoggerAdapter> {
         get() {
             checkThreadAndCall < Option<LoggerAdapter> >(getMainContext()) {
-                ctx: JSContext => Option < LoggerAdapter >.fromJSValue(ctx, arkts_object["loggerAdapter"])
+                ctx: JSContext =>
+                if(arkts_object["loggerAdapter"].isNull()) {
+                    None < LoggerAdapter >
+                } else {
+                    LoggerAdapter.fromJSValue(ctx, arkts_object["loggerAdapter"])
+                }
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["loggerAdapter"] = v.toJSValue(ctx)
+                ctx: JSContext => arkts_object["loggerAdapter"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
             }
         }
         
@@ -144,12 +156,20 @@ public class TDDiagBuilder {
     public mut prop platform: Option<String> {
         get() {
             checkThreadAndCall < Option<String> >(getMainContext()) {
-                ctx: JSContext => Option < String >.fromJSValue(ctx, arkts_object["platform"])
+                ctx: JSContext =>
+                if(arkts_object["platform"].isNull()) {
+                    None < String >
+                } else {
+                    String.fromJSValue(ctx, arkts_object["platform"])
+                }
             }
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["platform"] = v.toJSValue(ctx)
+                ctx: JSContext => arkts_object["platform"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow().toJSValue(ctx)
+                }
             }
         }
         
@@ -163,7 +183,10 @@ public class TDDiagBuilder {
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["crashListener"] = v.getOrDefault({ => ctx.object().toJSValue() })
+                ctx: JSContext => arkts_object["crashListener"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow()
+                }
             }
         }
         
@@ -177,7 +200,10 @@ public class TDDiagBuilder {
         }
         set(v) {
             checkThreadAndCall < Unit >(getMainContext()) {
-                ctx: JSContext => arkts_object["logUploadListener"] = v.getOrDefault({ => ctx.object().toJSValue() })
+                ctx: JSContext => arkts_object["logUploadListener"] = match(v) {
+                    case None => ctx.undefined().toJSValue()
+                    case _ => v.getOrThrow()
+                }
             }
         }
         
@@ -202,7 +228,7 @@ public class TDDiagBuilder {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): TDDiagBuilder {
+    static func fromJSValue(context: JSContext, input: JSValue): TDDiagBuilder {
         TDDiagBuilder(input.asObject())
     }
 }
@@ -221,64 +247,50 @@ public class d10 {
 	 * @brief getInstance(): d10
 	 */
     public static func getInstance(): d10 {
-        jsObjApiCall < d10 >(getClassConstructorObj("my_module_class", "d10"),  "getInstance", emptyArg) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >(getClassConstructorObj("my_module_class", "d10"),  "getInstance", EMPTY_ARG) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: Float64): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: String): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: Bool): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), value.toJSValue(ctx)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: Array<Float64>): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < Float64 >(ctx, value)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < Float64 >(ctx, value)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: Array<String>): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < String >(ctx, value)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < String >(ctx, value)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     /**
 	 * @brief putSync(key: string, value: number | string | boolean | Array<number> | Array<string> | Array<boolean>): d10
 	 */
     public func putSync(key: String, value: Array<Bool>): d10 {
-        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < Bool >(ctx, value)] }) {
-            ctx, info => d10.fromJSValue(ctx, info)
-        }
+        jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < Bool >(ctx, value)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     
     func toJSValue(context: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-     static func fromJSValue(context: JSContext, input: JSValue): d10 {
+    static func fromJSValue(context: JSContext, input: JSValue): d10 {
         d10(input.asObject())
     }
 }

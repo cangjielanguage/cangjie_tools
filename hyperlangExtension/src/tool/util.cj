@@ -71,15 +71,6 @@ public func isNumberArray(typeStr: String): Bool {
     typeStr == "number[]"
 }
 
-public func getArrayInnerType(arrType: String): String {
-    var innerType = arrType[6..(arrType.size - 1)]
-    if (innerType == "string") {
-        return "String"
-    } else {
-        return innerType
-    }
-}
-
 public func mergeCommentToken(arkComment: String, brief: String): Token {
     let sinceIdx = arkComment.indexOf("@since") ?? arkComment.size
     let subArkComment = arkComment[sinceIdx..]
@@ -199,7 +190,7 @@ public func hasEventAPI(methods: ArrayList<MethodType>): Bool {
 }
 
 public func isEventAPI(method: MethodType): Bool {
-    return (method.name == "on" || method.name == "off") && method.params.size >= 2;
+    return (method.name == "on" || method.name == "off") && method.params.size >= 2 && !method.modifiers.contains("StaticKeyword");
 }
 
 public func declareCallbackManager(): Tokens {

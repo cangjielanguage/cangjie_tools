@@ -15,14 +15,20 @@ import ohos.base.*
 	 * @brief compress1(src: Uint8Array | number[], maxSize?: number): Uint8Array
 	 */
 public func compress1(src: Array<UInt8>, maxSize!: Option < Float64 >= None): Array<UInt8> {
-    hmsGlobalApiCall < Array<UInt8> >( "my_module_Index", "compress1", { ctx =>[toJSArray < UInt8 >(ctx, src, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), maxSize.toJSValue(ctx)] })
+    hmsGlobalApiCall < Array<UInt8> >( "my_module_Index", "compress1", { ctx =>[toJSArray < UInt8 >(ctx, src, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), match(maxSize) {
+            case None => ctx.undefined().toJSValue()
+            case _ => maxSize.getOrThrow().toJSValue(ctx)
+        }] })
 }
 
 /**
 	 * @brief compress1(src: Uint8Array | number[], maxSize?: number): Uint8Array
 	 */
 public func compress1(src: Array<Float64>, maxSize!: Option < Float64 >= None): Array<UInt8> {
-    hmsGlobalApiCall < Array<UInt8> >( "my_module_Index", "compress1", { ctx =>[toJSArray < Float64 >(ctx, src), maxSize.toJSValue(ctx)] })
+    hmsGlobalApiCall < Array<UInt8> >( "my_module_Index", "compress1", { ctx =>[toJSArray < Float64 >(ctx, src), match(maxSize) {
+            case None => ctx.undefined().toJSValue()
+            case _ => maxSize.getOrThrow().toJSValue(ctx)
+        }] })
 }
 
 
