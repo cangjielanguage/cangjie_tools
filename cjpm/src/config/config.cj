@@ -491,41 +491,6 @@ public open class CommandConfig {
     public var memberModule: String = ""
 }
 
-// TODO: make it in a different way?
-@Derive[Hashable, Equatable]
-public enum CompilePhase <: ToString & Serializable<CompilePhase> {
-    | ObjOnly | LinkOnly | Default
-
-    public func toString(): String {
-        match (this) {
-            case ObjOnly => "ObjOnly"
-            case LinkOnly => "LinkOnly"
-            case Default => "Default"
-        }
-    }
-
-    public static func fromString(s: String): CompilePhase {
-        match (s) {
-            case "ObjOnly" => ObjOnly
-            case "LinkOnly" => LinkOnly
-            case "Default" => Default
-            case _ => throw Exception("Unknown kind of CompilePhase: `${s}`")
-        }
-    }
-
-    public func serialize(): DataModel {
-        DataModelString(this.toString())
-    }
-
-    public static func deserialize(dm: DataModel): CompilePhase {
-        let dmstr = match (dm) {
-            case dmstr: DataModelString => dmstr
-            case _ => throw DataModelException("this is not DataModelString")
-        }
-        fromString(dmstr.getValue())
-    }
-}
-
 public struct PackageList {
     private let packages: Array<ResolveItem>
     private let macroSet: HashSet<String>

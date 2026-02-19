@@ -834,6 +834,7 @@ func compileAllTests(linkMap: HashMap<PackageFqName, Array<String>>, testPkgsMap
     if (testConfig.isIncremental) {
         loadTestIncremental(testConfig)
         let finalTestPkgsMap = HashMap<PackageFqName, PkgDescTest>()
+        println("RebuildList: ${testConfig.rebuildList}")
         for ((pkgFqName, pkgDesc) in testPkgsMap) {
             if (testConfig.rebuildList.contains(pkgDesc.fqname.value) || rebuildTestPkgs(testConfig, pkgDesc.fqname) ||
                     rebuildPureTestPkgs(testConfig, pkgDesc.srcDir, pkgDesc.fqname)) {
@@ -1027,6 +1028,7 @@ func parallelCompileTests(
             let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
             sem.release()
             logger.log((pkgInfo.outLogFile, pkgInfo.errLogFile))
+            logger.release()
             return flag
         })
     }

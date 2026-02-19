@@ -435,6 +435,9 @@ func startBuild(buildConfig: BuildConfig, res: ModuleResolve): Bool {
     try {
         flag = parallelBuild(res, buildConfig)
     } catch (e: Exception) {
+        if (e is AssertionError) {
+            throw e
+        }
         eprintln(e.toString())
         return false
     }
@@ -548,7 +551,7 @@ func appendImportPaths(compileTask: CompileTask, buildConfig: BuildConfig): Arra
     return res
 }
 
-func appendCommandOptions(compileTask: CompileTask): ArrayList<String> {
+func appendCommandOptions(compileTask: CompileTask, ignoreTestFlags!: Bool = false): ArrayList<String> {
     let res = ArrayList<String>()
     if (state.isExperimental) {
         res.add("--experimental")
@@ -565,18 +568,18 @@ func appendCommandOptions(compileTask: CompileTask): ArrayList<String> {
     if (compileTask.mockSupported) {
         res.add("--mock=on")
     }
-    if (compileTask.outputType != Chir && !compileTask.hasSubPkgs && !compileTask.requiredForTests) {
+    if (compileTask.outputType != Chir && !compileTask.hasSubPkgs && (!ignoreTestFlags && !compileTask.requiredForTests)) {
         res.add("--no-sub-pkg")
     }
     res.add("--output-dir=${compileTask.targetPath}")
     res
 }
 
-func appendLinkOption(compileTask: CompileTask): ArrayList<String> {
+func appendLinkOption(compileTask: CompileTask, ignoreTestFlags!: Bool = false): ArrayList<String> {
     if (compileTask.linkOption.isEmpty()) {
         return ArrayList<String>()
     }
-    if (compileTask.outputType == Static && !compileTask.requiredForTests) {
+    if (compileTask.outputType == Static && (!ignoreTestFlags && !compileTask.requiredForTests)) {
         return ArrayList<String>()
     }
     return ArrayList<String>(["--link-options", compileTask.linkOption])
@@ -618,14 +621,14 @@ func getOutput(compileTask: CompileTask): Option<String> {
     }
 }
 
-func getTypeCommand(compileTask: CompileTask): ArrayList<String> {
+func getTypeCommand(compileTask: CompileTask, ignoreTestFlags!: Bool = false): ArrayList<String> {
     let res = ArrayList<String>()
     if (compileTask.isAnalysisCompilePerformance) {
         res.add("--profile-compile-time")
         res.add("--profile-compile-memory")
     }
 
-    if (compileTask.exportForTests) {
+    if (!ignoreTestFlags && compileTask.exportForTests) {
         res.add("--export-for-test")
     }
 
@@ -841,8 +844,13 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     let libPathSet = HashSet<String>()
     let stdDeps = StdDeps()
 
+    let isLinkTask = match (compileTask.id) {
+        case Link(_, _, _, _, _, _) => true
+        case _ => false
+    }
+
     let addStdDeps = { depName =>
-        if (compileTask.compilePhase != LinkOnly) {
+        if (!isLinkTask) {
             return
         }
         if (let Some(resolveItem) <- buildConfig.resolveItemMap.get(depName)) {
@@ -893,7 +901,7 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     res.add(all: binOptions)
     res.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
 
-    if (compileTask.compilePhase == LinkOnly) {
+    if (isLinkTask) {
         stdDeps.add(all: binStdDeps)
         stdDeps.add(all: crossbinStdDeps)
         res.add(all: topoSort(stdDeps).map { std => "-lcangjie-std-${std.removePrefix("std.")}" })

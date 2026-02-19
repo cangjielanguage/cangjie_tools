@@ -14,15 +14,15 @@ import cjpm.config.*
 private enum MessageKind {
     | Release
     | Print(String, String)
+    | Console(String)
 }
 
-// A very simple logger which can write at most `messageBound` messages read from files
 public class BoundedFileLogger {
     private let messageQueue = LinkedBlockingQueue<MessageKind>()
     private var logFuture: ?Future<Bool> = None
 
     public BoundedFileLogger(
-        private var messageBound: Int64
+        private var logBound: Int64
     ) { }
 
     public func release(): Unit {
@@ -32,22 +32,24 @@ public class BoundedFileLogger {
     public func log(logFiles: ?(String, String)): Unit {
         if (let Some((outLogFile, errLogFile)) <- logFiles) {
             this.messageQueue.add(Print(outLogFile, errLogFile))
-        } else {
-            this.messageQueue.add(Release)
         }
+    }
+
+    public func console(msg: String): Unit {
+        this.messageQueue.add(Console(msg))
     }
 
     public func start(): Unit {
         if (logFuture.isNone()) {
             this.logFuture = spawn { =>
-                var count = this.messageBound
+                var count = this.logBound
                 var success: Bool = true
                 while (count > 0) {
                     match (this.messageQueue.remove()) {
                         case Release => count--
                         case Print(outLogFile, errLogFile) =>
-                            count--
                             success = printLogs(outLogFile, errLogFile) && success
+                        case Console(msg) => println(msg)
                     }
                 }
                 return success
@@ -66,7 +68,7 @@ public class BoundedFileLogger {
     private static func printLogs(outLogFile: String, errLogFile: String): Bool {
         var logFlag: Bool = true
         func printLogFile(logFile: String, toStrerr: Bool): Bool {
-            if (!fileExists(outLogFile)) {
+            if (!fileExists(logFile)) {
                 return true
             }
             try {
@@ -78,7 +80,7 @@ public class BoundedFileLogger {
                 }
             } catch (e: Exception) {
                 eprintln(e.message)
-                eprintln("Errof: failed to read '${logFile}'")
+                eprintln("Error: failed to read '${logFile}'")
                 return false
             }
             return true

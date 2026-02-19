@@ -18,6 +18,10 @@ public class CliFailError <: Exception {
     }
 }
 
+public class AssertionError <: Exception {
+    AssertionError(error: String) { super(error) }
+}
+
 @When[debug]
 public func assertion(lambda: () -> Bool, errmesg: () -> String): Unit {
     var res: ?String = None
@@ -29,7 +33,7 @@ public func assertion(lambda: () -> Bool, errmesg: () -> String): Unit {
     }
     if (hasFailed) {
         let output = res ?? errmesg()
-        throw Exception("It's caught!: ${output}")
+        throw AssertionError("It's caught!: ${output}")
     }
 }
 
