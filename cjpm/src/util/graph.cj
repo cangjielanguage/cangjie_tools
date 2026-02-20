@@ -23,11 +23,15 @@ public class DAGBuilder<K, V> where K <: Hashable & Equatable<K> {
         assertion { !graph.contains(id) }
         assertion { graph.contains(all: incoming) }
 
+        if (graph.contains(id)) {
+            return
+        }
+
         if (incoming.size == 0) {
             roots.add(id)
         }
 
-        for (node in incoming) {
+        for (node in incoming where graph.contains(node)) {
             let (_, out) = graph[node]
             out.add(id)
         }
