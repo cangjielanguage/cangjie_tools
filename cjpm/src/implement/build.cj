@@ -435,9 +435,6 @@ func startBuild(buildConfig: BuildConfig, res: ModuleResolve): Bool {
     try {
         flag = parallelBuild(res, buildConfig)
     } catch (e: Exception) {
-        if (e is AssertionError) {
-            throw e
-        }
         eprintln(e.toString())
         return false
     }
