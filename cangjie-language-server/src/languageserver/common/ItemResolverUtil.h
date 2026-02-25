@@ -68,6 +68,9 @@ public:
         const std::vector<OwnedPtr<Cangjie::AST::Type>> &paramTypes,
         Cangjie::SourceManager *sourceManager, const std::string &filePath, bool needLastParam = true);
 
+    static void GenerateUniqueParamName(std::string &detail,
+        std::unordered_set<std::string> &parameterNameSet, size_t &parameterNum);
+
     static void ResolveFuncTypeParamInsert(std::string &detail,
         const std::vector<OwnedPtr<Cangjie::AST::Type>> &paramTypes, Cangjie::SourceManager *sourceManager,
         const std::string &filePath, int &numParm, bool needLastParam = true, bool needDefaultParamName = false);

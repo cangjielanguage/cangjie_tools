@@ -345,6 +345,45 @@ void CompilerCangjieProject::IncrementCompile(const std::string &filePath, const
     Trace::Log("Finish incremental compilation for package: ", fullPkgName);
 }
 
+void CompilerCangjieProject::RemoveOldRealPkgMapping(const std::string &oldRealPkgName, const std::string &fullPkgName)
+{
+    if (this->realPkgToFullPkgName.find(oldRealPkgName) != this->realPkgToFullPkgName.end()) {
+        this->realPkgToFullPkgName[oldRealPkgName].erase(fullPkgName);
+        if (this->realPkgToFullPkgName[oldRealPkgName].empty()) {
+            this->realPkgToFullPkgName.erase(oldRealPkgName);
+        }
+    }
+}
+
+void CompilerCangjieProject::UpdatePkgInfoMapping(
+    std::string &fullPkgName, const std::string &pkgName,
+    const std::unique_ptr<LSPCompilerInstance> &ci, bool &redefined)
+{
+    if (pkgInfoMap[fullPkgName]->isSourceDir && pkgName != GetRealPackageName(fullPkgName)) {
+        std::string newFullPkgName = pkgName;
+        if (pkgInfoMap[fullPkgName]->pkgType != PkgType::NORMAL && !pkgInfoMap[fullPkgName]->sourceSetName.empty()) {
+            newFullPkgName = pkgInfoMap[fullPkgName]->sourceSetName + "-" + pkgName;
+        }
+        if (pkgInfoMap.find(newFullPkgName) != pkgInfoMap.end()) {
+            redefined = true;
+        } else {
+            pathToFullPkgName[pkgInfoMap[fullPkgName]->packagePath] = newFullPkgName;
+            std::string realPkgName = GetRealPackageName(newFullPkgName);
+            realPkgToFullPkgName[realPkgName].insert(newFullPkgName);
+            pkgInfoMap[fullPkgName]->packageName = SplitFullPackage(pkgName).second;
+            pkgInfoMap[newFullPkgName] = std::move(pkgInfoMap[fullPkgName]);
+            pkgInfoMap.erase(fullPkgName);
+            std::string oldRealPkgName = GetRealPackageName(fullPkgName);
+            RemoveOldRealPkgMapping(oldRealPkgName, fullPkgName);
+            pLRUCache->EraseCache(fullPkgName);
+            CIMap.erase(fullPkgName);
+            LSPCompilerInstance::astDataMap.erase(fullPkgName);
+            ci->pkgNameForPath = newFullPkgName;
+            fullPkgName = newFullPkgName;
+        }
+    }
+}
+
 bool CompilerCangjieProject::UpdateDependencies(
     std::string &fullPkgName, const std::unique_ptr<LSPCompilerInstance> &ci)
 {
@@ -365,34 +404,9 @@ bool CompilerCangjieProject::UpdateDependencies(
         pkgName = moduleManager->GetExpectedPkgName(*packages[0]->files[0]);
     }
     bool redefined = false;
-    std::lock_guard<std::mutex> lock(pkgInfoMap[fullPkgName]->pkgInfoMutex);
-    if (pkgInfoMap[fullPkgName]->isSourceDir && pkgName != GetRealPackageName(fullPkgName)) {
-        std::string newFullPkgName = pkgName;
-        if (pkgInfoMap[fullPkgName]->pkgType != PkgType::NORMAL && !pkgInfoMap[fullPkgName]->sourceSetName.empty()) {
-            newFullPkgName = pkgInfoMap[fullPkgName]->sourceSetName + "-" + pkgName;
-        }
-        if (pkgInfoMap.find(newFullPkgName) != pkgInfoMap.end()) {
-            redefined = true;
-        } else {
-            pathToFullPkgName[pkgInfoMap[fullPkgName]->packagePath] = newFullPkgName;
-            std::string realPkgName = GetRealPackageName(newFullPkgName);
-            realPkgToFullPkgName[realPkgName].insert(newFullPkgName);
-            pkgInfoMap[fullPkgName]->packageName = SplitFullPackage(pkgName).second;
-            pkgInfoMap[newFullPkgName] = std::move(pkgInfoMap[fullPkgName]);
-            pkgInfoMap.erase(fullPkgName);
-            std::string oldRealPkgName = GetRealPackageName(fullPkgName);
-            if (this->realPkgToFullPkgName.find(oldRealPkgName) != this->realPkgToFullPkgName.end()) {
-                this->realPkgToFullPkgName[oldRealPkgName].erase(fullPkgName);
-                if (this->realPkgToFullPkgName[oldRealPkgName].empty()) {
-                    this->realPkgToFullPkgName.erase(oldRealPkgName);
-                }
-            }
-            pLRUCache->EraseCache(fullPkgName);
-            CIMap.erase(fullPkgName);
-            LSPCompilerInstance::astDataMap.erase(fullPkgName);
-            ci->pkgNameForPath = newFullPkgName;
-            fullPkgName = newFullPkgName;
-        }
+    {
+        std::lock_guard<std::mutex> lock(pkgInfoMap[fullPkgName]->pkgInfoMutex);
+        UpdatePkgInfoMapping(fullPkgName, pkgName, ci, redefined);
     }
     ci->UpdateDepGraph(graph, fullPkgName);
     if (!ci->GetSourcePackages()[0]->files.empty()) {

@@ -994,6 +994,18 @@ void ItemResolverUtil::ResolveFuncTypeParamSignature(std::string &detail,
     }
 }
 
+void ItemResolverUtil::GenerateUniqueParamName(
+    std::string &detail, std::unordered_set<std::string> &parameterNameSet, size_t &parameterNum)
+{
+    std::string defaultName = "arg" + std::to_string(parameterNum);
+    while (parameterNameSet.find(defaultName) != parameterNameSet.end()) {
+        parameterNum++;
+        defaultName = "arg" + std::to_string(parameterNum);
+    }
+    detail += defaultName + ": ";
+    parameterNameSet.insert(defaultName);
+}
+
 void ItemResolverUtil::ResolveFuncTypeParamInsert(std::string &detail,
                                                   const std::vector<OwnedPtr<Cangjie::AST::Type>> &paramTypes,
                                                   Cangjie::SourceManager *sourceManager,
@@ -1026,13 +1038,7 @@ void ItemResolverUtil::ResolveFuncTypeParamInsert(std::string &detail,
             numParm++;
         }
         if (paramType->typeParameterName.empty() && needDefaultParamName) {
-            std::string defaultName = "arg" + std::to_string(parameterNum);
-            while (parameterNameSet.find(defaultName) != parameterNameSet.end()) {
-                parameterNum++;
-                defaultName = "arg" + std::to_string(parameterNum);
-            }
-            detail += defaultName + ": ";
-            parameterNameSet.insert(defaultName);
+            GenerateUniqueParamName(detail, parameterNameSet, parameterNum);
         }
         bool getTypeByNodeAndType = GetString(*paramType->ty) == "UnknownType" ||
                                     (sourceManager && (paramType->astKind == Cangjie::AST::ASTKind::FUNC_TYPE ||
