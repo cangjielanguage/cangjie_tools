@@ -498,6 +498,27 @@ struct MEMORYSTATUSEX {
 @When[os == "Windows"]
 foreign func GlobalMemoryStatusEx(memory: CPointer<MEMORYSTATUSEX>): Bool
 
+@C
+struct PROCESS_MEMORY_COUNTERS {
+    var cb: UInt32 = 0
+    var pageFaultCount: UInt32 = 0
+    var peakWorkingSetSize: UInt64 = 0
+    var workingSetSize: UInt64 = 0
+    var quotaPeakPagedPoolUsage: UInt64 = 0
+    var quotaPagedPoolUsage: UInt64 = 0
+    var quotaPeakNonPagedPoolUsage: UInt64 = 0
+    var quotaNonPagedPoolUsage: UInt64 = 0
+    var pagefileUsage: UInt64 = 0
+    var peakPagefileUsage: UInt64 = 0
+}
+
+@When[os == "Windows"]
+foreign func GetCurrentProcess(): Int64
+
+@When[os == "Windows"]
+foreign func K32GetProcessMemoryInfo(process: Int64, memoryCounter: CPointer<PROCESS_MEMORY_COUNTERS>,
+    cb: UInt32): Bool
+
 @When[os == "Windows"]
 public func getMemInfo(): Float64 {
     unsafe {
@@ -511,8 +532,16 @@ public func getMemInfo(): Float64 {
 
 @When[os == "Windows"]
 public func getCjpmMemInfo(): Float64 {
-    var cjpmMemInfo = Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
-    return cjpmMemInfo
+    unsafe {
+        var memoryCounter = PROCESS_MEMORY_COUNTERS()
+        // sizeof(PROCESS_MEMORY_COUNTERS) in x64
+        memoryCounter.cb = 72
+        let status = K32GetProcessMemoryInfo(GetCurrentProcess(), inout memoryCounter, memoryCounter.cb)
+        if (status) {
+            return Float64(memoryCounter.workingSetSize) / K_BYTE / K_BYTE
+        }
+        return Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
+    }
 }
 
 @C
@@ -592,7 +621,10 @@ public func addMemoryProcess(): Future<Thread> {
                 return Thread.currentThread
             }
             sleep(100 * Duration.millisecond)
-            var cjpmRealTimeSystemPhysicalMemory = getMemInfo() - cjpmMemOffset
+            var cjpmMemByOffset = getMemInfo() - cjpmMemOffset
+            var cjpmMemByProcess = getCjpmMemInfo()
+            var cjpmRealTimeSystemPhysicalMemory = max(cjpmMemByOffset, cjpmMemByProcess)
+            cjpmRealTimeSystemPhysicalMemory = max(0.0, cjpmRealTimeSystemPhysicalMemory)
             var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
             CJPM_COMPILE_INFO.add(cjpmTime,cjpmRealTimeSystemPhysicalMemory)
         }
