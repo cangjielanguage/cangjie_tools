@@ -294,7 +294,7 @@ private:
 
     const std::string JS_OBJECT_BASE_TY = "JSObjectBase";
 
-    const std::string JS_LAMBDA_TY = "(Class-JSContext, Struct-JSCallInfo) -> Struct-JSValue";
+    const std::string JS_LAMBDA_TY = "(Class-JSContext, Class-JSCallInfo) -> Class-JSValue";
 
     const std::string FUNC_REGISTER_TY = "(Class-JSContext) -> Class-JSFunction";
 

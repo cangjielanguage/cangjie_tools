@@ -49,7 +49,7 @@ public class JSContext {
     }
 }
 
-public struct JSCallInfo {
+public class JSCallInfo {
     public operator func [](index: Int64): JSValue {
         JSValue()
     }
@@ -59,7 +59,7 @@ public struct JSCallInfo {
     }
 }
 
-public struct JSValue {
+public class JSValue {
     public func toString(): String {
         ""
     }
