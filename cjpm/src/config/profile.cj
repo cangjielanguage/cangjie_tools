@@ -512,12 +512,13 @@ struct PROCESS_MEMORY_COUNTERS {
     var peakPagefileUsage: UInt64 = 0
 }
 
-@When[os == "Windows"]
-foreign func GetCurrentProcess(): Int64
 
 @When[os == "Windows"]
 foreign func K32GetProcessMemoryInfo(process: Int64, memoryCounter: CPointer<PROCESS_MEMORY_COUNTERS>,
     cb: UInt32): Bool
+
+@When[os == "Windows"]
+foreign func GetCurrentProcess(): Int64
 
 @When[os == "Windows"]
 public func getMemInfo(): Float64 {
