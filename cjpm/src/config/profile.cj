@@ -499,7 +499,7 @@ struct MEMORYSTATUSEX {
 foreign func GlobalMemoryStatusEx(memory: CPointer<MEMORYSTATUSEX>): Bool
 
 @C
-struct PROCESS_MEMORY_COUNTERS {
+struct ProcessMemoryCounters {
     var cb: UInt32 = 0
     var pageFaultCount: UInt32 = 0
     var peakWorkingSetSize: UInt64 = 0
@@ -514,7 +514,7 @@ struct PROCESS_MEMORY_COUNTERS {
 
 
 @When[os == "Windows"]
-foreign func K32GetProcessMemoryInfo(process: Int64, memoryCounter: CPointer<PROCESS_MEMORY_COUNTERS>,
+foreign func K32GetProcessMemoryInfo(process: Int64, memoryCounter: CPointer<ProcessMemoryCounters>,
     cb: UInt32): Bool
 
 @When[os == "Windows"]
@@ -534,8 +534,8 @@ public func getMemInfo(): Float64 {
 @When[os == "Windows"]
 public func getCjpmMemInfo(): Float64 {
     unsafe {
-        var memoryCounter = PROCESS_MEMORY_COUNTERS()
-        // sizeof(PROCESS_MEMORY_COUNTERS) in x64
+        var memoryCounter = ProcessMemoryCounters()
+        // sizeof(ProcessMemoryCounters) in x64
         memoryCounter.cb = 72
         let status = K32GetProcessMemoryInfo(GetCurrentProcess(), inout memoryCounter, memoryCounter.cb)
         if (status) {
