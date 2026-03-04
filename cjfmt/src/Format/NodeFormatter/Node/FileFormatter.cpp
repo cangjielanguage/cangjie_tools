@@ -146,8 +146,13 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
         doc.members.emplace_back(DocType::SEPARATE, level, "");
     }
     auto preDeclIsVar = false;
+    int notComplierAddNum = 0;
     auto mapCopy(modifierOrAnnoToPosMap);
     for (auto it = file.decls.begin(); it != file.decls.end(); ++it) {
+        if (it->get()->TestAttr(Attribute::COMPILER_ADD)) {
+            continue;
+        }
+
         bool isFirstInBlock = false;
         bool isLastInBlock = false;
 
@@ -166,7 +171,7 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
         }
 
         auto declarationLevel = beforeBlockAnnotationsPositions.empty() ? level : level + 1;
-        if (*it != file.decls.front()) {
+        if (*it != file.decls.front() && notComplierAddNum != 0) {
             if (preDeclIsVar) {
                 if (it->get()->astKind != AST::ASTKind::VAR_DECL) {
                     doc.members.emplace_back(DocType::SEPARATE, level, "");
@@ -177,11 +182,13 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
                 doc.members.emplace_back(DocType::LINE, isFirstInBlock ? level : declarationLevel, "");
             }
         }
+
         if (isFirstInBlock) {
             AddBlockPrefix(*it, beforeBlockAnnotationsPositions, doc, astToFormatSource, level);
         }
         EraseModifiersAndAnnotationsForDecl(*it, beforeBlockAnnotationsPositions);
         preDeclIsVar = it->get()->astKind == ASTKind::VAR_DECL;
+        notComplierAddNum++;
         doc.members.emplace_back(astToFormatSource.ASTToDoc(*it, declarationLevel));
         if (isLastInBlock) {
             AddBlockSuffix(doc, level);
