@@ -297,7 +297,7 @@ TEST_F(CompilerCangjieProjectTest, GetPathBySourceWithFileNameTest) {
 
 TEST_F(CompilerCangjieProjectTest, ClearParseCacheTest) {
     // Test parse cache clearance functionality
-    CompilerCangjieProject::GetInstance()->ClearParseCache();
+    CompilerCangjieProject::GetInstance()->ClearParseCache("Completion");
     // Verify cache is cleared successfully
 }
 
