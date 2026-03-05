@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Pipeline.cj\nPackage info: default\n\n(function) internal func f(x: Int32): Int32\n"},"range":{"end":{"character":16,"line":9},"start":{"character":15,"line":9}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Pipeline.cj\nPackage info: default\n\ninternal func f(x: Int32): Int32\n"},"range":{"end":{"character":16,"line":9},"start":{"character":15,"line":9}}}}

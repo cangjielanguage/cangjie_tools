@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Base.cj\nPackage info: default\n\n(variable) internal let Int8One: Int8 = 24\n"},"range":{"end":{"character":11,"line":7},"start":{"character":4,"line":7}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Base.cj\nPackage info: default\n\ninternal let Int8One: Int8 = 24\n"},"range":{"end":{"character":11,"line":7},"start":{"character":4,"line":7}}}}

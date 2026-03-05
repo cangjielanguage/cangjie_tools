@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Composition.cj\nPackage info: default\n\n(function) internal func composition_a(x: Int32): Float32\n"},"range":{"end":{"character":22,"line":9},"start":{"character":9,"line":9}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Composition.cj\nPackage info: default\n\ninternal func composition_a(x: Int32): Float32\n"},"range":{"end":{"character":22,"line":9},"start":{"character":9,"line":9}}}}

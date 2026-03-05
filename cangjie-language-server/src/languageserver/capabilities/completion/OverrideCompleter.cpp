@@ -79,7 +79,7 @@ std::vector<CodeCompletion> OverrideCompleter::ExportItems()
         completion.label = "override " + GetFuncLabel(func);
         completion.name = signature;
         completion.kind = CompletionItemKind::CIK_FUNCTION;
-        completion.detail = "(function) override " + GetFuncLabel(func) + " {}";
+        completion.detail = "override " + GetFuncLabel(func) + " {}";
         completion.insertText = func.GetFunctionWithRet() + " {\n\t$0\n}";
         completion.show = true;
         TextEdit textEdit;
