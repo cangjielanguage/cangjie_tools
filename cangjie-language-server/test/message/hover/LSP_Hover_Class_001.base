@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Class.cj\nPackage info: default\n\n(class) internal class A\n"},"range":{"end":{"character":8,"line":7},"start":{"character":7,"line":7}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Class.cj\nPackage info: default\n\ninternal class A\n"},"range":{"end":{"character":8,"line":7},"start":{"character":7,"line":7}}}}

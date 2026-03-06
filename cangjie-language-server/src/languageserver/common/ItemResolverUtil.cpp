@@ -568,12 +568,10 @@ void ItemResolverUtil::ResolveVarDeclDetail(std::string &detail, const Cangjie::
                                             SourceManager *sourceManager)
 {
     if (decl.TestAttr(Cangjie::AST::Attribute::ENUM_CONSTRUCTOR)) {
-        detail = "(enum_construct) ";
-        detail += ResolveSignatureByNode(decl);
+        detail = ResolveSignatureByNode(decl);
         return;
     }
-    detail = "(variable) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     if (decl.isConst) {
         detail += "const ";
     } else if (decl.isVar) {
@@ -680,8 +678,7 @@ void ItemResolverUtil::ResolveMacroDeclDetail(std::string &detail, const Cangjie
     if (decl.desugarDecl == nullptr) {
         return;
     }
-    detail = "(macro) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "macro ";
     ResolveFuncDeclQuickLook(detail, *decl.desugarDecl.get(), sourceManager);
 }
@@ -690,15 +687,12 @@ void ItemResolverUtil::ResolveFuncDeclDetail(std::string &detail, const Cangjie:
                                              Cangjie::SourceManager *sourceManager)
 {
     if (decl.TestAttr(Cangjie::AST::Attribute::MACRO_FUNC)) {
-        detail = "(macro) ";
-        detail += GetModifierByNode(decl);
+        detail = GetModifierByNode(decl);
         detail += "macro ";
         ResolveFuncDeclQuickLook(detail, decl, sourceManager);
     } else if (decl.TestAttr(Cangjie::AST::Attribute::ENUM_CONSTRUCTOR)) {
-        detail = "(enum_construct) ";
         ResolveFuncDeclQuickLook(detail, decl, sourceManager);
     } else {
-        detail = "(function) ";
         detail += GetModifierByNode(decl);
         if (decl.propDecl) {
             detail += "prop ";
@@ -721,8 +715,7 @@ void ItemResolverUtil::ResolveFuncDeclDetail(std::string &detail, const Cangjie:
 void ItemResolverUtil::ResolvePrimaryCtorDeclDetail(std::string &detail, const Cangjie::AST::PrimaryCtorDecl &decl,
                                                     Cangjie::SourceManager *sourceManager)
 {
-    detail = "(function) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "func ";
     ResolvePrimaryCtorDeclSignature(detail, decl, sourceManager);
 
@@ -1538,8 +1531,7 @@ void ItemResolverUtil::ResolveFuncLikeDeclInsert(std::string &detail, const T &d
 void ItemResolverUtil::ResolveClassDeclDetail(std::string &detail, Cangjie::AST::ClassDecl &decl,
                                               Cangjie::SourceManager *sourceManager)
 {
-    detail = "(class) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "class ";
     detail += ResolveSignatureByNode(decl);
     // Do not display basic type -- Object.
@@ -1566,8 +1558,7 @@ void ItemResolverUtil::ResolveClassDeclDetail(std::string &detail, Cangjie::AST:
 void ItemResolverUtil::ResolveInterfaceDeclDetail(std::string &detail, Cangjie::AST::InterfaceDecl &decl,
                                                   Cangjie::SourceManager *sourceManager)
 {
-    detail = "(interface) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "interface ";
     detail += ResolveSignatureByNode(decl);
     if (decl.inheritedTypes.empty()) {
@@ -1588,8 +1579,7 @@ void ItemResolverUtil::ResolveInterfaceDeclDetail(std::string &detail, Cangjie::
 void ItemResolverUtil::ResolveEnumDeclDetail(std::string &detail, const Cangjie::AST::EnumDecl &decl,
                                              Cangjie::SourceManager *sourceManager)
 {
-    detail = "(enum) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "enum ";
     detail += ResolveSignatureByNode(decl);
     if (decl.inheritedTypes.size() == 0) {
@@ -1609,8 +1599,7 @@ void ItemResolverUtil::ResolveEnumDeclDetail(std::string &detail, const Cangjie:
 
 void ItemResolverUtil::ResolveStructDeclDetail(std::string &detail, const Cangjie::AST::StructDecl &decl)
 {
-    detail = "(struct) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "struct ";
     detail += ResolveSignatureByNode(decl);
 }
@@ -1670,8 +1659,7 @@ void ItemResolverUtil::DealTypeDetail(std::string &detail, Ptr<Cangjie::AST::Typ
 
 void ItemResolverUtil::ResolveBuiltInDeclDetail(std::string &detail, const BuiltInDecl &decl)
 {
-    detail = "(BuiltInType) ";
-    detail += GetModifierByNode(decl);
+    detail = GetModifierByNode(decl);
     detail += "Type ";
     detail += ResolveSignatureByNode(decl);
 }
