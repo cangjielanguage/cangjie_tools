@@ -407,7 +407,7 @@ void CompletionEnv::DealPropDecl(Ptr<Cangjie::AST::Node> node, const Cangjie::Po
     getter.label = "get";
     getter.name = "get";
     getter.kind = CompletionItemKind::CIK_METHOD;
-    getter.detail = "(function) func get()";
+    getter.detail = "func get()";
     getter.insertText = "get() {\n\t$0\n}";
     getter.show = true;
     AddCompletionItem("get", "get", getter);
@@ -416,7 +416,7 @@ void CompletionEnv::DealPropDecl(Ptr<Cangjie::AST::Node> node, const Cangjie::Po
         setter.label = "set";
         setter.name = "set";
         setter.kind = CompletionItemKind::CIK_METHOD;
-        setter.detail = "(function) func set(value)";
+        setter.detail = "func set(value)";
         setter.show = true;
         setter.insertText = "set(${1:value}) {\n\t$0\n}";
         AddCompletionItem("set", "set", setter);
@@ -489,7 +489,7 @@ void CompletionEnv::DealMatchCase(Ptr<Node> node, const Position pos)
                                                                            pattern->GetBegin().column},
                                                                           {pattern->GetEnd().line,
                                                                            pattern->GetEnd().column});
-            std::string detail = "(variable) let " + str;
+            std::string detail = "let " + str;
             if (pattern->begin <= pos && pos <= pattern->end) { continue; }
             AccessibleByString(str, detail);
         }
@@ -594,7 +594,7 @@ void CompletionEnv::DealVarPattern(Ptr<Node> node, const Position /* pos */)
                                                                    pVarPattern->GetBegin().column},
                                                                   {pVarPattern->GetEnd().line,
                                                                    pVarPattern->GetEnd().column});
-    std::string detail = "(variable) let " + str;
+    std::string detail = "let " + str;
     AccessibleByString(str, detail);
 }
 
@@ -606,7 +606,7 @@ void CompletionEnv::DealVarOrEnumPattern(Ptr<Node> node, const Position /* pos *
                                                                    pVarOrEnumPattern->GetBegin().column},
                                                                   {pVarOrEnumPattern->GetEnd().line,
                                                                    pVarOrEnumPattern->GetEnd().column});
-    std::string detail = "(variable) let " + str;
+    std::string detail = "let " + str;
     AccessibleByString(str, detail);
 }
 
@@ -857,7 +857,7 @@ void CompletionEnv::AddVArrayItem()
     completion.kind = CompletionItemKind::CIK_VARIABLE;
 
     completion.label = "size";
-    completion.detail = "(variable) let size: Int64";
+    completion.detail = "let size: Int64";
     completion.insertText = "size";
     completion.show = true;
     AddCompletionItem("size", "size", completion);
