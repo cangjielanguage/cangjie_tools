@@ -66,7 +66,7 @@ public open class Handle {
 
 // CpmCommand represents the base command when called without any subcommands
 class CpmCommand <: Handle {
-    private let CJPM_VERSION: String = "Cangjie Project Manager: 1.1.0-beta.22"
+    private let CJPM_VERSION: String = "Cangjie Project Manager: 1.1.0-beta.23"
 
     init(args: Array<String>) {
         this.arguments = args
