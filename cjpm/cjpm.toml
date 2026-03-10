@@ -20,3 +20,14 @@
   path-option = ["${CANGJIE_STDX_PATH}"]
 [target.aarch64-apple-darwin.bin-dependencies]
   path-option = ["${CANGJIE_STDX_PATH}"]
+
+[target.x86_64-w64-mingw32]
+  compile-option = "-L ./cpp/out -l fswatcher -l uv -L ${MINGW_PATH}/x86_64-w64-mingw32/lib -l c++ -l crypt32  -l unwind -l iphlpapi -l dbghelp -l userenv -l ole32"
+[target.x86_64-unknown-linux-gnu]
+  compile-option = "-L ./cpp/out -l fswatcher -l uv -l stdc++ -l gcc_s -l pthread -l dl"
+[target.aarch64-unknown-linux-gnu]
+  compile-option = "-L ./cpp/out -l fswatcher -l uv -l stdc++ -l gcc_s -l pthread -l dl"
+[target.x86_64-apple-darwin]
+  compile-option = "-L ./cpp/out -l fswatcher -l uv -l c++"
+[target.aarch64-apple-darwin]
+  compile-option = "-L ./cpp/out -l fswatcher -l uv -l c++"

@@ -62,7 +62,7 @@ def build_fswatcher(cmake_option="", make_prefix=""):
     return 0
 
 # Build cjpm
-def build(build_type, target, rpath=None):
+def build(build_type, target, rpath=None, native_only=False):
     if not build_type:
         build_type = ""
     if not target:
@@ -131,6 +131,12 @@ def build(build_type, target, rpath=None):
     else:
         cjc = "cjc"
 
+    # Check MINGW_PATH
+    if is_windows or is_cross_windows:
+        if not os.environ.get("MINGW_PATH"):
+            print("error: cannot find MINGW_PATH, please make sure llvm-mingw toolchain path is configured.")
+            return 1
+
     # Create output directories
     os.makedirs(os.path.join(CURRENT_DIR, 'bin', 'cjpm'), exist_ok=True)
     os.makedirs(os.path.join(CURRENT_DIR, '..', 'dist'), exist_ok=True)
@@ -139,10 +145,20 @@ def build(build_type, target, rpath=None):
     if is_linux or is_macos:
         returncode = build_fswatcher("")
     if is_windows:
+        root_include = os.path.join(os.environ.get("MINGW_PATH"), "include")
+        target_include = os.path.join(os.environ.get("MINGW_PATH"), "x86_64-w64-mingw32", "include")
+        root_include_exists = os.path.isdir(root_include)
+        target_include_exists = os.path.isdir(target_include)
+        if root_include_exists and not target_include_exists:
+            try:
+                shutil.copytree(root_include, target_include)
+            except Exception as e:
+                print(f"Error: failed to copy include - {str(e)}")
+                return 1
         returncode = build_fswatcher('-DCMAKE_TOOLCHAIN_FILE=../llvm-mingw-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF -G "MinGW Makefiles"', "mingw32-")
     if is_cross_windows:
         returncode = build_fswatcher("-DCMAKE_TOOLCHAIN_FILE=../cross-windows-toolchain.cmake -DHOST_ARCH=x86_64 -DUV_BUILD_TESTS=OFF")
-    if returncode != 0:
+    if returncode != 0 or native_only:
         return returncode
 
     # Compile static libs of sub-packages
@@ -178,7 +194,7 @@ def build(build_type, target, rpath=None):
                 return 1
         returncode = check_call(f"{cjc} --target=x86_64-windows-gnu {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} \"--link-options=--no-insert-timestamp -static\" -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -L {os.path.join(CURRENT_DIR, '../cpp/out')} -lfswatcher -luv -L /opt/buildtools/llvm-mingw-w64/x86_64-w64-mingw32/lib -lc++ -lunwind -liphlpapi -ldbghelp -luserenv -lole32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
     if is_windows:
-        returncode = check_call(f"{cjc} {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -L {os.path.join(CURRENT_DIR, '../cpp/out')} -lfswatcher -luv -L {os.path.join(os.environ['LLVM_MINGW_PATH'], 'x86_64-w64-mingw32', 'lib')} -lc++ -lunwind -liphlpapi -ldbghelp -luserenv -lole32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
+        returncode = check_call(f"{cjc} {common_option} --import-path {os.path.join(CURRENT_DIR, 'bin')} --import-path {os.environ['CANGJIE_STDX_PATH']} --link-options=--no-insert-timestamp -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -lcrypt32 -L {os.path.join(CURRENT_DIR, '../cpp/out')} -lfswatcher -luv -L {os.path.join(os.environ['MINGW_PATH'], 'x86_64-w64-mingw32', 'lib')} -lc++ -lunwind -liphlpapi -ldbghelp -luserenv -lole32 -lpthread -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm.exe")
     if is_cross_ohos:
         returncode = check_call(f"{cjc} --target={target} {toolchain} {common_option} {rpath_set_option} \"--link-options=-z noexecstack -z relro -z now -s\" --import-path {os.environ['CANGJIE_STDX_PATH']} -L {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -lcjpm.command -lcjpm.implement -lcjpm.config -lcjpm.util -lcjpm.toml -L {os.environ['CANGJIE_STDX_PATH']} -lstdx.encoding.json -lstdx.serialization.serialization -lstdx.net.tls -lstdx.net.http -lstdx.net.tls.common -lstdx.logger -lstdx.log -lstdx.encoding.url -lstdx.encoding.json.stream -lstdx.crypto.x509 -lstdx.crypto.keys -lstdx.encoding.hex -lstdx.crypto.crypto -lstdx.crypto.digest -lstdx.crypto.common -lstdx.encoding.base64 -lstdx.compress -lstdx.compress.zlib -lstdx.compress.tar -p {os.path.join(CURRENT_DIR, '..', 'src')} -O2 --output-dir {os.path.join(CURRENT_DIR, 'bin', 'cjpm')} -o cjpm")
 
@@ -241,6 +257,10 @@ def main():
     build_parser.add_argument('-t', '--build-type', type=str, dest='build_type', help='Specify build type', required=True)
     build_parser.add_argument('--target', type=str, dest='target', help='Specify build target')
     build_parser.add_argument('--set-rpath', type=str, dest='rpath', help='Set rpath value')
+    build_parser.add_argument('--native-only',
+                             action='store_true',
+                             dest='native_only',
+                             help='Only build native code')
 
     # Install command
     install_parser = subparsers.add_parser('install', help='Install cjpm')
@@ -252,7 +272,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'build':
-        return build(build_type=args.build_type, target=args.target, rpath=args.rpath)
+        return build(build_type=args.build_type, target=args.target, rpath=args.rpath, native_only=args.native_only)
     elif args.command == 'install':
         return install(prefix=args.prefix)
     elif args.command == 'clean':
