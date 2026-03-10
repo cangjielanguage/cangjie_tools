@@ -1143,7 +1143,7 @@ class DepModel {
                     pkgInfo.hasTestFiles = pkg.hasTestFiles
                     pkgInfo.features = features
                     pkgInfo.featureDeducer = deducer
-                    let (flag, mockUsed) = runPackageTask(pkgInfo, directDeps)
+                    let (flag, mockUsed) = runPackageTask(pkgInfo, pkg.timeStamp, directDeps)
                     scanDepSem.release()
                     return (flag, mockUsed)
                 })
@@ -1164,7 +1164,7 @@ class DepModel {
         return (checkSuccessful, mockUsed)
     }
 
-    func runPackageTask(pkgInfo: ResolveItem, directDeps: HashSet<String>): BuildCheckResult {
+    func runPackageTask(pkgInfo: ResolveItem, timeStamp: Int64, directDeps: HashSet<String>): BuildCheckResult {
 
         let info = getPackageInfo(pkgInfo.packagePath, pkgInfo.compileOption, pkgInfo.customizedOption, timeStamp) ??
             return FAILED_BUILD_CHECK_RESULT
@@ -1498,16 +1498,19 @@ func getAllPkgs(srcDir: CJMPSource, rootPkgName: String): Array<PackageInfo> {
 func initPackageInfo(pkgDir: CJMPSource): Result<PackageInfo, String> {
     var hasTestFile = false
     var hasProdFile = false
+    var timeStamp: Int64 = Int64.Min
     for (fileInfo in pkgDir.files()) {
         let path = canonicalize(fileInfo.path)
         if (path.fileName.endsWith("_test.cj")) {
             hasTestFile = true
+            timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
         } else if (path.extensionName == "cj") {
             hasProdFile = true
+            timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
         }
     }
     if (hasTestFile || hasProdFile) {
-        return Ok(PackageInfo(pkgDir, hasTestFile, hasProdFile))
+        return Ok(PackageInfo(pkgDir, timeStamp, hasTestFile, hasProdFile))
     }
     if (pkgDir.allPaths.size == 1) {
         return Err("Warning: there is no '.cj' file in directory '${pkgDir.allPaths[0]}', and its subdirectories will not be scanned as source code")

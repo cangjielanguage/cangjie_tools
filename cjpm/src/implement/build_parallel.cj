@@ -46,21 +46,6 @@ enum MonitorNotification {
 var cjoWatcherCb: (String) -> Unit = { _ => }
 
 @When[(os != "iOS") && (env != "ohos") && (env != "android")]
-func prepareCjoWatcher(): Unit {
-    if (cjoFileToTaskId.isEmpty()) {
-        return
-    }
-    for (cjoFilePath in cjoFileToTaskId.keys()) {
-        if (fileExists(cjoFilePath)) {
-            remove(cjoFilePath)
-        }
-    }
-}
-
-@When[(os == "iOS") || (env == "ohos") || (env == "android")]
-func prepareCjoWatcher(): Unit {}
-
-@When[(os != "iOS") && (env != "ohos") && (env != "android")]
 func startCjoWatcher(verbose: Bool): Unit {
     if (cjoFileToTaskId.isEmpty()) {
         return
@@ -81,16 +66,14 @@ func startCjoWatcher(verbose: Bool): Unit {
     let dirs = StringBuilder()
     for (dir in dirsToWatch) {
         if (!exists(dir)) {
-            Directory.create(dir, recursive: true)
+            createDirectory(dir)
         }
         dirs.append("${dir},")
     }
     
     cjoWatcherCb = { cjoFilePath =>
-        if (cjoFilePath.endsWith(".cjo.file")) {
-            if (let Some(taskId) <- cjoFileToTaskId.get(cjoFilePath)) {
-                notifyMonitor(taskId, MonitorNotification.FoundCjoFile)
-            }
+        if (let Some(taskId) <- cjoFileToTaskId.get(cjoFilePath)) {
+            notifyMonitor(taskId, MonitorNotification.FoundCjoFile)
         }
     }
     
@@ -111,6 +94,12 @@ func startCjoWatcher(_: Bool): Unit {}
 @When[(os != "iOS") && (env != "ohos") && (env != "android")]
 func stopCjoWatcher(verbose: Bool): Unit {
     unsafe { stopFSWatcher(verbose) }
+
+    for (cjoFilePath in cjoFileToTaskId.keys()) {
+        if (fileExists(cjoFilePath)) {
+            remove(cjoFilePath)
+        }
+    }
 }
 
 @When[(os == "iOS") || (env == "ohos") || (env == "android")]
@@ -331,17 +320,16 @@ private func executeWithFileWatcher<T>(buildConfig: BuildConfig, body: () -> T):
         return body()
     }
 
-    prepareCjoWatcher()
-
     let cjoWatcherFuture = spawn { =>
         startCjoWatcher(buildConfig.isVerbose)
     }
 
-    let result = body()
-
-    stopCjoWatcher(buildConfig.isVerbose)
-
-    let _ = cjoWatcherFuture.get()
+    let result = try {
+        body()
+    } finally {
+        stopCjoWatcher(buildConfig.isVerbose)
+        let _ = cjoWatcherFuture.get()
+    }
 
     result
 }
@@ -568,7 +556,7 @@ private func registerMonitorTask(engine: IncrementalEngine, compileTask: Compile
     let upstreamId = compileTask.id
 
     let cjoPath = Path(compileTask.targetPath).join("${swapOrgName(compileTask.fullName)}.cjo").toString()
-    let cjoFilePath = Path(compileTask.targetPath).join("${swapOrgName(compileTask.fullName)}.cjo.file").toString()
+    let cjoFilePath = "${cjoPath}.flag"
     cjoFileToTaskId.add(cjoFilePath, compileTask.id)
     
     let (outLogFile, errLogFile) = getLogFile(compileTask.logPath, monitorId)
@@ -1161,6 +1149,7 @@ private class IncrementalEngine {
     func execute(): TaskResult {
         if (askAllFlag && !config.incremental) {
             let graph = taskContext.taskGraphBuilder.finish()
+            dirtyTasks.add(all: graph.toposort)
             executeSubgraph(graph, graph)
         } else {
             processAskedTasks()
@@ -1262,7 +1251,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
  
             let requiresOnlyTypeInfo = 
                 !isLto &&
-                (outputType == Static || outputType == Obj || outputType == Chir)
+                (outputType == Static || isSplittable || outputType == Chir)
 
             let taskId = TaskId.Compile(fullName, target, isDebug, mockSupported, outputType, sourceSetDir)
 
@@ -1789,6 +1778,8 @@ private class IncrementalCache {
                 collectHashMap
             ConcurrentHashMap(hashmap)
         } catch (e: Exception) {
+            eprintln("Warning: failed to parse cache file, clean build will be performed. File location: ${cacheLocation}")
+            eprintln(e.message)
             ConcurrentHashMap()
         }
     }
@@ -1818,7 +1809,10 @@ private func writeJsonToFile(path: Path, cache: ConcurrentHashMap<TaskId, CacheI
         let s = json.toJsonString()
         let barray = s.toArray()
         File.writeTo(path, barray)
-    } catch (e: Exception) { }
+    } catch (e: Exception) {
+        eprintln("Warning: failed to update cache file. File location: ${path}")
+        eprintln(e.message)
+    }
 }
 
 

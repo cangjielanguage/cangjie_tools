@@ -737,6 +737,7 @@ public class TreeConfig {
 public struct PackageInfo {
     public PackageInfo(
         public let sources: CJMPSource,
+        public let timeStamp: Int64,
         public let hasTestFiles: Bool,
         public let hasProdFiles: Bool
     ) {}
