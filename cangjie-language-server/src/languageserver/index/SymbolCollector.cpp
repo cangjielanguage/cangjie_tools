@@ -162,7 +162,7 @@ ark::lsp::CommentGroups GetDeclComments(const Decl &decl)
                 }
             }
         });
-        return VisitAction::WALK_CHILDREN;
+        return VisitAction::SKIP_CHILDREN;
     });
     walker.Walk();
 
