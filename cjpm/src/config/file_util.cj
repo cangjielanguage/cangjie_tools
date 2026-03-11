@@ -115,7 +115,7 @@ public func getPath(prePath: String, curPath: String): String {
         return getCanonicalPath(prePath)
     }
     if (Path(curPath).isAbsolute()) {
-        return curPath
+        return getCanonicalPath(curPath)
     }
     var path = getCanonicalPath(Path(prePath).join(curPath).toString())
     if (path.isEmpty()) {
