@@ -122,6 +122,7 @@ class BuildCommand <: Handle {
         if (this.arguments.size == 0) {
             let buildConfig = BuildConfig()
             buildConfig.globalConfig.resolveType = RESOLVE_BUILD
+            buildConfig.globalConfig.isPureBuild = true
             return doBuild(buildConfig)
         }
 
@@ -169,6 +170,7 @@ class BuildCommand <: Handle {
         buildConfig.globalConfig.isCross = buildConfig.isCrossCompile
         buildConfig.globalConfig.isIncremental = buildConfig.isIncremental
         buildConfig.globalConfig.resolveType = RESOLVE_BUILD
+        buildConfig.globalConfig.isPureBuild = true
 
         return doBuild(buildConfig)
     }

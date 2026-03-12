@@ -426,12 +426,12 @@ public func loadStringFromFile(file: String): (String, Bool) {
 }
 
 public func verifyModuleConfig(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false): Bool {
-    return verifyModuleConfigPre(cfg, path, rootPath, isTest: isTest) && verifyModuleConfigPost(cfg, path,
+    return verifyModuleConfigPre(cfg, path, rootPath, true, isTest: isTest) && verifyModuleConfigPost(cfg, path,
         isTest: isTest)
 }
 
 // verify cjpm.toml field before resolving
-public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isTest!: Bool = false,
+public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String, isPureBuild: Bool, isTest!: Bool = false,
     resolveMap!: ?ResolveMap = None): Bool {
     let configFilePath: String = Path(path).join(CONFIG_FILE_NAME).toString()
     let (flag, errInfo) = cfg.isCompatible()
@@ -485,7 +485,11 @@ public func verifyModuleConfigPre(cfg: TomlInfo, path: String, rootPath: String,
         for ((pkg, pkgCfg) in cfg.pkg.packageConfiguration) {
             pkgCfg.compileOption = fixCompileOption(pkgCfg.compileOption, configFilePath)
         }
-        return verifyCombinedField(cfg, path) && verifyPackageField(cfg, path)
+        if (isPureBuild) {
+            return verifyCombinedField(cfg, path) && verifyPackageField(cfg, path)
+        } else {
+            return verifyPackageField(cfg, path)
+        }
     }
     return true
 }
