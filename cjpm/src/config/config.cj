@@ -903,6 +903,7 @@ public class GlobalConfig {
     public var isVerbose: Bool = false
     public var isDebug: Bool = false
     public var isTest: Bool = false
+    public var isPureBuild: Bool = false
     public var isInstall: Bool = false
     public var isCross: Bool = false
     public var isIncremental: Bool = false
@@ -940,6 +941,7 @@ public class GlobalConfig {
         this.isVerbose = globalConfig.isVerbose
         this.isDebug = globalConfig.isDebug
         this.isTest = globalConfig.isTest
+        this.isPureBuild = globalConfig.isPureBuild
         this.isInstall = globalConfig.isInstall
         this.isCross = globalConfig.isCross
         this.isIncremental = globalConfig.isIncremental

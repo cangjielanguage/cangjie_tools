@@ -256,7 +256,7 @@ class DepModel {
             return false
         }
 
-        if (!verifyModuleConfigPre(tomlInfo, curModulePath, this.globalConfig.rootPath,
+        if (!verifyModuleConfigPre(tomlInfo, curModulePath, this.globalConfig.rootPath, this.globalConfig.isPureBuild,
             isTest: this.globalConfig.isTest, resolveMap: resolvedModuleMap)) {
             return false
         }

@@ -144,6 +144,7 @@ func checkBuildTest(bundleConfig: BundleConfig, tomlInfo: TomlInfo): Bool {
         let buildConfig = BuildConfig()
         buildConfig.isVerbose = bundleConfig.isVerbose
         buildConfig.isIncremental = true
+        buildConfig.globalConfig.isPureBuild = true
         if (!doBuild(buildConfig)) {
             eprintln("Error: running 'cjpm build -i' failed")
             return false
