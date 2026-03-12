@@ -139,8 +139,7 @@ public:
         if (cjoMap.find(fullPkgName) == cjoMap.end()) {
             return true;
         }
-        auto oldData = GetData(fullPkgName);
-        return !oldData || data != *oldData;
+        return data != cjoMap[fullPkgName].data.value_or(SerializedT{});
     }
 
     void UpdateDownstreamPackages(const std::string& package, const std::unique_ptr<DependencyGraph>& graph)
