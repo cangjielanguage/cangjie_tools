@@ -44,7 +44,9 @@ cjpm/src
     - 开发者需要下载目标平台的 `stdx` 二进制库，或通过 `stdx` 源码编译出对应的 `stdx` 二进制库：若想要编译本地平台产物，则需要的 `stdx` 库为当前平台对应的版本；若想要从 `Linux` 平台交叉编译获取 `Windows` 平台的产物，则需要的 `stdx` 库为 `Windows` 版本。
     - 然后，开发者需要将 `stdx` 二进制库路径配置到环境变量 `CANGJIE_STDX_PATH` 中。若开发者直接下载 `stdx` 二进制库，则路径为解压得到的库目录下的 `static/stdx` 目录；若开发者通过 `stdx` 源码编译，则路径为 `stdx` 编译产物目录 `target` 下对应平台目录下的 `static/stdx` 目录，例如 `Linux-x86` 下为 `target/linux_x86_64_cjnative/static/stdx`。请参阅 [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx) 获取源码编译 `stdx` 库的方法。
     - 此外，如果开发者想使用 `stdx` 动态库作为二进制库依赖，可以将上述路径配置中的 `static` 改为 `dynamic`。以此方式编译的 `cjpm` 无法独立运行，若想让其能够独立运行，需要将相同的 `stdx` 库路径配置到系统动态库环境变量中。
+- `Cmake` 工具（最低版本 `3.10`）和 `make` 工具（如果在 `Windows` 平台编译，则需要 `mingw32-make` 工具）。
 - 若使用 `python` 构建脚本方式编译，请安装 `python3`
+- 若需要编译生成 `Windows` 平台的产物 ，请下载对应平台的基于 `msvcrt` 库的 [`llvm-mingw` 工具链](https://github.com/mstorsjo/llvm-mingw/releases/tag/20220906)，并将下载的工具链路径配置到环境变量 `MINGW_PATH` 中。
 
 ### 构建步骤
 
