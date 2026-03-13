@@ -21,7 +21,7 @@ public func doPublish(isVerbose: Bool): Bool {
         eprintln("Error: cannot publish a workspace to central repository")
         return false
     }
-    if (!verifyModuleConfigPre(tomlInfo, DIR_CURRENT, DIR_CURRENT)) {
+    if (!verifyModuleConfigPre(tomlInfo, DIR_CURRENT, DIR_CURRENT, true)) {
         return false
     }
 
