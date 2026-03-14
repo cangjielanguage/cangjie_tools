@@ -16,13 +16,13 @@ let TOML_INTEGER: TomlBaseType = TomlBaseType("Integer")
 let TOML_FLOAT: TomlBaseType = TomlBaseType("Float")
 let TOML_BOOL: TomlBaseType = TomlBaseType("Bool")
 
-// let tomlDatetime: TomlBaseType = TomlBaseType("Datetime")
 let TOML_OFFSET_DATETIME: TomlBaseType = TomlBaseType("OffsetDatetime")
 let TOML_LOCAL_DATETIME: TomlBaseType = TomlBaseType("LocalDatetime")
 let TOML_LOCAL_DATE: TomlBaseType = TomlBaseType("LocalDate")
 let TOML_LOCAL_TIME: TomlBaseType = TomlBaseType("LocalTime")
 let TOML_ARRAY: TomlBaseType = TomlBaseType("Array")
 let TOML_TABLE: TomlBaseType = TomlBaseType("Table")
+let TOML_INLINE_TABLE: TomlBaseType = TomlBaseType("InlineTable")
 let TOML_ARRAY_TABLES: TomlBaseType = TomlBaseType("ArrayTables")
 
 let DATE_TIME_FORMATS = [
@@ -88,6 +88,8 @@ public class Parser {
     let keyInfo = HashMap<String, KeyInfo>()
     let mapping = TomlObject()
     let implicits = HashSet<String>()
+    // Flag to track when we're processing inline table contents
+    var inInlineTable = false
     let comments = Comment()
 
     init(lex: Lexer) {
@@ -392,10 +394,12 @@ public class Parser {
         let topHash = LinkedHashMap<String, TomlValue>()
         var outerContext = this.context.clone()
         var outerKey = this.currentKey
+        var wasInInline = this.inInlineTable // Save previous state
 
         this.context.append(this.currentKey)
         let prevContext = this.context.clone()
         this.currentKey = ""
+        this.inInlineTable = true // Mark that we're now processing inline table contents
 
         this.addImplicit(this.context)
         this.addContext(this.context, parentIsArray, it.pos)
@@ -441,9 +445,10 @@ public class Parser {
             this.context = prevContext
             item = this.next()
         }
+        this.inInlineTable = wasInInline // Restore previous inline table state
         this.context = outerContext
         this.currentKey = outerKey
-        return (topHash, TOML_TABLE)
+        return (topHash, TOML_INLINE_TABLE)
     }
 
     func addContext(key: Key, array: Bool, pos: Position): Unit {
@@ -454,6 +459,15 @@ public class Parser {
         for (i in 0..myKey.size - 1) {
             let k = myKey[i]
             keyContext.append(k)
+            if (!inInlineTable) {
+                match (keyInfo.get(keyContext.toString())) {
+                    case Some(info) =>
+                        if (info.tomlType.typeString() == TOML_INLINE_TABLE.typeString()) {
+                            throw ParseException("Cannot extend inline table '${keyContext}' with sub-title '${key}'")
+                        }
+                    case _ => ()
+                }
+            }
             if (!hashContext.contains(k)) {
                 addImplicit(keyContext)
                 hashContext.put(k, TomlObject())
