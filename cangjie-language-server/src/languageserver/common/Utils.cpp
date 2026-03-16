@@ -60,9 +60,6 @@ TypeCompatibility CheckTypeCompatibility(const Ty *lvalue, const Ty *rvalue)
 }
 
 bool IsHiddenDecl(const Ptr<Node> node) {
-    if (!Options::GetInstance().IsOptionSet("test") && !MessageHeaderEndOfLine::GetIsDeveco()) {
-        return false;
-    }
     auto decl = DynamicCast<Decl *>(node.get());
     if (!decl) {
         return false;
@@ -74,7 +71,7 @@ bool IsHiddenDecl(const Ptr<Node> node) {
         auto target = anno->baseExpr ? anno->baseExpr->GetTarget() : nullptr;
         if (target) {
             return target->GetFullPackageName() == PKG_NAME_OHOS_LABELS && target->outerDecl &&
-                target->outerDecl->identifier == HIDE_ANNO_NAME; 
+                target->outerDecl->identifier == HIDE_ANNO_NAME;
         }
         // 6.0 annotation is not export target, to compatible with 6.0, treat as hidden
         return true;
@@ -1498,7 +1495,7 @@ Position FindLastImportPos(const File &file)
 {
     int lastImportLine = 0;
     for(const auto &import : file.imports) {
-        if (!import) 
+        if (!import)
         {
             continue;
         }
