@@ -74,7 +74,7 @@ public:
     std::unordered_map<std::string, std::string> bufferCache;
 
     explicit PkgInfo(const std::string &pkgPath, const std::string &curModulePath,
-        const std::string &curModuleName, Callbacks *callback, PkgType pkgType = PkgType::NORMAL);
+        const std::string &curModuleName, Callbacks *callback, PkgType packageType = PkgType::NORMAL);
 
     ~PkgInfo() = default;
 };
@@ -516,7 +516,7 @@ public:
 
     std::vector<std::string> GetCommonSpecificSourceSetGraph(const std::string &pkgName);
     
-    PkgType GetPkgType(const std::string &moduelPath, const std::string &path);
+    PkgType GetPkgType(const std::string &modulePath, const std::string &path);
 
     std::string GetSourceSetNameByPath(const std::string &path);
 
@@ -607,6 +607,30 @@ private:
         const std::string &modulePath);
 
     void ProcessInvalidPackage(const std::string &fullPkgName, const std::string &sourcePath);
+
+    void UpdateCIForParse(const std::unique_ptr<LSPCompilerInstance> &ci,
+                          const std::string &fullPkgName,
+                          const std::string &filePath,
+                          const std::string &contents);
+
+    void PostCompileProcess(const std::string &fullPkgName, const std::string &filePath,
+                            const std::unique_ptr<LSPCompilerInstance> &ci,
+                            const std::pair<std::vector<std::vector<std::string>>, bool> &cycles,
+                            bool isDelete);
+
+    void UpdateBufferCache(const std::string &fullPkgName, const std::string &filePath,
+                           const std::string &contents, bool isDelete);
+
+    void CompileAndCheckDownstream(const std::string &fullPkgName, const std::unique_ptr<LSPCompilerInstance> &ci);
+
+    void RemoveOldRealPkgMapping(const std::string &oldRealPkgName, const std::string &fullPkgName);
+
+    void UpdatePkgInfoMapping(std::string &fullPkgName,
+        const std::string &pkgName,
+        const std::unique_ptr<LSPCompilerInstance> &ci,
+        bool &redefined);
+
+    void HandleFileNotInSource(const std::string &absName, const std::string &contents, const std::string &dirPath);
 
     std::string modulesHome;
     std::string stdLibPath;

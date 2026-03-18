@@ -9,10 +9,11 @@
 #include <set>
 #include <mutex>
 #include <utility>
-#include "ArkLanguageServer.h"
+
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
 #include "capabilities/shutdown/Shutdown.h"
+#include "ArkLanguageServer.h"
 
 namespace ark {
 using namespace Cangjie;

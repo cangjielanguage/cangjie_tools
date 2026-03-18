@@ -69,6 +69,8 @@ private:
 
     void StartTask(std::string name, std::function<void()> task, NeedDiagnostics needDiag, std::string filePath);
 
+    int GetFileIDForCompletion(const std::string &file);
+
     struct Request {
         std::function<void()> action;
         std::string name;

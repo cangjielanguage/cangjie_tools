@@ -76,69 +76,80 @@ std::unordered_map<std::string, ark::EdgeType> LSPCompilerInstance::UpdateUpstre
 
     std::set<std::string> depPkgs;
     std::unordered_map<std::string, ark::EdgeType> depPkgsEdges;
-    std::unordered_map<TokenKind, ark::EdgeType> edgeKindMap = {
+    const std::unordered_map<TokenKind, ark::EdgeType> edgeKindMap = {
         {TokenKind::PUBLIC, ark::EdgeType::PUBLIC},
         {TokenKind::PROTECTED, ark::EdgeType::PROTECTED},
         {TokenKind::INTERNAL, ark::EdgeType::INTERNEL},
         {TokenKind::PRIVATE, ark::EdgeType::PRIVATE}
     };
+    DependencyContext context = {depPkgs, depPkgsEdges, edgeKindMap};
     for (const auto &file : packages[0]->files) {
         for (auto &import : file->imports) {
-            if (import->IsImportMulti()) {
-                continue;
-            }
-            TokenKind modifier = import->modifier ? import->modifier->modifier : TokenKind::PRIVATE;
-            // Get real dependent package.
-            auto [package, orPackage] = ::GetFullPackageNames(*import);
-            package = Denoising(package);
-            orPackage = Denoising(orPackage);
-            if (package.empty() && orPackage.empty()) {
-                continue;
-            }
-            std::string dep = (package.size() > orPackage.size()) ? package : orPackage;
-            std::vector<std::string> realDeps;
-            if (ark::CompilerCangjieProject::GetInstance()->IsCommonSpecificPkg(dep)) {
-                std::vector<std::string> sourceSetGraph =
-                    ark::CompilerCangjieProject::GetInstance()->GetCommonSpecificSourceSetGraph(dep);
-                for (const auto &sourceSet : sourceSetGraph) {
-                    if (sourceSet.empty()) {
-                        continue;
-                    }
-                    std::string realDep = sourceSet + "-" + dep;
-                    realDeps.push_back(realDep);
-                }
-            }
-            if (realDeps.empty()) {
-                realDeps.push_back(dep);
-            }
-            auto realModule = SplitQualifiedName(dep).front();
-            if (curModule != realModule && depends.count(realModule) == 0) {
-                continue;
-            }
-            for (const auto &realDep : realDeps) {
-                if (pkgNameForPath.empty() || realDep.empty()) {
-                    if (depPkgsEdges.find(realDep) == depPkgsEdges.end()
-                        || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
-                        depPkgsEdges[realDep] = edgeKindMap[modifier];
-                    }
-                    depPkgs.insert(realDep);
-                    continue;
-                }
-                if (depPkgsEdges.find(realDep) == depPkgsEdges.end()
-                    || depPkgsEdges[realDep] < edgeKindMap[modifier]) {
-                    depPkgsEdges[realDep] = edgeKindMap[modifier];
-                }
-                depPkgs.insert(realDep);
-            }
+            ProcessImport(import.get(), curModule, depends, context);
         }
     }
     if (!upstreamSourceSetName.empty()) {
-        depPkgs.insert(
-            upstreamSourceSetName + "-" +
-            ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath));
+        depPkgs.insert(upstreamSourceSetName + "-" +
+                       ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath));
     }
     upstreamPkgs = depPkgs;
     return depPkgsEdges;
+}
+
+void LSPCompilerInstance::UpdateDepPkgsEdges(const std::vector<std::string> &realDeps,
+                                             TokenKind modifier,
+                                             DependencyContext &context)
+{
+    for (const auto &realDep : realDeps) {
+        if (context.depPkgsEdges.find(realDep) == context.depPkgsEdges.end() ||
+            context.depPkgsEdges[realDep] < context.edgeKindMap.at(modifier)) {
+            context.depPkgsEdges[realDep] = context.edgeKindMap.at(modifier);
+        }
+        context.depPkgs.insert(realDep);
+    }
+}
+
+std::vector<std::string> LSPCompilerInstance::ResolveRealDeps(const std::string &dep)
+{
+    std::vector<std::string> realDeps;
+    if (ark::CompilerCangjieProject::GetInstance()->IsCommonSpecificPkg(dep)) {
+        std::vector<std::string> sourceSetGraph =
+            ark::CompilerCangjieProject::GetInstance()->GetCommonSpecificSourceSetGraph(dep);
+        for (const auto &sourceSet : sourceSetGraph) {
+            if (sourceSet.empty()) {
+                continue;
+            }
+            realDeps.push_back(sourceSet + "-" + dep);
+        }
+    }
+    if (realDeps.empty()) {
+        realDeps.push_back(dep);
+    }
+    return realDeps;
+}
+
+void LSPCompilerInstance::ProcessImport(const ark::ImportSpec *import,
+                                        const std::string &curModule,
+                                        const std::unordered_set<std::string> &depends,
+                                        DependencyContext &context)
+{
+    if (import->IsImportMulti()) {
+        return;
+    }
+    TokenKind modifier = import->modifier ? import->modifier->modifier : TokenKind::PRIVATE;
+    auto [package, orPackage] = ::GetFullPackageNames(*import);
+    package = Denoising(package);
+    orPackage = Denoising(orPackage);
+    if (package.empty() && orPackage.empty()) {
+        return;
+    }
+    std::string dep = (package.size() > orPackage.size()) ? package : orPackage;
+    auto realModule = SplitQualifiedName(dep).front();
+    if (curModule != realModule && depends.count(realModule) == 0) {
+        return;
+    }
+    std::vector<std::string> realDeps = ResolveRealDeps(dep);
+    UpdateDepPkgsEdges(realDeps, modifier, context);
 }
 
 void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &prePkgName)
@@ -295,7 +306,6 @@ void LSPCompilerInstance::ImportUsrPackage(const std::string &curModuleName)
     }
 }
 
-// LCOV_EXCL_STOP
 void LSPCompilerInstance::ImportUsrCjo(const std::string &curModuleName,
     std::unordered_set<std::string> &visitedPackages)
 {

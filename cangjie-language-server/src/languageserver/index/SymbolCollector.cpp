@@ -296,76 +296,91 @@ void SymbolCollector::Build(const Package &package, const std::string &packagePa
     (void)scopes.emplace_back(&package, package.fullPackageName + ":");
     AccessLevel pkgAccess = package.accessible;
     for (auto &file : package.files) {
-        auto filePath = file->curFile->filePath;
-        bool inValidPkg = !packagePath.empty() && !IsUnderPath(packagePath, filePath);
-        if (inValidPkg) {
-            continue;
-        }
-        auto collectPre = [this, &inheritableDecls, &filePath, &pkgAccess](auto node) {
-            if (auto invocation = node->GetConstInvocation()) {
-                CreateMacroRef(*node, *invocation);
-            }
-            if (!Ty::IsTyCorrect(node->ty)) {
-                if (!ShouldPassInCjdIndexing(node)) {
-                    return VisitAction::WALK_CHILDREN;
-                }
-            }
-            if (node->astKind == ASTKind::PRIMARY_CTOR_DECL ||
-                node->TestAnyAttr(Attribute::MACRO_INVOKE_FUNC, Attribute::IN_CORE)) {
-                return VisitAction::SKIP_CHILDREN;
-            }
-            if (auto fd = DynamicCast<FuncDecl *>(node); fd && fd->propDecl) {
-                return VisitAction::WALK_CHILDREN;
-            } else if (auto id = DynamicCast<InheritableDecl *>(node)) {
-                (void)inheritableDecls.emplace(id);
-                if (IsHiddenDecl(id)) {
-                    return VisitAction::SKIP_CHILDREN;
-                }
-            }
-            if (Utils::In(node->astKind, G_IGNORE_KINDS)) {
-                return VisitAction::WALK_CHILDREN;
-            }
-            if (IsHiddenDecl(node)) {
-                return VisitAction::SKIP_CHILDREN;
-            }
-            CollectNode(node, filePath, pkgAccess);
-            return VisitAction::WALK_CHILDREN;
-        };
-
-        auto collectPost = [this](auto node) {
-            RestoreScope(*node);
-            RestoreCrossScope(*node);
-            return VisitAction::WALK_CHILDREN;
-        };
-
-        Walker(file.get(), collectPre, collectPost).Walk();
-
-        // Some desugar node information is stored in trashBin.
-        for (auto &it : file->trashBin) {
-            Walker(it.get(), collectPre, collectPost).Walk();
-        }
-
-        for (auto &it : file->originalMacroCallNodes) {
-            auto invocation = it->GetConstInvocation();
-            if (!invocation) {
-                continue;
-            }
-            CreateMacroRef(*it, *invocation);
-            Walker(invocation->decl.get(), [this](auto node) {
-                if (auto i = node->GetConstInvocation()) {
-                    CreateMacroRef(*node, *i);
-                    return VisitAction::WALK_CHILDREN;
-                }
-                return VisitAction::WALK_CHILDREN;
-            }).Walk();
-        }
-        bool shouldCreateImportRef = !CjdIndexer::GetInstance() || !CjdIndexer::GetInstance()->GetRunningState();
-        if (shouldCreateImportRef) {
-           CreateImportRef(*file); 
-        }
+        ProcessFile(*file, packagePath, pkgAccess, inheritableDecls);
     }
     scopes.pop_back();
     CollectRelations(inheritableDecls);
+}
+
+void SymbolCollector::ProcessFile(const File& file, const std::string& packagePath, AccessLevel pkgAccess,
+                                  std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls)
+{
+    auto filePath = file.curFile->filePath;
+    if (!packagePath.empty() && !IsUnderPath(packagePath, filePath)) {
+        return;
+    }
+
+    auto collectPre = [this, &inheritableDecls, &filePath, &pkgAccess](auto node) {
+        return CollectPreAction(node, filePath, pkgAccess, inheritableDecls);
+    };
+
+    auto collectPost = [this](auto node) {
+        RestoreScope(*node);
+        RestoreCrossScope(*node);
+        return VisitAction::WALK_CHILDREN;
+    };
+
+    Walker(const_cast<File*>(&file), collectPre, collectPost).Walk();
+
+    // Some desugar node information is stored in trashBin.
+    for (auto &it : file.trashBin) {
+        Walker(it.get(), collectPre, collectPost).Walk();
+    }
+
+    ProcessMacroCalls(file);
+
+    if (!CjdIndexer::GetInstance() || !CjdIndexer::GetInstance()->GetRunningState()) {
+        CreateImportRef(file);
+    }
+}
+
+void SymbolCollector::ProcessMacroCalls(const File& file)
+{
+    for (auto &it : file.originalMacroCallNodes) {
+        auto invocation = it->GetConstInvocation();
+        if (!invocation) {
+            continue;
+        }
+        CreateMacroRef(*it, *invocation);
+        Walker(invocation->decl.get(), [this](auto node) {
+            if (auto i = node->GetConstInvocation()) {
+                CreateMacroRef(*node, *i);
+            }
+            return VisitAction::WALK_CHILDREN;
+        }).Walk();
+    }
+}
+
+VisitAction SymbolCollector::CollectPreAction(Ptr<Node> node, const std::string& filePath, AccessLevel pkgAccess,
+                                              std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls)
+{
+    if (auto invocation = node->GetConstInvocation()) {
+        CreateMacroRef(*node, *invocation);
+    }
+    if (!Ty::IsTyCorrect(node->ty)) {
+        if (!ShouldPassInCjdIndexing(node)) {
+            return VisitAction::WALK_CHILDREN;
+        }
+    }
+    if (node->astKind == ASTKind::PRIMARY_CTOR_DECL ||
+        node->TestAnyAttr(Attribute::MACRO_INVOKE_FUNC, Attribute::IN_CORE)) {
+        return VisitAction::SKIP_CHILDREN;
+    }
+    if (auto fd = DynamicCast<FuncDecl *>(node); fd && fd->propDecl) {
+        return VisitAction::WALK_CHILDREN;
+    } else if (auto id = DynamicCast<InheritableDecl *>(node)) {
+        (void)inheritableDecls.emplace(id);
+        if (IsHiddenDecl(id)) {
+            return VisitAction::SKIP_CHILDREN;
+        }
+    }
+    if (Utils::In(node->astKind, G_IGNORE_KINDS)) {
+        return VisitAction::WALK_CHILDREN;
+    }
+    if (!IsHiddenDecl(node)) {
+        CollectNode(node, filePath, pkgAccess);
+    }
+    return VisitAction::WALK_CHILDREN;
 }
 
 void SymbolCollector::CollectCrossScopes(Ptr<Node> node)
