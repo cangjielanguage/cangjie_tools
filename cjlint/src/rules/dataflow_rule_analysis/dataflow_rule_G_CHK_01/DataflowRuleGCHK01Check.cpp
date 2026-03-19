@@ -85,7 +85,7 @@ static std::set<Cangjie::CHIR::Block*> GetDecontaminatBlock(CHIR::Value* value)
 static bool IsMemberFunc(CHIR::Value* value)
 {
     if (value->IsFuncWithBody()) {
-        auto func = VirtualCast<CHIR::Func*>(value);
+        auto func = StaticCast<CHIR::Function*>(value);
         if (func->TestAttr(Attribute::STATIC)) {
             return false;
         }

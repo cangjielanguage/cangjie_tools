@@ -25,9 +25,9 @@ public:
 
 protected:
     void CheckBasedOnCHIR(CHIR::Package& package) override;
-    void CheckGlobalFunc(CHIR::Func* func);
-    void IsPathCanonicalized(CHIR::Func* func);
-    void IsPathVerified(CHIR::Func* func);
+    void CheckGlobalFunc(CHIR::Function* func);
+    void IsPathCanonicalized(CHIR::Function* func);
+    void IsPathVerified(CHIR::Function* func);
 
 private:
     nlohmann::json jsonInfo;
@@ -55,7 +55,7 @@ private:
 class CHK03CanonicalizeAnalysis final : public Cangjie::CHIR::GenKillAnalysis<CHK03CanonicalizeDomain> {
 public:
     CHK03CanonicalizeAnalysis() = delete;
-    explicit CHK03CanonicalizeAnalysis(Cangjie::CHIR::Func* func, nlohmann::json jsonInfo);
+    explicit CHK03CanonicalizeAnalysis(Cangjie::CHIR::Function* func, nlohmann::json jsonInfo);
     ~CHK03CanonicalizeAnalysis() final {}
 
     void InitializeFuncEntryState(CHK03CanonicalizeDomain& state) override;
@@ -94,7 +94,7 @@ private:
 class CHK03VerifyAnalysis final : public Cangjie::CHIR::GenKillAnalysis<CHK03VerifyDomain> {
 public:
     CHK03VerifyAnalysis() = delete;
-    explicit CHK03VerifyAnalysis(Cangjie::CHIR::Func* func, nlohmann::json jsonInfo);
+    explicit CHK03VerifyAnalysis(Cangjie::CHIR::Function* func, nlohmann::json jsonInfo);
     ~CHK03VerifyAnalysis() final {}
 
     void InitializeFuncEntryState(CHK03VerifyDomain& state) override;

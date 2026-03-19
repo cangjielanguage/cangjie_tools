@@ -389,11 +389,14 @@ void DataflowRuleP02Check::CheckSpawnClosure(const CHIR::Lambda *spawnClosure)
 }
 
 template <typename T, typename = decltype(std::declval<T>().GetCallee())>
-static CHIR::Func *GetSpawnClosure(const T *apply, AstFuncInfo spawenFunc)
+static CHIR::Function *GetSpawnClosure(const T *apply, AstFuncInfo spawenFunc)
 {
     if (CommonFunc::FindCHIRFunction(apply->GetCallee(), spawenFunc)) {
         auto arg = StaticCast<CHIR::LocalVar *>(apply->GetArgs()[1]);
-        return DynamicCast<CHIR::Func *>(arg->GetExpr()->GetOperands()[0]);
+        auto func = arg->GetExpr()->GetOperands()[0];
+        if (func->IsFuncWithBody()) {
+            return StaticCast<CHIR::Function *>(func);
+        }
     }
     return nullptr;
 }
@@ -454,8 +457,8 @@ void DataflowRuleP02Check::PrintVarWithoutMutex()
         }
         auto var = it.first;
         auto name = var->GetSrcCodeIdentifier();
-        if (var->IsGlobalVarInCurPackage() && var->TestAttr(Attribute::STATIC)) {
-            name = VirtualCast<CHIR::GlobalVar *>(var)->
+        if (var->IsGlobalVarWithInitializer() && var->TestAttr(Attribute::STATIC)) {
+            name = StaticCast<CHIR::GlobalVar *>(var)->
                 GetParentCustomTypeDef()->GetSrcCodeIdentifier() + "." + name;
         }
         auto begpos = *it.second.begin();
