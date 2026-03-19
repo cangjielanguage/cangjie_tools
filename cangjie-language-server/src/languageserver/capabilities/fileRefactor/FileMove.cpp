@@ -411,7 +411,7 @@ std::unique_ptr<PackageInstance> FileMove::GetPackageInstance(LSPCompilerInstanc
     if (!pkg) {
         return nullptr;
     }
-    auto pkgInstance = std::make_unique<PackageInstance>(ci->diag, ci->importManager);
+    auto pkgInstance = std::make_unique<PackageInstance>(ci->diag, *ci->importManager);
     if (!pkgInstance) {
         return nullptr;
     }
