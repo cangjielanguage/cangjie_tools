@@ -63,7 +63,7 @@ std::tuple<std::string, CHIR::CustomType*, CHIR::FuncType*> CommonFunc::GetCHIRF
     std::string packageName;
     CHIR::CustomType* parentTy = nullptr;
     CHIR::FuncType* funcTy = nullptr;
-    auto func = VirtualCast<CHIR::Func*>(value);
+    auto func = StaticCast<CHIR::Function*>(value);
     const CHIR::CustomTypeDef* parentCustomTypeDef = func->GetParentCustomTypeDef();
     if (parentCustomTypeDef) {
         // For ExtendDef
@@ -97,13 +97,13 @@ std::tuple<std::string, CHIR::CustomType*, CHIR::FuncType*> CommonFunc::GetCHIRF
     std::string packageName;
     CHIR::CustomType* parentTy = nullptr;
     CHIR::FuncType* funcTy = nullptr;
-    auto imported = VirtualCast<CHIR::ImportedFunc*>(value);
+    auto imported = StaticCast<CHIR::Function*>(value);
     auto parentCustomTypeDef = imported->GetParentCustomTypeDef();
     if (parentCustomTypeDef) {
         packageName = parentCustomTypeDef->GetPackageName();
         parentTy = static_cast<CHIR::CustomType*>(parentCustomTypeDef->GetType());
     } else {
-        packageName = imported->GetSourcePackageName();
+        packageName = imported->GetPackageName();
         parentTy = nullptr;
     }
     funcTy = StaticCast<CHIR::FuncType*>(imported->GetType());
@@ -313,7 +313,7 @@ bool CommonFunc::FindCHIRFunction(const CHIR::Value* value, const AstFuncInfo& f
     return FindCHIRFunction(chirFuncInfo, funcInfo);
 }
 
-bool CommonFunc::IsGenericInstantated(const CHIR::Func* func)
+bool CommonFunc::IsGenericInstantated(const CHIR::Function* func)
 {
     if (func->TestAttr(Attribute::GENERIC_INSTANTIATED)) {
         return true;

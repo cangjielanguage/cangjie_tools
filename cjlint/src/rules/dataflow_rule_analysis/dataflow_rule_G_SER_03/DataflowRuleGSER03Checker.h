@@ -36,7 +36,7 @@ private:
         {"Float16", "DataModelFloat"}, {"Float32", "DataModelFloat"}, {"Float64", "DataModelFloat"},
         {"String", "DataModelString"}, {"Rune", "DataModelString"}};
     // Records the serialization and deserialization functions of a class or struct.
-    using SerialisePair = std::pair<CHIR::Func *, CHIR::Func *>;
+    using SerialisePair = std::pair<CHIR::Function *, CHIR::Function *>;
     using SerialiseMap = std::map<std::string, std::vector<TypeWithPosition>>;
     // Build a map of serialization and deserialization function pairs
     // key: ClassDef.identifier, value: {serial func, deserial func}
@@ -57,9 +57,9 @@ private:
     std::pair<Cangjie::Position, Cangjie::Position> deSerFuncLocation;
     bool CollectSerTypeInStore(
         const CHIR::Store *store, std::vector<TypeWithPosition> &serTypes, SerialiseMap &serMap, CHIR::LocalVar *ret);
-    bool CollectSerTypeInInitApply(const CHIR::Apply *apply, CHIR::ImportedValue *imported,
+    bool CollectSerTypeInInitApply(const CHIR::Apply *apply, CHIR::GlobalValue *imported,
         std::vector<TypeWithPosition> &serTypes, SerialiseMap &fieldSerMap);
-    bool CollectSerTypeInAddApply(const CHIR::Apply *apply, CHIR::ImportedValue *imported,
+    bool CollectSerTypeInAddApply(const CHIR::Apply *apply, CHIR::GlobalValue *imported,
         std::vector<TypeWithPosition> &serTypes, SerialiseMap &fieldSerMap);
     void CheckSerTypeInCallee(const CHIR::Apply *apply, std::vector<TypeWithPosition> &serTypes, SerialiseMap &serMap,
         SerialiseMap &fieldSerMap);

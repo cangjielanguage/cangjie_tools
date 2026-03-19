@@ -127,19 +127,19 @@ void DataflowRuleGSER03Checker::CollectSerRelatedFuncsInDef(CHIR::CustomTypeDef*
     AstFuncInfo deserializeFunc = AstFuncInfo("deserialize", identifier, {"DataModel"}, identifier, NOT_CARE);
     bool withSerialize = false;
     bool withDeserialize = false;
-    CHIR::Func* serialFunc{};
-    CHIR::Func* deSerialFunc{};
+    CHIR::Function* serialFunc{};
+    CHIR::Function* deSerialFunc{};
     auto customType = StaticCast<CHIR::CustomType*>(classDef->GetType());
     for (auto method : classDef->GetMethods()) {
         auto funcType = static_cast<CHIR::FuncType*>(method->GetType());
         auto chirFuncInfo = CHIRFuncInfo(method->GetSrcCodeIdentifier(), Ptr(customType), Ptr(funcType), NOT_CARE);
         if (!withDeserialize && CommonFunc::FindCHIRFunction(chirFuncInfo, serializeFunc)) {
             withDeserialize = true;
-            serialFunc = StaticCast<CHIR::Func*>(method);
+            serialFunc = StaticCast<CHIR::Function*>(method);
         }
         if (!withSerialize && CommonFunc::FindCHIRFunction(chirFuncInfo, deserializeFunc)) {
             withSerialize = true;
-            deSerialFunc = StaticCast<CHIR::Func*>(method);
+            deSerialFunc = StaticCast<CHIR::Function*>(method);
         }
         if (withDeserialize && withSerialize) {
             break;
@@ -247,7 +247,7 @@ bool DataflowRuleGSER03Checker::CollectSerTypeInStore(
     return false;
 }
 
-bool DataflowRuleGSER03Checker::CollectSerTypeInInitApply(const CHIR::Apply* apply, CHIR::ImportedValue* imported,
+bool DataflowRuleGSER03Checker::CollectSerTypeInInitApply(const CHIR::Apply* apply, CHIR::GlobalValue* imported,
     std::vector<TypeWithPosition>& serTypes, SerialiseMap& fieldSerMap)
 {
     AstFuncInfo funcInfo =
@@ -271,7 +271,7 @@ bool DataflowRuleGSER03Checker::CollectSerTypeInInitApply(const CHIR::Apply* app
     return false;
 }
 
-bool DataflowRuleGSER03Checker::CollectSerTypeInAddApply(const CHIR::Apply* apply, CHIR::ImportedValue* imported,
+bool DataflowRuleGSER03Checker::CollectSerTypeInAddApply(const CHIR::Apply* apply, CHIR::GlobalValue* imported,
     std::vector<TypeWithPosition>& serTypes, SerialiseMap& fieldSerMap)
 {
     auto funcInfo = AstFuncInfo(
@@ -317,7 +317,7 @@ void DataflowRuleGSER03Checker::CollectSerType(const CHIR::Expression& expr, std
     }
     auto apply = DynamicCast<CHIR::Apply*>(&expr);
     if (apply && apply->GetCallee() && apply->GetCallee()->IsImportedFunc()) {
-        auto imported = VirtualCast<CHIR::ImportedFunc>(apply->GetCallee());
+        auto imported = StaticCast<CHIR::Function>(apply->GetCallee());
         if (CollectSerTypeInInitApply(apply, imported, serTypes, fieldSerMap)) {
             return;
         }
@@ -356,7 +356,7 @@ void DataflowRuleGSER03Checker::CheckSerTypeInCallee(
 {
     auto callee = apply->GetCallee();
     if (callee->IsFuncWithBody()) {
-        auto func = VirtualCast<CHIR::Func*>(callee);
+        auto func = StaticCast<CHIR::Function*>(callee);
         Visitor::Visit(*func, [this, &serTypes, &serMap, &fieldSerMap](CHIR::Expression& expr) {
             CheckSerType(expr, serTypes, serMap, fieldSerMap);
             return CHIR::VisitResult::CONTINUE;

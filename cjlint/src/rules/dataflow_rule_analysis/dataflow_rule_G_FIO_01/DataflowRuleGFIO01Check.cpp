@@ -101,7 +101,7 @@ static void FIO01AnalysisHelper(
     }
 }
 
-FIO01Analysis::FIO01Analysis(Func* func, const std::vector<std::string>& files) : GenKillAnalysis(func)
+FIO01Analysis::FIO01Analysis(Function* func, const std::vector<std::string>& files) : GenKillAnalysis(func)
 {
     size_t allocateIdx = 0;
     for (auto fileName : files) {
@@ -156,7 +156,7 @@ static void GetFileNamePositionHelper(
     }
 }
 
-static std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> GetFileNamePosition(Func* func)
+static std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> GetFileNamePosition(Function* func)
 {
     std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> fileNamePosMap;
     for (auto bb : func->GetBody()->GetBlocks()) {
@@ -219,7 +219,7 @@ FIO01Domain FIO01Analysis::Bottom()
     return FIO01Domain(domainSize, &allocateIdxMap);
 }
 
-std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Func* func)
+std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Function* func)
 {
     std::vector<std::string> files{};
     auto analysis = std::make_unique<FIO01Analysis>(func);
@@ -244,7 +244,7 @@ std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Fu
     return files;
 }
 
-void DataflowRuleGFIO01Check::CheckNormalFunc(CHIR::Func* func, const std::vector<std::string>& files,
+void DataflowRuleGFIO01Check::CheckNormalFunc(CHIR::Function* func, const std::vector<std::string>& files,
     std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>>& posMap)
 {
     auto analysis = std::make_unique<FIO01Analysis>(func, files);
