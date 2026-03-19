@@ -1424,7 +1424,8 @@ void CompletionEnv::DotPkgName(const std::string &fullPkgName, const std::string
 {
     std::string prefixWithDot = prePkgName + CONSTANTS::DOT;
     bool isInvalid = fullPkgName.empty() || fullPkgName.find(prefixWithDot) != 0 ||
-                     prePkgName.length() >= fullPkgName.length() || items.count(fullPkgName) > 0;
+                     prePkgName.length() >= fullPkgName.length() || items.count(fullPkgName) > 0 ||
+                     !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(this->curPkgName, fullPkgName);
     if (isInvalid) {
         return;
     }
