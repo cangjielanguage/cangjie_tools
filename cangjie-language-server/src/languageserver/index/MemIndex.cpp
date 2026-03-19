@@ -185,7 +185,8 @@ void MemIndex::FindImportSymsOnCompletion(
         CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
     for (const auto &pkgSyms : pkgSymsMap) {
         // filter curPackage sym
-        if (curPkgName == pkgSyms.first) {
+        if (curPkgName == pkgSyms.first ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgSyms.first)) {
             continue;
         }
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
@@ -249,7 +250,8 @@ void MemIndex::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
     for (const auto &extendSyms : pkgExtendsMap) {
         // filter curPackage sym
         std::string pkgName = extendSyms.first;
-        if (curPkgName == pkgName) {
+        if (curPkgName == pkgName ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgName)) {
             continue;
         }
         auto relation = GetPackageRelation(curPkgName, pkgName);

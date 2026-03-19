@@ -98,7 +98,8 @@ void DotCompleterByParse::Complete(const ArkAST &input,
     auto targetPkg = importManager->GetPackageDecl(fullImportId);
     // filter root pkg symbols if cur module is combined
     std::string curModule = SplitFullPackage(srcPkgName).first;
-    if (targetPkg && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, srcPkgName, fullImportId)) {
+    if (targetPkg && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, srcPkgName, fullImportId) &&
+        CompilerCangjieProject::GetInstance()->IsVisibleForPackage(srcPkgName, targetPkg->fullPackageName)) {
         auto members = importManager->GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
         for (const auto &decl : members) {
             env.InvokedAccessible(decl.get(), false, false, CompletionImpl::IsPreamble(input, pos));
