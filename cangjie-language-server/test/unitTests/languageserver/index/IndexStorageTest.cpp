@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 #include "IndexStorage.cpp"
- 
+
 using namespace ark::lsp;
 namespace fs = std::filesystem;
 
@@ -18,43 +18,43 @@ protected:
     void TearDown() override { fs::remove_all(testRoot); }
 };
 
- 
+
 TEST_F(IndexStorageTest, SplitFileName001) {
     auto res = SplitFileName("filename");
     EXPECT_EQ(res.first, "");
     EXPECT_EQ(res.second, "");
 }
- 
+
 TEST_F(IndexStorageTest, SplitFileName002) {
     auto res = SplitFileName("file.txt");
     EXPECT_EQ(res.first, "");
     EXPECT_EQ(res.second, "");
 }
- 
+
 TEST_F(IndexStorageTest, SplitFileName003) {
     auto res = SplitFileName("archive.tar.gz");
     EXPECT_EQ(res.first, "archive");
     EXPECT_EQ(res.second, "tar");
 }
- 
+
 TEST_F(IndexStorageTest, MergeFileName001) {
     EXPECT_EQ(MergeFileName("mypkg", "123abc", "bin"), "mypkg.123abc.bin");
 }
- 
+
 TEST_F(IndexStorageTest, convertCommentGroup001) {
     flatbuffers::FlatBufferBuilder builder;
- 
+
     auto groupOffset = IdxFormat::CreateCommentGroup(builder, 0);
- 
+
     builder.Finish(groupOffset);
     auto group = flatbuffers::GetRoot<IdxFormat::CommentGroup>(builder.GetBufferPointer());
     convertCommentGroup(*group);
 }
- 
+
 static constexpr uint64_t kTestId    = 42;
 static constexpr uint8_t  kTestType  = 3;
 static constexpr uint64_t kContainer = 99;
- 
+
 TEST_F(IndexStorageTest, ReadCrossSymbol001) {
     // name==nullptr, location==nullptr, container_name==nullptr
     flatbuffers::FlatBufferBuilder fbb;
@@ -67,16 +67,16 @@ TEST_F(IndexStorageTest, ReadCrossSymbol001) {
         0);
     fbb.Finish(crs_off);
     auto fb_crs = flatbuffers::GetRoot<IdxFormat::CrossSymbol>(fbb.GetBufferPointer());
- 
+
     CrossSymbol out;
     ReadCrossSymbol(out, fb_crs);
- 
+
     EXPECT_EQ(out.id,          kTestId);
     EXPECT_EQ(out.crossType,   CrossType(kTestType));
     EXPECT_EQ(out.container,   kContainer);
     EXPECT_TRUE(out.name.empty());
     EXPECT_TRUE(out.containerName.empty());
- 
+
     EXPECT_EQ(out.location.begin.fileID, 0u);
     EXPECT_EQ(out.location.begin.line,   0u);
     EXPECT_EQ(out.location.begin.column, 0u);
@@ -85,7 +85,7 @@ TEST_F(IndexStorageTest, ReadCrossSymbol001) {
     EXPECT_EQ(out.location.end.column,   0u);
     EXPECT_TRUE(out.location.fileUri.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadCrossSymbol002) {
     // name!=nullptr, container_name!=nullptr, location==nullptr
     flatbuffers::FlatBufferBuilder fbb;
@@ -100,14 +100,14 @@ TEST_F(IndexStorageTest, ReadCrossSymbol002) {
         cntname);
     fbb.Finish(crs_off);
     auto fb_crs = flatbuffers::GetRoot<IdxFormat::CrossSymbol>(fbb.GetBufferPointer());
- 
+
     CrossSymbol out;
     ReadCrossSymbol(out, fb_crs);
- 
+
     EXPECT_EQ(out.name,          "TestName");
     EXPECT_EQ(out.containerName, "CntName");
 }
- 
+
 TEST_F(IndexStorageTest, ReadCrossSymbol003) {
     // only location present, subfields all nullptr -> skip nested assignments
     flatbuffers::FlatBufferBuilder fbb;
@@ -124,15 +124,15 @@ TEST_F(IndexStorageTest, ReadCrossSymbol003) {
         0);
     fbb.Finish(crs_off);
     auto fb_crs = flatbuffers::GetRoot<IdxFormat::CrossSymbol>(fbb.GetBufferPointer());
- 
+
     CrossSymbol out;
     ReadCrossSymbol(out, fb_crs);
- 
+
     EXPECT_EQ(out.location.begin.fileID, 0u);
     EXPECT_EQ(out.location.end.fileID,   0u);
     EXPECT_TRUE(out.location.fileUri.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadCrossSymbol004) {
     // only begin non-null
     flatbuffers::FlatBufferBuilder fbb;
@@ -150,17 +150,17 @@ TEST_F(IndexStorageTest, ReadCrossSymbol004) {
         0);
     fbb.Finish(crs_off);
     auto fb_crs = flatbuffers::GetRoot<IdxFormat::CrossSymbol>(fbb.GetBufferPointer());
- 
+
     CrossSymbol out;
     ReadCrossSymbol(out, fb_crs);
- 
+
     EXPECT_EQ(out.location.begin.fileID,  7u);
     EXPECT_EQ(out.location.begin.line,    8u);
     EXPECT_EQ(out.location.begin.column,  9u);
     EXPECT_EQ(out.location.end.fileID,    0u);
     EXPECT_TRUE(out.location.fileUri.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadCrossSymbol006)
 {
     // only file_uri non-null
@@ -174,15 +174,15 @@ TEST_F(IndexStorageTest, ReadCrossSymbol006)
         0);
     fbb.Finish(crs_off);
     auto fb_crs = flatbuffers::GetRoot<IdxFormat::CrossSymbol>(fbb.GetBufferPointer());
- 
+
     CrossSymbol out;
     ReadCrossSymbol(out, fb_crs);
- 
+
     EXPECT_EQ(out.location.fileUri, "file://uri");
 }
- 
+
 static constexpr uint64_t kDefaultId = 0;
- 
+
 TEST_F(IndexStorageTest, ReadSymsComments001) {
     // sym == nullptr → early return
     Symbol res;
@@ -191,7 +191,7 @@ TEST_F(IndexStorageTest, ReadSymsComments001) {
     EXPECT_TRUE(res.comments.innerComments.empty());
     EXPECT_TRUE(res.comments.trailingComments.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadSymsComments002) {
     // sym != nullptr but comments() == nullptr → early return
     flatbuffers::FlatBufferBuilder fbb;
@@ -214,16 +214,15 @@ TEST_F(IndexStorageTest, ReadSymsComments002) {
         0,
         0);
     fbb.Finish(sym_off);
- 
+
     auto fb_sym = flatbuffers::GetRoot<IdxFormat::Symbol>(fbb.GetBufferPointer());
     Symbol res;
-    fbb.Finish(sym_off);
     ReadSymsComments(res, fb_sym);
     EXPECT_TRUE(res.comments.leadingComments.empty());
     EXPECT_TRUE(res.comments.innerComments.empty());
     EXPECT_TRUE(res.comments.trailingComments.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadSymsComments004) {
     // only leading_comments
     flatbuffers::FlatBufferBuilder fbb;
@@ -238,7 +237,7 @@ TEST_F(IndexStorageTest, ReadSymsComments004) {
         cg_group,
         0);
     fbb.Finish(sym_off);
- 
+
     auto fb_sym = flatbuffers::GetRoot<IdxFormat::Symbol>(fbb.GetBufferPointer());
     Symbol res;
     ReadSymsComments(res, fb_sym);
@@ -246,7 +245,7 @@ TEST_F(IndexStorageTest, ReadSymsComments004) {
     EXPECT_TRUE(res.comments.innerComments.empty());
     EXPECT_TRUE(res.comments.trailingComments.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadSymsComments005) {
     // only inner_comments
     flatbuffers::FlatBufferBuilder fbb;
@@ -261,7 +260,7 @@ TEST_F(IndexStorageTest, ReadSymsComments005) {
         cg_group,
         0);
     fbb.Finish(sym_off);
- 
+
     auto fb_sym = flatbuffers::GetRoot<IdxFormat::Symbol>(fbb.GetBufferPointer());
     Symbol res;
     ReadSymsComments(res, fb_sym);
@@ -269,7 +268,7 @@ TEST_F(IndexStorageTest, ReadSymsComments005) {
     EXPECT_EQ(res.comments.innerComments.size(), 1u);
     EXPECT_TRUE(res.comments.trailingComments.empty());
 }
- 
+
 TEST_F(IndexStorageTest, ReadSymsComments006) {
     // only trailing_comments
     flatbuffers::FlatBufferBuilder fbb;
@@ -284,7 +283,7 @@ TEST_F(IndexStorageTest, ReadSymsComments006) {
         cg_group,
         0);
     fbb.Finish(sym_off);
- 
+
     auto fb_sym = flatbuffers::GetRoot<IdxFormat::Symbol>(fbb.GetBufferPointer());
     Symbol res;
     ReadSymsComments(res, fb_sym);
@@ -292,11 +291,11 @@ TEST_F(IndexStorageTest, ReadSymsComments006) {
     EXPECT_TRUE(res.comments.innerComments.empty());
     EXPECT_EQ(res.comments.trailingComments.size(), 1u);
 }
- 
+
 static constexpr uint16_t kKind = 2;
 static constexpr uint64_t kContainerID = 42;
 static constexpr bool kIsCjoRef = true;
- 
+
 TEST_F(IndexStorageTest, ReadRef001) {
     flatbuffers::FlatBufferBuilder fbb;
     auto ref_off = IdxFormat::CreateRef(fbb, 0, kKind, kContainerID, kIsCjoRef, false);
@@ -315,7 +314,7 @@ TEST_F(IndexStorageTest, ReadRef001) {
     EXPECT_EQ(out.container, kContainerID);
     EXPECT_EQ(out.isCjoRef, kIsCjoRef);
 }
- 
+
 TEST_F(IndexStorageTest, ReadRef002) {
     flatbuffers::FlatBufferBuilder fbb;
     auto loc_off = IdxFormat::CreateLocation(fbb, nullptr, nullptr, 0);
@@ -335,7 +334,7 @@ TEST_F(IndexStorageTest, ReadRef002) {
     EXPECT_EQ(out.container, kContainerID);
     EXPECT_EQ(out.isCjoRef, kIsCjoRef);
 }
- 
+
 TEST_F(IndexStorageTest, ReadRef003) {
     flatbuffers::FlatBufferBuilder fbb;
     IdxFormat::Position posB(7, 8, 9);
@@ -356,7 +355,7 @@ TEST_F(IndexStorageTest, ReadRef003) {
     EXPECT_EQ(out.container, kContainerID);
     EXPECT_EQ(out.isCjoRef, kIsCjoRef);
 }
- 
+
 TEST_F(IndexStorageTest, ReadRef004) {
     flatbuffers::FlatBufferBuilder fbb;
     IdxFormat::Position posE(1, 2, 3);
@@ -377,7 +376,7 @@ TEST_F(IndexStorageTest, ReadRef004) {
     EXPECT_EQ(out.container, kContainerID);
     EXPECT_EQ(out.isCjoRef, kIsCjoRef);
 }
- 
+
 TEST_F(IndexStorageTest, ReadRef005)
 {
     flatbuffers::FlatBufferBuilder fbb;
@@ -538,19 +537,27 @@ TEST_F(IndexStorageTest, Store_And_Load_Integration) {
     // 1. Prepare data
     IndexFileOut data;
     std::vector<Symbol> syms;
-    Symbol s; s.id = 77; s.name = "TestSym";
+    Symbol s;
+    s.id = 77;
+    s.name = "TestSym";
     syms.push_back(s);
     data.symbols = &syms;
 
     std::map<SymbolID, std::vector<Ref>> refs;
-    Ref r; r.container = 77; r.kind = RefKind::REFERENCE;
+    Ref r;
+    r.container = 77;
+    r.kind = RefKind::REFERENCE;
     refs[77].push_back(r);
     data.refs = &refs;
 
     // Fill other empty required pointers to avoid null deref in StoreIndexShard if any
     std::vector<Relation> rels; data.relations = &rels;
-    std::map<SymbolID, std::vector<ExtendItem>> exts; data.extends = &exts;
-    std::vector<CrossSymbol> cross; data.crossSymbos = &cross;
+    std::map<SymbolID, std::vector<ExtendItem>> exts;
+    data.extends = &exts;
+    std::vector<CrossSymbol> cross;
+    data.crossSymbols = &cross;
+    std::vector<ReExportSymbol> res;
+    data.reExportSymbols = &res;
 
     // 2. Store to disk
     cm.StoreIndexShard(pkg, shardId, data);
@@ -686,7 +693,9 @@ TEST_F(IndexStorageTest, StoreIndexShard_CleanupOldFiles) {
     std::map<SymbolID, std::vector<Ref>> r; data.refs = &r;
     std::vector<Relation> rel; data.relations = &rel;
     std::map<SymbolID, std::vector<ExtendItem>> e; data.extends = &e;
-    std::vector<CrossSymbol> c; data.crossSymbos = &c;
+    std::vector<CrossSymbol> c; data.crossSymbols = &c;
+    std::vector<ReExportSymbol> res;
+    data.reExportSymbols = &res;
 
     cm.StoreIndexShard(pkg, "new_v2", data);
 

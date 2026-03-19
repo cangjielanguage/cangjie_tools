@@ -366,6 +366,26 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             result.completions.push_back(completion);
         });
     // LCOV_EXCL_STOP
+    index->FindImportReExportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
+    pkgName, curModule, prefix, [&result, &textEditRange, &syscap](const std::string &pkg,
+            const lsp::ReExportSymbol &sym, const lsp::CompletionItem &completionItem) {
+            CodeCompletion completion;
+            std::string fullSymName = pkg + ":" + sym.name;
+            auto astKind = sym.kind;
+            completion.deprecated = false;
+            completion.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
+            completion.name = sym.name;
+            completion.label = completionItem.label;
+            completion.insertText = completionItem.insertText;
+            completion.detail = "import " + pkg;
+            TextEdit textEdit;
+            textEdit.range = textEditRange;
+            textEdit.newText = "import " + pkg + "." + sym.name + "\n";
+            completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
+            completion.sortType = SortType::AUTO_IMPORT_SYM;
+            result.completions.push_back(completion);
+        }
+    );
 }
 
 void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix, std::unordered_set<std::string> usedNamedParams, int positionalsUsed, std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists, int paramIndex)

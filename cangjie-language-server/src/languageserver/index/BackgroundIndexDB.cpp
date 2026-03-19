@@ -10,6 +10,7 @@
 #include <optional>
 #include "../CompilerCangjieProject.h"
 #include "BackgroundIndexDB.h"
+#include "MemIndex.h"
 
 namespace ark {
 namespace lsp {
@@ -84,8 +85,14 @@ void BackgroundIndexDB::Update(const std::string &curPkgName, IndexFileOut index
                 update.InsertExtend(GetArrayFromID(extends.first), extendItem, curPkgName);
             }
         }
-        for (const CrossSymbol &crs : *index.crossSymbos) {
+        for (const CrossSymbol &crs : *index.crossSymbols) {
             update.InsertCrossSymbol(curPkgName, crs);
+        }
+        for (const ReExportSymbol &res : *index.reExportSymbols) {
+            update.InsertReExportSymbol(curPkgName, res);
+            for (const auto &completionItem : res.completionItems) {
+                update.InsertReExportCompletion(res, completionItem);
+            }
         }
         return update.Done();
     });
@@ -176,6 +183,21 @@ void BackgroundIndexDB::UpdateAll(const std::map<int, std::vector<std::string>> 
             }
         }
         update.InsertCrossSymbols(crsSymbols);
+
+        std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> reExportSymbols;
+        std::vector<std::tuple<std::string, IDArray, CompletionItem>> reExportCompletions;
+        for (const auto &item : index->pkgReExportSymsMap) {
+            for (const auto &res : item.second) {
+                for (const auto &completionItem : res.completionItems) {
+                    std::string name = res.name;
+                    reExportCompletions.emplace_back(name, GetArrayFromID(res.id), completionItem);
+                }
+                std::string pkgName = item.first;
+                reExportSymbols.emplace_back(pkgName, GetArrayFromID(res.id), res);
+            }
+        }
+        update.InsertReExportSymbols(reExportSymbols);
+        update.InsertReExportCompletions(reExportCompletions);
         return update.Done();
     });
     index.reset(nullptr);
@@ -528,6 +550,50 @@ void BackgroundIndexDB::FindExtendSymsOnCompletionBatch(
                 if (checkAccessible(extendIem.modifier) && checkAccessible(sym.modifier)) {
                     callback(packageName, extendIem.interfaceName, sym, completionItem);
                 }
+            });
+    }
+}
+
+void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
+    const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
+    const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
+    std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback)
+{
+    const auto &normalCompleteSyms = filterSyms.first;
+    const auto &importDeclSyms = filterSyms.second;
+    size_t normalCompleteCount = 0;
+    size_t importDeclCount = 0;
+
+    auto pkgNameList = CompilerCangjieProject::GetInstance()->GetPkgToModifierMap();
+    for (const auto &it : pkgNameList) {
+        auto pkgName = it.first;
+        if (pkgName == curPkgName ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgName) ||
+            CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgName)) {
+            continue;
+        }
+        auto relation = GetPackageRelation(curPkgName, pkgName);
+        db.GetReExportSymbolsWithCompletions(pkgName,
+            [&](const ReExportSymbol &sym, const CompletionItem &completionItem) {
+            bool isAccessiable =
+                sym.modifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (sym.modifier == Modifier::INTERNAL
+                                                              || sym.modifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
+            if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
+                return true;
+            }
+            if (normalCompleteCount >= normalCompleteSyms.size() || normalCompleteSyms.count(sym.id)) {
+                normalCompleteCount++;
+                return true;
+            }
+            if (importDeclCount >= importDeclSyms.size() || importDeclSyms.count(sym.id)) {
+                importDeclCount++;
+                return true;
+            }
+            callback(pkgName, sym, completionItem);
+            return true;
         });
     }
 }

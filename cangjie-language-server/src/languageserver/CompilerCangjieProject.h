@@ -542,6 +542,11 @@ public:
 
     std::unique_ptr<DiagnosticEngine> GetDiagnosticEngine();
 
+    std::unordered_map<std::string, Modifier> GetPkgToModifierMap()
+    {
+        return pkgToModMap;
+    }
+
 private:
     CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
 
