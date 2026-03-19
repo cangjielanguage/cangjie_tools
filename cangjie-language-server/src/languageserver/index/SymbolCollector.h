@@ -112,6 +112,14 @@ private:
 
     void CollectCrossScopes(Ptr<Node> node);
 
+    void ProcessFile(const File& file, const std::string& packagePath, AccessLevel pkgAccess,
+                     std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls);
+
+    void ProcessMacroCalls(const File& file);
+
+    VisitAction CollectPreAction(Ptr<Node> node, const std::string& filePath, AccessLevel pkgAccess,
+                                 std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls);
+
     bool ShouldPassInCjdIndexing(Ptr<Node> node);
 
     void CollectRelations(const std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls);
