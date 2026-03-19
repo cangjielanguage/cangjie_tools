@@ -192,7 +192,7 @@ void DotCompleterByParse::NestedMacroComplete(const ArkAST &input, const Positio
     if (!pkg) {
         return;
     }
-    auto pkgInstance = std::make_unique<PackageInstance>(ci->diag, ci->importManager);
+    auto pkgInstance = std::make_unique<PackageInstance>(ci->diag, *ci->importManager);
     if (!pkgInstance) {
         return;
     }

@@ -19,14 +19,14 @@ void DCompilerInstance::ImportCjoToManager(const std::unique_ptr<ark::CjoManager
 {
     // Import stdlib cjo, priority is low.
     for (const auto &cjoCache: cjoFileCacheMap) {
-        importManager.SetPackageCjoCache(cjoCache.first, cjoCache.second);
+        importManager->SetPackageCjoCache(cjoCache.first, cjoCache.second);
     }
 
     auto allDependencies = graph->FindAllDependencies(pkgNameForPath);
     for (auto &package: allDependencies) {
         for (auto &item: usrCjoFileCacheMap) {
             if (item.second.count(package)) {
-                importManager.SetPackageCjoCache(package, item.second[package]);
+                importManager->SetPackageCjoCache(package, item.second[package]);
             }
         }
     }
@@ -117,13 +117,13 @@ void CjdIndexer::BuildCJDIndex()
             (void) ciMap[package]->MacroExpand();
             (void) ciMap[package]->Sema();
             (void) ExecuteCompilerApi("DeleteASTLoaders", &ImportManager::DeleteASTLoaders,
-                                      ciMap[package]->importManager);
+                                      *ciMap[package]->importManager);
             auto packages = ciMap[package]->GetSourcePackages();
             std::vector<uint8_t> data;
             (void) ciMap[package]->ExportAST(false, data, *packages[0]);
             cjoManager->SetData(package, {data, DataStatus::FRESH});
             lsp::SymbolCollector sc = lsp::SymbolCollector(*ciMap[package]->typeManager,
-                                                           ciMap[package]->importManager, false);
+                                                           *ciMap[package]->importManager, false);
             sc.Build(*packages[0]);
             pkgSymsMap.insert_or_assign(package, *sc.GetSymbolMap());
             auto shardIdentifier = "cjd";
