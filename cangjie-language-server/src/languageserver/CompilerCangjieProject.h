@@ -87,6 +87,8 @@ enum class Modifier : uint8_t {
     PUBLIC
 };
 
+Modifier GetModifilerByAccessLevel(AccessLevel level);
+
 class CompilerCangjieProject {
 public:
     std::mutex mtx;

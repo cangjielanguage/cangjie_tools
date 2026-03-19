@@ -58,6 +58,27 @@ const int LSP_ERROR_CODE = 503;
 CompilerCangjieProject *CompilerCangjieProject::instance = nullptr;
 bool CompilerCangjieProject::useDB = false;
 bool CompilerCangjieProject::incrementalOptimize = true;
+
+Modifier GetModifilerByAccessLevel(AccessLevel level)
+{
+    switch (level) {
+        case AccessLevel::PRIVATE: {
+            return Modifier::PRIVATE;
+        }
+        case AccessLevel::INTERNAL: {
+            return Modifier::INTERNAL;
+        }
+        case AccessLevel::PROTECTED: {
+            return Modifier::PROTECTED;
+        }
+        case AccessLevel::PUBLIC: {
+            return Modifier::PUBLIC;
+        }
+        default:
+            return Modifier::UNDEFINED;
+    }
+}
+
 CompilerCangjieProject::CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB) : callback(cb)
 {
     if (useDB) {
@@ -2413,10 +2434,6 @@ ark::Modifier CompilerCangjieProject::GetPackageSpecMod(Node *node)
 
 bool CompilerCangjieProject::IsVisibleForPackage(const std::string &curPkgName, const std::string &importPkgName)
 {
-    auto importPkgPath = GetPathFromPkg(importPkgName);
-    if (!FileUtil::FileExist(importPkgPath)) {
-        return false;
-    }
     std::string realPkgName = GetRealPackageName(importPkgName);
     auto found = pkgToModMap.find(realPkgName);
     if (found == pkgToModMap.end()) {
@@ -2459,6 +2476,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
             continue;
         }
         auto cjoPkgName = cjoPkg->fullPackageName;
+        pkgToModMap.insert_or_assign(cjoPkgName, GetModifilerByAccessLevel(cjoPkg->accessible));
         bool toUpdateDB = true;
         std::string digest;
         if (useDB) {
