@@ -36,6 +36,17 @@ void AnnotationFormatter::AddAnnotation(Doc& doc, const Cangjie::AST::Annotation
         }
         doc.members.emplace_back(DocType::STRING, level, "]");
     }
+    if (!annotation.attrs.empty()) {
+        doc.members.emplace_back(DocType::STRING, level, "[");
+        auto& last_attr = annotation.attrs.back();
+        for (auto& attr : annotation.attrs) {
+            doc.members.emplace_back(DocType::STRING, level, attr.Value());
+            if (&attr != &last_attr) {
+                doc.members.emplace_back(DocType::STRING, level, ", ");
+            }
+        }
+        doc.members.emplace_back(DocType::STRING, level, "]");
+    }
     if (annotation.condExpr) {
         doc.members.emplace_back(DocType::STRING, level, "[");
         doc.members.emplace_back(astToFormatSource.ASTToDoc(annotation.condExpr.get(), level));
