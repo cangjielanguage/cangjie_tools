@@ -5,8 +5,8 @@
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 [repository.cache]
-    path = ""       # local path to save dependencies from Git and central repository
+    path = ""                                           # local path to save dependencies from Git and central repository
 
 [repository.home]
-    registry = ""   # url of central repository
-    token = ""      # token of current user
+    registry = "https://pkg.cangjie-lang.cn/registry"   # url of central repository
+    token = ""                                          # token of current user
