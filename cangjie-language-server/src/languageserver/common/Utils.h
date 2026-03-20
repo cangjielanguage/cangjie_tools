@@ -364,5 +364,7 @@ std::vector<std::string> Split(const std::string &str, const std::string &patter
 std::vector<std::string> GetAllFilePathUnderCurrentPath(
     const std::string& path, const std::string& extension,
     bool shouldSkipTestFiles = false, bool shouldSkipRegularFiles = false);
+
+std::string NormalizeStringToGBK(const std::string& data);
 }
 #endif // LSPSERVER_UTILS_H
