@@ -119,7 +119,7 @@ inline std::string PathToGBK(const std::string &originStr)
 {
     auto strGBK = originStr;
 #ifdef _WIN32
-    strGBK = Cangjie::StringConvertor::NormalizeStringToGBK(strGBK).value();
+    strGBK = NormalizeStringToGBK(strGBK);
 #endif
     return strGBK;
 }
@@ -157,7 +157,7 @@ std::string URI::ToString() const
     if (authority.empty() && body.empty()) {
         return result;
     }
-    
+
     if (!authority.empty() || (!body.empty() && body[0] == '/')) {
         (void)result.append("//");
         PercentEncode(authority, result);
