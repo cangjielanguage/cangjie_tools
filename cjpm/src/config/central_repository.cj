@@ -17,6 +17,7 @@ import cjpm.toml.Decoder as DecoderToml
 public let REPO_CONFIG_FILE_NAME = "cangjie-repo.toml"
 public let REPO_CACHE_NAME = "cache"
 public let REPO_HOME_NAME = "home"
+public let GLOBAL_STRICT_TLS = "strict-tls"
 
 public class RepositoryInfo <: Serializable<RepositoryInfo> {
     public RepositoryInfo(
@@ -46,8 +47,29 @@ public class RepositoryInfo <: Serializable<RepositoryInfo> {
     }
 }
 
+public class GlobalRepoConfig <: Serializable<GlobalRepoConfig> {
+    public var strictTls: Bool = true
+
+    public func serialize(): DataModel {
+        let result = DataModelStruct()
+        result.add(field<Bool>(GLOBAL_STRICT_TLS, this.strictTls))
+        return result
+    }
+
+    public static func deserialize(dm: DataModel): GlobalRepoConfig {
+        var dms = match (dm) {
+            case data: DataModelStruct => data
+            case _ => throw Exception("Wrong format of GlobalRepoConfig")
+        }
+        var result = GlobalRepoConfig()
+        result.strictTls = Bool.deserialize((dms.get(GLOBAL_STRICT_TLS) as DataModelBool) ?? DataModelBool(true))
+        return result
+    }
+}
+
 public class SettingsConfig <: Serializable<SettingsConfig> {
     public var repository: HashMap<String, RepositoryInfo> = HashMap<String, RepositoryInfo>()
+    public var global: GlobalRepoConfig = GlobalRepoConfig()
     public var isValid: Bool = true
 
     public init() {
@@ -59,6 +81,7 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
     public func serialize(): DataModel {
         let result = DataModelStruct()
         result.add(field<HashMap<String, RepositoryInfo>>("repository", repository))
+        result.add(field<GlobalRepoConfig>("global", global))
         return result
     }
 
@@ -68,6 +91,7 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
             case _ => throw Exception("this data is not DataModelStruct")
         }
         var result = SettingsConfig()
+        result.global = GlobalRepoConfig.deserialize((dms.get("global") as DataModelStruct) ?? DataModelStruct())
         result.repository = HashMap<String, RepositoryInfo>.deserialize((dms.get("repository") as DataModelStruct) ?? DataModelStruct())
 
         if (!result.repository.contains(REPO_CACHE_NAME)) {
