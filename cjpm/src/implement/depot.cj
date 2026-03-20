@@ -35,6 +35,7 @@ public class Depot {
     public var baseUrl: String = ""
     public var token: String = ""
     public var localRepo: String = ""
+    public var global: GlobalRepoConfig = GlobalRepoConfig()
 
     public func loadConfiguration(isError!: Bool = true): Bool {
         let alertLevel =  if (isError) { "Error" } else { "Warning" }
@@ -51,6 +52,8 @@ public class Depot {
             eprintln("${alertLevel}: get registry of [repository.home] failed, please check if cangjie-repo.toml is set up correctly")
             return false
         }
+
+        this.global = FINAL_CJPM_CONFIG_INFO.global
 
         return true
     }
@@ -85,7 +88,9 @@ public class Depot {
 
         // building client
         var tlsConfig = TlsClientConfig()
-        tlsConfig.verifyMode = TrustAll
+        if (!this.global.strictTls) {
+            tlsConfig.verifyMode = TrustAll
+        }
         let client = ClientBuilder().
             connector(tcpSocketConnector).
             noProxy().
@@ -131,7 +136,9 @@ public class Depot {
 
         // building client
         var tlsConfig = TlsClientConfig()
-        tlsConfig.verifyMode = TrustAll
+        if (!this.global.strictTls) {
+            tlsConfig.verifyMode = TrustAll
+        }
         let client = ClientBuilder().
             connector(tcpSocketConnector).
             noProxy().
@@ -252,7 +259,9 @@ public class Depot {
 
         // building client
         var tlsConfig = TlsClientConfig()
-        tlsConfig.verifyMode = TrustAll
+        if (!this.global.strictTls) {
+            tlsConfig.verifyMode = TrustAll
+        }
         let client = ClientBuilder().
             connector(tcpSocketConnector).
             noProxy().
