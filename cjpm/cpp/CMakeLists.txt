@@ -26,6 +26,8 @@ endif()
 
 add_subdirectory(third_party/libuv EXCLUDE_FROM_ALL)
 
+target_compile_options(uv_a PRIVATE -std=c99)
+
 file(GLOB_RECURSE FSWATCHER_SRC_FILES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
 add_library(fswatcher STATIC
