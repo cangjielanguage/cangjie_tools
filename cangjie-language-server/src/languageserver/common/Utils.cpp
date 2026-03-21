@@ -1544,4 +1544,38 @@ std::vector<std::string> GetAllFilePathUnderCurrentPath(const std::string& path,
     });
     return allFiles;
 }
+
+bool IsCommonSpecificSymbol(Ptr<Cangjie::AST::Decl> decl)
+{
+    if (!decl) {
+        return false;
+    }
+    return ark::CompilerCangjieProject::GetInstance()->IsCommonSpecificPkg(decl->fullPackageName);
+}
+
+std::string GetRealFilePathInCommonSpecific(Ptr<Cangjie::AST::Decl> decl)
+{
+    if (!decl) {
+        return "";
+    }
+    bool isCommonSpecificPkg = IsCommonSpecificSymbol(decl);
+    if (!isCommonSpecificPkg || !decl->curFile) {
+        return "";
+    }
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return decl->curFile->filePath;
+    }
+    auto symFromIndex = index->GetAimSymbol(*decl);
+    if (symFromIndex.IsInvalidSym() || symFromIndex.location.fileUri.empty() || symFromIndex.isCjoSym) {
+        return decl->curFile->filePath;
+    }
+    std::string idxSourceSet =
+            CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(symFromIndex.location.fileUri);
+    std::string declSourceSet = CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(decl->curFile->filePath);
+    if (idxSourceSet != declSourceSet) {
+        return symFromIndex.location.fileUri;
+    }
+    return decl->curFile->filePath;
+}
 } // namespace ark
