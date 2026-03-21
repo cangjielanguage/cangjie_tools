@@ -80,26 +80,33 @@ void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const 
         return;
     }
     moduleInfoMap[modulePath].isCommonSpecificModule = true;
+    // only support one common pkg + one specific pkg
+    int i = 0;
     for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS]) {
         if (!member.is_object() || !member.contains(TYPE) || !member.contains(PATH)) {
+            i++;
             continue;
         }
         const auto &type = member.value(TYPE, "");
         const auto &path = member.value(PATH, "");
         if (path == "") {
+            i++;
             continue;
         }
-        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
+        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "" && i == 0) {
             moduleInfoMap[modulePath].commonSpecificPaths.first = FileStore::NormalizePath(URI::Resolve(path));
             moduleInfoMap[modulePath].sourceSetNames.push_back("common");
+            i++;
             continue;
         }
-        if (type == SPECIFIC) {
+        if (type == SPECIFIC && i == jsonData[COMMON_SPECIFIC_PATHS].size() - 1) {
             moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(
                 FileStore::NormalizePath(URI::Resolve(path)));
             moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME, ""));
+            i++;
             continue;
         }
+        i++;
     }
 }
 
