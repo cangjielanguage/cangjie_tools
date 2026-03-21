@@ -117,6 +117,8 @@ private:
 
     void ProcessMacroCalls(const File& file);
 
+    void SetUpstreamUncoveredSymbols(const File& file);
+
     VisitAction CollectPreAction(Ptr<Node> node, const std::string& filePath, AccessLevel pkgAccess,
                                  std::unordered_set<Ptr<InheritableDecl>>& inheritableDecls);
 
@@ -265,6 +267,8 @@ private:
     ImportManager& importMgr;
 
     std::vector<Symbol> pkgSymsMap;
+
+    std::set<std::string> fullPkgsSet;
 
     std::map<std::string, std::unique_ptr<ArkAST>> astMap;
 

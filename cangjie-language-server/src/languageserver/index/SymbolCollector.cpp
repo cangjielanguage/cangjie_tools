@@ -307,6 +307,8 @@ void SymbolCollector::ProcessFile(const File& file, const std::string& packagePa
 {
     auto filePath = file.curFile->filePath;
     if (!packagePath.empty() && !IsUnderPath(packagePath, filePath)) {
+        // need to set upstream symbols which is not covered into cur pkg symbol map
+        SetUpstreamUncoveredSymbols(file);
         return;
     }
 
@@ -349,6 +351,30 @@ void SymbolCollector::ProcessMacroCalls(const File& file)
             return VisitAction::WALK_CHILDREN;
         }).Walk();
     }
+}
+
+void SymbolCollector::SetUpstreamUncoveredSymbols(const File& file)
+{
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return;
+    }
+    const std::string &fullPackageName = ark::CompilerCangjieProject::GetInstance()->GetFullPkgName(file.filePath);
+    if (fullPackageName.empty()) {
+        return;
+    }
+    if (fullPkgsSet.find(fullPackageName) != fullPkgsSet.end()) {
+        return;
+    }
+    fullPkgsSet.insert(fullPackageName);
+    const lsp::PkgSymsRequest pkgSymsRequest = {fullPackageName};
+    index->FindPkgSyms(pkgSymsRequest, [this](const lsp::Symbol &sym) {
+        const auto &id = sym.id;
+        if (symbolRefMap.find(id) != symbolRefMap.end()) {
+            return;
+        }
+        (void)pkgSymsMap.emplace_back(sym);
+    });
 }
 
 VisitAction SymbolCollector::CollectPreAction(Ptr<Node> node, const std::string& filePath, AccessLevel pkgAccess,
