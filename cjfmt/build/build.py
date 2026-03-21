@@ -41,26 +41,27 @@ IS_MACOS = platform.system() == "Darwin"
 ARCH_NAME = platform.machine().replace("AMD64", "x86_64").replace("arm64", "aarch64").lower()
 CAN_RUN_MAPLE = platform.system() == 'Linux' and platform.machine() == 'x86_64'
 
-# use llvm toolchain on linux
-if not IS_WINDOWS:
-    clang_path = shutil.which('clang')
-    clang_pp_path = shutil.which('clang++')
-    if not clang_path:
-        LOG.error('clang is required to build cangjie compiler')
-    if not clang_pp_path:
-        LOG.error('clang++ is requreed to build cangjie compiler')
+def check_compiler(args):
+    # use llvm toolchain on linux
+    if not IS_WINDOWS:
+        clang_path = shutil.which('clang') + (" --gcc-toolchain={}".format(args.gcc_toolchain) if args.gcc_toolchain else "")
+        clang_pp_path = shutil.which('clang++') + (" --gcc-toolchain={}".format(args.gcc_toolchain) if args.gcc_toolchain else "")
+        if not clang_path:
+            LOG.error('clang is required to build cangjie compiler')
+        if not clang_pp_path:
+            LOG.error('clang++ is requreed to build cangjie compiler')
 
-    os.environ['CC'] = clang_path
-    os.environ['CXX'] = clang_pp_path
-else:
-    c_compiler = shutil.which('gcc')
-    cxx_compiler = shutil.which('g++')
-    if not c_compiler:
-        LOG.error('gcc is required to build cangjie compiler')
-    if not cxx_compiler:
-        LOG.error('g++ is requreed to build cangjie compiler')
-    os.environ['CC'] = c_compiler
-    os.environ['CXX'] = cxx_compiler
+        os.environ['CC'] = clang_path
+        os.environ['CXX'] = clang_pp_path
+    else:
+        c_compiler = shutil.which('gcc')
+        cxx_compiler = shutil.which('g++')
+        if not c_compiler:
+            LOG.error('gcc is required to build cangjie compiler')
+        if not cxx_compiler:
+            LOG.error('g++ is requreed to build cangjie compiler')
+        os.environ['CC'] = c_compiler
+        os.environ['CXX'] = cxx_compiler
 
 def log_output(output):
     """log command output"""
@@ -144,7 +145,7 @@ def build(args):
     if args.build_type is None:
         LOG.error('please specify the build type. Supported options are: release and debug.')
         return
-
+    check_compiler(args)
     """cjfmt build"""
     LOG.info('begin build...\n')
 
@@ -260,6 +261,9 @@ def main():
     parser_build.add_argument('--code-coverage',
                               action='store_true',
                               help='do code coverage')
+    parser_build.add_argument(
+        "--gcc-toolchain", dest="gcc_toolchain", help="Specify toolchain for cjlint build"
+    )
     parser_build.add_argument('--target',
                             type=str,
                             dest="target",
