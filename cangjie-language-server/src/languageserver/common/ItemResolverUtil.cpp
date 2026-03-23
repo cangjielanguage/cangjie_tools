@@ -294,6 +294,12 @@ std::string ItemResolverUtil::ResolveSourceByNode(Ptr<Cangjie::AST::Decl> decl, 
 
     if (decl->curFile) {
         std::string fileName = decl->curFile->fileName;
+        std::string realPath = path;
+
+        if (IsCommonSpecificSymbol(decl)) {
+            realPath = GetRealFilePathInCommonSpecific(decl);
+            fileName = FileUtil::GetFileName(realPath);
+        }
 
 #ifdef _WIN32
         std::optional<std::string> fileNameOpt =
@@ -301,7 +307,7 @@ std::string ItemResolverUtil::ResolveSourceByNode(Ptr<Cangjie::AST::Decl> decl, 
         if (fileNameOpt.has_value()) {
             fileName = fileNameOpt.value();
         }
-        GetRealFileName(fileName, path);
+        GetRealFileName(fileName, realPath);
 #endif
         source += fileName;
     }
