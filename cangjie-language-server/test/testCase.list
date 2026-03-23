@@ -1075,6 +1075,7 @@
 {"callHierarchy":{"testFile":"LSP_callHierarchy_suoper.test","preId":"5","id":"6","useDB":true}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_global_lambda.test","preId":"5","id":"6"}}
 {"callHierarchy":{"testFile":"LSP_callHierarchy_2025061211603.test","preId":"5","id":"6"}}
+{"callHierarchy":{"testFile":"LSP_incomingCall_Common_Specific.test","preId":"5","id":"6"}}
 
 {"codeLens":{"testFile":"LSP_CodeLens_ClassAndFuncCase.test","id":"9"}}
 {"codeLens":{"testFile":"LSP_CodeLens_ClassTestCase.test","id":"9"}}

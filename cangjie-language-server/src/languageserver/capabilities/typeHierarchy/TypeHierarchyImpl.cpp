@@ -135,10 +135,22 @@ void TypeHierarchyImpl::FindTypeHierarchyImpl(const ark::ArkAST &ast, TypeHierar
     result = TypeHierarchyFrom(decl);
     result.isChildOrSuper = false;
     result.symbolId = GetSymbolId(*decl);
+    if (!IsCommonSpecificSymbol(decl)) {
+        return;
+    }
+    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return;
+    }
+    auto symFromIndex = index->GetAimSymbol(*decl);
+    if (symFromIndex.IsInvalidSym() || symFromIndex.location.fileUri.empty() || symFromIndex.isCjoSym) {
+        return;
+    }
+    result.uri.file = symFromIndex.location.fileUri;
 }
 
 // supertypes entrance
-void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &results,
+void TypeHierarchyImpl::FindSuperTypesImpl(std::set<TypeHierarchyItem> &results,
                                            const TypeHierarchyItem &hierarchyItem)
 {
     Trace::Log("TypeHierarchyImpl::FindSuperTypesImpl in.");
@@ -187,13 +199,13 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::vector<TypeHierarchyItem> &resul
         item.selectionRange = item.range = range;
         item.isKernel = false;
         item.symbolId = sym.id;
-        results.emplace_back(item);
+        results.insert(item);
     });
     // LCOV_EXCL_STOP
 }
 
 // subtypes entrance
-void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results,
+void TypeHierarchyImpl::FindSubTypesImpl(std::set<TypeHierarchyItem> &results,
                                          const TypeHierarchyItem &hierarchyItem)
 {
     Trace::Log("TypeHierarchyImpl::FindSubTypesImpl in.");
@@ -246,7 +258,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::vector<TypeHierarchyItem> &results
         item.selectionRange = item.range = range;
         item.isKernel = false;
         item.symbolId = sym.id;
-        results.emplace_back(item);
+        results.insert(item);
     });
     // LCOV_EXCL_STOP
 }
