@@ -4,11 +4,16 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-@NoneProduct
+@NonProduct
 features {}
 package lib.pkg_2
 
+import lib.pkg.*
 
 public common func message_pkg_2(): Unit
 
 public common func message1_pkg_2(): Unit
+
+func namepkg2() {
+    addfun(6, 8)
+}

@@ -7,9 +7,13 @@
 features {user.lib.arch.big}
 package lib.pkg_2
 
+import lib.pkg.*
+
 public specific func message_pkg_2(): Unit {
     println("Some example message")
 }
 
-public specific func message1_pkg_2(): Unit {}
+public specific func message1_pkg_2(): Unit {
+    addfun(1, 2)
+}
 
