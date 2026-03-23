@@ -140,7 +140,7 @@ void ArkServer::FindSuperTypes(const std::string &file, const TypeHierarchyItem 
                                const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
-        std::vector<TypeHierarchyItem> results;
+        std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
             reply(value);
@@ -164,7 +164,7 @@ void ArkServer::FindSubTypes(const std::string &file, const TypeHierarchyItem &p
                              const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
-        std::vector<TypeHierarchyItem> results;
+        std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
             reply(value);

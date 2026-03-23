@@ -16,3 +16,7 @@ public common func message1_pkg(): Unit
 public func addfun(a:Int8, b:Int8) {
     a + b
 }
+
+public common func message2_pkg(): Unit {
+    addfun(1, 2)
+}
