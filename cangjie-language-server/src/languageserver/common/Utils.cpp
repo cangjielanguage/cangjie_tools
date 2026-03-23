@@ -6,6 +6,7 @@
 
 #include "Utils.h"
 #include "cangjie/Basic/Version.h"
+#include "cangjie/Basic/StringConvertor.h"
 #include "Inherit/InheritDeclUtil.h"
 #include "../CompilerCangjieProject.h"
 
@@ -1543,5 +1544,17 @@ std::vector<std::string> GetAllFilePathUnderCurrentPath(const std::string& path,
         });
     });
     return allFiles;
+}
+
+std::string NormalizeStringToGBK(const std::string& data)
+{
+    auto strGBK = data;
+#ifdef _WIN32
+    auto ret = Cangjie::StringConvertor::NormalizeStringToUTF8(strGBK);
+    if (ret.has_value()) {
+        strGBK = ret.value();
+    }
+#endif
+    return strGBK;
 }
 } // namespace ark
