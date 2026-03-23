@@ -50,7 +50,7 @@ private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
     ]
 )
 
-@Derive[Equatable]
+@Derive[Equatable, Hashable]
 public enum OutputType <: Serializable<OutputType> & ToString {
     | Static
     | Dynamic
@@ -491,29 +491,6 @@ public open class CommandConfig {
     public var memberModule: String = ""
 }
 
-@Derive[Hashable, Equatable]
-public enum CompilePhase <: ToString {
-    ObjOnly | LinkOnly | Default
-
-    public func toString(): String {
-        match (this) {
-            case ObjOnly => "ObjOnly"
-            case LinkOnly => "LinkOnly"
-            case Default => "Default"
-        }
-    }
-}
-
-@Derive[Hashable, Equatable, ToString]
-public struct TaskIdentifier {
-    public TaskIdentifier(
-        public let fullName: String,
-        public let target: String,
-        public let sourceSetDir: String,
-        public let compilePhase!: CompilePhase = Default
-    ) { }
-}
-
 public struct PackageList {
     private let packages: Array<ResolveItem>
     private let macroSet: HashSet<String>
@@ -618,7 +595,7 @@ public struct PackageList {
 public enum CjcParallelConfig {
     | Default
     | Heuristic
-    | Spicific(Int64)
+    | Specific(Int64)
 }
 
 public class BuildConfig <: CommandConfig {
@@ -637,16 +614,10 @@ public class BuildConfig <: CommandConfig {
     public var requiredForTests: Bool = false
     public var requiresMap: HashMap<String, HashSet<String>> = HashMap<String, HashSet<String>>()
     public var rebuildList: HashSet<String> = HashSet<String>()
-    public var rebuildMacros: HashSet<String> = HashSet<String>()
-    public var indirectRebuilds: HashSet<String> = HashSet<String>()
     // Record json cache for each module
     public var jsonInformation: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
-    // Record package cache for each module
-    public var pkgCacheMap: HashMap<String, CacheItem> = HashMap<String, CacheItem>()
     // Record the module name that has changed json data
     public var changedModuleList: ArrayList<String> = ArrayList<String>()
-    // Record the cjo timetamp
-    public var cjoTimeMap: HashMap<String, Int64> = HashMap<String, Int64>()
     public var mockSupported: Bool = false
     public var originTargetPath: String = TARGET
     public var exeName: String = "main"
@@ -766,7 +737,6 @@ public class TreeConfig {
 public struct PackageInfo {
     public PackageInfo(
         public let sources: CJMPSource,
-        public let hashCode: String,
         public let timeStamp: Int64,
         public let hasTestFiles: Bool,
         public let hasProdFiles: Bool
@@ -969,93 +939,6 @@ public class GlobalConfig {
         this.enabledFeatures = globalConfig.enabledFeatures
         this.verifiedEnabledFeatures = globalConfig.verifiedEnabledFeatures
     }
-}
-
-// Self-sufficient compilation unit. 
-// Stores all of the information for constructing a single `cjc` call
-public struct CompileTask {
-    public CompileTask(
-        public let id!: TaskIdentifier,
-        // The directory, of current `target`
-        public let targetDir!: String = "",
-        // The value of `--target-dir`: where to dump the compilation result (depends on many factors)
-        public let targetPath!: String = "", 
-        // The value of `-p`: The location of package files of current source set
-        public let packagePath!: String = "", 
-        // Is this a product source set (`--output-type` can be of binary)
-        public let product!: Bool = false, 
-        // Source set directory without the module path prefix. Uniquely identifies source set
-        public let sourceSetDir!: String = "", 
-        // The feature set header of the package
-        public let sourceSetFeatures!: HashSet<Feature> = HashSet(), 
-        // e.g. for `cjpm.config` the value would be `cjpm`
-        public let rootPkgName!: String = "", 
-        // Full package name, e.g. `cjpm.config`
-        public let fullName!: String = "", 
-        // The expected name of output file without extension
-        public let filename!: String = "", 
-        // The value of `--output-type`
-        public let outputType!: OutputType = Unknown(""), 
-        // The target triple passed to `--target` for compilation/cross-compilation
-        public let target!: String = "", 
-        // `true` if value stored in `target` field is different from host
-        public let isCrossCompile!: Bool = false, 
-        // A set of option fields from `cjpm.toml` of a module, specialized for this particular package
-        public let compileOption!: String = "", 
-        public let overrideOption!: String = "", 
-        public let linkOption!: String = "", 
-        public let customizedOption!: ArrayList<String> = ArrayList(), 
-        // Stores names of all subpackages of a module to combine them into a single compilation unit
-        public let subPkgSet!: HashSet<String> = HashSet(), 
-        // Use `--whole-archive` to link dendencies
-        public let isCombined!: Bool = false,
-        // Compile this root package and make it into a single linkable binary
-        public let isProjectCombined!: Bool = false,
-        // Package is being compiled by `cjpm test`
-        public let requiredForTests!: Bool = false, 
-        // Include some declarations from testfiles `*_test.cj` of a package.
-        public let exportForTests!: Bool = false, 
-        // Incoming edges of dependency graph
-        public let requireTasks!: HashSet<TaskIdentifier> = HashSet(), 
-        // All features, asked by different modules of this package. Required for proper selection of product source set
-        public let allEnabledFeatures!: HashSet<Feature> = HashSet(), 
-        // Mappings from `[[feature]]` array of tables from `cjpm.toml`. Used to provide correct `*.cjo` files in `--import-path`
-        public let featureMapping!: FeatureDeducer = FeatureDeducer.empty, 
-        // Does this compiler call support AnalysisCompilePerformance
-        public let isAnalysisCompilePerformance!: Bool = false, 
-        // `true` if:
-        //  - this is a parent package of some subpackage
-        //  - requiredForTests
-        public let hasSubPkgs!: Bool = false, 
-        // Is this compilation task for debug build
-        public let isDebug!: Bool = false,
-        // Compile package with support of `coverage`
-        public let isCov!: Bool = false,
-        // Compile package with support of `mock`
-        public let mockSupported!: Bool = false,
-        // Is package a macro package
-        public let isMacro!: Bool = false, 
-        // A value of `--lto` flag to be passed to a compiler
-        public let isLto!: Bool = false,
-        public let ltoValue!: String = "",
-        // Locations of `*.chir` and `*.cjo` of each source set, the current one depends on
-        // 0 - CHIR file with declarations to be merged for multiplatform build
-        // 1 - The value of `--common-part-cjo` for multiplatform build
-        public let prevStageArtifacts!: Array<(String, String)> = Array(), 
-        // Whether the source code location is spread between multiple [[source-set]] src-dir
-        public let isMultiplatform!: Bool = false, 
-        public let checkDepCjo!: Bool = false,
-        // A list of `-Woff` compiler options
-        public let supressed!: ArrayList<String> = ArrayList<String>(),
-        // A file for verbose output of `cjpm` when compiling task
-        public let outLogFile!: String = "", 
-        // A joined file containing `stderr` of a compiler together with `cjpm` errors
-        public let errLogFile!: String = "",
-        // The value of `--compile-target`
- 	    public let compileTargetOutput!: ?OutputType = None,
-        // The *.o/obj file generated by a ObjOnly task, as the input of a LinkOnly task
- 	    public let prevStageObj!: ?String = None
-    ) { }
 }
 
 public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {

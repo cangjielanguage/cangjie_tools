@@ -23,11 +23,15 @@ public class DAGBuilder<K, V> where K <: Hashable & Equatable<K> {
         assertion { !graph.contains(id) }
         assertion { graph.contains(all: incoming) }
 
+        if (graph.contains(id)) {
+            return
+        }
+
         if (incoming.size == 0) {
             roots.add(id)
         }
 
-        for (node in incoming) {
+        for (node in incoming where graph.contains(node)) {
             let (_, out) = graph[node]
             out.add(id)
         }
@@ -99,7 +103,7 @@ public class DAG<K, V> where K <: Hashable & Equatable<K> {
             if (!cond(id, this._data[id])) { 
                 return None<(K, Node<K>)>
             }
-            return (id, state.filterEdges { it => cond(id, this._data[id] )} )
+            return (id, state.filterEdges { it => cond(it, this._data[it] )} )
         } |> collectHashMap
 
         let toposort = toposort.filter { it => cond(it, this._data[it]) } |> collectArray
@@ -195,20 +199,18 @@ public class DAG<K, V> where K <: Hashable & Equatable<K> {
     }
 }
 
-extend <K, V> DAG<K, V> where K <: Hashable & Equatable<K> {
+extend <K, V> DAG<K, V> {
     /**
      * Provides transitive closure of DAG by incoming edges starting from given
      */
-    public func incomingClosure(id: K): DAG<K, V> {
+    public func incomingClosure(ids: Array<K>): DAG<K, V> {
         let asked = HashSet<K>()
-        traverseReverse(id) { it => asked.add(it) }
+        for (id in ids) {
+            traverseReverse(id) { it => asked.add(it) }
+        }
         this.filterGraph { it: K, _ => asked.contains(it) }
     }
-}
 
-
-
-extend <K, V> DAG<K, V> where K <: ToString {
     public func incoming(id: K): Array<K> {
         graph[id].indeg
     }
@@ -217,7 +219,6 @@ extend <K, V> DAG<K, V> where K <: ToString {
         graph[id].outdeg
     }
 }
-
 
 extend <V> DAG<String, V> <: Serializable<DAG<String, V>> where V <: Serializable<V> {
     public func serialize(): DataModel {
