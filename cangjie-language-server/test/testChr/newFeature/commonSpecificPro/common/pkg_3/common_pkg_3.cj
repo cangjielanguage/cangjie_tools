@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-@NoneProduct
+@NonProduct
 features {}
 package lib.pkg_3
 
