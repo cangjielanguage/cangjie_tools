@@ -290,7 +290,7 @@ void CallHierarchyImpl::FindCallHierarchyImpl(const ArkAST &ast, CallHierarchyIt
     if (symFromIndex.IsInvalidSym() || symFromIndex.location.fileUri.empty() || symFromIndex.isCjoSym) {
         return;
     }
-    result.uri.file = symFromIndex.location.fileUri;
+    result.uri.file = URI::URIFromAbsolutePath(symFromIndex.location.fileUri).ToString();
 }
 
 void CallHierarchyImpl::FindOnOutgoingCallsImpl(vector <CallHierarchyOutgoingCall> &results,
