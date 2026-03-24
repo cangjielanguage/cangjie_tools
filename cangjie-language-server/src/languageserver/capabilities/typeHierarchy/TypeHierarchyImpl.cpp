@@ -146,7 +146,7 @@ void TypeHierarchyImpl::FindTypeHierarchyImpl(const ark::ArkAST &ast, TypeHierar
     if (symFromIndex.IsInvalidSym() || symFromIndex.location.fileUri.empty() || symFromIndex.isCjoSym) {
         return;
     }
-    result.uri.file = symFromIndex.location.fileUri;
+    result.uri.file = URI::URIFromAbsolutePath(symFromIndex.location.fileUri).ToString();
 }
 
 // supertypes entrance
