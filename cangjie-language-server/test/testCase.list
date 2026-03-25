@@ -650,6 +650,7 @@
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_006.test","id":"5"}}
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_007.test","id":"5"}}
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_008.test","id":"5","useDB":true}}
+{"hover":{"testFile":"LSP_Hover_Common_Specific.test","id":"9"}}
 
 {"references":{"testFile":"LSP_References_String_001.test","id":"7","useDB":true}}
 {"references":{"testFile":"LSP_References_Interface_001.test","id":"110"}}
