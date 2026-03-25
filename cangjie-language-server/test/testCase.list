@@ -565,6 +565,8 @@
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_IncrementCompile_001.test","id":"5"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_IncrementCompile_002.test","id":"5"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific.test","id":"9"}}
+{"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_001.test","id":"9"}}
+{"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_002.test","id":"9"}}
 
 {"hover":{"testFile":"LSP_Hover_String_001.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Interface_001.test","id":"110"}}

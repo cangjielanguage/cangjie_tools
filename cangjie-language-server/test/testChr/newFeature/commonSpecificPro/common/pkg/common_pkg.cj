@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-@NoneProduct
+@NonProduct
 features {}
 package lib.pkg
 
@@ -12,3 +12,7 @@ package lib.pkg
 public common func message_pkg(): Unit
 
 public common func message1_pkg(): Unit
+
+public func addfun(a:Int8, b:Int8) {
+    a + b
+}
