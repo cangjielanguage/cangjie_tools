@@ -438,3 +438,52 @@ func verifyReadme(): Bool {
     }
     return false
 }
+
+// uncompress cjp package
+func uncompressCjp(org: String, name: String, version: String, buffer: Array<UInt8>, localRepo: String): (Bool, String) {
+    // prepare temp directory
+    let finalDirName = "${name}-${version}"
+    let repositoryTempPath = Path(localRepo).join("source").
+        join(if (org.isEmpty()) { "default" } else { org }).
+        join("temp-${finalDirName}").
+        toString()
+    let cjpTempPath = Path(repositoryTempPath).join("${finalDirName}.cjp")
+    try {
+        // prepare base directory
+        if (!deleteDirectory(repositoryTempPath) || !createDirectory(repositoryTempPath)) {
+            return (false, "${finalDirName} load failed with error while uncompressing and saving repository cache")
+        }
+
+        // save temp file
+        File.writeTo(cjpTempPath, buffer)
+
+        // uncompress
+        TarGzip.extract(fromTarGzip: cjpTempPath.toString(), destDir: repositoryTempPath, overwrite: true)
+
+        // check if correct directory and extra directory exists
+        let dirList = getDirectoryList(repositoryTempPath)
+        let finalRepositoryPath = Path(localRepo).join("source").
+            join(if (org.isEmpty()) { "default" } else { org }).
+            join(finalDirName)
+        if (dirList.any({f: FileInfo => f.name == "${finalDirName}"})) {
+            rename(Path(repositoryTempPath).join(finalDirName), to: finalRepositoryPath, overwrite: true)
+        } else {
+            return (false, "${finalDirName} load failed with incorrect content in cjp package")
+        }
+        if ((dirList.size > 1) || getFileList(repositoryTempPath).size > 1) {
+            eprint("Warning: extra contents will be ignored in package '${finalDirName}'")
+            if (!org.isEmpty()) {
+                eprint(" from org '${org}'")
+            }
+            eprintln(", please report to cangjie team")
+        }
+
+        return (true, "${finalDirName} load success")
+    } catch (e: Exception) {
+        eprintln(e.message)
+        return (false, "${finalDirName} load failed with error while uncompressing and saving repository cache")
+    } finally {
+        // delete temp directory
+        deleteDirectory(repositoryTempPath)
+    }
+}

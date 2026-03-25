@@ -13,7 +13,6 @@ import std.collection.*
 import stdx.net.http.*
 import stdx.net.tls.common.*
 import stdx.net.tls.*
-import stdx.compress.*
 import stdx.crypto.digest.*
 import stdx.encoding.hex.*
 import stdx.serialization.serialization.*
@@ -223,27 +222,7 @@ public class Depot {
         }
 
         // save, uncompress and delete cjp file
-        let repositoryPath = Path(this.localRepo).join("source").
-            join(if (org.isEmpty()) { "default" } else { org }).
-            toString()
-        let cjpTempPath = Path(repositoryPath).join("${name}-${version}.cjp")
-        try {
-            // save
-            if (!createDirectory(repositoryPath)) {
-                return (false, "${name}-${version} load failed with error while uncompressing and saving repository cache")
-            }
-            File.writeTo(cjpTempPath, buffer.toArray())
-
-            // uncompress
-            TarGzip.extract(fromTarGzip: cjpTempPath.toString(), destDir: repositoryPath, overwrite: true)
-            return (true, "${name}-${version} load success")
-        } catch (e: Exception) {
-            eprintln(e.message)
-            return (false, "${name}-${version} load failed with error while uncompressing and saving repository cache")
-        } finally {
-            // delete cjp
-            deleteFile(cjpTempPath.toString())
-        }
+        return uncompressCjp(org, name, version, buffer.toArray(), this.localRepo)
     }
 
     // update local index for one module with output
