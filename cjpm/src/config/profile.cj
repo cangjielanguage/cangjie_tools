@@ -419,167 +419,6 @@ public func verifyEnvConfig(envConfig: HashMap<String, EnvInfo>, cmd: String, co
     return true
 }
 
-func getMemoryValueFromMeminfoString(meminfoStr: String, target: String): Float64 {
-    var memoryStr = String.empty
-    try {
-        let targetBeginPos: Int64 = meminfoStr.indexOf(target).getOrThrow()
-        let targetEndPos: Int64 = targetBeginPos + target.size
-        let kBBeginPos: Int64 = meminfoStr.indexOf("kB", targetEndPos).getOrThrow()
-        memoryStr = meminfoStr[targetEndPos + 1..kBBeginPos]
-    } catch (_) {
-    }
-
-    return Float64.parse(memoryStr) / K_BYTE  // unit: MB
-}
-
-/**
- * @brief Get memory usage of current OS, including all tasks, the format of `/proc/meminfo` is like:
- *      MemTotal:        xxx kB
- *      MemFree:         xxx kB  // totally unused memory
- *      MemAvailable:    xxx kB  // estimated available memory
- *      Buffers:         xxx kB  // can be released if memory is not enough
- *      Cached:          xxx kB  // can be released if memory is not enough
- *      ...
- *      SReclaimable:    xxx kB  // can be reclaimed in slab
- *      ...
- */
-@When[os == "Linux"]
-public func getMemInfo(): Float64 {
-    let linuxMemPath = Path("/proc/meminfo")
-    let meminfo = File(linuxMemPath, Read)
-    let meminfoBuffer = readToEnd(meminfo)
-    let meminfoStr = String.fromUtf8(meminfoBuffer)
-    let totalMemory = getMemoryValueFromMeminfoString(meminfoStr, "MemTotal:")
-    let memoryAvailableList: Array<String> = ["MemFree:", "Buffers:", "Cached:", "SReclaimable:"]
-    var memoryAvailable: Float64 = 0.0
-    for (item in memoryAvailableList) {
-        memoryAvailable += getMemoryValueFromMeminfoString(meminfoStr, item)
-    }
-    return totalMemory - memoryAvailable
-}
-
-/**
- * @brief Get memory usage of current process, the format of `/proc/self/statm` is like:
- *      num1 num2 num3 num4 num5 num6 num7
- * Just seven numbers in one line, their meanings are:
- *      num1: total memory
- *      num2: real used memory
- *      num3: shared memory
- *      num4: text segment memory
- *      num5: dynamic lib memory
- *      num6: data segment memory
- *      num7: dirty page memory
- * the unit of these memory is page, not KB or MB, 1 page = 4 KB
- */
-@When[os == "Linux"]
-public func getCjpmMemInfo(): Float64 {
-    let usedMemoryIdx = 1
-    let linuxCjpmInitMemPath: Path = Path("/proc/self/statm")
-    let statm: File = File(linuxCjpmInitMemPath, Read)
-    let statmBuffer = readToEnd(statm)
-    let statmStr = String.fromUtf8(statmBuffer)
-    let statmArray = statmStr.split(" ")
-    return Float64.parse(statmArray[usedMemoryIdx]) * PAGE_SIZE / K_BYTE / K_BYTE // unit: MB
-}
-
-@C
-struct MEMORYSTATUSEX {
-    var dwLength: UInt32 = 0
-    var dwMemoryLoad: UInt32 = 0
-    var ullTotalPhys: UInt64 = 0
-    var ullAvailPhys: UInt64 = 0
-    var ullTotalPageFile: UInt64 = 0
-    var ullAvailPageFile: UInt64 = 0
-    var ullTotalVirtual: UInt64 = 0
-    var ullAvailVirtual: UInt64 = 0
-    var ullAvailExtendedVirtual: UInt64 = 0
-}
-
-@When[os == "Windows"]
-foreign func GlobalMemoryStatusEx(memory: CPointer<MEMORYSTATUSEX>): Bool
-
-@C
-struct ProcessMemoryCounters {
-    var cb: UInt32 = 0
-    var pageFaultCount: UInt32 = 0
-    var peakWorkingSetSize: UInt64 = 0
-    var workingSetSize: UInt64 = 0
-    var quotaPeakPagedPoolUsage: UInt64 = 0
-    var quotaPagedPoolUsage: UInt64 = 0
-    var quotaPeakNonPagedPoolUsage: UInt64 = 0
-    var quotaNonPagedPoolUsage: UInt64 = 0
-    var pagefileUsage: UInt64 = 0
-    var peakPagefileUsage: UInt64 = 0
-}
-
-
-@When[os == "Windows"]
-foreign func K32GetProcessMemoryInfo(process: Int64, memoryCounter: CPointer<ProcessMemoryCounters>,
-    cb: UInt32): Bool
-
-@When[os == "Windows"]
-foreign func GetCurrentProcess(): Int64
-
-@When[os == "Windows"]
-public func getMemInfo(): Float64 {
-    unsafe {
-        var memory: MEMORYSTATUSEX = MEMORYSTATUSEX()
-        memory.dwLength = 64
-        GlobalMemoryStatusEx(inout memory)
-        var memInfo = Float64(memory.ullTotalPhys - memory.ullAvailPhys) / K_BYTE / K_BYTE
-        return memInfo
-    }
-}
-
-@When[os == "Windows"]
-public func getCjpmMemInfo(): Float64 {
-    unsafe {
-        var memoryCounter = ProcessMemoryCounters()
-        // sizeof(ProcessMemoryCounters) in x64
-        memoryCounter.cb = 72
-        let status = K32GetProcessMemoryInfo(GetCurrentProcess(), inout memoryCounter, memoryCounter.cb)
-        if (status) {
-            return Float64(memoryCounter.workingSetSize) / K_BYTE / K_BYTE
-        }
-        return Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
-    }
-}
-
-@C
-struct vm_statistics64_data_t {
-    var free_count: UInt32 = 0
-    var active_count: UInt32 = 0
-    var inactive_count: UInt32 = 0
-    var wire_count: UInt32 = 0
-    var zero_fill_count: UInt64 = 0
-    var reactivations: UInt64 = 0
-    var pageins: UInt64 = 0
-    var pageouts: UInt64 = 0
-    var faults: UInt64 = 0
-    var cow_faults: UInt64 = 0
-    var lookups: UInt64 = 0
-    var hits: UInt64 = 0
-    var purges: UInt64 = 0
-    var purgeable_count: UInt32 = 0
-    var speculative_count: UInt32 = 0
-    var decompressions: UInt64 = 0
-    var compressions: UInt64 = 0
-    var swapins: UInt64 = 0
-    var swapouts: UInt64 = 0
-    var compressor_page_count: UInt32 = 0
-    var throttled_count: UInt32 = 0
-    var external_page_count: UInt32 = 0
-    var internal_page_count: UInt32 = 0
-    var total_uncompressed_pages_in_compressor: UInt64 = 0
-}
-
-@When[os == "macOS"]
-foreign func host_statistics64(mach_host: Int64, HOST_VM_INFO64: Int32,
-    memoryData: CPointer<vm_statistics64_data_t>, mach_msg_type_number_t: CPointer<UInt32>): Int64
-
-@When[os == "macOS"]
-foreign func mach_host_self(): Int64
-
 @When[os == "macOS"]
 foreign func getpagesize(): Int64
 
@@ -595,39 +434,283 @@ func getOSPageSize(): Float64 {
     return 4.0 * K_BYTE
 }
 
+// Mirror of macOS proc_taskinfo for proc_pidinfo FFI calls.
 @When[os == "macOS"]
-public func getMemInfo(): Float64 {
+@C
+struct ProcTaskInfo {
+    // Virtual and resident memory sizes in bytes.
+    var pti_virtual_size: UInt64 = 0       
+    var pti_resident_size: UInt64 = 0      
+    // Accumulated user/system CPU time.
+    var pti_total_user: UInt64 = 0
+    var pti_total_system: UInt64 = 0
+    var pti_threads_user: UInt64 = 0
+    var pti_threads_system: UInt64 = 0
+    // Scheduling and runtime activity counters.
+    var pti_policy: Int32 = 0
+    var pti_faults: Int32 = 0
+    var pti_pageins: Int32 = 0
+    var pti_cow_faults: Int32 = 0
+    var pti_messages_sent: Int32 = 0
+    var pti_messages_received: Int32 = 0
+    var pti_syscalls_mach: Int32 = 0
+    var pti_syscalls_unix: Int32 = 0
+    var pti_csw: Int32 = 0
+    var pti_threadnum: Int32 = 0
+    var pti_numrunning: Int32 = 0
+    var pti_priority: Int32 = 0
+}
+
+// Lists process IDs and returns the number of bytes written.
+@When[os == "macOS"]
+foreign func proc_listpids(ptype: UInt32, ptypeinfo: UInt32, buffer: CPointer<UInt8>, buffersize: Int32): Int32
+
+// Writes the process name for a PID and returns the name length.
+@When[os == "macOS"]
+foreign func proc_name(pid: Int32, buffer: CPointer<UInt8>, buffersize: UInt32): Int32
+
+// Fills ProcTaskInfo for a PID; return value is bytes written.
+@When[os == "macOS"]
+foreign func proc_pidinfo(pid: Int32, flavor: Int32, arg: UInt64, buffer: CPointer<ProcTaskInfo>, buffersize: Int32): Int32
+
+// Allocates a C buffer for libproc calls.
+@When[os == "macOS"]
+foreign func malloc(size: UIntNative): CPointer<UInt8>
+
+// Frees a buffer allocated by malloc.
+@When[os == "macOS"]
+foreign func free(ptr: CPointer<UInt8>): Unit
+
+// Converts a null-terminated C byte buffer to a String.
+@When[os == "macOS"]
+func convertCPointer2String(buffer: CPointer<UInt8>, maxSize: Int64): String {
     unsafe {
-        var memoryData = vm_statistics64_data_t()
-        // there are 38 32-bit data in vm_statistics64_data_t
-        var mach_msg_type_number_t: UInt32 = 38
-        // `HOST_VM_INFO64` is global var in <mac/mac.h>, and its value is always 4, that means we want memory info
-        const HOST_VM_INFO64: Int32 = 4
-        host_statistics64(mach_host_self(), HOST_VM_INFO64, inout memoryData, inout mach_msg_type_number_t)
-        return Float64(memoryData.active_count + memoryData.wire_count) * PAGE_SIZE / K_BYTE / K_BYTE // unit: MB
+        var len = 0
+        // Scan until NUL or maxSize.
+        while (len < maxSize && buffer.read(len) != 0) {
+            len++
+        }
+        // Empty C string.
+        if (len == 0) {
+            return ""
+        }
+        var bytes = Array<UInt8>(len, repeat: 0)
+        // Copy bytes into a managed array.
+        for (i in 0..len) {
+            bytes[i] = buffer.read(i)
+        }
+        return String.fromUtf8(bytes)
     }
 }
 
 @When[os == "macOS"]
-public func getCjpmMemInfo(): Float64 {
-    return Float64(getUsedHeapSize()) / K_BYTE / K_BYTE
+public func getCoreCompilerMemInfo(): Float64 {
+    // Accumulator for total RSS in bytes.
+    var totalRSSBytes: UInt64 = 0
+    let targetProcesses = ["cjpm", "cjc", "llc", "opt", "ar", "ld"]
+    
+    // Constants from libproc system headers.
+    const PROC_ALL_PIDS: UInt32 = 1
+    const PROC_PIDTASKINFO: Int32 = 4
+    
+    unsafe {
+        // Step 1: Determine the required buffer size for the PID list.
+        // Passing a null pointer and size 0 returns the total bytes needed.
+        let nullPtr = CPointer<UInt8>()
+        let bytesNeeded = proc_listpids(PROC_ALL_PIDS, 0, nullPtr, 0)
+        
+        if (bytesNeeded <= 0) {
+            return 0.0
+        }
+        
+        // Step 2: Allocate memory for the PID list based on bytesNeeded. 
+        let pidBuffer = malloc(UIntNative(bytesNeeded))
+
+        // Step 3: Get PID count; each PID entry uses 4 bytes.
+        let count = proc_listpids(PROC_ALL_PIDS, 0, pidBuffer, bytesNeeded) / 4 
+
+        // Step 4: Allocate a 32-byte buffer to store process names.
+        // 32 bytes is enough: macOS MAXCOMLEN is 16, so 32 provides ample headroom for any process name.
+        let nameBuffer = malloc(UIntNative(32)) 
+        
+        // Step 5: Iterate through every PID found in the system.
+        for (i in 0..count) {
+            // Rebuild Int32 PID from 4 little-endian bytes.
+            let offset = Int64(i * 4)
+            let b0 = UInt32(pidBuffer.read(offset)) // byte 0 (LSB)
+            let b1 = UInt32(pidBuffer.read(offset + 1)) // byte 1
+            let b2 = UInt32(pidBuffer.read(offset + 2)) // byte 2
+            let b3 = UInt32(pidBuffer.read(offset + 3)) // byte 3 (MSB)
+            let pid = Int32(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+            
+            if (pid <= 0) { continue }
+            
+            // Step 6: Query the process name for the given PID.
+            let nameLen = proc_name(pid, nameBuffer, 32)
+            if (nameLen > 0) {
+                // Convert the raw C-string buffer into a native String.
+                let procName = convertCPointer2String(nameBuffer, 32)
+                
+                // Step 7: Check if the current process name matches our target list.
+                var isTarget = false
+                for (target in targetProcesses) {
+                    if (procName == target) {
+                        isTarget = true
+                        break
+                    }
+                }
+                
+                // Step 8: If it matches, fetch detailed task/memory information.
+                if (isTarget) {
+                    var taskInfo = ProcTaskInfo()
+                    let sizeOfTaskInfo: Int32 = 96 // proc_taskinfo is 96 bytes on 64-bit macOS.
+                    
+                    let status = proc_pidinfo(
+                        pid, 
+                        PROC_PIDTASKINFO, 
+                        0, 
+                        inout taskInfo, 
+                        sizeOfTaskInfo
+                    )
+                    
+                    if (status == sizeOfTaskInfo) {
+                        totalRSSBytes += taskInfo.pti_resident_size
+                    }
+                }
+            }
+        }
+        
+        free(pidBuffer)
+        free(nameBuffer)
+    }
+    
+    return Float64(totalRSSBytes) / K_BYTE / K_BYTE
 }
 
+@When[os == "Windows"]
+func parseTasklistMemUsageToBytes(memUsage: String): UInt64 {
+    if (memUsage.isEmpty()) {
+        return 0
+    }
+    // Extract all digits from text like "12,345 K", skipping commas and spaces.
+    let cleanStr = memUsage.replace(",", "")
+                           .replace(" ", "")
+                           .replace("K", "")
+    // Return 0 if the memory field is empty.
+    if (cleanStr.isEmpty()) {
+        return 0
+    }
+    let kiloBytes = Int64.tryParse(cleanStr) ?? 0
+    // Convert KB to bytes.
+    return UInt64(kiloBytes) * 1024
+}
+
+@When[os == "Windows"]
+public func getCoreCompilerMemInfo(): Float64 {
+    // Compiler-related processes to include in the total.
+    let targets = HashSet<String>(["cjpm.exe", "cjc.exe", "llc.exe", "opt.exe", "ar.exe", "ld.exe"])
+    // Arguments: /FO CSV (format as CSV), /NH (No Header).
+    let args = ArrayList<String>(["/FO", "CSV", "/NH"])
+    // Execute: tasklist /FO CSV /NH
+    let (ok, outInfo, errInfo) = execWithOutput("tasklist", args)
+
+    if (!ok) {
+        eprintln("Error: tasklist failed: ${errInfo}")
+        return 0.0
+    }
+
+    // Sum memory usage of matched processes in bytes.
+    var totalRSSBytes: UInt64 = 0
+    // Parse CSV lines: "image","pid","session name","session id","mem usage"
+    for (line in outInfo.split("\n")) {
+        let row = line.replace("\r", "")
+        if (row.isEmpty()) {
+            continue
+        }
+        // Split CSV fields by "," delimiter.
+        let fields = row.split("\",\"")
+        if (fields.size < 5) {
+            continue
+        }
+        // Strip leading quote from first field and trailing quote from last field.
+        let imageName = fields[0].trimStart("\"")
+        let memUsage = fields[4].trimEnd("\"")
+        if (targets.contains(imageName)) {
+            totalRSSBytes += parseTasklistMemUsageToBytes(memUsage)
+        }
+    }
+
+    // Convert bytes to MB.
+    return Float64(totalRSSBytes) / K_BYTE / K_BYTE
+}
+
+/**
+ * @brief Get total RSS of core compiler processes on Linux by scanning /proc/.
+ * Reads /proc/{pid}/comm for process name and /proc/{pid}/statm for RSS.
+ */
+@When[os == "Linux"]
+public func getCoreCompilerMemInfo(): Float64 {
+    var totalRSSBytes: UInt64 = 0
+
+    try {
+        let entries = Directory.readFrom(Path("/proc"))
+        for (entry in entries) {
+            if (!entry.isDirectory()) {
+                continue
+            }
+            let dirName = entry.path.fileName
+            // Only check numeric directories (PID directories)
+            if (Int64.tryParse(dirName) == None) {
+                continue
+            }
+
+            try {
+                // Read the process name from /proc/{pid}/comm and check if it matches a target.
+                if (["cjpm", "cjc", "llc", "opt", "ar", "ld"].contains(
+                    String.fromUtf8(readToEnd(File(Path("/proc/${dirName}/comm"), Read))).trimEnd("\n")
+                )) {
+                    // Read RSS from /proc/{pid}/statm (field index 1, unit: pages)
+                    let statmPath = Path("/proc/${dirName}/statm")
+                    let statmFile = File(statmPath, Read)
+                    let statmBuffer = readToEnd(statmFile)
+                    let statmStr = String.fromUtf8(statmBuffer)
+                    // format: "size resident shared text lib data dt"
+                    let statmArray = statmStr.split(" ")
+
+                    // Check for empty or incomplete statm fields if the process terminates during reading.
+                    if (statmArray.size > 1) {
+                        let rssPages = UInt64.parse(statmArray[1])
+                        totalRSSBytes += rssPages * UInt64(PAGE_SIZE)
+                    }
+                }
+            } catch (e: Exception) {
+                eprintln("Warning: failed to read /proc/${dirName}: ${e}")
+                continue
+            }
+        }
+    } catch (e: Exception) {
+        eprintln("Warning: failed to read /proc: ${e}")
+    }
+
+    return Float64(totalRSSBytes) / K_BYTE / K_BYTE
+}
+
+// Shared path for all platforms: sample total RSS of compiler processes.
+@When[os == "macOS" || os == "Windows" || os == "Linux"]
 public func addMemoryProcess(): Future<Thread> {
-    let cjpmMemOffset = getMemInfo() - getCjpmMemInfo()
-    CJPM_COMPILE_INFO.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCjpmMemInfo())
+    // Record an initial sample before starting the background loop.
+    CJPM_COMPILE_INFO.add(DateTime.now().toUnixTimeStamp().toMilliseconds().toString(), getCoreCompilerMemInfo())
     let memoryProcess = spawn { =>
         while (true) {
             if (Thread.currentThread.hasPendingCancellation) {
                 return Thread.currentThread
             }
             sleep(100 * Duration.millisecond)
-            var cjpmMemByOffset = getMemInfo() - cjpmMemOffset
-            var cjpmMemByProcess = getCjpmMemInfo()
-            var cjpmRealTimeSystemPhysicalMemory = max(cjpmMemByOffset, cjpmMemByProcess)
-            cjpmRealTimeSystemPhysicalMemory = max(0.0, cjpmRealTimeSystemPhysicalMemory)
+            
+            // Sample total RSS via FFI-based process scan.
+            let compilerMem = getCoreCompilerMemInfo()
             var cjpmTime: String = DateTime.now().toUnixTimeStamp().toMilliseconds().toString()
-            CJPM_COMPILE_INFO.add(cjpmTime,cjpmRealTimeSystemPhysicalMemory)
+            CJPM_COMPILE_INFO.add(cjpmTime, compilerMem)
         }
         return Thread.currentThread
     }
