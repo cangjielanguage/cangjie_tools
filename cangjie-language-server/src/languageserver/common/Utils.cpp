@@ -1584,7 +1584,7 @@ std::string NormalizeStringToGBK(const std::string& data)
 {
     auto strGBK = data;
 #ifdef _WIN32
-    auto ret = Cangjie::StringConvertor::NormalizeStringToUTF8(strGBK);
+    auto ret = Cangjie::StringConvertor::NormalizeStringToGBK(strGBK);
     if (ret.has_value()) {
         strGBK = ret.value();
     }
