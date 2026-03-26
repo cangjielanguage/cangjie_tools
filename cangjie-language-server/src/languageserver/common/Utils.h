@@ -366,5 +366,9 @@ std::vector<std::string> GetAllFilePathUnderCurrentPath(
     bool shouldSkipTestFiles = false, bool shouldSkipRegularFiles = false);
 
 std::string NormalizeStringToGBK(const std::string& data);
+
+bool IsCommonSpecificSymbol(Ptr<Cangjie::AST::Decl> decl);
+
+std::string GetRealFilePathInCommonSpecific(Ptr<Cangjie::AST::Decl> decl);
 }
 #endif // LSPSERVER_UTILS_H

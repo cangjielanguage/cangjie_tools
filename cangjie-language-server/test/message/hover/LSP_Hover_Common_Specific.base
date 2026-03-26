@@ -1,0 +1,1 @@
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: xxx.cj\nPackage info: lib\n\npublic func message(): Unit\n"},"range":{"end":{"character":11,"line":24},"start":{"character":4,"line":24}}}}
