@@ -372,10 +372,10 @@ func setFinalTargetDirectory(globalConfig: GlobalConfig, isCrossCompile: Bool, i
     }
 
     // Set CANGJIE_PATH variable.
-    globalConfig.cjPathList.add(targetDir)
     if (nativeDir != targetDir) {
         globalConfig.cjPathList.add(nativeDir)
     }
+    globalConfig.cjPathList.add(targetDir)
 
     return (targetDir, nativeDir)
 }
