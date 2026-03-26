@@ -138,7 +138,7 @@ func recordCjpmBuildEndTime(tomlInfo: TomlInfo, path: String) {
         memProcess.get()
         var cjpmEndTime = DateTime.now().toUnixTimeStamp().toMilliseconds()
         SHOW_CACHE.add(PkgInfo("cjpm", "E", cjpmEndTime))
-        CJPM_COMPILE_INFO.add(cjpmEndTime.toString(),getCjpmMemInfo())
+        CJPM_COMPILE_INFO.add(cjpmEndTime.toString(),getCoreCompilerMemInfo())
         addCompileCost(path)
     }
 }
