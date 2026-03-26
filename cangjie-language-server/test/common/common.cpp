@@ -2251,7 +2251,8 @@ namespace test::common {
         return true;
     }
 
-    bool CheckCallHierarchyResult(CallHierarchyResult &actual, CallHierarchyResult &expect, std::string &reason) {
+    bool CheckCallHierarchyResult(CallHierarchyResult &expect, CallHierarchyResult &actual, std::string &reason)
+    {
         if (actual.isOutgoingCall && expect.isOutgoingCall) {
             std::vector<ark::CallHierarchyOutgoingCall> actualOutgoingCall = actual.outgoingCall;
             std::vector<ark::CallHierarchyOutgoingCall> expectOutgoingCall = expect.outgoingCall;

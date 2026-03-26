@@ -28,9 +28,9 @@ public:
 
     static TypeHierarchyItem TypeHierarchyFrom(Ptr<const Decl> decl);
 
-    static void FindSuperTypesImpl(std::vector<TypeHierarchyItem> &results, const TypeHierarchyItem &hierarchyItem);
+    static void FindSuperTypesImpl(std::set<TypeHierarchyItem> &results, const TypeHierarchyItem &hierarchyItem);
 
-    static void FindSubTypesImpl(std::vector<TypeHierarchyItem> &results, const TypeHierarchyItem &hierarchyItem);
+    static void FindSubTypesImpl(std::set<TypeHierarchyItem> &results, const TypeHierarchyItem &hierarchyItem);
 };
 } // namespace ark
 

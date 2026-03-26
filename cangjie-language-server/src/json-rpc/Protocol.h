@@ -104,6 +104,12 @@ public:
     {
         return !(rhs == *this);
     }
+
+    bool operator<(const TypeHierarchyItem &rhs) const
+    {
+        return std::tie(this->name, this->kind, this->uri, this->range, this->selectionRange) <
+            std::tie(rhs.name, rhs.kind, rhs.uri, rhs.range, rhs.selectionRange);
+    }
 };
 
 struct CallHierarchyItem : public TypeHierarchyItem {
