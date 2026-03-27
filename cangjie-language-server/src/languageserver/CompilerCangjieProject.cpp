@@ -898,7 +898,6 @@ void CompilerCangjieProject::IncrementCompileForComplete(
         auto newCI = std::make_unique<LSPCompilerInstance>(
             callback, *pkgInfoMap[fullPkgName]->compilerInvocation, GetDiagnosticEngine(),
             fullPkgName, moduleManager);
-
         if (newCI == nullptr) {
             return;
         }
@@ -961,7 +960,6 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete
     std::string fullPkgName = GetFullPkgName(filePath);
     auto newCI = std::make_unique<LSPCompilerInstance>(callback, *pkgInfoMap[fullPkgName]->compilerInvocation,
         GetDiagnosticEngine(), fullPkgName, moduleManager);
-
     if (!newCI) {
         return nullptr;
     }
