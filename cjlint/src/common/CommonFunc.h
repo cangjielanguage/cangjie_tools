@@ -56,7 +56,7 @@ public:
     static bool CheckReturnTy(const CHIRFuncInfo& chirFuncInfo, const AstFuncInfo& funcInfo);
     static bool CheckParentTy(const CHIRFuncInfo& chirFuncInfo, const AstFuncInfo& funcInfo);
     static bool CheckPkgName(const CHIRFuncInfo& chirFuncInfo, const AstFuncInfo& funcInfo);
-    static bool IsGenericInstantated(const CHIR::Func* func);
+    static bool IsGenericInstantated(const CHIR::Function* func);
     static bool IsStdDerivedMacro(CodeCheckDiagnosticEngine* engine, const Cangjie::Position& pos);
 private:
     static std::vector<uint64_t> emptyPath;

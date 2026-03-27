@@ -39,7 +39,7 @@ static void CheckDebug(CHIR::Debug* debug, std::map<const std::string, size_t>& 
 
 // Gather all variables of type Struct
 static void CollectAllPathsInFunc(
-    CHIR::Func* func, std::map<const std::string, size_t>& allocateIdxMap, size_t& allocateIdx)
+    CHIR::Function* func, std::map<const std::string, size_t>& allocateIdxMap, size_t& allocateIdx)
 {
     for (auto bb : func->GetBody()->GetBlocks()) {
         for (auto expr : bb->GetExpressions()) {
@@ -120,7 +120,7 @@ static CHIR::LocalVar* GetLocalVar(Value* value)
 
 template <> const std::optional<unsigned> Analysis<CHK03VerifyDomain>::blockLimit = std::nullopt;
 template <> const AnalysisKind GenKillDomain<CHK03VerifyDomain>::mustOrMaybe = AnalysisKind::MAYBE;
-CHK03VerifyAnalysis::CHK03VerifyAnalysis(Func* func, nlohmann::json jsonInfo)
+CHK03VerifyAnalysis::CHK03VerifyAnalysis(Function* func, nlohmann::json jsonInfo)
     : GenKillAnalysis(func), jsonInfo(jsonInfo)
 {
     size_t allocateIdx = 0;
@@ -193,7 +193,7 @@ CHK03VerifyDomain CHK03VerifyAnalysis::Bottom()
 template <> const std::optional<unsigned> Analysis<CHK03CanonicalizeDomain>::blockLimit = std::nullopt;
 template <> const AnalysisKind GenKillDomain<CHK03CanonicalizeDomain>::mustOrMaybe = AnalysisKind::MAYBE;
 
-CHK03CanonicalizeAnalysis::CHK03CanonicalizeAnalysis(Func* func, nlohmann::json jsonInfo)
+CHK03CanonicalizeAnalysis::CHK03CanonicalizeAnalysis(Function* func, nlohmann::json jsonInfo)
     : GenKillAnalysis(func), jsonInfo(jsonInfo)
 {
     size_t allocateIdx = 0;
@@ -264,7 +264,7 @@ CHK03CanonicalizeDomain CHK03CanonicalizeAnalysis::Bottom()
     return CHK03CanonicalizeDomain(domainSize, &allocateIdxMap);
 }
 
-void DataflowRuleGCHK03Check::IsPathCanonicalized(CHIR::Func* func)
+void DataflowRuleGCHK03Check::IsPathCanonicalized(CHIR::Function* func)
 {
     auto analysis = std::make_unique<CHK03CanonicalizeAnalysis>(func, jsonInfo);
     auto engine = Engine<CHK03CanonicalizeDomain>(func, std::move(analysis));
@@ -275,7 +275,7 @@ void DataflowRuleGCHK03Check::IsPathCanonicalized(CHIR::Func* func)
     const auto actionBeforeVisitExpr = [this](const CHK03CanonicalizeDomain& state, Expression* expr, size_t) {
         if (expr->GetExprKind() == CHIR::ExprKind::APPLY) {
             auto apply = Cangjie::StaticCast<Cangjie::CHIR::Apply*>(expr);
-            auto func = Cangjie::DynamicCast<Cangjie::CHIR::Func*>(apply->GetCallee());
+            auto func = Cangjie::DynamicCast<Cangjie::CHIR::Function*>(apply->GetCallee());
             if (!func) {
                 return;
             }
@@ -303,7 +303,7 @@ void DataflowRuleGCHK03Check::IsPathCanonicalized(CHIR::Func* func)
     result->VisitWith(actionBeforeVisitExpr, actionAfterVisitExpr, actionOnTerminator);
 }
 
-void DataflowRuleGCHK03Check::IsPathVerified(CHIR::Func* func)
+void DataflowRuleGCHK03Check::IsPathVerified(CHIR::Function* func)
 {
     auto analysis = std::make_unique<CHK03VerifyAnalysis>(func, jsonInfo);
     auto engine = Engine<CHK03VerifyDomain>(func, std::move(analysis));
@@ -314,7 +314,7 @@ void DataflowRuleGCHK03Check::IsPathVerified(CHIR::Func* func)
     const auto actionBeforeVisitExpr = [this](const CHK03VerifyDomain& state, Expression* expr, size_t) {
         if (expr->GetExprKind() == CHIR::ExprKind::APPLY) {
             auto apply = Cangjie::StaticCast<Cangjie::CHIR::Apply*>(expr);
-            auto func = Cangjie::DynamicCast<Cangjie::CHIR::Func*>(apply->GetCallee());
+            auto func = Cangjie::DynamicCast<Cangjie::CHIR::Function*>(apply->GetCallee());
             if (!func) {
                 return;
             }
@@ -343,7 +343,7 @@ void DataflowRuleGCHK03Check::IsPathVerified(CHIR::Func* func)
     result->VisitWith(actionBeforeVisitExpr, actionAfterVisitExpr, actionOnTerminator);
 }
 
-void DataflowRuleGCHK03Check::CheckGlobalFunc(CHIR::Func* func)
+void DataflowRuleGCHK03Check::CheckGlobalFunc(CHIR::Function* func)
 {
     for (auto bb : func->GetBody()->GetBlocks()) {
         for (auto expr : bb->GetExpressions()) {
@@ -368,10 +368,7 @@ void DataflowRuleGCHK03Check::CheckGlobalFunc(CHIR::Func* func)
                 if (!callee->IsFuncWithBody()) {
                     continue;
                 }
-                auto func = DynamicCast<CHIR::Func*>(callee);
-                if (!func) {
-                    continue;
-                }
+                auto func = StaticCast<CHIR::Function*>(callee);
                 IsPathCanonicalized(func);
                 IsPathVerified(func);
             }
