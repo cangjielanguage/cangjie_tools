@@ -245,6 +245,19 @@ void ArkASTWorker::RunWithASTCache(
         if (!IsFromCIMap(fullPkgName) && !IsFromCIMapNotInSrc(fullPkgName)) {
             return;
         }
+
+        int fileID = -1;
+        if (Options::GetInstance().IsOptionSet("test")) {
+            fileID = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        } else {
+            fileID = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
+        }
+        if (fileID == -1) {
+            std::unique_lock<std::mutex> lock(completionMtx);
+            isCompleteRunning = false;
+            return;
+        }
+        pos.fileID = fileID;
         std::vector<TextDocumentContentChangeEvent> contentChanges;
         bool needReParser = this->callback->NeedReParser(file);
         this->callback->UpdateDocNeedReparse(file, inputs.version, needReParser);

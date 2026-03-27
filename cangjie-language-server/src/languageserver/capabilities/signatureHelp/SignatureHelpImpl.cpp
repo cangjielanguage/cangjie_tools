@@ -64,6 +64,9 @@ void SignatureHelpImpl::SetRealTokensAndIndex()
     auto realTokens = &realTokensAndIndex.first;
     int index = ast->GetCurTokenSkipSpace(pos, 0, static_cast<int>(ast->tokens.size()) - 1,
                                           static_cast<int>(ast->tokens.size()) - 1);
+    if (index < 0) {
+        return;
+    }
     if (ast->tokens[index].kind != TokenKind::STRING_LITERAL &&
         ast->tokens[index].kind != TokenKind::MULTILINE_STRING) {
         realTokens->insert(realTokens->end(), ast->tokens.begin(), ast->tokens.end());
@@ -680,15 +683,17 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
     if (invalid) {
         return false;
     }
-    bool astInvalid = !ast || !ast->semaCache || !ast->semaCache->packageInstance ||
-        !ast->semaCache->packageInstance->ctx;
+    bool astInvalid = !ast || !ast->sourceManager || !ast->semaCache || !ast->semaCache->packageInstance ||
+        !ast->semaCache->packageInstance->ctx || !ast->semaCache->sourceManager;
     if (astInvalid) {
         return false;
     }
     std::string funcName = realTokens[funcNameIndex].Value();
     std::string packageName = realTokens[funcNameIndex - targetOffset].Value();
     Position posOfMember = realTokens[funcNameIndex].Begin();
-    std::string query = "_ = (" + std::to_string(posOfMember.fileID) + ", "
+    auto& filePath = ast->sourceManager->GetSource(posOfMember.fileID).path;
+    auto fileIDOfSema = ast->semaCache->sourceManager->GetFileID(filePath);
+    std::string query = "_ = (" + std::to_string(fileIDOfSema) + ", "
                         + std::to_string(posOfMember.line) + ", " + std::to_string(posOfMember.column) + ")";
     auto posSyms = SearchContext(ast->semaCache->packageInstance->ctx, query);
     if (posSyms.empty()) {
