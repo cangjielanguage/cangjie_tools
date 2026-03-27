@@ -18,6 +18,20 @@ using namespace Cangjie;
 using namespace Cangjie::CHIR;
 
 static bool IsNestedUsedInStore(Ptr<CHIR::GetElementRef> getElementRef);
+
+static bool IsDerivedLocation(Ptr<CHIR::Value> value)
+{
+    if (!value || !value->IsLocalVar()) {
+        return false;
+    }
+    auto localVar = StaticCast<CHIR::LocalVar*>(value);
+    auto expr = localVar->GetExpr();
+    if (!expr) {
+        return false;
+    }
+    return expr->GetExprKind() == CHIR::ExprKind::LOAD || expr->GetExprKind() == CHIR::ExprKind::GET_ELEMENT_REF;
+}
+
 static bool IsUsedInStore(Ptr<CHIR::Load> load)
 {
     auto loadUsers = load->GetResult()->GetUsers();
@@ -342,6 +356,45 @@ void DataflowRuleVAR01Check::CheckMemberVar(
     CheckMemberVarHelper(customTy, path, memberVarMap);
 }
 
+Ptr<CHIR::Value> DataflowRuleVAR01Check::ResolveBaseVar(Ptr<CHIR::Value> value)
+{
+    if (!value || !value->IsLocalVar()) {
+        return value;
+    }
+    auto localVar = StaticCast<CHIR::LocalVar*>(value);
+    auto expr = localVar->GetExpr();
+    if (!expr) {
+        return value;
+    }
+
+    if (expr->GetExprKind() == CHIR::ExprKind::LOAD) {
+        auto load = StaticCast<CHIR::Load*>(expr);
+        return ResolveBaseVar(load->GetLocation());
+    }
+    if (expr->GetExprKind() == CHIR::ExprKind::GET_ELEMENT_REF) {
+        auto getElementRef = StaticCast<CHIR::GetElementRef*>(expr);
+        return ResolveBaseVar(getElementRef->GetLocation());
+    }
+    return value;
+}
+
+void DataflowRuleVAR01Check::IncreaseAssignCountByLocation(
+    Ptr<CHIR::Value> location, LocalVarAssignCountMap& localVarAssignCountMap)
+{
+    auto baseVar = ResolveBaseVar(location);
+    if (!baseVar) {
+        return;
+    }
+    if (!baseVar->IsLocalVar()) {
+        return;
+    }
+    auto localVar = StaticCast<CHIR::LocalVar*>(baseVar);
+    auto it = localVarAssignCountMap.find(localVar);
+    if (it != localVarAssignCountMap.end()) {
+        it->second += 1;
+    }
+}
+
 void DataflowRuleVAR01Check::CheckBasedOnCHIR(CHIR::Package& package)
 {
     // Check all properties and member variables
@@ -395,10 +448,14 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIRFunc(CHIR::BlockGroup& body, ClassM
         if (expr.GetExprKind() == CHIR::ExprKind::STORE) {
             auto store = StaticCast<CHIR::Store*>(&expr);
             CheckMemberVar(store, memberVarMap);
+	        if (IsDerivedLocation(store->GetLocation())) {
+                IncreaseAssignCountByLocation(store->GetLocation(), localVarAssignCountMap);
+            }
         }
         if (expr.GetExprKind() == CHIR::ExprKind::STORE_ELEMENT_REF) {
             auto storeElementRef = StaticCast<CHIR::StoreElementRef*>(&expr);
             CheckMemberVar(storeElementRef, memberVarMap);
+	        IncreaseAssignCountByLocation(storeElementRef->GetLocation(), localVarAssignCountMap);
         }
         return CHIR::VisitResult::CONTINUE;
     });
