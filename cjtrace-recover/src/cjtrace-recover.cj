@@ -39,6 +39,9 @@ func getDemangle(name: String) {
 	unsafe {
 		var mangle = LibC.mallocCString(name)
 		var demangle = Demangle(mangle, name.size)
+		if (demangle.isNull()) {
+			return ""
+		}
 		var res = demangle.toString()
 		LibC.free(mangle)
 		LibC.free(demangle)
