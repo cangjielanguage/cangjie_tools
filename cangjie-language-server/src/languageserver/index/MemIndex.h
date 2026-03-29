@@ -141,6 +141,13 @@ public:
         const std::function<void(const std::string &, const std::string &,
             const Symbol &, const CompletionItem &)>& callback) =0;
 
+    virtual void FindExtendSymsOnCompletionBatch(
+        const std::unordered_set<SymbolID> &ids,
+        const std::unordered_set<SymbolID> &allVisibleMembers,
+        const std::string &curPkgName, bool filterStatic,
+        const std::function<void(const std::string &, const std::string &,
+            const Symbol &, const CompletionItem &)>& callback) =0;
+
     virtual void FindComment(const Symbol &sym, std::vector<std::string> &comments) = 0;
 
     virtual void RefsFindReference(const RefsRequest &req, Ref &definition,
@@ -180,6 +187,13 @@ public:
     void FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         const std::unordered_set<SymbolID> &visibleMembers,
         const std::string &curPkgName, const std::string &curModule,
+        const std::function<void(const std::string &, const std::string &,
+            const Symbol &, const CompletionItem &)>& callback) override;
+
+    void FindExtendSymsOnCompletionBatch(
+        const std::unordered_set<SymbolID> &ids,
+        const std::unordered_set<SymbolID> &symAndVisibleMembers,
+        const std::string &curPkgName, bool filterStatic,
         const std::function<void(const std::string &, const std::string &,
             const Symbol &, const CompletionItem &)>& callback) override;
 

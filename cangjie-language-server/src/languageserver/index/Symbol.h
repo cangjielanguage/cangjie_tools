@@ -200,6 +200,7 @@ struct ExtendItem {
 public:
     SymbolID id;
     Modifier modifier;
+    bool isStatic;
     std::string interfaceName;
 };
 

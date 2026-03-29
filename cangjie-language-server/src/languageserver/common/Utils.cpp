@@ -1591,4 +1591,35 @@ std::string GetRealFilePathInCommonSpecific(Ptr<Cangjie::AST::Decl> decl)
     }
     return decl->curFile->filePath;
 }
+
+Ptr<TypeAliasDecl> GetLastAliasRealTargetVisit(Ptr<TypeAliasDecl> decl, std::unordered_set<Ptr<TypeAliasDecl>> &visited)
+{
+    if (visited.count(decl) > 0) {
+        return decl;
+    } else {
+        visited.emplace(decl);
+    }
+
+    if (auto aliasDecl = DynamicCast<TypeAliasDecl*>(decl); aliasDecl && aliasDecl->type) {
+        auto realTarget = aliasDecl->type->GetTarget();
+        if (auto innerAlias = DynamicCast<TypeAliasDecl*>(realTarget); innerAlias && innerAlias->type) {
+            decl = GetLastAliasRealTargetVisit(innerAlias, visited);
+        }
+    }
+    return decl;
+}
+
+Ptr<Decl> GetRealTarget(Ptr<Decl> decl)
+{
+    if (!decl || decl->astKind != ASTKind::TYPE_ALIAS_DECL) {
+        return decl;
+    }
+
+    if (auto alias = DynamicCast<TypeAliasDecl>(decl)) {
+        std::unordered_set<Ptr<TypeAliasDecl>> visited;
+        auto last = GetLastAliasRealTargetVisit(alias, visited);
+        return last ? last->type->GetTarget() : last;
+    }
+    return decl;
+}
 } // namespace ark

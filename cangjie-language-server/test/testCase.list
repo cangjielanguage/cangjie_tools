@@ -256,6 +256,13 @@
 {"completion":{"testFile":"LSP_Completion_2026021318131.test","id":"12"}}
 {"completion":{"testFile":"LSP_Completion_Package_Access_001.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_Package_Access_002.test","id":"6"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_002.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_003.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_004.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_005.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_006.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_007.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}

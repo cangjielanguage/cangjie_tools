@@ -347,7 +347,7 @@ auto StoreExtend(flatbuffers::FlatBufferBuilder &builder, const ExtendItem &exte
 {
     auto interfaceName = builder.CreateString(extendItem.interfaceName);
     return IdxFormat::CreateExtend(builder, extendItem.id,
-        static_cast<uint8_t>(extendItem.modifier), interfaceName);
+        static_cast<uint8_t>(extendItem.modifier), extendItem.isStatic, interfaceName);
 }
 
 auto StoreRelation(flatbuffers::FlatBufferBuilder &builder, const Relation &re)
@@ -580,6 +580,7 @@ void CacheManager::readExtends(
                 auto extend = extends->Get(j);
                 ExtendItem res = {.id = extend->id(),
                                   .modifier = Modifier(extend->modifier()),
+                                  .isStatic = extend->is_static(),
                                   .interfaceName = extend->interface() ? extend->interface()->str() : ""};
                 (void)extendPair.second.emplace_back(res);
             }

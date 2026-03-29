@@ -66,6 +66,24 @@ public:
         astMap = std::move(arkAstMap);
     }
 
+    SymbolID GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+    {
+        if (!ty || !ty->IsPrimitive()) {
+            return INVALID_SYMBOL_ID;
+        }
+
+        auto found = TyToSymIdMap.find(ty);
+        if (found != TyToSymIdMap.end()) {
+            return found->second;
+        }
+
+        std::string exportId = PRIMARY_TYPE_EXPORTID_PREFIX + '$' + Ty::KindName(ty->kind);
+        size_t id = 0;
+        id = hash_combine<std::string>(id, exportId);
+        (void)TyToSymIdMap.emplace(ty, id);
+        return id;
+    }
+
 private:
     enum class CrossRegisterType: uint8_t {
         GLOBAL_FUNC_REGISTER,
@@ -249,6 +267,8 @@ private:
     // Only toplevel and member decls (except extend decl).
     std::unordered_map<Ptr<const Decl>, SymbolID> declToSymIdMap;
 
+    std::unordered_map<Ptr<Ty>, SymbolID> TyToSymIdMap;
+
     std::vector<std::pair<Ptr<const Node>, std::string>> scopes;
 
     std::vector<std::pair<Ptr<const Node>, std::pair<CrossRegisterType, std::string>>> crossRegisterScopes;
@@ -313,6 +333,8 @@ private:
     const std::string CLASS_REGISTER_TY = "(Class-JSContext) -> Class-JSClass";
 
     const std::string MODULE_REGISTER_TY = "(Class-JSContext, Class-JSObject) -> Unit";
+
+    const std::string PRIMARY_TYPE_EXPORTID_PREFIX = "CANGJIE_PRIMARY_TYPE";
 };
 } // namespace lsp
 } // namespace ark

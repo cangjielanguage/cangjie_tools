@@ -410,6 +410,7 @@ SQL(InsertExtend,
     :ExtendSymbolID,
     :SymbolID,
     :Modifier,
+    :IsStatic,
     :InterfaceName,
     :PackageName
   )
@@ -421,6 +422,7 @@ SQL(MultiInsertExtendsHead,
 
 SQL(MultiInsertExtendsValue,
   (
+    ?,
     ?,
     ?,
     ?,

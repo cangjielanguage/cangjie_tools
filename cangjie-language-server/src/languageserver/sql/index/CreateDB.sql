@@ -528,6 +528,7 @@ SQL(
     ExtendSymbolID BLOB NOT NULL,
     SymbolID BLOB NOT NULL,
     Modifier INTEGER,
+    IsStatic BOOLEAN DEFAULT FALSE,
     InterfaceName TEXT NOT NULL,
     PackageName TEXT,
     PRIMARY KEY(
@@ -544,6 +545,7 @@ SQL(
     ExtendSymbolID,
     SymbolID,
     Modifier,
+    IsStatic,
     InterfaceName,
     PackageName
   )
@@ -551,6 +553,7 @@ SQL(
     ExtendSymbolID,
     SymbolID,
     Modifier,
+    IsStatic,
     InterfaceName,
     PackageName
   FROM _extends;
@@ -564,6 +567,7 @@ SQL(
       NEW.ExtendSymbolID,
       NEW.SymbolID,
       NEW.Modifier,
+      NEW.IsStatic,
       NEW.InterfaceName,
       NEW.PackageName
     );

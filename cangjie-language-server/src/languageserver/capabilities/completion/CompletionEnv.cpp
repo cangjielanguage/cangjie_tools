@@ -1611,6 +1611,36 @@ ark::lsp::SymbolID CompletionEnv::GetDeclSymbolID(const Decl& decl)
     return ret;
 }
 
+ark::lsp::SymbolID CompletionEnv::GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+{
+    if (!ty || !ty->IsPrimitive()) {
+        return ark::lsp::INVALID_SYMBOL_ID;
+    }
+
+    std::string exportId = "CANGJIE_PRIMARY_TYPE$" + Ty::KindName(ty->kind);
+    size_t id = 0;
+    id = hash_combine<std::string>(id, exportId);
+    return id;
+}
+
+Range CompletionEnv::GetEditRangeForAutoImport(const ArkAST &file)
+{
+    int lastImportLine = 0;
+    for (const auto &import : file.file->imports) {
+        if (!import) {
+            continue;
+        }
+        lastImportLine = std::max(import->content.rightCurlPos.line,
+            std::max(import->importPos.line, lastImportLine));
+    }
+    Position pkgPos = file.file->package->packagePos;
+    if (lastImportLine == 0 && pkgPos.line > 0) {
+        lastImportLine = pkgPos.line;
+    }
+    Position textEditStart = {file.fileID, lastImportLine, 0};
+    return {textEditStart, textEditStart};
+}
+
 bool CompletionEnv::IsSignatureInItems(const std::string &name, const std::string &signature)
 {
     auto signatureItems = items.find(name);

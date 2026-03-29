@@ -81,8 +81,7 @@ void BackgroundIndexDB::Update(const std::string &curPkgName, IndexFileOut index
         }
         for (const auto &extends : *index.extends) {
             for (const ExtendItem &extendItem : extends.second) {
-                update.InsertExtend(GetArrayFromID(extends.first), GetArrayFromID(extendItem.id),
-                    extendItem.modifier, extendItem.interfaceName, curPkgName);
+                update.InsertExtend(GetArrayFromID(extends.first), extendItem, curPkgName);
             }
         }
         for (const CrossSymbol &crs : *index.crossSymbos) {
@@ -458,7 +457,7 @@ void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSy
         CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
     db.GetExtendItem(GetArrayFromID(dotCompleteSym),
         [&](const std::string &packageName, const Symbol &sym,
-            const ExtendItem &extendIem, const CompletionItem &completionItem) {
+        const ExtendItem &extendIem, const CompletionItem &completionItem) {
             if (curPkgName == packageName) {
                 return;
             }
@@ -484,6 +483,53 @@ void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSy
                 callback(packageName, extendIem.interfaceName, sym, completionItem);
             }
     });
+}
+
+void BackgroundIndexDB::FindExtendSymsOnCompletionBatch(
+    const std::unordered_set<SymbolID> &ids,
+    const std::unordered_set<SymbolID> &allVisibleMembers,
+    const std::string &curPkgName, bool filterStatic,
+    const std::function<void(const std::string &, const std::string &,
+        const Symbol &, const CompletionItem &)>& callback)
+{
+    if (ids.empty()) {
+        return;
+    }
+    auto curModule = SplitFullPackage(curPkgName).first;
+    std::unordered_set<std::string> curModuleDeps =
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+
+    for (const auto dotCompleteSym : ids) {
+        db.GetExtendItem(GetArrayFromID(dotCompleteSym),
+            [&](const std::string &packageName, const Symbol &sym,
+            const ExtendItem &extendIem, const CompletionItem &completionItem) {
+                if (curPkgName == packageName || extendIem.isStatic != filterStatic ||
+                    !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, packageName)) {
+                    return;
+                }
+                if (allVisibleMembers.find(extendIem.id) != allVisibleMembers.end()) {
+                    return;
+                }
+                auto relation = GetPackageRelation(curPkgName, packageName);
+                auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
+                    bool isAccessible =
+                        modifier == Modifier::PUBLIC
+                        || (relation == PackageRelation::CHILD && (modifier == Modifier::INTERNAL
+                                                                || modifier == Modifier::PROTECTED))
+                        || (relation == PackageRelation::SAME_MODULE &&
+                            modifier == Modifier::PROTECTED)
+                        || (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
+                    return isAccessible;
+                };
+                if (!sym.isCjoSym && !curModuleDeps.count(sym.curModule)) {
+                    return;
+                }
+                // filter by modifier
+                if (checkAccessible(extendIem.modifier) && checkAccessible(sym.modifier)) {
+                    callback(packageName, extendIem.interfaceName, sym, completionItem);
+                }
+        });
+    }
 }
 
 void BackgroundIndexDB::FindComment(const Symbol &sym, std::vector<std::string> &comments)
