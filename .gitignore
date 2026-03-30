@@ -1,0 +1,6 @@
+# common
+.vscode/*
+
+# cjlint
+cjlint/build/build/*
+cjlint/build/logs/*

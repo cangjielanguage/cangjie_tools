@@ -274,11 +274,8 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
             CheckApplyOrInvoke<CHIR::ApplyWithException>(applyWithExcept, state);
         }
     };
-    auto funcs = package.GetGlobalFuncs();
+    auto funcs = package.GetGlobalFuncsWithBody(false);
     for (auto& func : funcs) {
-        if (func->TestAttr(CHIR::Attribute::IMPORTED)) {
-            continue;
-        }
         auto result = analysisWrapper->CheckFuncResult(*func);
         if (!result) {
             continue;

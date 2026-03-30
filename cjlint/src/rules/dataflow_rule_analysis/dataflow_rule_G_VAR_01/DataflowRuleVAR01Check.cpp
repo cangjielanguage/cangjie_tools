@@ -338,10 +338,7 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIR(CHIR::Package& package)
         diagEngine->Diagnose(genericDef.second.first.first, genericDef.second.first.second,
             CodeCheckDiagKind::G_VAR_01_prefer_immutable_prop, genericDef.second.second);
     }
-    for (auto& globalVar : package.GetGlobalVars()) {
-        if (globalVar->TestAttr(CHIR::Attribute::IMPORTED)) {
-            continue;
-        }
+    for (auto& globalVar : package.GetGlobalVarsWithInit(false)) {
         if (!globalVar->TestAttr(Attribute::READONLY) && !IsExternalGlobalVar(globalVar)) {
             CheckGlobalVar(globalVar);
         }
@@ -351,8 +348,8 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIR(CHIR::Package& package)
         diagEngine->Diagnose(
             loc.first, loc.second, CodeCheckDiagKind::G_VAR_01_prefer_immutable_var, staticVar->GetSrcCodeIdentifier());
     }
-    for (auto& func : package.GetGlobalFuncs()) {
-        if (CommonFunc::IsGenericInstantated(func) || func->TestAttr(CHIR::Attribute::IMPORTED)) {
+    for (auto& func : package.GetGlobalFuncsWithBody(false)) {
+        if (CommonFunc::IsGenericInstantated(func)) {
             continue;
         }
         CheckBasedOnCHIRFunc(*func->GetBody(), memberVarMap);
