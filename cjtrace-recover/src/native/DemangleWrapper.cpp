@@ -30,7 +30,7 @@ const char *Demangle(char *name, size_t len)
     auto demangle = Demangle(mangle);
     char *res = static_cast<char*>(malloc(demangle.size() + 1));
     if (res == nullptr) {
-        return "";
+        return nullptr;
     }
     memcpy_s(res, demangle.size() + 1, demangle.c_str(), demangle.size());
     res[demangle.size()] = 0;
