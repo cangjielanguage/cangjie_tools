@@ -252,6 +252,7 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_Full_Compile_Cycle_Dependencies.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Import_004.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Import_005.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Derive_001.test"}}
 
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_String_001.test","id":"7"}}
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_Interface_001.test","id":"9"}}

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"diagnostics":[],"uri":"file:///root/workspace/cangjie/test_projects/Derive/src/main.cj"}}
