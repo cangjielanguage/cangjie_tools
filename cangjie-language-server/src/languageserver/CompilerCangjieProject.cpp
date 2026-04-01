@@ -324,7 +324,7 @@ void CompilerCangjieProject::HandleUpstreamSourceSet(const std::string &fullPkgN
         } else {
             ci->invocation.globalOptions.commonPartCjos.clear();
             ci->invocation.globalOptions.commonPartCjos.push_back(realPkgName);
-            ci->importManager.SetPackageCjoCache(realPkgName, *cjoData);
+            ci->importManager->SetPackageCjoCache(realPkgName, *cjoData);
         }
     } else {
         ci->invocation.globalOptions.commonPartCjos.clear();
@@ -514,7 +514,7 @@ void CompilerCangjieProject::SubmitTasksToPool(const std::unordered_set<std::str
                 } else {
                     ci->invocation.globalOptions.commonPartCjos.clear();
                     ci->invocation.globalOptions.commonPartCjos.push_back(realPkgName);
-                    ci->importManager.SetPackageCjoCache(realPkgName, *cjoData);
+                    ci->importManager->SetPackageCjoCache(realPkgName, *cjoData);
                 }
             } else {
                 ci->invocation.globalOptions.commonPartCjos.clear();
@@ -586,7 +586,7 @@ void CompilerCangjieProject::IncrementTempPkgCompile(const std::string &basicStr
         } else {
             newCI->invocation.globalOptions.commonPartCjos.clear();
             newCI->invocation.globalOptions.commonPartCjos.push_back(realPkgName);
-            newCI->importManager.SetPackageCjoCache(realPkgName, *cjoData);
+            newCI->importManager->SetPackageCjoCache(realPkgName, *cjoData);
         }
     } else {
         newCI->invocation.globalOptions.commonPartCjos.clear();
@@ -1005,7 +1005,7 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForFileRefacto
         } else {
             ci->invocation.globalOptions.commonPartCjos.clear();
             ci->invocation.globalOptions.commonPartCjos.push_back(realPkgName);
-            ci->importManager.SetPackageCjoCache(realPkgName, *cjoData);
+            ci->importManager->SetPackageCjoCache(realPkgName, *cjoData);
         }
     } else {
         ci->invocation.globalOptions.commonPartCjos.clear();
@@ -1073,7 +1073,7 @@ void CompilerCangjieProject::InitParseCacheForComplete(const std::unique_ptr<LSP
     const std::string &pkgForPath)
 {
     for (auto pkg : lspCI->GetSourcePackages()) {
-        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, lspCI->importManager);
+        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, *lspCI->importManager);
         pkgInstance->package = pkg;
         pkgInstance->ctx = nullptr;
         this->packageInstanceCacheForComplete = std::move(pkgInstance);
@@ -1114,7 +1114,7 @@ void CompilerCangjieProject::InitParseCacheForSignatureHelp(const std::unique_pt
     const std::string &pkgForPath)
 {
     for (auto pkg : lspCI->GetSourcePackages()) {
-        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, lspCI->importManager);
+        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, *lspCI->importManager);
         pkgInstance->package = pkg;
         pkgInstance->ctx = nullptr;
         this->packageInstanceCacheForSignatureHelp = std::move(pkgInstance);
@@ -1190,7 +1190,7 @@ bool CompilerCangjieProject::InitCache(const std::unique_ptr<LSPCompilerInstance
                                        bool isInModule)
 {
     for (auto pkg : lspCI->GetSourcePackages()) {
-        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, lspCI->importManager);
+        auto pkgInstance = std::make_unique<PackageInstance>(lspCI->diag, *lspCI->importManager);
         pkgInstance->package = pkg;
         auto ctx = lspCI->GetASTContextByPackage(pkg);
         if (ctx == nullptr) {
@@ -1607,7 +1607,7 @@ void CompilerCangjieProject::FullCompilation()
                 ci->bufferCache = bufferCache;
                 ci->invocation.globalOptions.commonPartCjos.clear();
                 ci->invocation.globalOptions.commonPartCjos.push_back(realPackageName);
-                ci->importManager.SetPackageCjoCache(realPackageName, *cjoData);
+                ci->importManager->SetPackageCjoCache(realPackageName, *cjoData);
                 CIMap[fullPkg] = std::move(ci);
                 CIMap[fullPkg]->PreCompileProcess();
             }
@@ -2351,7 +2351,7 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
     }
 
     // Need to rebuild index
-    lsp::SymbolCollector sc = lsp::SymbolCollector(*ci->typeManager, ci->importManager, false);
+    lsp::SymbolCollector sc = lsp::SymbolCollector(*ci->typeManager, *ci->importManager, false);
     sc.SetArkAstMap(std::move(astMap));
     sc.Build(*packages[0], pkgPath);
     if (useDB) {
@@ -2469,7 +2469,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
     std::map<int, std::vector<std::string>> fileMap;
     for (const auto &cjoPath : ci->cjoPathSet) {
         std::string cjoName = FileUtil::GetFileNameWithoutExtension(cjoPath);
-        auto cjoPkg = ci->importManager.LoadPackageFromCjo(cjoName, cjoPath);
+        auto cjoPkg = ci->importManager->LoadPackageFromCjo(cjoName, cjoPath);
         if (!cjoPkg) {
             continue;
         }
@@ -2493,7 +2493,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
                 toUpdateDB = false;
           }
         }
-        lsp::SymbolCollector sc = lsp::SymbolCollector(*ci->typeManager, ci->importManager, true);
+        lsp::SymbolCollector sc = lsp::SymbolCollector(*ci->typeManager, *ci->importManager, true);
         if (!useDB || (useDB && toUpdateDB)) {
             Trace::Log("build for cjo:", cjoPkgName);
             sc.Build(*cjoPkg);
