@@ -2525,7 +2525,6 @@ feature 是一个命名的标志，用于指定需要编译的源代码。以下
 ```bash
 "os.android"
 "os.ohos"
-"os.hos"
 "os.ios"
 "os.linux"
 "os.windows"
@@ -2581,7 +2580,6 @@ mapping = [ "user.cjmpterm.wayland", "user.cjmpterm.x11" ]
 ```bash
 if OS.LINUX && Env.ANDROID   => os.android
 if OS.LINUX && Env.OHOS      => os.ohos
-if OS.LINUX && Env.HOS       => os.hos
 if Vendor.APPLE && OS.IOS    => os.ios
 if OS.LINUX                  => os.linux
 if OS.WINDOWS                => os.windows
