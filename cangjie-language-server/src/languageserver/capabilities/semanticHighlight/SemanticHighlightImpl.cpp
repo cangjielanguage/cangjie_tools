@@ -535,7 +535,7 @@ void SemanticHighlightImpl::FindHighlightsTokens(const ArkAST &ast, std::vector<
             continue;
         }
         Ptr<Node> node = symbol->node;
-        if (node->TestAttr(Cangjie::AST::Attribute::MACRO_EXPANDED_NODE)) {
+        if (node->curMacroCall) {
             if (symbol->astKind != ASTKind::REF_EXPR && symbol->astKind != ASTKind::MEMBER_ACCESS &&
                 symbol->astKind != ASTKind::CALL_EXPR) {
                 continue;

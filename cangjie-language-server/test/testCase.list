@@ -980,7 +980,6 @@
 {"documentSymbol":{"testFile":"LSP_DocumentSymbol_2022031808222_002.test","id":"9"}}
 {"documentSymbol":{"testFile":"LSP_DocumentSymbol_Macro.test","id":"11"}}
 {"documentSymbol":{"testFile":"LSP_DocumentSymbol_MainDecl.test","id":"9"}}
-{"documentSymbol":{"testFile":"LSP_DocumentSymbol_2024011004667.test","id":"9"}}
 
 {"signatureHelp":{"testFile":"LSP_SignatureHelp_pkg_001.test","id":"9"}}
 {"signatureHelp":{"testFile":"LSP_SignatureHelp_pkg_002.test","id":"9"}}

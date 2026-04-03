@@ -1282,7 +1282,7 @@ void CompletionEnv::CompleteInitFuncDecl(Ptr<Node> node, const std::string &alia
             std::string query = "name: " + className + " && " + "ast_kind: class_decl";
             auto syms = SearchContext(cache->packageInstance->ctx, query);
             for (const auto &sym : syms) {
-                if (sym->node->TestAttr(Cangjie::AST::Attribute::MACRO_EXPANDED_NODE)) {
+                if (sym->node->curMacroCall) {
                     CompleteInitFuncDecl(sym->node, aliasName, isInScope, isType);
                 }
             }
