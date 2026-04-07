@@ -23,90 +23,6 @@ const std::string TAB = "    ";
 const std::string NEWLINE = "\n";
 const std::string SPACE = " ";
 
-const std::unordered_map<std::string, int> keyMap = InitKeyMap();
-
-const std::unordered_set<TokenKind> OPERATOR_TO_OVERLOAD = {
-    TokenKind::LSQUARE, TokenKind::RSQUARE, TokenKind::NOT,
-    TokenKind::EXP, TokenKind::MUL, TokenKind::MOD,
-    TokenKind::DIV, TokenKind::ADD, TokenKind::SUB,
-    TokenKind::LSHIFT, TokenKind::RSHIFT, TokenKind::LT,
-    TokenKind::LE, TokenKind::GT, TokenKind::GE,
-    TokenKind::EQUAL, TokenKind::NOTEQ, TokenKind::BITAND,
-    TokenKind::BITXOR, TokenKind::BITOR};
-
-
-std::string FilterModifiers(Ptr<Decl> decl, const std::vector<std::string>& modifiers)
-{
-    std::unordered_set<std::string> filterItems = {"abstract"};
-    if (!decl->TestAnyAttr(Attribute::OPEN, Attribute::SEALED)) {
-        filterItems.insert("open");
-    }
-
-    if (decl->astKind == ASTKind::INTERFACE_DECL) {
-        filterItems.insert("public");
-    }
-
-    if (decl->astKind == ASTKind::EXTEND_DECL) {
-        filterItems.insert("open");
-        filterItems.insert("override");
-        filterItems.insert("redef");
-    }
-
-    std::string result{};
-    for (const auto& modifier: modifiers) {
-        if (filterItems.count(modifier)) {
-            continue;
-        }
-        result += modifier + SPACE;
-    }
-    return result;
-}
-
-std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, FuncDecl* funcDecl,
-                             const std::vector<Ptr<ClassLikeDecl>>& canSuperCall)
-{
-    // if lack of function body, don't add super call
-    bool isCanSuperCall =
-        std::any_of(canSuperCall.begin(), canSuperCall.end(), [&owner](const Ptr<ClassLikeDecl>& decl) {
-            return owner->curFile == decl->curFile && owner->begin == decl->begin && owner->end == decl->end;
-        });
-    if (funcDecl->TestAttr(Attribute::ABSTRACT) || (!funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) ||
-        IsHiddenDecl(funcDecl) || IsHiddenDecl(owner)) {
-        return TAB + "throw Exception(\"Function not implemented.\")\n";
-    }
-
-    std::string superPrefix = "super.";
-    if (funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) {
-        superPrefix = owner->identifier.Val() + ".";
-    }
-
-    bool paramFirst = true;
-    std::string paramsText;
-    for (auto& paramList: funcDecl->funcBody->paramLists) {
-        for (auto& param: paramList->params) {
-            std::string paramName = param->identifier.GetRawText();
-            if (keyMap.find(paramName)!= keyMap.end()) {
-                paramName = "`" + paramName + "`";
-            }
-            if (param == nullptr ||
-                (param->TestAttr(Cangjie::AST::Attribute::COMPILER_ADD) &&
-                 paramName == "macroCallPtr")) { continue; }
-            if (paramName.empty()) {
-                continue;
-            }
-            if (!paramFirst) {
-                paramsText += ", ";
-            }
-            if (param->isNamedParam) {
-                paramsText += paramName + ": ";
-            }
-            paramsText += paramName;
-            paramFirst = false;
-        }
-    }
-    return TAB + superPrefix + funcDecl->identifier +"(" + paramsText + ")" + NEWLINE;
-}
-
 void ApplyReplace(std::unique_ptr<TypeDetail>& detail, const std::unordered_map<std::string, std::string>& replace)
 {
     for (auto& item: replace) {
@@ -151,16 +67,9 @@ void FindOverrideMethodsImpl::AddFuncItemsToResult(const Ptr<Decl>& decl, const 
                 }
             }
         }
-        auto cleanDetail = funcDetail.ToString();
         info.deprecated = method->HasAnno(AnnotationKind::DEPRECATED);
-        auto funcTextPos = cleanDetail.find(" func ");
-        auto modifiers = FilterModifiers(decl, funcDetail.modifiers);
-        info.signatureWithRet = cleanDetail.substr(funcTextPos+ strlen(" func "));
-        if (OPERATOR_TO_OVERLOAD.count(method->op)) {
-            info.insertText = modifiers + "operator func " + info.signatureWithRet + " {\n" + superCallText + "}";
-        } else {
-            info.insertText = modifiers + "func " + info.signatureWithRet + " {\n" + superCallText + "}";
-        }
+        FilterModifiers(decl, funcDetail.modifiers);
+        info.insertText = funcDetail.ToString() + " {\n" + superCallText + "}";
         item.overrideMethodInfos.emplace_back(info);
     }
 }
@@ -180,9 +89,8 @@ void FindOverrideMethodsImpl::AddPropItemsToResult(const Ptr<Decl> decl, const P
                 }
             }
         }
-        auto modifiers = FilterModifiers(decl, propDetail.modifiers);
+        FilterModifiers(decl, propDetail.modifiers);
         auto identifier = propDetail.identifier;
-        auto propTy = propDetail.type->ToString();
         std::string superCall = TAB + TAB + "super." + identifier + NEWLINE;
         bool isCanSuperCall =
             std::any_of(canSuperCall.begin(), canSuperCall.end(), [&owner](const Ptr<ClassLikeDecl>& decl) {
@@ -197,30 +105,20 @@ void FindOverrideMethodsImpl::AddPropItemsToResult(const Ptr<Decl> decl, const P
         }
         std::string getter = "get() {\n" + superCall + TAB + "}";
         std::string setter;
-        if (modifiers.find("mut") != std::string::npos) {
+        if (std::find(propDetail.modifiers.begin(), propDetail.modifiers.end(), "mut") !=
+                propDetail.modifiers.end()) {
             setter = "set(v) {\n" + TAB + "}";
         }
         OverrideMethodInfo info;
         info.isProp = true;
         info.deprecated = prop->HasAnno(AnnotationKind::DEPRECATED);
-        info.signatureWithRet = identifier + ": " + propTy;
-        info.insertText = modifiers + "prop " + info.signatureWithRet + " {\n" + TAB + getter;
+        info.insertText = propDetail.ToString() + " {\n" + TAB + getter;
         if (!setter.empty()) {
             info.insertText += NEWLINE + TAB + setter;
         }
         info.insertText += "\n}";
         item.overrideMethodInfos.emplace_back(info);
     }
-}
-
-std::vector<Ptr<ClassLikeDecl>> GetCanSuperCallDecls(const Ptr<Decl>& decl)
-{
-    if (auto classDecl = DynamicCast<ClassDecl*>(decl)) {
-        if (auto superClass = classDecl->GetSuperClassDecl()) {
-            return superClass->GetAllSuperDecls();
-        }
-    }
-    return {};
 }
 
 template <class T>
@@ -316,7 +214,7 @@ void FindOverrideMethodsImpl::FindOverrideMethods(const ArkAST &ast, FindOverrid
     if (!decl) {
         return;
     }
-    
+
     if (auto inheritableDecl = DynamicCast<InheritableDecl *>(decl)) {
         std::vector<FuncDecl *> implementedMethods;
         std::vector<PropDecl *> implementedDecls;

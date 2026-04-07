@@ -490,6 +490,9 @@ namespace {
                 item.diagInfo.source = exp["params"]["diagnostics"][i].value("source", "");
                 item.diagInfo.message = exp["params"]["diagnostics"][i].value("message", "");
                 item.diagInfo.category = exp["params"]["diagnostics"][i].value("category", -1);
+                if (exp["params"]["diagnostics"][i].contains("codeActions")) {
+                    item.codeActions = exp["params"]["diagnostics"][i]["codeActions"];
+                }
                 result.push_back(item);
             }
         }
@@ -1732,6 +1735,32 @@ namespace test::common {
             }
             if (exp[i].diagInfo.range != act[i].diagInfo.range) {
                 reason = "the expect and actual DiagnosticsInfo " + std::to_string(i) + " diagInfo.range is different";
+                return false;
+            }
+
+            // compare codeActions
+            auto normalizeUri = [](nlohmann::json &actions) {
+                if (actions.is_null()) {
+                    return;
+                }
+                for (auto &action : actions) {
+                    if (action.contains("edit") && action["edit"].contains("changes")) {
+                        auto &changes = action["edit"]["changes"];
+                        nlohmann::json normalized;
+                        for (auto it = changes.begin(); it != changes.end(); ++it) {
+                            normalized["file://URI"] = it.value();
+                        }
+                        changes = normalized;
+                    }
+                }
+            };
+            nlohmann::json expActions = exp[i].codeActions;
+            nlohmann::json actActions = act[i].codeActions;
+            normalizeUri(expActions);
+            normalizeUri(actActions);
+            if (expActions != actActions) {
+                reason = "the expect and actual DiagnosticsInfo " + std::to_string(i) +
+                         " codeActions is different";
                 return false;
             }
         }
