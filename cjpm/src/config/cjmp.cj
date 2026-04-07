@@ -295,7 +295,6 @@ public struct Feature <: ToString & Serializable<Feature> {
 
     public static let OS_ANDROID  = builtin("os.android")
     public static let OS_OHOS     = builtin("os.ohos")
-    public static let OS_HOS      = builtin("os.hos")
     public static let OS_IOS      = builtin("os.ios")
     public static let OS_LINUX    = builtin("os.linux")
     public static let OS_DARWIN   = builtin("os.darwin")
@@ -452,7 +451,6 @@ public struct FeatureDeducer <: Serializable<FeatureDeducer> {
         let feature = match ((triple.arch, triple.vendor, triple.os, triple.env)) {
             case (_, _, OS.LINUX, Env.ANDROID) => Feature.OS_ANDROID
             case (_, _, OS.LINUX, Env.OHOS) => Feature.OS_OHOS
-            case (_, _, OS.LINUX, Env.HOS) => Feature.OS_HOS
             case (_, Vendor.APPLE, OS.IOS, _) => Feature.OS_IOS
             case (_, _, OS.LINUX, _) => Feature.OS_LINUX
             case (_, _, OS.WINDOWS, _) => Feature.OS_WINDOWS
