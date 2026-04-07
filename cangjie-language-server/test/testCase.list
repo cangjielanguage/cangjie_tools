@@ -320,6 +320,16 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Import_006.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Common_Specific.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Derive_001.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_InterfaceOnly.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_MultiMembers.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_AbstractClass.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_ExtendInterface_EmptyBody.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_ExtendInterface_WithMembers.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Class_EmptyBody.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Struct_Interface.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Struct_EmptyBody.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Enum_WithMembers.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Enum_NoMembers.test"}}
 
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_String_001.test","id":"7"}}
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_Interface_001.test","id":"9"}}

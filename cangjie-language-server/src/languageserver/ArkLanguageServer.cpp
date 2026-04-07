@@ -1301,16 +1301,16 @@ void ArkLanguageServer::AddDiagnosticQuickFix(std::vector<DiagnosticToken> &diag
     }
     const std::string uri = URI::URIFromAbsolutePath(file).ToString();
     for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value()) {
+        if (!diagnostic.diagFix.has_value()) {
             continue;
         }
-        if (diagnostic.diaFix->addImport) {
+        if (diagnostic.diagFix->addImport) {
             AddImportQuickFix(diagnostic, arkAst);
         }
-        if (diagnostic.diaFix->removeImport) {
+        if (diagnostic.diagFix->removeImport) {
             RemoveImportQuickFix(diagnostic, arkAst, uri);
         }
-        if (diagnostic.diaFix->removeUnusedSymbol) {
+        if (diagnostic.diagFix->removeUnusedSymbol) {
             RemoveUnusedSymbolQuickFix(diagnostic, arkAst, uri);
         }
     }
@@ -1618,7 +1618,7 @@ void ArkLanguageServer::RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticT
         allUnusedImportCA.edit.value().changes[uri].push_back(textEdit);
     }
     for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+        if (!diagnostic.diagFix.has_value() || !diagnostic.diagFix->removeImport || !diagnostic.codeActions.has_value()) {
             continue;
         }
         diagnostic.codeActions.value().push_back(allUnusedImportCA);
@@ -1771,7 +1771,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     if (!arkAst || !arkAst->file) {
         return;
     }
-    
+
     Range diagRange = TransformFromIDE2Char(diagnostic.range);
     Range deleteRange = diagRange;
     bool found = false;
@@ -1794,7 +1794,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
         if (!decl) {
             return VisitAction::WALK_CHILDREN;
         }
-        
+
         auto identifierPos = decl->GetIdentifierPos();
         if (identifierPos.line != diagRange.start.line ||
             identifierPos.column != diagRange.start.column) {
@@ -1814,9 +1814,9 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
         found = true;
         return VisitAction::STOP_NOW;
     };
-    
+
     ConstWalker(arkAst->file, finder).Walk();
-    
+
     if (!found) {
         return;
     }
@@ -2010,7 +2010,7 @@ int ArkLanguageServer::GetUnusedImportCount(std::vector<DiagnosticToken> &diagno
 {
     int unusedImportCount = 0;
     for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+        if (!diagnostic.diagFix.has_value() || !diagnostic.diagFix->removeImport || !diagnostic.codeActions.has_value()) {
             continue;
         }
         unusedImportCount++;
@@ -2038,7 +2038,7 @@ WorkspaceEdit ArkLanguageServer::GetWorkspaceEdit(std::vector<DiagnosticToken> &
 {
     WorkspaceEdit edit;
     for (auto &diagnostic : diagnostics) {
-        if (!diagnostic.diaFix.has_value() || !diagnostic.diaFix->removeImport || !diagnostic.codeActions.has_value()) {
+        if (!diagnostic.diagFix.has_value() || !diagnostic.diagFix->removeImport || !diagnostic.codeActions.has_value()) {
             continue;
         }
         TextEdit textEdit;

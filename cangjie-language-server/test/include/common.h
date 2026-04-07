@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include <string>
+#include <nlohmann/json.hpp>
 #include "TestUtils.h"
 
 enum TestType {
@@ -54,6 +55,7 @@ struct HoverInfo {
 struct DiagnosticInfo {
     ark::DiagnosticToken diagInfo;
     std::string uri;
+    nlohmann::json codeActions;
 };
 struct CallHierarchyResult {
     bool isOutgoingCall{true};
