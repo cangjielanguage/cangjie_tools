@@ -41,23 +41,28 @@ std::string FileStore::NormalizePath(const std::string &path)
     }
     char absPathBuff[PATH_MAX] = {0};
 #ifdef _WIN32
-    _fullpath(absPathBuff, path.c_str(), PATH_MAX);
-    // we use lower drive letter because cangjie generate fileHash by filePath
-    absPathBuff[0] = tolower(absPathBuff[0]);
-    LowAbsFileName(absPathBuff, std::string(absPathBuff).length());
+    char* result = _fullpath(absPathBuff, path.c_str(), PATH_MAX);
 #else
-    if (realpath(path.c_str(), absPathBuff) == nullptr) {
+    char* result = realpath(path.c_str(), absPathBuff);
+#endif
+    if (result == nullptr) {
         return path;
     }
+
+#ifdef _WIN32
+    absPathBuff[0] = tolower(absPathBuff[0]);
+    LowAbsFileName(absPathBuff, std::string(absPathBuff).length());
 #endif
-    std::string str = std::string(absPathBuff);
+
+    std::string normalizedPath = std::string(absPathBuff);
+
 #ifdef __linux__
-    for (auto &s: str) {
+    for (auto &s: normalizedPath) {
         if (s == '\\') {
             s = '/';
         }
     }
 #endif
-    return str;
+    return normalizedPath;
 }
 } // namespace ark
