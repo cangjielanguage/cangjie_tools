@@ -691,6 +691,46 @@ struct FileRefactorRespParams {
 
 bool ToJSON(const FileRefactorRespParams &item, nlohmann::json &reply);
 
+struct WorkDoneProgressCreateParams {
+    std::string token;
+};
+
+bool ToJSON(const WorkDoneProgressCreateParams &item, nlohmann::json &reply);
+
+struct WorkDoneProgressBegin {
+    std::string title;
+
+    std::optional<bool> cancellable;
+
+    std::optional<std::string> message;
+
+    std::optional<int> percentage;
+};
+
+struct WorkDoneProgressReport {
+    std::optional<bool> cancellable;
+
+    std::optional<std::string> message;
+
+    std::optional<int> percentage;
+};
+
+struct WorkDoneProgressEnd {
+    std::optional<std::string> message;
+};
+
+struct WorkDoneProgressParams {
+    std::string token;
+
+    std::optional<WorkDoneProgressBegin> workDoneProgressBegin;
+
+    std::optional<WorkDoneProgressReport> workDoneProgressReport;
+
+    std::optional<WorkDoneProgressEnd> workDoneProgressEnd;
+};
+
+bool ToJSON(const WorkDoneProgressParams &params, nlohmann::json &reply);
+
 class MessageHeaderEndOfLine {
 public:
     static std::string& GetEol()

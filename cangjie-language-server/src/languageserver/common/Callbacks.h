@@ -47,6 +47,11 @@ public:
     virtual void AddDocWhenInitCompile(const std::string &file) = 0;
     virtual void ReportCjoVersionErr(std::string message) = 0;
     virtual void PublishCompletionTip(const CompletionTip &params) = 0;
+    virtual std::string CreateProgressToken() = 0;
+    virtual void SendWorkDoneProgressCreate(const WorkDoneProgressCreateParams &params) = 0;
+    virtual void SendWorkDoneProgressBegin(const std::string &token, const WorkDoneProgressBegin &begin) = 0;
+    virtual void SendWorkDoneProgressReport(const std::string &token, const WorkDoneProgressReport &report) = 0;
+    virtual void SendWorkDoneProgressEnd(const std::string &token, const WorkDoneProgressEnd &end) = 0;
     bool isRenameDefined = false;
     std::string path = "";
 };
