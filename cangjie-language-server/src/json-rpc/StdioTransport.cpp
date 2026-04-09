@@ -86,8 +86,8 @@ void StdioTransport::SendMsg(const nlohmann::json &message)
     std::ostringstream os;
     // "-1", no indentation format
     os << message.dump(-1, ' ', false, nlohmann::json::error_handler_t::ignore);
-    (void)fprintf(pFileOut, "Content-Length: %d%s%s",
-                   static_cast<int>(os.str().size()), MessageHeaderEndOfLine::GetEol().c_str(), os.str().c_str());
+    (void)fprintf(pFileOut, "Content-Length: %zu%s%s",
+        os.str().size(), MessageHeaderEndOfLine::GetEol().c_str(), os.str().c_str());
     (void)fflush(pFileOut);
     CleanAndLog(log, "send message body:" + os.str());
     Logger::Instance().LogMessage(MessageType::MSG_INFO, log.str());
@@ -139,6 +139,25 @@ bool isLineEmpty(const std::string& line)
     return true;
 }
 
+std::string StdioTransport::ReadBody(unsigned long long contentLength)
+{
+    Logger &logger = Logger::Instance();
+    std::string json(contentLength, '\0');
+    size_t pos = 0;
+    while (pos < contentLength) {
+        size_t read = RetryAfterSignalUnlessShutdown(0, [&json, &pos, &contentLength, this] {
+            return std::fread(&json[pos], 1, contentLength - pos, pFileIn);
+        });
+        if (read == 0) {
+            logger.LogMessage(MessageType::MSG_WARNING, "Input was aborted.");
+            return "";
+        }
+        clearerr(pFileIn);
+        pos += read;
+    }
+    return std::move(json);
+}
+
 std::string StdioTransport::ReadStandardMessage()
 {
     unsigned long long contentLength = 0;
@@ -146,8 +165,12 @@ std::string StdioTransport::ReadStandardMessage()
     Logger &logger = Logger::Instance();
     bool headersEnded = false;
     for (;;) {
-        if (feof(pFileIn) || ferror(pFileIn) || !ReadLine(pFileIn, line)) { return ""; }
-        if (line.front() == '#') { continue; }
+        if (feof(pFileIn) || ferror(pFileIn) || !ReadLine(pFileIn, line)) {
+            return "";
+        }
+        if (line.front() == '#') {
+            continue;
+        }
         Trim(line);
 
         if (isLineEmpty(line)) {
@@ -163,6 +186,10 @@ std::string StdioTransport::ReadStandardMessage()
             std::stringstream stream;
             stream << line.substr(found + strlen("Content-Length:"));
             stream >> contentLength;
+            if (stream.fail()) {
+                logger.LogMessage(MessageType::MSG_WARNING, "Failed to parse Content-Length header.");
+                contentLength = 0;
+            }
             stream.clear();
         }
     }
@@ -171,7 +198,7 @@ std::string StdioTransport::ReadStandardMessage()
         return "";
     }
 
-    if (contentLength > 1 << MAX_MESSAGE_LENGTH) {
+    if (contentLength > (1ULL << MAX_MESSAGE_LENGTH)) {
         logger.LogMessage(MessageType::MSG_WARNING, "Refusing to read message with too long Content-Length.");
         return "";
     }
@@ -180,22 +207,7 @@ std::string StdioTransport::ReadStandardMessage()
         return "";
     }
 
-    std::string json(contentLength, '\0');
-    size_t read;
-    size_t pos = 0;
-    while (pos < contentLength) {
-        read = RetryAfterSignalUnlessShutdown(0, [&json, &pos, &contentLength, this] {
-            return std::fread(&json[pos], 1, contentLength - pos, pFileIn);
-        });
-        if (read == 0) {
-            logger.LogMessage(MessageType::MSG_WARNING, "Input was aborted.");
-            return "";
-        }
-
-        clearerr(pFileIn);
-        pos += read;
-    }
-    return std::move(json);
+    return ReadBody(contentLength);
 }
 
 MessageErrorDetail DecodeError(const nlohmann::json &o)

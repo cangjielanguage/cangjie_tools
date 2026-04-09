@@ -212,7 +212,7 @@ SQL(SelectSymbolsByLocation,
 );
 
 SQL(SelectSymbolsByPkgName,
-  SELECT * FROM symbols WHERE Scope = :Scope OR Scope LIKE :ScopePrefix || '%'
+  SELECT * FROM symbols WHERE Scope = :Scope OR Scope LIKE :ScopePrefix || '%' ESCAPE '\'
 );
 
 SQL(InsertCompletion,
@@ -240,7 +240,7 @@ SQL(SelectCompletions,
          completions.*
   FROM symbols
   JOIN completions ON symbols.ID = completions.SymbolID
-  Where symbols.Name LIKE :Name COLLATE NOCASE AND symbols.Modifier IN (2,3,4)
+  Where symbols.Name LIKE :Name ESCAPE '\' COLLATE NOCASE AND symbols.Modifier IN (2,3,4)
 );
 
 SQL(SelectCompletion,
