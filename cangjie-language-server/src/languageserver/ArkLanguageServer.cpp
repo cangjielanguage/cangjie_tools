@@ -271,6 +271,64 @@ ArkLanguageServer::ArkLanguageServer(Transport &transport, Environment environme
 
 ArkLanguageServer::~ArkLanguageServer() {}
 
+std::string ArkLanguageServer::CreateProgressToken()
+{
+    static std::atomic<uint64_t> tokenCounter{0};
+    return "progress_" + std::to_string(tokenCounter.fetch_add(1));
+}
+
+void ArkLanguageServer::SendWorkDoneProgressCreate(const WorkDoneProgressCreateParams &params)
+{
+    nlohmann::json jsonParams;
+    if (!ToJSON(params, jsonParams)) {
+        return;
+    }
+    ValueOrError result(ValueOrErrorCheck::VALUE, jsonParams);
+    Notify("window/workDoneProgress/create", result);
+}
+
+void ArkLanguageServer::SendWorkDoneProgressBegin(const std::string &token, const WorkDoneProgressBegin &begin)
+{
+    WorkDoneProgressParams params;
+    params.token = token;
+    params.workDoneProgressBegin = begin;
+
+    nlohmann::json jsonParams;
+    if (!ToJSON(params, jsonParams)) {
+        return;
+    }
+    ValueOrError result(ValueOrErrorCheck::VALUE, jsonParams);
+    Notify("$/progress", result);
+}
+
+void ArkLanguageServer::SendWorkDoneProgressReport(const std::string &token, const WorkDoneProgressReport &report)
+{
+    WorkDoneProgressParams params;
+    params.token = token;
+    params.workDoneProgressReport = report;
+
+    nlohmann::json jsonParams;
+    if (!ToJSON(params, jsonParams)) {
+        return;
+    }
+    ValueOrError result(ValueOrErrorCheck::VALUE, jsonParams);
+    Notify("$/progress", result);
+}
+
+void ArkLanguageServer::SendWorkDoneProgressEnd(const std::string &token, const WorkDoneProgressEnd &end)
+{
+    WorkDoneProgressParams params;
+    params.token = token;
+    params.workDoneProgressEnd = end;
+
+    nlohmann::json jsonParams;
+    if (!ToJSON(params, jsonParams)) {
+        return;
+    }
+    ValueOrError result(ValueOrErrorCheck::VALUE, jsonParams);
+    Notify("$/progress", result);
+}
+
 LSPRet ArkLanguageServer::Run() const
 {
     // Run the Language Server loop.
