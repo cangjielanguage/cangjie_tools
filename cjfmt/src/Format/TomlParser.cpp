@@ -73,17 +73,25 @@ std::optional<TomlParser::ValueType> TomlParser::ParseValue(const std::string& v
     // Process integers.
     if (!trimmedValue.empty() &&
         (std::isdigit(trimmedValue[0]) || trimmedValue[0] == '-' || trimmedValue[0] == '+')) {
-        size_t idx;
-        long intValue = std::stol(trimmedValue, &idx);
-        // Check if the entire string was converted and ensure it is within the int range
-        if (idx == trimmedValue.size() && intValue >= std::numeric_limits<int>::min() &&
-            intValue <= std::numeric_limits<int>::max()) {
-            return static_cast<int>(intValue);
+        try {
+            size_t idx;
+            long intValue = std::stol(trimmedValue, &idx);
+            // Check if the entire string was converted and ensure it is within the int range
+            if (idx == trimmedValue.size() && intValue >= std::numeric_limits<int>::min() &&
+                intValue <= std::numeric_limits<int>::max()) {
+                return static_cast<int>(intValue);
+            }
+        } catch (const std::out_of_range&) {
+            // Value is outside representable range, treat as invalid TOML scalar.
+        } catch (const std::invalid_argument&) {
+            // Not a valid integer format, keep fallback behavior.
         }
     }
 
     // Process the string (remove the quotes)
-    if (trimmedValue.front() == '"' && trimmedValue.back() == '"') {
+    // Guard against empty/single-quote strings; front()/back() on empty is UB,
+    // and size()-END_INDEX_OF_STRING can underflow when size() < 2.
+    if (trimmedValue.size() >= 2 && trimmedValue.front() == '"' && trimmedValue.back() == '"') {
         // remove the quotes
         return trimmedValue.substr(BEGIN_INDEX_OF_STRING, trimmedValue.size() - END_INDEX_OF_STRING);
     }
