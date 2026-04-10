@@ -8,6 +8,11 @@
 
 #include "sqlite3.h"
 
+// Security: Ensure minimum SQLite version to avoid known vulnerabilities
+#if SQLITE_VERSION_NUMBER < 3039000
+#error "SQLite version 3.39.0 or later is required. Current version: " SQLITE_VERSION
+#endif
+
 #ifdef SQLITE_EXTENSION_API
 #include "sqlite3ext.h"
 SQLITE_EXTENSION_INIT3
