@@ -960,4 +960,57 @@ bool ToJSON(const FileRefactorRespParams &item, nlohmann::json &reply)
     }
     return true;
 }
+
+bool ToJSON(const WorkDoneProgressCreateParams &params, nlohmann::json &reply)
+{
+    reply["token"] = params.token;
+    return true;
+}
+
+bool ToJSON(const WorkDoneProgressParams &params, nlohmann::json &reply)
+{
+    reply["token"] = params.token;
+
+    if (params.workDoneProgressBegin.has_value()) {
+        const auto &begin = params.workDoneProgressBegin.value();
+        reply["value"]["kind"] = "begin";
+        reply["value"]["title"] = begin.title;
+
+        if (begin.message.has_value()) {
+            reply["value"]["message"] = begin.message.value();
+        }
+
+        if (begin.percentage.has_value()) {
+            reply["value"]["percentage"] = begin.percentage.value();
+        }
+
+        if (begin.cancellable.has_value()) {
+            reply["value"]["cancellable"] = begin.cancellable.value();
+        }
+    } else if (params.workDoneProgressReport.has_value()) {
+        const auto &report = params.workDoneProgressReport.value();
+        reply["value"]["kind"] = "report";
+
+        if (report.message.has_value()) {
+            reply["value"]["message"] = report.message.value();
+        }
+
+        if (report.percentage.has_value()) {
+            reply["value"]["percentage"] = report.percentage.value();
+        }
+
+        if (report.cancellable.has_value()) {
+            reply["value"]["cancellable"] = report.cancellable.value();
+        }
+    } else if (params.workDoneProgressEnd.has_value()) {
+        const auto &end = params.workDoneProgressEnd.value();
+        reply["value"]["kind"] = "end";
+
+        if (end.message.has_value()) {
+            reply["value"]["message"] = end.message.value();
+        }
+    }
+
+    return true;
+}
 } // namespace ark

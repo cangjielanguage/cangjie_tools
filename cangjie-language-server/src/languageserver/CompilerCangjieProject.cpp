@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "CompilerCangjieProject.h"
+#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
@@ -1562,7 +1563,35 @@ void CompilerCangjieProject::FullCompilation()
         }
     }
 #endif
+    auto token = callback->CreateProgressToken();
+    callback->SendWorkDoneProgressCreate({token});
 
+    std::atomic_int workDoneCnt = 0;
+    auto totalWorkCnt = sortResult.size();
+    auto progressMsg = [totalWorkCnt, &workDoneCnt]() {
+        std::stringstream ss;
+        ss << workDoneCnt << "/" << totalWorkCnt << " packages indexed";
+        return ss.str();
+    };
+    auto progressPct = [totalWorkCnt, &workDoneCnt]() {
+        return (double)workDoneCnt / totalWorkCnt * 100;
+    };
+    auto sendReport = [this, token, &workDoneCnt, &progressMsg, &progressPct]() {
+        workDoneCnt++;
+                WorkDoneProgressReport report = {
+                    .cancellable = false,
+                    .message = progressMsg(),
+                    .percentage = progressPct()
+                };
+                callback->SendWorkDoneProgressReport(token, report);
+    };
+    WorkDoneProgressBegin begin = {
+        .title = "Cangjie indexing...",
+        .cancellable = false,
+        .message = progressMsg(),
+        .percentage = 0
+    };
+    callback->SendWorkDoneProgressBegin(token, begin);
     // submit all package to taskpool, fresh all packagea status
     for (auto& fullPkg: sortResult) {
         auto taskId = GenTaskId(fullPkg);
@@ -1571,9 +1600,10 @@ void CompilerCangjieProject::FullCompilation()
         for (auto &iter: allDependencies) {
             dependencies.emplace(GenTaskId(iter));
         }
-        auto task = [this, fullPkg, taskId]() {
+        auto task = [this, fullPkg, taskId, token, &workDoneCnt, &sendReport]() {
             Trace::Log("start execute task ", fullPkg);
             if (CIMap.find(fullPkg) == CIMap.end()) {
+                sendReport();
                 thrdPool->TaskCompleted(taskId);
                 Trace::Log("package empty, finish execute task ", fullPkg);
                 return;
@@ -1581,6 +1611,7 @@ void CompilerCangjieProject::FullCompilation()
 
             if (cjoManager->GetStatus(fullPkg) !=  DataStatus::STALE) {
                 cjoManager->UpdateStatus({fullPkg}, DataStatus::FRESH);
+                sendReport();
                 thrdPool->TaskCompleted(taskId);
                 Trace::Log("finsh execuate task", fullPkg);
                 return;
@@ -1595,6 +1626,7 @@ void CompilerCangjieProject::FullCompilation()
                 auto cjoData = cjoManager->GetData(upstreamSourcePkg);
                 if (!cjoData) {
                     Trace::Log("can not find upstream source-set cache, failed execuate task", fullPkg);
+                    sendReport();
                     thrdPool->TaskCompleted(taskId);
                     return;
                 }
@@ -1621,12 +1653,15 @@ void CompilerCangjieProject::FullCompilation()
             }
             BuildIndex(CIMap[fullPkg], true);
             pLRUCache->SetForFullCompiler(fullPkg, CIMap[fullPkg]);
+            sendReport();
             thrdPool->TaskCompleted(taskId);
             Trace::Log("finish execute task ", fullPkg);
         };
         thrdPool->AddTask(taskId, dependencies, task);
     }
     thrdPool->WaitUntilAllTasksComplete();
+    WorkDoneProgressEnd end = {.message = "all packages indexed"};
+    callback->SendWorkDoneProgressEnd(token, end);
     Trace::Log("All tasks are completed in full compilation");
 }
 // LCOV_EXCL_START
