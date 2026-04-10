@@ -137,6 +137,10 @@ int main(int argc, const char *argv[], const char *envp[])
     std::regex pathRegex("/runtime/lib/");
     std::vector<std::string> vectorString(std::sregex_token_iterator(path.begin(), path.end(), pathRegex, -1),
                                           std::sregex_token_iterator());
+    if (vectorString.empty()) {
+        (void)fprintf(stderr, "error: failed to parse runtime path.\n");
+        return 1;
+    }
     path = vectorString[0];
     auto startPos = path.find_last_of(splitStr);
     if (startPos != std::string::npos) {
@@ -195,7 +199,7 @@ int main(int argc, const char *argv[], const char *envp[])
         std::thread timer([]()-> void {
             const int64_t deadTime = 10;
             std::this_thread::sleep_for(std::chrono::seconds(deadTime));
-            std::exit(0);
+            std::_Exit(0);
         });
         timer.detach();
         // LCOV_EXCL_STOP
