@@ -981,8 +981,6 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete
         newCI->bufferCache[filePath] = contents;
     }
     newCI->CompilePassForComplete(cjoManager, graph, pos);
-    newCI->CompileAfterParse(cjoManager, graph);
-
     return newCI;
 }
 

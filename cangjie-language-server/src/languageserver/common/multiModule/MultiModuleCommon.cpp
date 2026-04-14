@@ -118,7 +118,7 @@ void GetMacroLibPath(const std::string &targetLib,
         }
     }
 } // namespace ark
- 
+
 std::string GetCjcPath(const std::string &oldPath)
 {
     std::string path = ark::PathWindowsToLinux(Normalize(oldPath));
