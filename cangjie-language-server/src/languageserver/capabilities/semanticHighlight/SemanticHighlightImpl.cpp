@@ -535,7 +535,7 @@ void SemanticHighlightImpl::FindHighlightsTokens(const ArkAST &ast, std::vector<
             continue;
         }
         Ptr<Node> node = symbol->node;
-        if (node->curMacroCall) {
+        if (node->curMacroCall && !node->isInMacroCall) {
             if (symbol->astKind != ASTKind::REF_EXPR && symbol->astKind != ASTKind::MEMBER_ACCESS &&
                 symbol->astKind != ASTKind::CALL_EXPR) {
                 continue;

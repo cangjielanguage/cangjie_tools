@@ -145,7 +145,7 @@ bool PrepareRename::IsNotFromLibInherit(Ptr<Decl> decl)
 
 bool PrepareRename::IsFromMacroCallFile(Ptr<Decl> decl)
 {
-    if (!decl || !decl->curMacroCall) {
+    if (!decl || !(decl->curMacroCall && !decl->isInMacroCall)) {
         return false;
     }
     if (decl->TestAttr(Cangjie::AST::Attribute::COMPILER_ADD)) {
