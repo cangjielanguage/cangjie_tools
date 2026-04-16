@@ -41,13 +41,14 @@ std::string FileStore::NormalizePath(const std::string &path)
     }
     char absPathBuff[PATH_MAX] = {0};
 #ifdef _WIN32
-    char* result = _fullpath(absPathBuff, path.c_str(), PATH_MAX);
-#else
-    char* result = realpath(path.c_str(), absPathBuff);
-#endif
-    if (result == nullptr) {
+    if (_fullpath(absPathBuff, path.c_str(), PATH_MAX) == nullptr) {
         return path;
     }
+#else
+    if (realpath(path.c_str(), absPathBuff) == nullptr) {
+        return path;
+    }
+#endif
 
 #ifdef _WIN32
     absPathBuff[0] = tolower(absPathBuff[0]);
