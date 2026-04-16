@@ -188,7 +188,7 @@ void GetDocumentSymbolName(std::string &identifierName, std::string &name, Ptr<D
 DocumentSymbol GetDocumentSymbolByDecl(const ArkAST &ast, Ptr<Decl> decl)
 {
     DocumentSymbol result;
-    if (decl == nullptr || InValidDecl(decl) || decl->curMacroCall) {
+    if (decl == nullptr || InValidDecl(decl) || (decl->curMacroCall && !decl->isInMacroCall)) {
         return result;
     }
     // real decl name
@@ -221,7 +221,7 @@ DocumentSymbol GetDocumentSymbolByEnumDecl(const ArkAST &ast, Ptr<Decl> decl)
 {
     DocumentSymbol result;
     auto *enumDecl = dynamic_cast<EnumDecl*>(decl.get());
-    if (enumDecl == nullptr || enumDecl->curMacroCall) {
+    if (enumDecl == nullptr || (decl->curMacroCall && !decl->isInMacroCall)) {
         return result;
     }
     result = GetDocumentSymbolByDecl(ast, enumDecl);
@@ -257,7 +257,7 @@ void DocumentSymbolImpl::FindDocumentSymbols(const ArkAST &ast, std::vector<Docu
                 aimDecl = macroExpandDecl->invocation.decl.get();
                 astKind = aimDecl->astKind;
             }
-        } else if (toplevelDecl->curMacroCall) {
+        } else if (toplevelDecl->curMacroCall && !toplevelDecl->isInMacroCall) {
             auto *macroExpandDecl = dynamic_cast<MacroExpandDecl *>(toplevelDecl->curMacroCall.get());
             if (macroExpandDecl && macroExpandDecl->invocation.decl) {
                 aimDecl = macroExpandDecl->invocation.decl.get();
