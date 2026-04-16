@@ -11,9 +11,9 @@ import cjpm.config.*
 
 func supportLto(): Bool {
     if (crossCompileTarget.isEmpty()) {
-        return targetConfigName.contains("linux") && !targetConfigName.contains("android")
+        return targetConfigName.contains("linux")
     }
-    return crossCompileTarget.contains("linux") && !crossCompileTarget.contains("android")
+    return crossCompileTarget.contains("linux")
 }
 
 func isSupportCombine(): Bool {
@@ -25,5 +25,5 @@ func isSupportCombine(): Bool {
     let isTargetLinux = compileTarget.contains("linux")
     let isTargetAndroid = compileTarget.contains("android")
     let isTargetWindows = compileTarget.contains("windows") || compileTarget.contains("w64")
-    return ((isTargetLinux && !isTargetAndroid) || isTargetWindows)
+    return (isTargetLinux || isTargetWindows)
 }
