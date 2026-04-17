@@ -1276,7 +1276,7 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
 
     PublishDiagnosticsParams notification;
     if (WhetherSupportVersionInDiag()) {
-        notification.version.value() = version;
+        notification.version = version;
     }
     notification.uri.file = URI::URIFromAbsolutePath(file).ToString();
     ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(file);
