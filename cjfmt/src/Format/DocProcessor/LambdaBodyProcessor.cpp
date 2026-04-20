@@ -22,19 +22,12 @@ bool hasLineType(Doc& doc)
     }
     return false;
 }
-
-void IncreaseIndent(Doc& doc)
-{
-    for (auto& member : doc.members) {
-        member.indent++;
-        IncreaseIndent(member);
-    }
-}
 } // namespace
 
 void LambdaBodyProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    (void)leftCmd;
     if (current.first.members.size() == 1) {
         auto hasLine = hasLineType(current.first);
         auto rem = options.lineLength - pos;

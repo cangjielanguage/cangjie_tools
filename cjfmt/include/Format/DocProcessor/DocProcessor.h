@@ -19,7 +19,7 @@ class ASTToFormatSource;
 class DocProcessor {
 public:
     explicit DocProcessor(ASTToFormatSource& astToFormatSource, FormattingOptions& options)
-        : astToFormatSource(astToFormatSource), options(options){};
+        : options(options), astToFormatSource(astToFormatSource){};
     virtual ~DocProcessor() = default;
     virtual void DocToString(std::string& formatted, int& pos, std::pair<Doc, Mode>& current,
         std::vector<std::pair<Doc, Mode>>& leftCmd) = 0;
