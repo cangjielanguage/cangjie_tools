@@ -10,6 +10,7 @@ using namespace Cangjie::Format;
 void LineDotProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    (void)leftCmd;
     formatted += options.newLine;
     formatted += std::string(current.first.indent * options.indentWidth, ' ');
     pos = current.first.indent * options.indentWidth;

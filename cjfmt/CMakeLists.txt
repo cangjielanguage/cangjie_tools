@@ -85,6 +85,14 @@ if (NOT CMAKE_BUILD_TYPE MATCHES Debug)
 endif ()
 
 add_compile_options(${CXX_SYSTEM_INCLUDE_CONFIGURATION_FLAG})
+if (NOT MSVC)
+    add_compile_options(
+            $<$<CONFIG:Release>:-fno-common>
+            $<$<CONFIG:Release>:-Wall>
+            $<$<CONFIG:Release>:-Wextra>
+            $<$<CONFIG:Release>:-Wfloat-equal>
+    )
+endif ()
 add_compile_definitions(CJFMT_VERSION="${CJFMT_VERSION_STR}")
 add_compile_definitions(CANGJIE_CODEGEN_CJNATIVE_BACKEND)
 
