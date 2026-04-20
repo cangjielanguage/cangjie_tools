@@ -13,6 +13,7 @@ using namespace Cangjie::AST;
 
 void LambdaExprFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int level, FuncOptions& funcOptions)
 {
+    (void)funcOptions;
     auto lambdaExpr = As<ASTKind::LAMBDA_EXPR>(node);
     AddLambdaExpr(doc, *lambdaExpr, level);
 }

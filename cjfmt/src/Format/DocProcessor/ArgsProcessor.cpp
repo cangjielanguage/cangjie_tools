@@ -63,6 +63,7 @@ void ArgsProcessor::SoftLineWithSpaceProcessor(
 void ArgsProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    (void)leftCmd;
     bool haveNotChangedLine = true;
     for (size_t i = 0; i < current.first.members.size(); ++i) {
         if (current.first.members[i].type == DocType::SOFTLINE) {
