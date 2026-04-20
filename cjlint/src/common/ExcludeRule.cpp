@@ -72,12 +72,12 @@ ExcludeRule::ExcludeRule(std::string srcFileDir, std::string exclude)
     this->excludeRegex = reg;
 }
 
-const ExcludeRule::ExcludeRuleType ExcludeRule::GetRuleType() const
+ExcludeRule::ExcludeRuleType ExcludeRule::GetRuleType() const
 {
     return this->ruleType;
 }
 
-const ExcludeRule::ExcludeRuleTarget ExcludeRule::GetRuleTarget() const
+ExcludeRule::ExcludeRuleTarget ExcludeRule::GetRuleTarget() const
 {
     return this->ruleTarget;
 }
