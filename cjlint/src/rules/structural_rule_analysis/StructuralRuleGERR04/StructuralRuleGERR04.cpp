@@ -12,7 +12,7 @@ using namespace Cangjie;
 using namespace Cangjie::AST;
 using namespace Meta;
 
-void StructuralRuleGERR04::CheckNode(Ptr<Cangjie::AST::Node> node, bool inChildScope)
+void StructuralRuleGERR04::CheckNode(Ptr<Cangjie::AST::Node> node, bool)
 {
     if (!node) {
         return;
@@ -36,12 +36,12 @@ void StructuralRuleGERR04::CheckNode(Ptr<Cangjie::AST::Node> node, bool inChildS
                 Diagnose(throwExpr.begin, throwExpr.end, CodeCheckDiagKind::G_ERR_04_avoid_throw_finally);
                 return VisitAction::SKIP_CHILDREN;
             },
-            [this](const WhileExpr&) { return VisitAction::SKIP_CHILDREN; },
-            [this](const ForInExpr&) { return VisitAction::SKIP_CHILDREN; },
-            [this](const DoWhileExpr&) { return VisitAction::SKIP_CHILDREN; },
-            [this](const FuncDecl&) { return VisitAction::SKIP_CHILDREN; },
-            [this](const LambdaExpr&) { return VisitAction::SKIP_CHILDREN; },
-            [this](const TryExpr&) { return VisitAction::SKIP_CHILDREN; }, []() { return VisitAction::WALK_CHILDREN; });
+            [](const WhileExpr&) { return VisitAction::SKIP_CHILDREN; },
+            [](const ForInExpr&) { return VisitAction::SKIP_CHILDREN; },
+            [](const DoWhileExpr&) { return VisitAction::SKIP_CHILDREN; },
+            [](const FuncDecl&) { return VisitAction::SKIP_CHILDREN; },
+            [](const LambdaExpr&) { return VisitAction::SKIP_CHILDREN; },
+            [](const TryExpr&) { return VisitAction::SKIP_CHILDREN; }, []() { return VisitAction::WALK_CHILDREN; });
     };
     Walker walker(node, preVisit);
     walker.Walk();

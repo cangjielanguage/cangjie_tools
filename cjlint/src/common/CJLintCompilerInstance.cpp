@@ -21,8 +21,8 @@ using namespace AST;
 namespace {
 constexpr int PROCESS_LAUNCH_FAILED = -1;
 constexpr int NO_PIPELINE_ERROR = 0;
-constexpr int CMD_ESCAPE_FACTOR = 2;
-constexpr int ESCAPE_QUOTE_EXTRA = 1;
+[[maybe_unused]] constexpr int CMD_ESCAPE_FACTOR = 2;
+[[maybe_unused]] constexpr int ESCAPE_QUOTE_EXTRA = 1;
 #ifndef _WIN32
 constexpr int CHILD_EXEC_FAILED_EXIT_CODE = 127;
 #endif

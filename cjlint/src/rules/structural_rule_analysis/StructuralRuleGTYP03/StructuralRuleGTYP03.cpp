@@ -51,7 +51,7 @@ void StructuralRuleGTYP03::FloatBinaryFinder(Ptr<Cangjie::AST::Node> node)
                 CheckBinaryExpr(binaryExpr);
                 return VisitAction::WALK_CHILDREN;
             },
-            [this]() { return VisitAction::WALK_CHILDREN; });
+            []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
 }

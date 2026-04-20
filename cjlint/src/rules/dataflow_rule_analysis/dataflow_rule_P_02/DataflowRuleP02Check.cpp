@@ -61,7 +61,6 @@ void DataflowRuleP02Check::AddElementToSet(const CHIR::Value *value)
         varInChainStoreInSpawn.insert(memberInChain);
     }
     if (expr->GetExprKind() == CHIR::ExprKind::FIELD) {
-        auto field = StaticCast<CHIR::Field*>(expr);
         auto memberInChain = GetMemberVarInChain(expr);
         varInChainStoreInSpawn.insert(memberInChain);
     }
@@ -120,7 +119,6 @@ void DataflowRuleP02Check::AddElementToMap(
             AddElementToMapWithMutexHelper<MemberVarInChain>(varInChainWithDiffLock, memberInChain, mutex, pos);
         }
         if (expr->GetExprKind() == CHIR::ExprKind::FIELD) {
-            auto field = StaticCast<CHIR::Field *>(expr);
             auto memberInChain = GetMemberVarInChain(expr);
             AddElementToMapWithMutexHelper<MemberVarInChain>(varInChainWithDiffLock, memberInChain, mutex, pos);
         }
@@ -143,7 +141,6 @@ void DataflowRuleP02Check::AddElementToMap(
             AddElementToMapWithoutMutexHelper<MemberVarInChain>(varInChainWithoutLock, memberInChain, pos);
         }
         if (expr->GetExprKind() == CHIR::ExprKind::FIELD) {
-            auto field = StaticCast<CHIR::Field *>(expr);
             auto memberInChain = GetMemberVarInChain(expr);
             AddElementToMapWithoutMutexHelper<MemberVarInChain>(varInChainWithoutLock, memberInChain, pos);
         }
@@ -157,24 +154,6 @@ static CHIR::Value *GetClosureMutex(const CHIR::Invoke *invoke)
         return localVar;
     }
     return localVar->GetExpr()->GetOperand(0);
-}
-
-static CHIR::Type *GetBaseTy(CHIR::Type *ty)
-{
-    return ty->IsRef() ? GetBaseTy(StaticCast<CHIR::RefType *>(ty)->GetBaseType()) : ty;
-}
-
-static bool IsClosureBase(const CHIR::Value *base)
-{
-    auto baseTy = GetBaseTy(base->GetType());
-    if (baseTy->GetTypeKind() == Type::TypeKind::TYPE_CLASS) {
-        auto classType = StaticCast<CHIR::ClassType *>(baseTy);
-        auto parentDef = classType->GetClassDef();
-        if (parentDef->GetIdentifier().find("$Auto_Env") != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
 }
 
 static CHIR::Type *GetPathInChain(const CHIR::Type *ty, size_t index, std::string &str)
@@ -210,18 +189,6 @@ static std::string GetPathStr(const CHIR::Value *base, const std::vector<uint64_
         baseTy = GetPathInChain(baseTy, i, pathStr);
     }
     return pathStr;
-}
-
-static std::string GetVarName(CHIR::Value *value)
-{
-    if (value->IsLocalVar()) {
-        auto localVar = StaticCast<CHIR::LocalVar *>(value);
-        auto debugInfo = localVar->GetDebugExpr();
-        if (debugInfo) {
-            return debugInfo->GetSrcCodeIdentifier();
-        }
-    }
-    return value->GetSrcCodeIdentifier();
 }
 
 template <typename T>
