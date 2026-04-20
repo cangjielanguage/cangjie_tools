@@ -1,0 +1,1 @@
+{"id":245,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_interface.cj\r\nPackage info: testUnusedSymbol\r\n\r\nprivate interface UnusedPrivateInterface\r\n"},"range":{"end":{"character":40,"line":9},"start":{"character":18,"line":9}}}}

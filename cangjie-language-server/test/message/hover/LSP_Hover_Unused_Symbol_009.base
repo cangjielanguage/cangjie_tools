@@ -1,0 +1,1 @@
+{"id":274,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_class.cj\r\nPackage info: testUnusedSymbol\r\n\r\nprivate class UnusedPrivateClass\r\n"},"range":{"end":{"character":32,"line":9},"start":{"character":14,"line":9}}}}

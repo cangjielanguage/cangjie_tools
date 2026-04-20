@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 #include "CjoManager.h"
+#include "capabilities/diagnostic/UnusedSymbolDiag.h"
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "cangjie/Option/Option.h"
 #include "cangjie/Utils/FileUtil.h"
@@ -369,8 +370,6 @@ void CompilerCangjieProject::PostCompileProcess(const std::string &fullPkgName, 
     }
     if (isDelete) {
         callback->RemoveDocByFile(filePath);
-    } else {
-        EmitDiagsOfFile(filePath);
     }
 
     // 4. build symbol index
@@ -378,6 +377,11 @@ void CompilerCangjieProject::PostCompileProcess(const std::string &fullPkgName, 
         CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({filePath});
     }
     BuildIndex(ci);
+
+    // 5. emit diagnostics after index build (includes unused symbol diagnostics)
+    if (!isDelete) {
+        EmitDiagsOfFile(filePath);
+    }
 }
 
 void CompilerCangjieProject::RemoveOldRealPkgMapping(const std::string &oldRealPkgName, const std::string &fullPkgName)
@@ -2409,6 +2413,9 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
         indexLock.unlock();
     }
 
+    // Analyze unused symbols and produce diagnostics
+    AnalyzeUnusedSymbols(sc, *packages[0], pkgPath);
+
 #ifndef TEST_FLAG
     // Store the indexs and astdata
     if (isFullCompilation) {
@@ -2809,5 +2816,47 @@ std::string CompilerCangjieProject::GetRealPackageName(const std::string& fullPa
         return fullPackageName;
     }
     return fullPackageName.substr(dashPos + 1);
+}
+
+void CompilerCangjieProject::AnalyzeUnusedSymbols(const lsp::SymbolCollector& sc,
+    const Package& package, const std::string& pkgPath)
+{
+    const auto* symbols = sc.GetSymbolMap();
+    const auto* refs = sc.GetReferenceMap();
+    const auto* relations = sc.GetRelations();
+    if (!symbols || !refs || !relations) {
+        return;
+    }
+
+    // Analyze global/member symbols from index for each file in the package
+    for (auto& file : package.files) {
+        if (!file) {
+            continue;
+        }
+        auto filePath = file->filePath;
+        if (!pkgPath.empty() && !IsUnderPath(pkgPath, filePath)) {
+            continue;
+        }
+        if (GetFileExtension(filePath) != "cj") {
+            continue;
+        }
+        LowFileName(filePath);
+
+        // Index-level analysis: unused global/member symbols
+        auto unusedDiags = UnusedSymbolDiag::Analyze(
+            *symbols, *refs, *relations, filePath, &package);
+
+        // AST-level analysis: unused local variables and non-named function params
+        auto localDiags = UnusedSymbolDiag::AnalyzeLocalSymbols(
+            *file, *const_cast<Package*>(&package));
+
+        // Publish all unused symbol diagnostics
+        for (auto& diag : unusedDiags) {
+            callback->UpdateDiagnostic(filePath, diag);
+        }
+        for (auto& diag : localDiags) {
+            callback->UpdateDiagnostic(filePath, diag);
+        }
+    }
 }
 } // namespace ark
