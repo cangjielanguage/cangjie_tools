@@ -174,6 +174,7 @@ public struct CompileTask {
         // A value of `--lto` flag to be passed to a compiler
         public let isLto!: Bool = false,
         public let ltoValue!: String = "",
+        public let keepPkgVisibility!: Option<Array<String>> = None,
         // Locations of `*.chir` and `*.cjo` of each source set, the current one depends on
         // 0 - CHIR file with declarations to be merged for multiplatform build
         // 1 - The value of `--common-part-cjo` for multiplatform build
@@ -230,6 +231,7 @@ public struct CompileTask {
         isMacro!: ?Bool = None,
         isLto!: ?Bool = None,
         ltoValue!: ?String = None,
+        keepPkgVisibility!: ?Option<Array<String>> = None,
         prevStageArtifacts!: ?Array<(String, String)> = None,
         isMultiplatform!: ?Bool = None,
         supressed!: ?ArrayList<String> = None,
@@ -274,6 +276,7 @@ public struct CompileTask {
             isMacro: isMacro ?? this.isMacro,
             isLto: isLto ?? this.isLto,
             ltoValue: ltoValue ?? this.ltoValue,
+            keepPkgVisibility: keepPkgVisibility ?? this.keepPkgVisibility,
             prevStageArtifacts: prevStageArtifacts ?? this.prevStageArtifacts,
             isMultiplatform: isMultiplatform ?? this.isMultiplatform,
             supressed: supressed ?? this.supressed,
@@ -1239,8 +1242,9 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 OutputType.Static
             } else { r.outputType }
 
-            let isLto = buildConfig.isLto && (outputType == Static || outputType == Exe)
+            let isLto = buildConfig.isLto
             let ltoValue = if (isLto) { buildConfig.ltoValue } else { "" }
+            let keepPkgVisibility = buildConfig.keepPkgVisibility
 
             let isSplittable = !isMultiplatform &&
                 !isLto &&
@@ -1361,6 +1365,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 isMacro: isMacro,
                 isLto: isLto,
                 ltoValue: ltoValue,
+                keepPkgVisibility: keepPkgVisibility,
                 prevStageArtifacts: prevStageArtifacts,
                 isMultiplatform: isMultiplatform,
                 supressed: supressed,
