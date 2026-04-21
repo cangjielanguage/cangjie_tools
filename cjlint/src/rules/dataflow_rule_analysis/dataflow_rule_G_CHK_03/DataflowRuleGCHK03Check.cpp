@@ -180,7 +180,7 @@ void CHK03VerifyAnalysis::PropagateExpressionEffect(CHK03VerifyDomain& state, co
 }
 
 std::optional<Block*> CHK03VerifyAnalysis::PropagateTerminatorEffect(
-    CHK03VerifyDomain& state, const Terminator* terminator)
+    CHK03VerifyDomain&, const Terminator*)
 {
     return std::nullopt;
 }
@@ -254,7 +254,7 @@ void CHK03CanonicalizeAnalysis::PropagateExpressionEffect(CHK03CanonicalizeDomai
 }
 
 std::optional<Block*> CHK03CanonicalizeAnalysis::PropagateTerminatorEffect(
-    CHK03CanonicalizeDomain& state, const Terminator* terminator)
+    CHK03CanonicalizeDomain&, const Terminator*)
 {
     return std::nullopt;
 }

@@ -7,15 +7,6 @@
 #include "StructuralRuleGNAM01.h"
 
 namespace {
-std::string RemoveBackticks(const std::string& name)
-{
-    const size_t lenOfBackticks = 2;
-    if (name.size() > lenOfBackticks && name.front() == '`' && name.back() == '`') {
-        return name.substr(1, name.size() - lenOfBackticks);
-    }
-    return name;
-}
-
 std::string GetFullPackageName(const Cangjie::AST::PackageSpec& pkg)
 {
     if (pkg.prefixPaths.empty()) {
