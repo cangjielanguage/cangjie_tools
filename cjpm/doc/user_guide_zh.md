@@ -1539,17 +1539,28 @@ hello = { path = "./src/" }
 
 ```text
 [profile.build]
-lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，该功能仅支持目标平台为`Linux/OHOS` 平台
+lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，该功能仅支持目标平台为 `Linux/OHOS/Android` 平台, 效果同 `[profile.build.lto]` 的 `level` 配置项。后续该字符串类型配置项将被废除，请使用配置项 `[profile.build.lto]` 的 `level` 配置项开启LTO功能
 performance_analysis = true # 开启编译性能分析功能
 incremental = true # 是否默认开启增量编译
 compile-pipeline-parallel = true # 是否开启流水并行编译优化
+
+[profile.build.lto]
+level = "full" # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，该功能仅支持目标平台为 `Linux/OHOS/Android` 平台
+keep-pkg-visibility = ["pkgA", "pkgB", ...] # 用于在LTO场景控制包中的符号可见性是否隐藏
+
 [profile.build.combined]
 demo = "dynamic" # 将模块整体编译成一个动态库文件，key 值为模块名
 ```
 
 编译流程的控制项，所有字段均可缺省，不配置时不生效，顶层模块设置的 `profile.build` 项才会生效。
 
-`lto` 配置项的取值为 `full` 或 `thin`，对应 `LTO` 优化支持的两种编译模式：`full LTO` 将所有编译模块合并到一起，在全局上进行优化，这种方式可以获得最大的优化潜力，同时也需要更长的编译时间；`thin LTO` 在多模块上使用并行优化，同时默认支持链接时增量编译，编译时间比 `full LTO` 短，但是因为失去了更多的全局信息，所以优化效果不如 `full LTO`。
+`lto` / `level` 配置项的取值为 `full` 或 `thin`，对应 `LTO` 优化支持的两种编译模式：`full LTO` 将所有编译模块合并到一起，在全局上进行优化，这种方式可以获得最大的优化潜力，同时也需要更长的编译时间；`thin LTO` 在多模块上使用并行优化，同时默认支持链接时增量编译，编译时间比 `full LTO` 短，但是因为失去了更多的全局信息，所以优化效果不如 `full LTO`。
+
+`keep-pkg-visibility` 配置项为字符串数组结构，仅在 `LTO` 开启后合法，否则会发出报错。`LTO` 开启后，`keep-pkg-visibility` 有三种配置情况：
+
+1. `keep-pkg-visibility` 未配置，则所有包中符号可见性保持不变
+2. `keep-pkg-visibility` 配置为空数组，则所有包中符号可见性设为隐藏
+3. `keep-pkg-visibility` 配置为非空数组，则配置的包中符号可见性保持不变
 
 `performance_analysis` 配置项的取值为 `true` 或 `false`，代表是否开启编译性能分析功能。当开启此功能时，`cjpm` 会在编译产物目录下的 `performance_analysis` 目录中生成 `.prof` 和 `.json` 文件，这些文件记录了编译过程中的时间和内存消耗。例如，编译产物目录默认为 `target` 目录，且编译模式为 `debug`，则产物目录结构如下：
 
@@ -1676,7 +1687,7 @@ PATH = { value = "/usr/bin", splice-type = "prepend" }
 用于指定支持的编译选项，其列表如下:
 
 - `compile-option` 是一个包含附加 `cjc` 编译选项的字符串。为顶级 `compile-option` 字段做补充
-- `lto` 指定是否开启 `LTO` 优化编译模式，该值可为 `thin` 或 `full` ，该功能仅支持目标平台为`Linux/OHOS` 平台
+- `lto` 指定是否开启 `LTO` 优化编译模式，该值可为 `thin` 或 `full` ，该功能仅支持目标平台为 `Linux/OHOS/Android` 平台
 - `mock` 显式设置 `mock` 模式，可能的选项：`on`、`off`、`runtime-error` 。对 `test` / `build` 子命令默认值为 `on`，对于 `bench` 子命令默认值为 `runtime-error`
 
 #### "profile.test.env"
