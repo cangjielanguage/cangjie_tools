@@ -248,7 +248,7 @@ bool DataflowRuleGSER03Checker::CollectSerTypeInStore(
 }
 
 bool DataflowRuleGSER03Checker::CollectSerTypeInInitApply(const CHIR::Apply* apply, CHIR::ImportedValue* imported,
-    std::vector<TypeWithPosition>& serTypes, SerialiseMap& fieldSerMap)
+    std::vector<TypeWithPosition>&, SerialiseMap& fieldSerMap)
 {
     AstFuncInfo funcInfo =
         AstFuncInfo("init", NOT_CARE, {"Field", "String", "DataModel"}, "Void", "stdx.serialization.serialization");
@@ -272,7 +272,7 @@ bool DataflowRuleGSER03Checker::CollectSerTypeInInitApply(const CHIR::Apply* app
 }
 
 bool DataflowRuleGSER03Checker::CollectSerTypeInAddApply(const CHIR::Apply* apply, CHIR::ImportedValue* imported,
-    std::vector<TypeWithPosition>& serTypes, SerialiseMap& fieldSerMap)
+    std::vector<TypeWithPosition>&, SerialiseMap& fieldSerMap)
 {
     auto funcInfo = AstFuncInfo(
         "add", NOT_CARE, {"DataModelStruct", "Field"}, "DataModelStruct", "stdx.serialization.serialization");
@@ -365,7 +365,7 @@ void DataflowRuleGSER03Checker::CheckSerTypeInCallee(
 }
 
 void DataflowRuleGSER03Checker::CheckSerTypeInArgs(const CHIR::Apply* apply,
-    DataflowRuleGSER03Checker::TypeWithPosition& deserTypeStr, std::vector<TypeWithPosition>& serTypes,
+    DataflowRuleGSER03Checker::TypeWithPosition& deserTypeStr, std::vector<TypeWithPosition>&,
     SerialiseMap& serMap, SerialiseMap& fieldSerMap)
 {
     if (apply->GetArgs()[0]->IsLocalVar()) {

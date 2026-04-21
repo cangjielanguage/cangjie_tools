@@ -27,8 +27,8 @@ public:
     };
     ExcludeRule(std::string srcFileDir, std::string exclude);
     ~ExcludeRule() = default;
-    const ExcludeRuleType GetRuleType() const;
-    const ExcludeRuleTarget GetRuleTarget() const;
+    ExcludeRuleType GetRuleType() const;
+    ExcludeRuleTarget GetRuleTarget() const;
     bool IsMatched(const std::string &target);
     bool isValid = true;
 

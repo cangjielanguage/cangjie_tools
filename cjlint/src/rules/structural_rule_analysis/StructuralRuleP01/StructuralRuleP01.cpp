@@ -144,9 +144,9 @@ void StructuralRuleP01::SynchronizedExprHandler(SynchronizedExpr &expr, const st
     PositionPair blockPos = std::make_pair(expr.begin, expr.end);
     std::string curFileName = (expr.curFile != nullptr) ? expr.curFile->fileName : "";
 
-    Walker walker(&expr, [this, &blockSeq](Ptr<Node> node) -> VisitAction {
+    Walker walker(&expr, [&blockSeq](Ptr<Node> node) -> VisitAction {
         return match(*node)(
-            [this, &blockSeq](const SynchronizedExpr& exprInner) {
+            [&blockSeq](const SynchronizedExpr& exprInner) {
                 if (auto refExpr = DynamicCast<RefExpr*>(exprInner.mutex.get().get()); refExpr) {
                     auto targetLine = 0;
                     if (refExpr->ref.target != nullptr) {

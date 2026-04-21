@@ -257,7 +257,7 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
         }
     }
     const auto actionBeforeVisitExpr = [](const CHIR::ConstDomain&, CHIR::Expression*, size_t) {};
-    const auto actionAfterVisitExpr = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr, size_t index) {
+    const auto actionAfterVisitExpr = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr, size_t) {
         if (expr->IsApply()) {
             auto apply = StaticCast<Cangjie::CHIR::Apply*>(expr);
             CheckApplyOrInvoke<CHIR::Apply>(apply, state);

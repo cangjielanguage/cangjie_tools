@@ -31,7 +31,7 @@ void StructuralRuleGENU01::DuplicateNameFinderHelper(Ptr<Node> node)
                 return VisitAction::SKIP_CHILDREN;
             },
             // 其他语句放在这里
-            [this]() { return VisitAction::WALK_CHILDREN; });
+            []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
 }

@@ -245,7 +245,6 @@ template <typename T> void DataflowRuleGCHK01Check::CheckApply(T* apply, std::se
 {
     for (auto taintedFunc : taintSource) {
         if (CommonFunc::FindCHIRFunction(apply->GetCallee(), taintedFunc.first) && apply->GetResult()) {
-            auto loc = CommonFunc::GetCodePosition(apply);
             auto identifier = apply->GetResult()->GetIdentifier();
             taintedVars.insert(identifier);
             auto blockSet = GetDecontaminatBlock(apply->GetResult());

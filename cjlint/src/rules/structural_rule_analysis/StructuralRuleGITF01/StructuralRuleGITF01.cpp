@@ -152,7 +152,7 @@ void StructuralRuleGITF01::FindInterfaceDecl(Ptr<Cangjie::AST::Node> node, TypeM
     walker.Walk();
 }
 
-void StructuralRuleGITF01::MatchPattern(ASTContext& ctx, Ptr<Node> node) {}
+void StructuralRuleGITF01::MatchPattern(ASTContext&, Ptr<Node>) {}
 
 void StructuralRuleGITF01::MatchPattern(Ptr<Node> node, TypeManager* typeManager)
 {
