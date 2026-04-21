@@ -155,11 +155,11 @@ void StructuralRuleGFUN01::CheckFuncHelper(const AST::FuncDecl& funcDecl)
                 CheckControlBlock(doWhileExpr, ASTKind::FUNC_DECL);
                 return VisitAction::SKIP_CHILDREN;
             },
-            [this]() { return VisitAction::WALK_CHILDREN; });
+            []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
 
-    if (funcDecl.end.line - funcDecl.begin.line + 1 <= MAX_LINE_NUM) {
+    if (static_cast<size_t>(funcDecl.end.line - funcDecl.begin.line + 1) <= MAX_LINE_NUM) {
         return;
     }
     std::string content =
@@ -187,7 +187,7 @@ void StructuralRuleGFUN01::CheckLambdaExprHelper(const AST::LambdaExpr& lambdaEx
             }
         }
     }
-    if (lambdaExpr.end.line - lambdaExpr.begin.line + 1 <= MAX_LINE_NUM) {
+    if (static_cast<size_t>(lambdaExpr.end.line - lambdaExpr.begin.line + 1) <= MAX_LINE_NUM) {
         return;
     }
     std::string content =

@@ -57,7 +57,7 @@ void StructuralRuleGNAM04::FindFuncName(Ptr<Node> node)
                 CheckFuncName(funcDecl);
                 return VisitAction::WALK_CHILDREN;
             },
-            [this](const VarDecl&) { return VisitAction::SKIP_CHILDREN; }, []() { return VisitAction::WALK_CHILDREN; });
+            [](const VarDecl&) { return VisitAction::SKIP_CHILDREN; }, []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
 }

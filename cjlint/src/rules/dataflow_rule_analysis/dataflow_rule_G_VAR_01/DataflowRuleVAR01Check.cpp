@@ -54,19 +54,6 @@ static bool IsPropSetter(CHIR::Value* value)
     return false;
 }
 
-static bool IsUsedInApply(Ptr<CHIR::Load> load)
-{
-    auto loadUsers = load->GetResult()->GetUsers();
-    for (auto loadUser : loadUsers) {
-        if (loadUser->GetExprKind() == CHIR::ExprKind::APPLY) {
-            auto apply = StaticCast<CHIR::Apply*>(loadUser);
-            auto callee = apply->GetCallee();
-            return IsPropSetter(callee);
-        }
-    }
-    return false;
-}
-
 static bool IsNestedUsedInStore(Ptr<CHIR::GetElementRef> getElementRef)
 {
     auto users = getElementRef->GetResult()->GetUsers();
@@ -225,7 +212,7 @@ void DataflowRuleVAR01Check::CheckAllTypesInPackage(CHIR::Package& package, Clas
     }
 }
 
-static CHIR::Type* GetBaseTy(CHIR::Type* ty)
+[[maybe_unused]] static CHIR::Type* GetBaseTy(CHIR::Type* ty)
 {
     return ty->IsRef() ? GetBaseTy(StaticCast<CHIR::RefType*>(ty)->GetBaseType()) : ty;
 }

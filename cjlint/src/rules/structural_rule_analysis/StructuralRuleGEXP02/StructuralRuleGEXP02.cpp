@@ -111,7 +111,6 @@ template <typename T> static bool IsWithinFloatPointRange(const std::string& str
 
 static bool IsAccuateFloatPointNum(const std::string& str, const AST::TypeKind& floatKind)
 {
-    size_t pos;
     switch (floatKind) {
         case TypeKind::TYPE_FLOAT16: {
             if (!IsWithinFloatPointRange<float>(str)) {
@@ -121,7 +120,10 @@ static bool IsAccuateFloatPointNum(const std::string& str, const AST::TypeKind& 
             float value;
             iss >> value;
             Float16 fp16Value(value);
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wfloat-equal"
             return (fp16Value.ToFloat() == value) || (std::isnan(value) && std::isnan(fp16Value.ToFloat()));
+            #pragma GCC diagnostic pop
         }
         case TypeKind::TYPE_FLOAT32: {
             return IsWithinFloatPointRange<float>(str);

@@ -89,7 +89,7 @@ void StructuralRuleGCON01::SynchronizedObjectFinder(Ptr<Node> node)
 
                 return VisitAction::WALK_CHILDREN;
             },
-            [this]() { return VisitAction::WALK_CHILDREN; });
+            []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
 }

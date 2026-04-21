@@ -45,7 +45,7 @@ void StructuralRuleGOTH04::FindVarDecl(Ptr<Node> node)
     });
     walker.Walk();
 }
-void StructuralRuleGOTH04::MatchPattern(ASTContext& ctx, Ptr<Node> node)
+void StructuralRuleGOTH04::MatchPattern(ASTContext&, Ptr<Node> node)
 {
     if (CommonFunc::ReadJsonFileToJsonInfo(JSONPATH, ConfigContext::GetInstance(), jsonInfo) == ERR) {
         return;
