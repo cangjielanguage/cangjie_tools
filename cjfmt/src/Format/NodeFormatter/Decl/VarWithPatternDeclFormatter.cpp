@@ -13,6 +13,7 @@ using namespace Cangjie::AST;
 
 void VarWithPatternDeclFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int level, FuncOptions& funcOptions)
 {
+    (void)funcOptions;
     auto varWithPatternDecl = As<ASTKind::VAR_WITH_PATTERN_DECL>(node);
     AddVarWithPatternDecl(doc, *varWithPatternDecl, level);
 }

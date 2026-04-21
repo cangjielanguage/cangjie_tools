@@ -10,6 +10,8 @@ using namespace Cangjie::Format;
 void LambdaProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    (void)formatted;
+    (void)pos;
     for (auto it = current.first.members.rbegin(); it != current.first.members.rend(); ++it) {
         leftCmd.emplace_back(*it, current.second);
     }

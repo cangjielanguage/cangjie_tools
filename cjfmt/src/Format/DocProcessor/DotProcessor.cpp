@@ -11,6 +11,7 @@ using namespace Cangjie::Format;
 void DotProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    (void)leftCmd;
     formatted += current.first.value;
     pos += static_cast<int>(DisplayWidth(current.first.value));
 }

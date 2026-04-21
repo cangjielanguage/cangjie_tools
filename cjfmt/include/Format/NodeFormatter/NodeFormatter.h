@@ -17,7 +17,7 @@ class ASTToFormatSource;
 class NodeFormatter {
 public:
     explicit NodeFormatter(ASTToFormatSource& astToFormatSource, FormattingOptions& options)
-        : astToFormatSource(astToFormatSource), options(options){};
+        : options(options), astToFormatSource(astToFormatSource){};
     virtual ~NodeFormatter() = default;
     virtual void ASTToDoc(
         Doc& doc, Ptr<Cangjie::AST::Node> node, int level, FuncOptions& funcOptions) = 0;
