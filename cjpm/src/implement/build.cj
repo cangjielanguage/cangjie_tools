@@ -269,7 +269,7 @@ func handleCombineAllDeps(buildConfig: BuildConfig, tomlInfo: TomlInfo): Bool {
 
     if (tomlInfo.profile.build.ltoValue.isEmpty() && tomlInfo.profile.build.lto.level.isEmpty() &&
         tomlInfo.profile.build.lto.keepPkgVisibility.isSome()) {
-        eprintln("Error: lto-visible-pkgs is not supported when lto is disabled")
+        eprintln("Error: field 'keep-pkg-visibility' of '[profile.build.lto]' is not supported when lto is disabled")
         return false
     }
 
