@@ -74,7 +74,7 @@ table Symbol {
   cur_module:string;
   cur_macro_call:Location;
   completion_items:[CompletionItem];
-  comments:CommentGroups;  
+  comments:CommentGroups;
   syscap:string;
   pkg_modifier:uint8;
 }
@@ -95,6 +95,7 @@ table Sym2Ref {
 table Extend {
   id:uint64;
   modifier:uint8;
+  is_static:bool;
   interface:string;
 }
 

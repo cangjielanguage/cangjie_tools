@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <vector>
+#include "CompletionEnv.h"
 #include "DotCompleterByParse.h"
 #include "KeywordCompleter.h"
 #include "NormalCompleterByParse.h"
@@ -333,21 +334,8 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
         return;
     }
     auto pkgName = input.file->curPackage->fullPackageName;
-    // get import's pos
-    int lastImportLine = 0;
-    for (const auto &import : input.file->imports) {
-        if (!import) {
-            continue;
-        }
-        lastImportLine = std::max(import->content.rightCurlPos.line, std::max(import->importPos.line, lastImportLine));
-    }
-    Position pkgPos = input.file->package->packagePos;
-    if (lastImportLine == 0 && pkgPos.line > 0) {
-        lastImportLine = pkgPos.line;
-    }
-    Position textEditStart = {input.fileID, lastImportLine, 0};
-    Range textEditRange{textEditStart, textEditStart};
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    auto textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
     SyscapCheck syscap(curModule);
     // LCOV_EXCL_START
     index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),

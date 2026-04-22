@@ -7,8 +7,10 @@
 #include "DotCompleterByParse.h"
 #include <unordered_set>
 #include <vector>
+#include "CompletionEnv.h"
 #include "cangjie/AST/Node.h"
 #include "cangjie/Utils/CastingTemplate.h"
+#include "../../index/SymbolCollector.h"
 
 using namespace Cangjie;
 using namespace Cangjie::AST;
@@ -1012,56 +1014,94 @@ void DotCompleterByParse::InitMap() const
     DotMatcher::GetInstance().RegFunc(ASTKind::IF_AVAILABLE_EXPR, &ark::DotCompleterByParse::FindIfAvailableExpr);
 }
 
-void DotCompleterByParse::AddExtendDeclFromIndex(Ptr<Ty> &extendTy, CompletionEnv &env, const Position &pos) const
+void DotCompleterByParse::AddExtendDeclFromIndex(Ptr<Ty> extendTy, CompletionEnv &env) const
 {
+    std::vector<Ptr<Ty>> extendTys = {extendTy};
+    AddExtendDeclFromIndexBatch(extendTys, env);
+}
+
+void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &extendTys,
+    CompletionEnv &env,
+    ArkAST *ast,
+    std::unordered_set<lsp::SymbolID> &ids,
+    std::unordered_set<lsp::SymbolID> &allVisibleMembers) const
+{
+    auto addMember = [&env] (const Ptr<Decl> member, const Ptr<Decl> outer) {
+        if (env.GetValue(FILTER::IS_STATIC)) {
+            if (member->TestAttr(Attribute::STATIC)) {
+                env.DotAccessible(*member, *outer);
+            }
+        } else {
+            if (!member->TestAnyAttr(Attribute::STATIC, Attribute::OPERATOR)) {
+                env.DotAccessible(*member, *outer);
+            }
+        }
+    };
+
+    for (auto extendTy : extendTys) {
+        auto extendMembers =
+            CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(extendTy, packageNameForPath, *ast->file);
+        auto decl = Ty::GetDeclPtrOfTy(extendTy);
+        if (!decl && !extendTy->IsPrimitive()) {
+            continue;
+        }
+
+        std::unordered_set<lsp::SymbolID> visibleMembers;
+        for (auto &member : extendMembers) {
+            if (IsHiddenDecl(member) || IsHiddenDecl(member->outerDecl)) {
+                continue;
+            }
+            addMember(member, decl);
+            auto symbol = CompletionEnv::GetDeclSymbolID(*member);
+            visibleMembers.insert(symbol);
+        }
+
+        if (decl && decl->ty && decl->ty->HasGeneric()) {
+            continue;
+        }
+
+        lsp::SymbolID symbolID = lsp::INVALID_SYMBOL_ID;
+        if (decl) {
+            symbolID = CompletionEnv::GetDeclSymbolID(*decl);
+        } else {
+            symbolID = CompletionEnv::GetPrimaryTypeSymbolId(extendTy);
+        }
+
+        ids.insert(symbolID);
+        allVisibleMembers.insert(visibleMembers.begin(), visibleMembers.end());
+    }
+}
+
+void DotCompleterByParse::AddExtendDeclFromIndexBatch(const std::vector<Ptr<Ty>> &extendTys, CompletionEnv &env) const
+{
+    if (extendTys.empty()) {
+        return;
+    }
+
     auto ast = CompilerCangjieProject::GetInstance()->GetArkAST(curFilePath);
     if (!ast || !ast->file) {
         return;
     }
-    auto extendMembers = CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
-        extendTy, packageNameForPath, *ast->file);
-    auto decl = Ty::GetDeclPtrOfTy(extendTy);
-    if (!decl) {
-        return;
-    }
-    std::unordered_set<lsp::SymbolID> visibleMembers;
-    for (auto &member : extendMembers) {
-        if (IsHiddenDecl(member) || IsHiddenDecl(member->outerDecl)) {
-            continue;
-        }
-        env.DotAccessible(*member, *decl);
-        auto symbol = CompletionEnv::GetDeclSymbolID(*member);
-        visibleMembers.insert(symbol);
-    }
+
+    std::unordered_set<lsp::SymbolID> ids;
+    std::unordered_set<lsp::SymbolID> allVisibleMembers;
+
+    AddExtendVisibleMembers(extendTys, env, ast, ids, allVisibleMembers);
+
     if (!ast->file->package || !ast->file->curPackage) {
         return;
     }
-    if (decl->ty && decl->ty->HasGeneric()) {
-        return;
-    }
-    auto symbolID = CompletionEnv::GetDeclSymbolID(*decl);
     auto curPkgName = ast->file->curPackage->fullPackageName;
-    auto curModule = SplitFullPackage(curPkgName).first;
-    // get import's pos
-    int lastImportLine = 0;
-    for (const auto &import : ast->file->imports) {
-        if (!import) {
-            continue;
-        }
-        lastImportLine = std::max(import->content.rightCurlPos.line, std::max(import->importPos.line, lastImportLine));
-    }
-    Position pkgPos = ast->file->package->packagePos;
-    if (lastImportLine == 0 && pkgPos.line > 0) {
-        lastImportLine = pkgPos.line;
-    }
-    Position textEditStart = {ast->fileID, lastImportLine, 0};
-    Range editRange{textEditStart, textEditStart};
+
+    Range editRange = CompletionEnv::GetEditRangeForAutoImport(*ast);
+
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
+
     std::vector<CodeCompletion> completetions;
-    index->FindExtendSymsOnCompletion(symbolID, visibleMembers, curPkgName, curModule,
+    index->FindExtendSymsOnCompletionBatch(ids, allVisibleMembers, curPkgName, env.GetValue(FILTER::IS_STATIC),
         [&editRange, &completetions](const std::string &pkg, const std::string &interface,
             const lsp::Symbol &sym, const lsp::CompletionItem &completionItem) {
             CodeCompletion item;
@@ -1079,6 +1119,7 @@ void DotCompleterByParse::AddExtendDeclFromIndex(Ptr<Ty> &extendTy, CompletionEn
             item.sortType = SortType::AUTO_IMPORT_SYM;
             completetions.push_back(item);
         });
+
     for (const auto &completion : completetions) {
         env.AddCompletionItem(completion.label, completion.label, completion, false);
     }
@@ -1188,7 +1229,7 @@ void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position 
         env.DotAccessible(*decl, *classDecl, isSuperOrThis);
     }
     // Complete extend decl
-    AddExtendDeclFromIndex(ty, env, pos);
+    AddExtendDeclFromIndex(ty, env);
     // Complete interfaces
     for (auto &inheritedType : classDecl->inheritedTypes) {
         if (!ark::Is<RefType>(inheritedType.get().get())) {
@@ -1262,7 +1303,7 @@ void DotCompleterByParse::CompleteEnumDecl(Ptr<Ty> ty, const Cangjie::Position &
         env.DotAccessible(*member, *enumDecl);
     }
     // Complete extend decl
-    AddExtendDeclFromIndex(ty, env, pos);
+    AddExtendDeclFromIndex(ty, env);
 
     CompleteEnumInterface(enumDecl, pos, env);
 }
@@ -1296,7 +1337,7 @@ void DotCompleterByParse::CompleteStructDecl(Ptr<Ty> ty, const Cangjie::Position
         env.DotAccessible(*decl, *structDecl);
     }
     // Complete extend decl
-    AddExtendDeclFromIndex(ty, env, pos);
+    AddExtendDeclFromIndex(ty, env);
     // Complete interface decl
     for (auto &inheritedType : structDecl->inheritedTypes) {
         if (!inheritedType || !ark::Is<RefType>(inheritedType.get().get())) {
@@ -1333,6 +1374,24 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
             }
         }
     }
+
+    if (!type->IsPrimitive()) {
+        return;
+    }
+
+    if (type->IsIdeal()) {
+        auto kinds = GetIdealTypesByKind(type->kind);
+        std::vector<Ptr<Ty>> extendTys;
+        for (auto kind: kinds) {
+            auto primitivety = TypeManager::GetPrimitiveTy(kind);
+            extendTys.push_back(primitivety);
+        }
+        if (!extendTys.empty()) {
+            AddExtendDeclFromIndexBatch(extendTys, env);
+        }
+        return;
+    }
+    AddExtendDeclFromIndex(type, env);
 }
 
 std::string DotCompleterByParse::QueryByPos(Ptr<Node> node, const Position pos)

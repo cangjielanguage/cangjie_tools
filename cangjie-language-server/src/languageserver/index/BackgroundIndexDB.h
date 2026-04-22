@@ -97,7 +97,7 @@ public:
 
     void GetFuncByName(const FuncSigRequest &req,
                        std::function<void(const Symbol &)> callback) const override;
-					   
+
     Symbol GetAimSymbol(const Decl& decl) override;
 
     void FindImportSymsOnCompletion(
@@ -113,6 +113,13 @@ public:
     void FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         const std::unordered_set<SymbolID> &visibleMembers,
         const std::string &curPkgName, const std::string &curModule,
+        const std::function<void(const std::string &, const std::string &,
+            const Symbol &, const CompletionItem &)>& callback) override;
+
+    void FindExtendSymsOnCompletionBatch(
+        const std::unordered_set<SymbolID> &ids,
+        const std::unordered_set<SymbolID> &symAndVisibleMembers,
+        const std::string &curPkgName, bool filterStatic,
         const std::function<void(const std::string &, const std::string &,
             const Symbol &, const CompletionItem &)>& callback) override;
 

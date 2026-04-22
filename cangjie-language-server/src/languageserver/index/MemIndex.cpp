@@ -6,6 +6,7 @@
 
 #include "MemIndex.h"
 #include "../CompilerCangjieProject.h"
+#include "Symbol.h"
 
 namespace ark {
 namespace lsp {
@@ -256,9 +257,9 @@ void MemIndex::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         }
         auto relation = GetPackageRelation(curPkgName, pkgName);
         auto syms = pkgSymsMap[pkgName];
-        std::unordered_map<SymbolID, Symbol> symMap;
-        for (const auto& sym : syms) {
-            symMap.insert_or_assign(sym.id, sym);
+        std::unordered_map<SymbolID, Symbol*> symMap;
+        for (auto& sym : syms) {
+            symMap.insert_or_assign(sym.id, &sym);
         }
         auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
             bool isAccessible =
@@ -273,23 +274,90 @@ void MemIndex::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         for (const auto &extendSlab : extendSyms.second) {
             if (extendSlab.first == dotCompleteSym) {
                 for (const auto& symbol : extendSlab.second) {
-                    if (visibleMembers.find(symbol.id) != visibleMembers.end()) {
+                    if (symbol.id == INVALID_SYMBOL_ID || visibleMembers.find(symbol.id) != visibleMembers.end()) {
                         continue;
                     }
-                    auto sym = symMap[symbol.id];
+                    auto* sym = symMap[symbol.id];
                     // filter symbols that not dependent by curModule
-                    if (!sym.isCjoSym && !curModuleDeps.count(sym.curModule)) {
+                    if (!sym || !sym->isCjoSym && !curModuleDeps.count(sym->curModule)) {
                         continue;
                     }
                     // filter by modifier
-                    if (checkAccessible(symbol.modifier) && checkAccessible(sym.modifier)) {
-                        for (const auto &completionItem : sym.completionItems) {
-                            callback(pkgName, symbol.interfaceName, sym, completionItem);
+                    if (checkAccessible(symbol.modifier) && checkAccessible(sym->modifier)) {
+                        for (const auto &completionItem : sym->completionItems) {
+                            callback(pkgName, symbol.interfaceName, *sym, completionItem);
                         }
                     }
                 }
                 break;
             }
+        }
+    }
+}
+
+void MemIndex::FindExtendSymsOnCompletionBatch(
+    const std::unordered_set<SymbolID> &ids,
+    const std::unordered_set<SymbolID> &allVisibleMembers,
+    const std::string &curPkgName, bool filterStatic,
+    const std::function<void(const std::string &, const std::string &,
+        const Symbol &, const CompletionItem &)>& callback)
+{
+    if (ids.empty()) {
+        return;
+    }
+    auto curModule = SplitFullPackage(curPkgName).first;
+    std::unordered_set<std::string> curModuleDeps =
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+
+    for (const auto &extendSyms : pkgExtendsMap) {
+        const std::string &pkgName = extendSyms.first;
+        if (curPkgName == pkgName ||
+                !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgName)) {
+            continue;
+        }
+
+        auto relation = GetPackageRelation(curPkgName, pkgName);
+        auto syms = pkgSymsMap[pkgName];
+        std::unordered_map<SymbolID, Symbol*> symMap;
+        for (auto& sym : syms) {
+            symMap.insert_or_assign(sym.id, &sym);
+        }
+
+        auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
+            bool isAccessible =
+                modifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (modifier == Modifier::INTERNAL
+                                                        || modifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE &&
+                    modifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
+            return isAccessible;
+        };
+
+        auto handleExtendItem = [&] (const std::vector<ExtendItem> &extendItem) {
+            for (const auto& symbol : extendItem) {
+                if (symbol.id == INVALID_SYMBOL_ID || symbol.isStatic != filterStatic ||
+                    allVisibleMembers.find(symbol.id) != allVisibleMembers.end()) {
+                    continue;
+                }
+                auto* sym = symMap[symbol.id];
+                if (!sym || !sym->isCjoSym && !curModuleDeps.count(sym->curModule)) {
+                    continue;
+                }
+                if (!checkAccessible(symbol.modifier) || !checkAccessible(sym->modifier)) {
+                    continue;
+                }
+                for (const auto &completionItem : sym->completionItems) {
+                    callback(pkgName, symbol.interfaceName, *sym, completionItem);
+                }
+            }
+        };
+
+        for (const auto &extendSlab : extendSyms.second) {
+            if (ids.find(extendSlab.first) == ids.end()) {
+                continue;
+            }
+            handleExtendItem(extendSlab.second);
         }
     }
 }

@@ -236,10 +236,19 @@ inline bool IsGlobalOrMember(const AST::Decl& decl)
 
 inline bool IsExtendDecl(const AST::Decl& decl)
 {
-    if (decl.astKind == ASTKind::EXTEND_DECL) {
-        return true;
+    return decl.astKind == ASTKind::EXTEND_DECL;
+}
+
+inline std::vector<TypeKind> GetIdealTypesByKind(TypeKind type)
+{
+    if (type == TypeKind::TYPE_IDEAL_INT) {
+        return {TypeKind::TYPE_INT8, TypeKind::TYPE_INT16, TypeKind::TYPE_INT32, TypeKind::TYPE_INT_NATIVE,
+            TypeKind::TYPE_INT64, TypeKind::TYPE_UINT8, TypeKind::TYPE_UINT16, TypeKind::TYPE_UINT32,
+            TypeKind::TYPE_UINT64, TypeKind::TYPE_UINT_NATIVE};
+    } else if (type == TypeKind::TYPE_IDEAL_FLOAT) {
+        return {TypeKind::TYPE_FLOAT16, TypeKind::TYPE_FLOAT32, TypeKind::TYPE_FLOAT64};
     }
-    return false;
+    return {};
 }
 
 inline bool IsGlobalOrMemberOrItsParam(const AST::Decl& decl)
@@ -277,6 +286,15 @@ inline bool IsLocalFuncOrLambda(const AST::Decl& decl)
 }
 
 lsp::SymbolID GetSymbolId(const Decl &decl);
+
+inline std::string GetPrimaryTypeIdentifier(const Ptr<Ty> ty)
+{
+    if (!ty || ty->IsPrimitive()) {
+        return "";
+    }
+
+    return Ty::KindName(ty->kind);
+}
 
 uint32_t GetFileIdForDB(const std::string &fileName);
 
@@ -370,5 +388,7 @@ std::string NormalizeStringToGBK(const std::string& data);
 bool IsCommonSpecificSymbol(Ptr<Cangjie::AST::Decl> decl);
 
 std::string GetRealFilePathInCommonSpecific(Ptr<Cangjie::AST::Decl> decl);
+
+Ptr<Decl> GetRealTarget(Ptr<Decl> decl);
 }
 #endif // LSPSERVER_UTILS_H
