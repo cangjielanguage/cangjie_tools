@@ -119,7 +119,7 @@ elseif (COMPILER_TYPE MATCHES "Ninja")    #Compiling Using the ninja
             add_link_options("-Wl,-reproducible")
             add_link_options("-Wl,-no_order_inits")
         elseif(CROSS_WINDOWS)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -Wdate-time")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wdate-time")
         else()
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrapv")
         endif ()

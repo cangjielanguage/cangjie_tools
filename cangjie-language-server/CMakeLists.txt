@@ -19,6 +19,52 @@ if (MINGW AND CMAKE_BUILD_TYPE MATCHES "Debug")
     add_compile_options("-Wa,-mbig-obj")
 endif ()
 
+function(cangjie_lsp_enable_strict_warnings target_name)
+    set(strict_warning_options)
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_C_COMPILER_ID STREQUAL "Clang"
+        OR CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
+        OR CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
+        list(APPEND strict_warning_options
+            "$<$<COMPILE_LANGUAGE:C>:-fno-common>"
+            "$<$<COMPILE_LANGUAGE:C>:-Wall>"
+            "$<$<COMPILE_LANGUAGE:C>:-Wextra>"
+            "$<$<COMPILE_LANGUAGE:C>:-Wfloat-equal>"
+        )
+    endif ()
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+        OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"
+        OR CMAKE_CXX_COMPILER_ID STREQUAL "ARMClang")
+        list(APPEND strict_warning_options
+            "$<$<COMPILE_LANGUAGE:CXX>:-fno-common>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wfloat-equal>"
+        )
+    endif ()
+    if (strict_warning_options)
+        target_compile_options(${target_name} PRIVATE ${strict_warning_options})
+    endif ()
+endfunction()
+
+function(cangjie_lsp_enable_strict_warnings_in_directory directory_name)
+    get_property(directory_targets DIRECTORY "${directory_name}" PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(target_name ${directory_targets})
+        if (NOT target_name STREQUAL "sqlite3")
+            get_target_property(target_type ${target_name} TYPE)
+            if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
+                cangjie_lsp_enable_strict_warnings(${target_name})
+            endif ()
+        endif ()
+    endforeach()
+
+    get_property(child_directories DIRECTORY "${directory_name}" PROPERTY SUBDIRECTORIES)
+    foreach(child_directory ${child_directories})
+        cangjie_lsp_enable_strict_warnings_in_directory("${child_directory}")
+    endforeach()
+endfunction()
+
 if (APPLE)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
 endif ()
@@ -64,8 +110,10 @@ message("Directory of library: " ${LIBRARY_OUTPUT_PATH})
 add_definitions(-DCANGJIE_CODEGEN_CJNATIVE_BACKEND)
 # language server
 add_subdirectory(src)
+cangjie_lsp_enable_strict_warnings_in_directory("${CMAKE_CURRENT_SOURCE_DIR}/src")
 # gtest for unit test
 if(ENABLE_TEST)
     enable_testing()
     add_subdirectory(test)
+    cangjie_lsp_enable_strict_warnings_in_directory("${CMAKE_CURRENT_SOURCE_DIR}/test")
 endif()
