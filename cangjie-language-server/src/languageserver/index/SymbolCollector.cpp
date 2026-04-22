@@ -1721,11 +1721,11 @@ void SymbolCollector::CreateMacroRef(const Node &node, const MacroInvocation &in
     if (!node.curFile) {
         return;
     }
-    auto begin = invocation.identifierPos;
+    auto begin = invocation.macroCallDiagInfo.identifierPos;
     if (!invocation.fullNameDotPos.empty()) {
         begin = invocation.fullNameDotPos.back() + 1;
     }
-    auto end = begin + CountUnicodeCharacters(invocation.identifier);
+    auto end = begin + CountUnicodeCharacters(invocation.macroCallDiagInfo.identifier);
     SymbolLocation loc{begin, end, node.curFile->filePath};
     Ref refInfo{.location = loc, .kind = RefKind::REFERENCE, .container = GetContextID()};
     (void)symbolRefMap[GetDeclSymbolID(*invocation.target)].emplace_back(refInfo);
