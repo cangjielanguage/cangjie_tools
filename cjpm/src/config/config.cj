@@ -487,6 +487,7 @@ public open class CommandConfig {
     public var customizedOption: HashSet<String> = HashSet<String>()
     public var isLto: Bool = false
     public var ltoValue: String = ""
+    public var keepPkgVisibility: Option<Array<String>> = None
     public var isDebug: Bool = false
     public var memberModule: String = ""
 }

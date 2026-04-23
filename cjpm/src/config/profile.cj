@@ -62,6 +62,7 @@ public class Profile <: Serializable<Profile> {
 
 public class BuildProfile <: Serializable<BuildProfile> {
     public var ltoValue: String = ""
+    public var lto: LTOBuildProfile = LTOBuildProfile()
     public var incremental: Bool = false
     public var analysisCompilePerformance: Bool = false
     public var combined: HashMap<String, OutputType> = HashMap<String, OutputType>()
@@ -83,6 +84,7 @@ public class BuildProfile <: Serializable<BuildProfile> {
         result.cjcJobs = Option<Int64>.deserialize(dms.get("cjc-jobs"))
         result.heuristic = Bool.deserialize((dms.get("enable-heuristic-parallelism") as DataModelBool) ?? DataModelBool(false))
         result.ltoValue = String.deserialize((dms.get("lto") as DataModelString) ?? DataModelString(""))
+        result.lto = LTOBuildProfile.deserialize((dms.get("lto") as DataModelStruct) ?? DataModelStruct())
         result.incremental = Bool.deserialize((dms.get("incremental") as DataModelBool) ?? DataModelBool(false))
         result.analysisCompilePerformance = Bool.deserialize((dms.get("performance_analysis") as DataModelBool) ??
             DataModelBool(false))
@@ -90,6 +92,26 @@ public class BuildProfile <: Serializable<BuildProfile> {
             DataModelStruct())
         result.compilePipelineParallel = Bool.deserialize((dms.get("compile-pipeline-parallel") as DataModelBool) ??
             DataModelBool(false))
+        return result
+    }
+}
+
+public class LTOBuildProfile <: Serializable<LTOBuildProfile> {
+    public var level: String = ""
+    public var keepPkgVisibility: Option<Array<String>> = None
+
+    // Serialize of toml is useless.
+    public func serialize(): DataModel {
+        return DataModelStruct()
+    }
+    public static func deserialize(dm: DataModel): LTOBuildProfile {
+        var dms = match (dm) {
+            case data: DataModelStruct => data
+            case _ => throw Exception("this data is not DataModelStruct")
+        }
+        var result = LTOBuildProfile()
+        result.level = String.deserialize((dms.get("level") as DataModelString) ?? DataModelString(""))
+        result.keepPkgVisibility = Option<Array<String>>.deserialize(dms.get("keep-pkg-visibility"))
         return result
     }
 }
