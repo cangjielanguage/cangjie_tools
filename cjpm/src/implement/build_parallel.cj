@@ -1176,7 +1176,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
     let hasSubPkgs = buildConfig.hasSubPkgs.contains(fullName)
     let exportForTests = requiredForTests && r.hasTestFiles
     let isMacro = buildConfig.packageList.isMacro(fullName)
-    let isAnalysisCompilePerformance = !isMultiplatform && buildConfig.globalConfig.isAnalysisCompilePerformance
+    let isAnalysisCompilePerformance = buildConfig.globalConfig.isAnalysisCompilePerformance
 
     let allEnabledFeatures = r.featureDeducer
         .addFeature(r.features)
@@ -1885,12 +1885,90 @@ private func moveCjcProfToCjpmDir(compileTask: CompileTask, profcompilePerforman
     for (profSuffix in profSuffixArray) {
         let pkgNameProfPath = Path(compileTask.targetPath).join(compileTask.fullName + profSuffix)
         if (exists(pkgNameProfPath)) {
-            let profPath = Path(profcompilePerformancePath).join(compileTask.fullName + profSuffix)
+            let path: String = match (compileTask.isMultiplatform) {
+                case true => prepareSourceSetPerformPath(profcompilePerformancePath, compileTask)
+                case _ => profcompilePerformancePath
+            }
+            let profPath = Path(path).join(compileTask.fullName + profSuffix)
             copy(pkgNameProfPath, to: profPath, overwrite: true)
             remove(pkgNameProfPath)
         } else {
             eprintln("Error: cannot find ${pkgNameProfPath.toString()} file")
         }
+    }
+    return
+}
+
+private class FeatureMapping <: Serializable<FeatureMapping> {
+    private static let PATH_FIELD = "path"
+    private static let FEATURES_FIELD = "features"
+
+    FeatureMapping(
+        public let path: String,
+        public let features: HashSet<Feature>
+    ) {}
+
+    public func serialize(): DataModel {
+        DataModelStruct()
+            .add(Field(PATH_FIELD, path.serialize()))
+            .add(Field(FEATURES_FIELD, features.serialize()))
+    }
+
+    public static func deserialize(dm: DataModel): FeatureMapping {
+        let dms = match (dm) {
+            case dms: DataModelStruct => dms
+            case _ => throw DataModelException("this data is not DataModelStruct")
+        }
+        let _path = String.deserialize(dms.get(PATH_FIELD))
+        let _features = HashSet<Feature>.deserialize(dms.get(FEATURES_FIELD))
+        return FeatureMapping(_path, _features)
+    }
+}
+
+private func prepareSourceSetPerformPath(profilerPath: String, compileTask: CompileTask): String {
+    assertion { => compileTask.sourceSetDir.endsWith("product") }
+
+    var sourceSetPath: String = compileTask.sourceSetDir
+    if (compileTask.product) {
+        sourceSetPath = sourceSetPath.trimEnd("product")
+    } else {
+        sourceSetPath = sourceSetPath.trimEnd("nonproduct")
+    }
+    // sourceSet path begins with './' or '.\\'
+    let path = Path(profilerPath)
+        .join(compileTask.rootPkgName)
+        .join(sourceSetPath.trimStart(".${Path.Separator}"))
+
+    if (!exists(path)) {
+        createDirectory(path.toString())
+        writeDataToMapping(compileTask, profilerPath, 
+            Path(".")
+                .join(compileTask.rootPkgName)
+                .join(sourceSetPath.trimStart(".${Path.Separator}"))
+                .toString())
+    }
+    return path.toString()
+}
+
+private func writeDataToMapping(compileTask: CompileTask, profilerPath: String, sourceSetPath: String): Unit {
+    let path = Path(profilerPath)
+        .join(compileTask.rootPkgName)
+        .join("mapping.json")
+
+    let fm = FeatureMapping(sourceSetPath.trimEnd(Path.Separator), compileTask.sourceSetFeatures)
+    if (!fileExists(path)) {
+        let dm = [fm].serialize()
+        let json = dm.toJson()
+        createAndWriteFile(path.toString(), json.toJsonString())
+    } else {
+        let data = readJsonFileOrEmpty(path)
+        let dmSeq: DataModelSeq = match (data) {
+            case dms: DataModelSeq => dms
+            case _ => throw Exception("this data is not DataModelSeq")
+        }
+        dmSeq.add(fm.serialize())
+        let json = dmSeq.toJson()
+        writeFile(path.toString(), json.toJsonString(), OpenMode.Write)
     }
     return
 }
