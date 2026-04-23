@@ -59,6 +59,12 @@ struct CompletionResult {
     std::unordered_set<ark::lsp::SymbolID> importDeclsSymID {};
 };
 
+struct IfImportInfo {
+    bool needImport = false;
+    Range textEditRange;
+    std::string importText;
+};
+
 class CompletionImpl {
 public:
     static void CodeComplete(const ArkAST &input, Cangjie::Position pos,
@@ -104,6 +110,10 @@ private:
     static std::string GetChainedName(const ArkAST &input, const Cangjie::Position &pos, int index, int firstTokIdxInLine);
 
     static bool CheckNamedParameter(const ark::ArkAST &input, const int index, int &lparenIndex);
+
+    static bool IsAlreadyImportedIf(const ArkAST &input);
+
+    static IfImportInfo GetIfImportInfo(const ArkAST &input, Position pos, const std::string &prefix);
 };
 } // namespace ark
 

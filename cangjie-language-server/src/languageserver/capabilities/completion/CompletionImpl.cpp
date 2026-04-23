@@ -7,7 +7,11 @@
 #include "CompletionImpl.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <string>
 #include <vector>
+#include "CompletionEnv.h"
 #include "DotCompleterByParse.h"
 #include "KeywordCompleter.h"
 #include "NormalCompleterByParse.h"
@@ -333,21 +337,8 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
         return;
     }
     auto pkgName = input.file->curPackage->fullPackageName;
-    // get import's pos
-    int lastImportLine = 0;
-    for (const auto &import : input.file->imports) {
-        if (!import) {
-            continue;
-        }
-        lastImportLine = std::max(import->content.rightCurlPos.line, std::max(import->importPos.line, lastImportLine));
-    }
-    Position pkgPos = input.file->package->packagePos;
-    if (lastImportLine == 0 && pkgPos.line > 0) {
-        lastImportLine = pkgPos.line;
-    }
-    Position textEditStart = {input.fileID, lastImportLine, 0};
-    Range textEditRange{textEditStart, textEditStart};
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    auto textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
     SyscapCheck syscap(curModule);
     index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
         pkgName, curModule, prefix,
@@ -376,6 +367,148 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             completion.sortType = SortType::AUTO_IMPORT_SYM;
             result.completions.push_back(completion);
         });
+}
+
+bool CompletionImpl::IsAlreadyImportedIf(const ArkAST &input)
+{
+    const std::string IFPACKAGE = "ohos.arkui.component.ifcomponent";
+    if (!input.semaCache || !input.semaCache->packageInstance) {
+        return true;
+    }
+    auto ifDecls =
+        input.semaCache->packageInstance->importManager.GetImportedDeclsByName(*input.semaCache->file, "If");
+    for (auto decl : ifDecls) {
+        if (decl && decl->fullPackageName == IFPACKAGE) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AutoImportIfComponentHandler(const std::vector<Symbol*> &syms, Position pos, size_t idx)
+{
+    if (idx >= syms.size() || !syms[idx] || !syms[idx]->node) {
+        return false;
+    }
+    auto sym = syms[idx];
+    if (sym->node->begin > pos || sym->node->end <= pos) {
+        return AutoImportIfComponentHandler(syms, pos, ++idx);
+    }
+    auto me = DynamicCast<MacroExpandDecl>(sym->node);
+    if (me && me->identifier == "Component") {
+        return true;
+    }
+    return AutoImportIfComponentHandler(syms, pos, ++idx);
+}
+
+bool AutoImportIfBuildFuncHandler(const std::vector<Symbol*> &syms, Position pos, size_t idx)
+{
+    if (idx >= syms.size() || !syms[idx] || !syms[idx]->node) {
+        return false;
+    }
+    auto sym = syms[idx];
+    if (sym->node->begin > pos || sym->node->end <= pos) {
+        return AutoImportIfBuildFuncHandler(syms, pos, ++idx);
+    }
+    auto fd = DynamicCast<FuncDecl>(sym->node);
+    if (fd && fd->identifier == "build") {
+        return AutoImportIfComponentHandler(syms, pos, ++idx);
+    }
+    return AutoImportIfBuildFuncHandler(syms, pos, ++idx);
+}
+
+bool AutoImportIfContainerHandler(const std::vector<Symbol*> &syms, Position pos, size_t idx)
+{
+    if (idx >= syms.size() || !syms[idx] || !syms[idx]->node) {
+        return false;
+    }
+    auto sym = syms[idx];
+    if (sym->node->begin > pos || sym->node->end <= pos) {
+        return AutoImportIfContainerHandler(syms, pos, ++idx);
+    }
+
+    const static std::set<std::string> CONTAINER_COMPONENTS = {"Badge", "Blank", "Column", "ColumnSplit",
+        "Counter", "Flex", "Gauge", "Grid", "Menu", "MenuItemGroup", "GridContainer",
+        "List", "ListItemGroup", "ListItem", "Navigator", "Panel", "Refresh",
+        "Row", "RowSplit", "Scroll", "Shape", "Stack", "StepperItem",
+        "Swiper", "TabContent", "Tabs", "TextTimer", "Navigation", "NavDestination",
+        "SideBarContainer", "RelativeContainer", "RichEditor", "WaterFlow", "FlowItem",
+        "__Recycle__", "WithTheme", "Hyperlink", "GridCol", "GridItem", "GridRow",
+        "ScrollBar", "NavRouter", "ContainerSpan", "FromLink", "FolderStack",
+        "AtomicServiceNavigation"};
+
+    auto ce = DynamicCast<CallExpr>(sym->node);
+    if (ce && CONTAINER_COMPONENTS.count(sym->name)) {
+        return AutoImportIfBuildFuncHandler(syms, pos, ++idx);
+    }
+    return false;
+}
+
+bool AutoImportIfHandlerLambdaBodyHandler(const std::vector<Symbol*> &syms, Position pos, size_t idx)
+{
+    if (idx >= syms.size() || !syms[idx] || !syms[idx]->node) {
+        return false;
+    }
+    auto sym = syms[idx];
+    if (sym->node->begin > pos || sym->node->end <= pos) {
+        return AutoImportIfHandlerLambdaBodyHandler(syms, pos, ++idx);
+    }
+    auto le = DynamicCast<LambdaExpr>(sym->node);
+    if (le && le->funcBody && le->funcBody->body->begin < pos && le->funcBody->body->end > pos) {
+        return AutoImportIfContainerHandler(syms, pos, ++idx);
+    }
+    return false;
+}
+
+bool AutoImportIfFuncBodyHandler(const std::vector<Symbol*> &syms, Position pos, size_t idx)
+{
+    if (idx >= syms.size() || !syms[idx] || !syms[idx]->node) {
+        return false;
+    }
+    auto sym = syms[idx];
+    if (sym->node->begin >= pos || sym->node->end <= pos) {
+        return AutoImportIfFuncBodyHandler(syms, pos, ++idx);
+    }
+    auto fb = DynamicCast<FuncBody>(sym->node);
+    if (fb && fb->body && fb->body->begin < pos && fb->body->end > pos) {
+        return AutoImportIfHandlerLambdaBodyHandler(syms, pos, ++idx);
+    }
+    return false;
+}
+
+bool CheckCodeStructureCondition(const std::vector<Symbol*> &syms, Position pos)
+{
+    return AutoImportIfFuncBodyHandler(syms, pos, 0);
+}
+
+IfImportInfo CompletionImpl::GetIfImportInfo(const ArkAST &input, Position pos, const std::string &prefix)
+{
+    IfImportInfo info;
+    if (!MessageHeaderEndOfLine::GetIsDeveco() || Options::GetInstance().IsOptionSet("test")) {
+        return info;
+    }
+
+    std::string lowerPrefix = prefix;
+    std::transform(lowerPrefix.begin(), lowerPrefix.end(), lowerPrefix.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+    if (lowerPrefix != "i" && lowerPrefix != "if") {
+        return info;
+    }
+    if (IsAlreadyImportedIf(input)) {
+        return info;
+    }
+
+    pos.column -= prefix.size();
+    std::string query = "_ = (" + std::to_string(pos.fileID) + ", " +
+        std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
+
+    auto syms = SearchContext(input.semaCache->packageInstance->ctx, query);
+    if (CheckCodeStructureCondition(syms, pos)) {
+        info.needImport = true;
+        info.textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
+        info.importText = "import kit.ArkUI.If";
+    }
+    return info;
 }
 
 void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix, std::unordered_set<std::string> usedNamedParams, int positionalsUsed, std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists, int paramIndex)
@@ -631,8 +764,8 @@ void CompletionImpl::NormalParseImpl(
         return;
     }
 
-    // Complete all keywords and build-in snippets.
-    KeywordCompleter::Complete(result);
+    auto ifImportInfo = GetIfImportInfo(input, pos, prefix);
+    KeywordCompleter::Complete(result, ifImportInfo);
 
     if (Options::GetInstance().IsOptionSet("disableAutoImport")) {
         return;

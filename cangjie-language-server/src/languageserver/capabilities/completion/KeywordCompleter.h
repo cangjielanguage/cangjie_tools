@@ -18,12 +18,15 @@ struct CodeSnippet {
     std::string snippet;
 };
 
+struct IfImportInfo;
+
 class KeywordCompleter {
 public:
-    static void Complete(CompletionResult &result);
+    static void Complete(CompletionResult &result, const IfImportInfo &ifImportInfo);
     static void AddKeyWord(
-        const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition);
-    static void AddKeyWordByLSP(ark::CompletionResult& result);
+        const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition,
+        const IfImportInfo &ifImportInfo);
+    static void AddKeyWordByLSP(ark::CompletionResult& result, const IfImportInfo &ifImportInfo);
     static std::unordered_set<TokenKind> keyWordKinds;
     static std::unordered_set<TokenKind> declKeyWordKinds;
 private:

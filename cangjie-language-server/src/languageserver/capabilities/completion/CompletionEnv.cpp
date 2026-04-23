@@ -1608,6 +1608,24 @@ ark::lsp::SymbolID CompletionEnv::GetDeclSymbolID(const Decl& decl)
     return ret;
 }
 
+Range CompletionEnv::GetEditRangeForAutoImport(const ArkAST &file)
+{
+    int lastImportLine = 0;
+    for (const auto &import : file.file->imports) {
+        if (!import) {
+            continue;
+        }
+        lastImportLine = std::max(import->content.rightCurlPos.line,
+            std::max(import->importPos.line, lastImportLine));
+    }
+    Position pkgPos = file.file->package->packagePos;
+    if (lastImportLine == 0 && pkgPos.line > 0) {
+        lastImportLine = pkgPos.line;
+    }
+    Position textEditStart = {file.fileID, lastImportLine, 0};
+    return {textEditStart, textEditStart};
+}
+
 bool CompletionEnv::IsSignatureInItems(const std::string &name, const std::string &signature)
 {
     auto signatureItems = items.find(name);
