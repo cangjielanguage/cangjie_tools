@@ -1,0 +1,1 @@
+{"id":233,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_struct.cj\r\nPackage info: testUnusedSymbol\r\n\r\nprivate struct UnusedPrivateStruct\r\n"},"range":{"end":{"character":34,"line":9},"start":{"character":15,"line":9}}}}

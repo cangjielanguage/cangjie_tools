@@ -586,6 +586,39 @@ bool ToJSON(const CompletionItem &iter, nlohmann::json &reply)
     return true;
 }
 
+static nlohmann::json BuildSingleCodeActionJson(const CodeAction &action)
+{
+    nlohmann::json temp;
+    temp["title"] = action.title;
+    temp["kind"] = action.kind;
+    if (action.diagnostics.has_value()) {
+        nlohmann::json diagVec;
+        for (const auto &diag : action.diagnostics.value()) {
+            nlohmann::json diagJson;
+            if (ToJSON(diag, diagJson)) {
+                diagVec.push_back(diagJson);
+            }
+        }
+        temp["diagnostics"] = diagVec;
+    }
+    if (action.edit.has_value()) {
+        nlohmann::json editJson;
+        if (ToJSON(action.edit.value(), editJson)) {
+            temp["edit"] = editJson;
+        }
+    }
+    return temp;
+}
+
+static nlohmann::json BuildCodeActionsJson(const std::vector<CodeAction> &actions)
+{
+    nlohmann::json actionsJson;
+    for (const auto &action : actions) {
+        actionsJson.push_back(BuildSingleCodeActionJson(action));
+    }
+    return actionsJson;
+}
+
 bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply)
 {
     reply["range"]["start"]["line"] = iter.range.start.line;
@@ -616,30 +649,9 @@ bool ToJSON(const DiagnosticToken &iter, nlohmann::json &reply)
         }
     }
     if (iter.codeActions.has_value()) {
-        nlohmann::json actions;
-        for (const auto &action : iter.codeActions.value()) {
-            nlohmann::json temp;
-            temp["title"] = action.title;
-            temp["kind"] = action.kind;
-            if (action.diagnostics.has_value()) {
-                nlohmann::json diagVec;
-                for (const auto &diag : action.diagnostics.value()) {
-                    nlohmann::json diagJson;
-                    if (ToJSON(diag, diagJson)) {
-                        diagVec.push_back(diagJson);
-                    }
-                }
-                temp["diagnostics"] = diagVec;
-            }
-            if (action.edit.has_value()) {
-                nlohmann::json editJson;
-                if (ToJSON(action.edit.value(), editJson)) {
-                    temp["edit"] = editJson;
-                }
-            }
-            actions.push_back(temp);
-        }
+        nlohmann::json actions = BuildCodeActionsJson(iter.codeActions.value());
         reply["codeActions"] = actions;
+        reply["data"]["codeActions"] = actions;
     }
     return true;
 }
@@ -848,6 +860,7 @@ bool ToJSON(const CodeAction &params, nlohmann::json &reply)
 
 const std::string CodeAction::QUICKFIX_ADD_IMPORT = "quickfix.addImport";
 const std::string CodeAction::QUICKFIX_REMOVE_IMPORT = "quickfix.removeImport";
+const std::string CodeAction::QUICKFIX_REMOVE_UNUSED_SYMBOL = "quickfix.removeUnusedSymbol";
 const std::string CodeAction::REFACTOR_KIND = "refactor";
 const std::string CodeAction::INFO_KIND = "info";
 const std::string Command::APPLY_EDIT_COMMAND = "cjLsp.applyTweak";

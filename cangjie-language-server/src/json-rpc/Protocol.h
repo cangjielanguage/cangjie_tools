@@ -459,6 +459,7 @@ struct CodeAction;
 struct DiagFix {
     bool addImport{false};
     bool removeImport{false};
+    bool removeUnusedSymbol{false};
 };
 
 struct DiagnosticToken {
@@ -532,6 +533,8 @@ struct CodeAction {
     const static std::string QUICKFIX_ADD_IMPORT;
 
     const static std::string QUICKFIX_REMOVE_IMPORT;
+
+    const static std::string QUICKFIX_REMOVE_UNUSED_SYMBOL;
 
     const static std::string REFACTOR_KIND;
 

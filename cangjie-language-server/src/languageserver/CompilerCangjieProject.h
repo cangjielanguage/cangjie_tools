@@ -34,6 +34,7 @@
 #include "index/IndexDatabase.h"
 #include "index/IndexStorage.h"
 #include "index/MemIndex.h"
+#include "index/SymbolCollector.h"
 #include "logger/Logger.h"
 
 namespace ark {
@@ -635,6 +636,9 @@ private:
     void BuildIndexFromCache(const std::string &package);
 
     void BuildIndex(const std::unique_ptr<LSPCompilerInstance> &ci, bool isFullCompilation = false);
+
+    void AnalyzeUnusedSymbols(const lsp::SymbolCollector &sc, const Cangjie::AST::Package &package,
+                              const std::string &pkgPath);
 
     bool LoadASTCache(const std::string &package);
 
