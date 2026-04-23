@@ -73,7 +73,9 @@ std::optional<TomlParser::ValueType> TomlParser::ParseValue(const std::string& v
     // Process integers.
     if (!trimmedValue.empty() &&
         (std::isdigit(trimmedValue[0]) || trimmedValue[0] == '-' || trimmedValue[0] == '+')) {
+#ifndef CANGJIE_ENABLE_GCOV
         try {
+#endif
             size_t idx;
             long intValue = std::stol(trimmedValue, &idx);
             // Check if the entire string was converted and ensure it is within the int range
@@ -81,11 +83,13 @@ std::optional<TomlParser::ValueType> TomlParser::ParseValue(const std::string& v
                 intValue <= std::numeric_limits<int>::max()) {
                 return static_cast<int>(intValue);
             }
+#ifndef CANGJIE_ENABLE_GCOV
         } catch (const std::out_of_range&) {
             // Value is outside representable range, treat as invalid TOML scalar.
         } catch (const std::invalid_argument&) {
             // Not a valid integer format, keep fallback behavior.
         }
+#endif
     }
 
     // Process the string (remove the quotes)
