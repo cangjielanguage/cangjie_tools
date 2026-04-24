@@ -516,5 +516,68 @@ SQL(SelectCrossSymbol,
 );
 
 SQL(SelectCrossSymbolByID,
- SELECT * FROM cross_symbols WHERE SymbolID = :SymbolID
+  SELECT * FROM cross_symbols WHERE SymbolID = :SymbolID
+);
+
+SQL(InsertReExportSymbol,
+  INSERT OR IGNORE INTO reexport_symbols VALUES(
+    :CJPackageName,
+    :SymbolID,
+    :Name,
+    :Modifier,
+    :Kind,
+    :Signature
+  )
+);
+
+SQL(MultiInsertReExportSymbolsHead,
+  INSERT OR IGNORE INTO reexport_symbols VALUES
+);
+
+SQL(MultiInsertReExportSymbolsValue,
+  (
+    ?,
+    ?,
+    ?,
+    ?,
+    ?,
+    ?
+  )
+);
+
+SQL(SelectReExportSymbol,
+  SELECT * FROM reexport_symbols WHERE CJPackageName = :CJPackageName
+);
+
+SQL(InsertReExportCompletion,
+  INSERT OR IGNORE INTO reexport_completions VALUES(
+    :Name,
+    :SymbolID,
+    :Label,
+    :InsertText
+  )
+);
+
+SQL(MultiInsertReExportCompletionsHead,
+  INSERT OR IGNORE INTO reexport_completions VALUES
+);
+
+SQL(MultiInsertReExportCompletionsValue,
+  (
+    ?,
+    ?,
+    ?,
+    ?
+  )
+);
+
+SQL(SelectReExportCompletion,
+  SELECT * FROM reexport_completions WHERE Name = :Name AND SymbolID = :SymbolID
+);
+
+SQL(SelectReExportSymbolsWithCompletions,
+  SELECT s.CJPackageName, s.SymbolID, s.Name, s.Modifier, s.Kind, s.Signature, c.Label, c.InsertText
+  FROM reexport_symbols s
+  LEFT JOIN reexport_completions c ON s.Name = c.Name AND s.SymbolID = c.SymbolID
+  WHERE s.CJPackageName = :CJPackageName
 );

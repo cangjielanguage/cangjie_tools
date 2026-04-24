@@ -257,6 +257,26 @@ void ReadCrossSymbol(CrossSymbol &crossSymbol, const IdxFormat::CrossSymbol *crs
     }
 }
 
+void ReadReExportSymbol(ReExportSymbol &reExportSymbol, const IdxFormat::ReExportSymbol *res)
+{
+    reExportSymbol.id = res->id();
+    if (res->name() != nullptr) {
+        reExportSymbol.name = res->name()->str();
+    }
+    reExportSymbol.kind =  AST::ASTKind(res->kind());
+    reExportSymbol.modifier = Modifier(res->modifier());
+    if (res->signature() != nullptr) {
+        reExportSymbol.signature = res->signature()->str();
+    }
+    if (res->completion_items()) {
+        for (const auto &item : *res->completion_items()) {
+            std::string label = item->label()->str();
+            std::string insert = item->insert_text()->str();
+            reExportSymbol.completionItems.push_back({label, insert});
+        }
+    }
+}
+
 flatbuffers::Offset<IdxFormat::CommentGroups> CreateFBCommentGroups(
     flatbuffers::FlatBufferBuilder &builder, const CommentGroups &comments)
 {
@@ -368,6 +388,23 @@ auto StoreCrossSymbol(flatbuffers::FlatBufferBuilder &builder, const CrossSymbol
     auto containerName = builder.CreateString(crs.containerName);
     return CreateCrossSymbol(builder, crs.id, name, static_cast<uint8_t>(crs.crossType), loc,
         crs.container, containerName);
+}
+
+auto StoreReExportSymbol(flatbuffers::FlatBufferBuilder &builder, const ReExportSymbol &res)
+{
+    auto name = builder.CreateString(res.name);
+    auto signature = builder.CreateString(res.signature);
+    std::vector<flatbuffers::Offset<IdxFormat::CompletionItem>> completion_vec;
+    for (const auto& [label, insert_text] : res.completionItems) {
+        auto fb_label = builder.CreateString(label);
+        auto fb_insert = builder.CreateString(insert_text);
+        auto completion_item =
+            IdxFormat::CreateCompletionItem(builder, fb_label, fb_insert);
+        completion_vec.push_back(completion_item);
+    }
+    auto completion_items = builder.CreateVector(completion_vec);
+    return IdxFormat::CreateReExportSymbol(builder, res.id, name, static_cast<uint8_t>(res.modifier),
+        static_cast<uint16_t>(res.kind), signature, completion_items);
 }
 } // namespace
 
@@ -533,6 +570,7 @@ std::optional<std::unique_ptr<IndexFileIn>> CacheManager::LoadIndexShard(const s
 
     // read cross
     readCrossSymbols(*hashedPackage, ifi);
+    readReExportSymbols(*hashedPackage, ifi);
     return std::move(ifi);
 }
 
@@ -603,7 +641,25 @@ void CacheManager::readCrossSymbols(
         }
         CrossSymbol crossSymbol;
         ReadCrossSymbol(crossSymbol, crs);
-        (void)ifi->crossSymbos.emplace_back(crossSymbol);
+        (void)ifi->crossSymbols.emplace_back(crossSymbol);
+    }
+}
+
+void CacheManager::readReExportSymbols(
+    const IdxFormat::HashedPackage &package, std::unique_ptr<ark::lsp::IndexFileIn> &ifi) const
+{
+    auto reExportSymbolSlab = package.re_export_symbol_slab();
+    if (reExportSymbolSlab == nullptr) {
+        return;
+    }
+    for (flatbuffers::uoffset_t i = 0; i < reExportSymbolSlab->size(); i++) {
+        auto res = reExportSymbolSlab->Get(i);
+        if (!res) {
+            continue;
+        }
+        ReExportSymbol reExportSymbol;
+        ReadReExportSymbol(reExportSymbol, res);
+        (void)ifi->reExportSymbols.emplace_back(reExportSymbol);
     }
 }
 
@@ -665,12 +721,20 @@ void CacheManager::StoreIndexShard(const std::string &curPkgName, const std::str
 
     // serialize cross symbol
     std::vector<flatbuffers::Offset<IdxFormat::CrossSymbol>> crossSymbolVec;
-    for (const auto &crs : *shard.crossSymbos) {
+    for (const auto &crs : *shard.crossSymbols) {
         crossSymbolVec.push_back(StoreCrossSymbol(builder, crs));
     }
     auto crossSymbolSlab = builder.CreateVector(crossSymbolVec);
 
-    auto hashedPackage = CreateHashedPackage(builder, symbolSlab, refSlab, relationSlab, extendSlab, crossSymbolSlab);
+    // serialize reExport symbol
+    std::vector<flatbuffers::Offset<IdxFormat::ReExportSymbol>> reExportSymbolVec;
+    for (const auto &res: *shard.reExportSymbols) {
+        reExportSymbolVec.push_back(StoreReExportSymbol(builder, res));
+    }
+    auto reExportSymbolSlab = builder.CreateVector(reExportSymbolVec);
+
+    auto hashedPackage = CreateHashedPackage(builder, symbolSlab, refSlab, relationSlab,
+        extendSlab, crossSymbolSlab, reExportSymbolSlab);
     IdxFormat::FinishHashedPackageBuffer(builder, hashedPackage);
 
     std::ofstream outFile{FileStore::NormalizePath(idxFilePath).c_str(), std::ios::binary | std::ios::out};

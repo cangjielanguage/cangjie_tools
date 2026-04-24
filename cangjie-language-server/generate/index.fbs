@@ -94,8 +94,8 @@ table Sym2Ref {
 
 table Extend {
   id:uint64;
-  modifier:uint8;
   is_static:bool;
+  modifier:uint8;
   interface:string;
 }
 
@@ -116,6 +116,7 @@ table HashedPackage {
   relation_slab:[Relation];
   extend_slab:[Sym2Extend];
   cross_symbol_slab:[CrossSymbol];
+  re_export_symbol_slab:[ReExportSymbol];
 }
 
 table CrossSymbol {
@@ -125,6 +126,15 @@ table CrossSymbol {
   location:Location;
   container:uint64;
   container_name:string;
+}
+
+table ReExportSymbol {
+  id:uint64;
+  name:string;
+  modifier:uint8;
+  kind:uint16;
+  signature:string;
+  completion_items:[CompletionItem];
 }
 
 file_extension "idx";

@@ -134,7 +134,8 @@ void CjdIndexer::BuildCJDIndex()
             shard.refs = sc.GetReferenceMap();
             shard.relations = sc.GetRelations();
             shard.extends = sc.GetSymbolExtendMap();
-            shard.crossSymbos = sc.GetCrossSymbolMap();
+            shard.crossSymbols = sc.GetCrossSymbolMap();
+            shard.reExportSymbols = sc.GetReExportSymbolMap();
             cacheManager->StoreIndexShard(package, shardIdentifier, shard);
             thrdPool->TaskCompleted(taskId);
             Trace::Log("finish execute task ", package);

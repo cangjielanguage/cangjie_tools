@@ -362,6 +362,49 @@ void MemIndex::FindExtendSymsOnCompletionBatch(
     }
 }
 
+void MemIndex::FindImportReExportSymsOnCompletion(
+    const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
+    const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
+    std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback)
+{
+    const auto &normalCompleteSyms  = filterSyms.first;
+    const auto &importDeclSyms  = filterSyms.second;
+    size_t normalCompleteCount = 0;
+    size_t importDeclCount = 0;
+    std::unordered_set<std::string> curModuleDeps =
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+    for (const auto &pkgReExportSymbols: pkgReExportSymsMap) {
+        if (pkgReExportSymbols.first == curPkgName ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgReExportSymbols.first) ||
+            CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgReExportSymbols.first)) {
+            continue;
+        }
+        auto relation = GetPackageRelation(curPkgName, pkgReExportSymbols.first);
+        for (const auto &sym: pkgReExportSymbols.second) {
+            bool isAccessiable =
+                sym.modifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (sym.modifier == Modifier::INTERNAL
+                                                              || sym.modifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
+            if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
+                continue;
+            }
+            if (normalCompleteCount >= normalCompleteSyms.size() || normalCompleteSyms.count(sym.id)) {
+                normalCompleteCount++;
+                continue;
+            }
+            if (importDeclCount >= importDeclSyms.size() || importDeclSyms.count(sym.id)) {
+                importDeclCount++;
+                continue;
+            }
+            for (const auto &completionItem : sym.completionItems) {
+                callback(pkgReExportSymbols.first, sym, completionItem);
+            }
+        }
+    }
+}
+
 void MemIndex::FindImportSymsOnQuickFix(const std::string &curPkgName, const std::string &curModule,
     const std::unordered_set<SymbolID> &importDeclSyms, const std::string& identifier,
     const std::function<void(const std::string &, const Symbol &)>& callback)
