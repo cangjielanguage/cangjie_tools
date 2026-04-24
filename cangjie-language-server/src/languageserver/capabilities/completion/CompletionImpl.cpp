@@ -7,6 +7,9 @@
 #include "CompletionImpl.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <string>
 #include <vector>
 #include "CompletionEnv.h"
 #include "DotCompleterByParse.h"
@@ -386,6 +389,180 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             result.completions.push_back(completion);
         }
     );
+}
+
+bool CompletionImpl::IsAlreadyImportedIf(const ArkAST &input)
+{
+    const std::string IFPACKAGE = "ohos.arkui.component.ifcomponent";
+    if (!input.semaCache || !input.semaCache->packageInstance) {
+        return true;
+    }
+    auto ifDecls =
+        input.semaCache->packageInstance->importManager.GetImportedDeclsByName(*input.semaCache->file, "If");
+    for (auto decl : ifDecls) {
+        if (decl && decl->fullPackageName == IFPACKAGE) {
+            return true;
+        }
+    }
+    return false;
+}
+
+CompletionImpl::IfComponentHandler CompletionImpl::CreateFuncBodyHandler(Position pos)
+{
+    return [&pos](const Symbol* sym, Position, IfComponentChainState& state, bool) {
+        auto fb = DynamicCast<FuncBody>(sym->node);
+        if (fb && fb->body && fb->body->begin < pos && fb->body->end > pos) {
+            state.inFuncBody = true;
+            return true;
+        }
+        return false;
+    };
+}
+
+CompletionImpl::IfComponentHandler CompletionImpl::CreateLambdaBodyHandler(Position pos)
+{
+    return [&pos](const Symbol* sym, Position, IfComponentChainState& state, bool) {
+        auto le = DynamicCast<LambdaExpr>(sym->node);
+        if (le && le->funcBody && le->funcBody->body->begin < pos && le->funcBody->body->end < pos) {
+            state.inLambdaBody = true;
+            return true;
+        }
+        return false;
+    };
+}
+
+CompletionImpl::IfComponentHandler CompletionImpl::CreateContainerHandler(
+    const std::set<std::string> &containerComponents)
+{
+    return [&containerComponents](const Symbol* sym, Position, IfComponentChainState& state, bool) {
+        auto ce = DynamicCast<CallExpr>(sym->node);
+        if (ce && containerComponents.count(sym->name)) {
+            state.inContainer = true;
+            return true;
+        }
+        return false;
+    };
+}
+
+CompletionImpl::IfComponentHandler CompletionImpl::CreateBuildFuncHandler()
+{
+    return [](const Symbol* sym, Position, IfComponentChainState& state, bool canSkip) {
+        auto fd = DynamicCast<FuncDecl>(sym->node);
+        if (fd && fd->identifier == "build") {
+            state.inBuildFunc = true;
+            return true;
+        }
+        return canSkip;
+    };
+}
+
+CompletionImpl::IfComponentHandler CompletionImpl::CreateComponentHandler()
+{
+    return [](const Symbol* sym, Position, IfComponentChainState& state, bool canSkip) {
+        auto me = DynamicCast<MacroExpandDecl>(sym->node);
+        if (me && me->identifier == "Component") {
+            state.inComponent = true;
+            return true;
+        }
+        return canSkip;
+    };
+}
+
+std::vector<CompletionImpl::IfComponentHandler> CompletionImpl::CreateIfComponentHandlers(
+    Position pos, const std::set<std::string> &containerComponents)
+{
+    std::vector<IfComponentHandler> handlers;
+    handlers.push_back(CreateFuncBodyHandler(pos));
+    handlers.push_back(CreateLambdaBodyHandler(pos));
+    handlers.push_back(CreateContainerHandler(containerComponents));
+    handlers.push_back(CreateBuildFuncHandler());
+    handlers.push_back(CreateComponentHandler());
+    return handlers;
+}
+
+CompletionImpl::IfComponentChainState CompletionImpl::CheckCodeStructureCondition(
+    const std::vector<Symbol*> &syms, Position pos, const std::set<std::string> &containerComponents)
+{
+    auto handlers = CreateIfComponentHandlers(pos, containerComponents);
+    IfComponentChainState state;
+    size_t handlerIdx = 0;
+
+    for (size_t i = 0; i < syms.size() && handlerIdx < handlers.size(); i++) {
+        auto sym = syms[i];
+        if (!sym || !sym->node || sym->node->begin > pos || sym->node->end <= pos) {
+            continue;
+        }
+
+        bool isStrictCheck = (i < 4);
+        if (isStrictCheck && i != handlerIdx) {
+            continue;
+        }
+
+        bool canSkip = !isStrictCheck;
+        if (handlers[handlerIdx](sym, pos, state, canSkip)) {
+            handlerIdx++;
+        } else if (!isStrictCheck) {
+            continue;
+        } else {
+            break;
+        }
+    }
+    return state;
+}
+
+void CompletionImpl::AddIfComponentCompletion(const ArkAST &input, CompletionResult &result)
+{
+    const std::string IFIMPORT = "import kit.ArkUI.If";
+    auto textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
+    CodeCompletion completion;
+    auto astKind = ASTKind::CLASS_DECL;
+    completion.deprecated = false;
+    completion.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
+    completion.name = "if";
+    completion.label = "if";
+    completion.insertText = "if";
+    completion.detail = IFIMPORT;
+    TextEdit textEdit;
+    textEdit.range = textEditRange;
+    textEdit.newText = IFIMPORT + "\n";
+    completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
+    completion.sortType = SortType::AUTO_IMPORT_SYM;
+    result.completions.push_back(completion);
+}
+
+void CompletionImpl::AutoImportIfComponent(const ArkAST &input, CompletionResult &result, Position pos,
+    std::string prefix)
+{
+    if (!MessageHeaderEndOfLine::GetIsDeveco() || Options::GetInstance().IsOptionSet("test")) {
+        return;
+    }
+    const static std::set<std::string> CONTAINER_COMPONENTS = {"Badge", "Blank", "Column", "ColumnSplit",
+        "Counter", "Flex", "Gauge", "Grid", "Menu", "MenuItemGroup", "GridContainer",
+        "List", "ListItemGroup", "ListItem", "Navigator", "Panel", "Refresh",
+        "Row", "RowSplit", "Scroll", "Shape", "Stack", "StepperItem",
+        "Swiper", "TabContent", "Tabs", "TextTimer", "Navigation", "NavDestination",
+        "SideBarContainer", "RelativeContainer", "RichEditor", "WaterFlow", "FlowItem",
+        "__Recycle__", "WithTheme", "Hyperlink", "GridCol", "GridItem", "GridRow",
+        "ScorllBar", "NavRouter", "ContainerSpan", "FromLink", "FolderStack",
+        "AtomicServiceNavigation"};
+
+    std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) {return std::tolower(c);});
+    if (prefix != "i" && prefix != "if") {
+        return;
+    }
+    if (IsAlreadyImportedIf(input)) {
+        return;
+    }
+
+    pos.column -= prefix.size();
+    std::string query = "- = (" + std::to_string(pos.fileID) + ", " +
+        std::to_string(pos.line) + std::to_string(pos.column) + ")";
+    auto syms = SearchContext(input.semaCache->packageInstance->ctx, query);
+
+    auto state = CheckCodeStructureCondition(syms, pos, CONTAINER_COMPONENTS);
+    if (state.inFuncBody && state.inLambdaBody && state.inComponent && state.inBuildFunc && state.inContainer) {
+        AddIfComponentCompletion(input, result);
+    }
 }
 
 void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix, std::unordered_set<std::string> usedNamedParams, int positionalsUsed, std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists, int paramIndex)

@@ -93,6 +93,9 @@ private:
 
     static void AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix);
 
+    static void AutoImportIfComponent(const ArkAST &input, ark::CompletionResult &result, Position pos,
+        std::string prefix);
+
     static void GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix,
                         std::unordered_set<std::string> usedNamedParams, int positionalsUsed,
                         std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists,
@@ -104,6 +107,36 @@ private:
     static std::string GetChainedName(const ArkAST &input, const Cangjie::Position &pos, int index, int firstTokIdxInLine);
 
     static bool CheckNamedParameter(const ark::ArkAST &input, const int index, int &lparenIndex);
+
+    static bool IsAlreadyImportedIf(const ArkAST &input);
+
+    struct IfComponentChainState {
+        bool inFuncBody = false;
+        bool inLambdaBody = false;
+        bool inContainer = false;
+        bool inBuildFunc = false;
+        bool inComponent = false;
+    };
+
+    static IfComponentChainState CheckCodeStructureCondition(
+        const std::vector<Symbol*> &syms, Position pos, const std::set<std::string> &containerComponents);
+
+    using IfComponentHandler = std::function<bool(const Symbol*, Position, IfComponentChainState&, bool)>;
+
+    static IfComponentHandler CreateFuncBodyHandler(Position pos);
+
+    static IfComponentHandler CreateLambdaBodyHandler(Position pos);
+
+    static IfComponentHandler CreateContainerHandler(const std::set<std::string> &containerComponents);
+
+    static IfComponentHandler CreateBuildFuncHandler();
+
+    static IfComponentHandler CreateComponentHandler();
+
+    static std::vector<IfComponentHandler> CreateIfComponentHandlers(
+        Position pos, const std::set<std::string> &containerComponents);
+
+    static void AddIfComponentCompletion(const ArkAST &input, CompletionResult &result);
 };
 } // namespace ark
 
