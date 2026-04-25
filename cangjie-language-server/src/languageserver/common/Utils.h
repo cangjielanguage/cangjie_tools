@@ -104,13 +104,14 @@ Range GetMacroRange(const Cangjie::AST::Node &node)
     Range range;
     auto *actualType = dynamic_cast<const ActualType *>(&node);
     if (actualType != nullptr) {
-        auto start = actualType->invocation.identifierPos;
+        auto start = actualType->invocation.macroCallDiagInfo.identifierPos;
         if (actualType->invocation.fullNameDotPos.size()) {
             start = actualType->invocation.fullNameDotPos.back();
             start.column++;
         }
         auto end = start;
-        end.column = end.column + static_cast<int>(CountUnicodeCharacters(actualType->invocation.identifier));
+        end.column =
+            end.column + static_cast<int>(CountUnicodeCharacters(actualType->invocation.macroCallDiagInfo.identifier));
         range = { start, end };
     }
     return range;

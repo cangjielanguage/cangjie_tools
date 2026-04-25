@@ -246,9 +246,9 @@ std::string RenameImpl::Rename(const ArkAST &ast, std::vector<TextDocumentEdit> 
         if (defineDecl->curMacroCall && defineDecl->curMacroCall->GetInvocation()) {
             auto inv = defineDecl->curMacroCall->GetInvocation();
             // revise origin position before macro expand
-            if (inv->new2originPosMap.find(defineDecl->identifier.Begin().column) !=
-                inv->new2originPosMap.end()) {
-                definePos = inv->new2originPosMap[defineDecl->identifier.Begin().column];
+            if (inv->macroCallDiagInfo.new2originPosMap.find(defineDecl->identifier.Begin().column) !=
+                inv->macroCallDiagInfo.new2originPosMap.end()) {
+                definePos = inv->macroCallDiagInfo.new2originPosMap[defineDecl->identifier.Begin().column];
             }
         }
         TextEdit t{TransformFromChar2IDE({definePos, definePos + CountUnicodeCharacters(defineDecl->identifier)}),

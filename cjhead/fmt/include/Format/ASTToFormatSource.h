@@ -163,7 +163,8 @@ public:
         }
 
         std::string compileTimeVisibleStr = macro->invocation.isCompileTimeVisible ? "!" : "";
-        doc.members.emplace_back(DocType::STRING, level, "@" + compileTimeVisibleStr + macro->invocation.fullName);
+        doc.members.emplace_back(DocType::STRING, level,
+            "@" + compileTimeVisibleStr + macro->invocation.macroCallDiagInfo.fullName);
         auto argStr = sm.GetContentBetween(macro->invocation.leftSquarePos.fileID, macro->invocation.leftSquarePos,
             macro->invocation.rightSquarePos + 1);
         DiagnosticEngine diag;

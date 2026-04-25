@@ -24,7 +24,7 @@ void MacroExpandExprFormatter::AddMacroExpandExpr(
     doc.indent = level;
 
     std::string compileTimeVisibleStr = macroExpandExpr.invocation.isCompileTimeVisible ? "!" : "";
-    std::string macroStr = "@" + compileTimeVisibleStr + macroExpandExpr.invocation.fullName;
+    std::string macroStr = "@" + compileTimeVisibleStr + macroExpandExpr.invocation.macroCallDiagInfo.fullName;
 
     if (macroExpandExpr.invocation.leftSquarePos != INVALID_POSITION &&
         macroExpandExpr.invocation.rightSquarePos != INVALID_POSITION) {
@@ -40,7 +40,8 @@ void MacroExpandExprFormatter::AddMacroExpandExpr(
 
     doc.members.emplace_back(DocType::STRING, level, macroStr);
     if (macroExpandExpr.invocation.decl != nullptr) {
-        if (macroExpandExpr.invocation.decl->begin.line == macroExpandExpr.invocation.identifierPos.line) {
+        if (macroExpandExpr.invocation.decl->begin.line ==
+            macroExpandExpr.invocation.macroCallDiagInfo.identifierPos.line) {
             doc.members.emplace_back(DocType::STRING, level, " ");
         } else {
             doc.members.emplace_back(DocType::LINE, level, "");
