@@ -109,10 +109,10 @@ void FileMove::DealMoveFile(const ArkAST *ast, const std::string &file,
     }
     refactor.fileNode = fileNode;
     refactor.file = file;
-    lsp::FileRefsRequest fileRefReq{fileId, file, fullPkgName, lsp::RefKind::REFERENCE};
+    lsp::FileRefsRequest fileRefReq{fileId, file, fullPkgName, lsp::RefKind::REFERENCE, std::nullopt};
     std::unordered_set<lsp::SymbolID> fileRefIds;
     index->FileRefs(
-        fileRefReq, [&fileRefIds, &fileId](const lsp::Ref &ref, const lsp::SymbolID symId) {
+        fileRefReq, [&fileRefIds](const lsp::Ref &ref, const lsp::SymbolID symId) {
             if (ref.location.IsZeroLoc()) {
                 return;
             }
@@ -163,9 +163,10 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
     if (!index) {
         return;
     }
-    lsp::FileRefsRequest fileDefReq{fileId, file, fullPkgName, lsp::RefKind::DEFINITION};
+    lsp::FileRefsRequest fileDefReq{fileId, file, fullPkgName, lsp::RefKind::DEFINITION, std::nullopt};
     std::unordered_set<lsp::SymbolID> fileDefIds;
     index->FileRefs(fileDefReq, [&fileDefIds](const lsp::Ref &ref, const lsp::SymbolID symId) {
+        (void)ref;
         fileDefIds.insert(symId);
     });
 
@@ -220,7 +221,7 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
             return;
         }
         std::unordered_set<std::string> processedFiles;
-        const lsp::RefsRequest refReq{{symId}, lsp::RefKind::REFERENCE};
+        const lsp::RefsRequest refReq{{symId}, lsp::RefKind::REFERENCE, std::nullopt};
         index->Refs(refReq, [&symName, &modifier, &processedFiles, &DealSingleRef](const lsp::Ref &ref) {
             if (processedFiles.count(ref.location.fileUri)) {
                 return;
@@ -229,7 +230,7 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
             processedFiles.insert(ref.location.fileUri);
         });
 
-        const lsp::RefsRequest importRefReq{{symId}, lsp::RefKind::IMPORT};
+        const lsp::RefsRequest importRefReq{{symId}, lsp::RefKind::IMPORT, std::nullopt};
         index->Refs(importRefReq, [&symName, &modifier, &processedFiles, &DealSingleRef](const lsp::Ref &ref) {
             if (ref.location.IsZeroLoc()) {
                 return;
@@ -246,101 +247,105 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
 void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const std::string &targetPkg,
     FileRefactor &refactor)
 {
-    unsigned int fileId = ast->fileID;
     std::string fullPkgName = ast->file->curPackage->fullPackageName;
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index || !ast->packageInstance) {
         return;
     }
-    auto DealSingleReExportRef = [&file, &refactor, &fullPkgName, &targetPkg]
-        (std::string symName, lsp::Modifier modifier, std::string originPkg, const lsp::Ref &ref) {
-            if (ref.location.IsZeroLoc() || ref.location.fileUri == file) {
-                return;
-            }
-            std::string refFullPkg = CompilerCangjieProject::GetInstance()->GetFullPkgName(ref.location.fileUri);
-            if (refFullPkg == originPkg || FileRefactor::GetPackageRelation(fullPkgName, refFullPkg)
-                                               == PackageRelation::DIFF_MODULE) {
-                return;
-            }
-            ArkAST *refAst = FileMove::GetRefArkAST(ref.location.fileUri);
-            if (!refAst || !refAst->file || !refAst->file->curPackage) {
-                Logger::Instance().LogMessage(MessageType::MSG_LOG,
-                    "DealReExport: Cannot find ArkAst for the file: " + ref.location.fileUri);
-                return;
-            }
-            auto fileNode = FileMove::GetFileNode(refAst, ref.location.fileUri);
-            if (!fileNode) {
-                return;
-            }
-            refactor.accessForTargetPkg = false;
-            refactor.fileNode = fileNode;
-            refactor.file = ref.location.fileUri;
-            refactor.sym = std::move(symName);
-            refactor.refactorPkg = fullPkgName;
-            refactor.newPkg = targetPkg;
-            refactor.reExportedPkg = std::move(originPkg);
-            refactor.kind = FileRefactorKind::RefactorReExport;
-            refactor.targetPath = FileMove::GetTargetPath(ref.location.fileUri);
-            PackageRelation relation = FileRefactor::GetPackageRelation(
-                FileMove::GetPkgNameAfterMove(ref.location.fileUri, refFullPkg), targetPkg);
-            refactor.MatchRefactor(FileRefactorKind::RefactorReExport, relation, modifier);
-    };
 
-    auto DealSingleReExport = [&index, &DealSingleReExportRef](std::vector<lsp::Symbol> &reExportSyms,
-                                  lsp::Modifier modifier, std::string originPkg) {
-        for (const auto &sym : reExportSyms) {
-            std::string symName = FileMove::GetRealImportSymName(sym);
-            std::unordered_set<std::string> processedFiles;
-            const lsp::RefsRequest refReq{{sym.id}, lsp::RefKind::REFERENCE};
-            index->Refs(refReq, [&symName, &modifier, &originPkg, &processedFiles, &DealSingleReExportRef]
-                (const lsp::Ref &ref) {
-                if (processedFiles.count(ref.location.fileUri)) {
-                    return;
-                }
-                DealSingleReExportRef(symName, modifier, originPkg, ref);
-                processedFiles.insert(ref.location.fileUri);
-            });
-
-            const lsp::RefsRequest importRefReq{{sym.id}, lsp::RefKind::IMPORT};
-            index->Refs(importRefReq, [&symName, &modifier, &originPkg, &processedFiles, &DealSingleReExportRef]
-                (const lsp::Ref &ref) {
-                if (processedFiles.count(ref.location.fileUri)) {
-                    return;
-                }
-                DealSingleReExportRef(symName, modifier, originPkg, ref);
-                processedFiles.insert(ref.location.fileUri);
-            });
-        }
-    };
-
+    ReExportContext context{index, file, fullPkgName, targetPkg, refactor};
     for (auto &fileImport : ast->file->imports) {
         if (FileMove::isInvalidImport(fileImport.get())) {
             continue;
         }
-        auto importContent = fileImport.get()->content;
         lsp::Modifier modifier = FileRefactor::GetImportModifier(*fileImport);
         std::string importFullPkg = FileRefactor::GetImportFullPkg(fileImport->content);
-        const lsp::PkgSymsRequest pkgSymsRequest = {importFullPkg};
-        std::vector<lsp::Symbol> reExportSyms;
-        if (importContent.kind == ImportKind::IMPORT_ALL) {
-            index->FindPkgSyms(pkgSymsRequest, [&reExportSyms, &importFullPkg](const lsp::Symbol &sym) {
-                if (!FileMove::IsValidExportSym(sym, importFullPkg)) {
-                    return;
-                }
-                reExportSyms.emplace_back(sym);
-            });
-            DealSingleReExport(reExportSyms, modifier, importFullPkg);
-            continue;
-        }
-        std::string fullImportSym = FileRefactor::GetImportFullSymWithoutAlias(fileImport->content);
-        index->FindPkgSyms(pkgSymsRequest, [&reExportSyms, &fullImportSym, &importFullPkg]
-            (const lsp::Symbol &sym) {
-                if (FileMove::IsValidExportSym(sym, importFullPkg, fullImportSym)) {
-                    reExportSyms.emplace_back(sym);
-                }
-            });
-        DealSingleReExport(reExportSyms, modifier, importFullPkg);
+        std::vector<lsp::Symbol> reExportSyms = FileMove::GetReExportSyms(fileImport.get(), index);
+        DealSingleReExport(context, reExportSyms, modifier, importFullPkg);
     }
+}
+
+void FileMove::DealSingleReExportRef(const ReExportContext &context, const ReExportSymbolInfo &symbolInfo,
+    const lsp::Ref &ref)
+{
+    if (ref.location.IsZeroLoc() || ref.location.fileUri == context.file) {
+        return;
+    }
+    std::string refFullPkg = CompilerCangjieProject::GetInstance()->GetFullPkgName(ref.location.fileUri);
+    if (refFullPkg == symbolInfo.originPkg ||
+        FileRefactor::GetPackageRelation(context.fullPkgName, refFullPkg) == PackageRelation::DIFF_MODULE) {
+        return;
+    }
+    ArkAST *refAst = FileMove::GetRefArkAST(ref.location.fileUri);
+    if (!refAst || !refAst->file || !refAst->file->curPackage) {
+        Logger::Instance().LogMessage(MessageType::MSG_LOG,
+            "DealReExport: Cannot find ArkAst for the file: " + ref.location.fileUri);
+        return;
+    }
+    auto fileNode = FileMove::GetFileNode(refAst, ref.location.fileUri);
+    if (!fileNode) {
+        return;
+    }
+    context.refactor.accessForTargetPkg = false;
+    context.refactor.fileNode = fileNode;
+    context.refactor.file = ref.location.fileUri;
+    context.refactor.sym = symbolInfo.symName;
+    context.refactor.refactorPkg = context.fullPkgName;
+    context.refactor.newPkg = context.targetPkg;
+    context.refactor.reExportedPkg = symbolInfo.originPkg;
+    context.refactor.kind = FileRefactorKind::RefactorReExport;
+    context.refactor.targetPath = FileMove::GetTargetPath(ref.location.fileUri);
+    PackageRelation relation = FileRefactor::GetPackageRelation(
+        FileMove::GetPkgNameAfterMove(ref.location.fileUri, refFullPkg), context.targetPkg);
+    context.refactor.MatchRefactor(FileRefactorKind::RefactorReExport, relation, symbolInfo.modifier);
+}
+
+void FileMove::DealSingleReExport(const ReExportContext &context, const std::vector<lsp::Symbol> &reExportSyms,
+    lsp::Modifier modifier, const std::string &originPkg)
+{
+    for (const auto &sym : reExportSyms) {
+        ReExportSymbolInfo symbolInfo{FileMove::GetRealImportSymName(sym), modifier, originPkg};
+        std::unordered_set<std::string> processedFiles;
+        auto dealRef = [&](const lsp::Ref &ref) {
+            if (processedFiles.count(ref.location.fileUri)) {
+                return;
+            }
+            DealSingleReExportRef(context, symbolInfo, ref);
+            processedFiles.insert(ref.location.fileUri);
+        };
+        const lsp::RefsRequest refReq{{sym.id}, lsp::RefKind::REFERENCE, std::nullopt};
+        context.index->Refs(refReq, dealRef);
+
+        const lsp::RefsRequest importRefReq{{sym.id}, lsp::RefKind::IMPORT, std::nullopt};
+        context.index->Refs(importRefReq, dealRef);
+    }
+}
+
+std::vector<lsp::Symbol> FileMove::GetReExportSyms(Ptr<ImportSpec> fileImport, lsp::SymbolIndex *index)
+{
+    std::vector<lsp::Symbol> reExportSyms;
+    if (FileMove::isInvalidImport(fileImport) || index == nullptr) {
+        return reExportSyms;
+    }
+    auto importContent = fileImport.get()->content;
+    std::string importFullPkg = FileRefactor::GetImportFullPkg(fileImport->content);
+    const lsp::PkgSymsRequest pkgSymsRequest = {importFullPkg};
+    if (importContent.kind == ImportKind::IMPORT_ALL) {
+        index->FindPkgSyms(pkgSymsRequest, [&reExportSyms, &importFullPkg](const lsp::Symbol &sym) {
+            if (!FileMove::IsValidExportSym(sym, importFullPkg)) {
+                return;
+            }
+            reExportSyms.emplace_back(sym);
+        });
+        return reExportSyms;
+    }
+    std::string fullImportSym = FileRefactor::GetImportFullSymWithoutAlias(fileImport->content);
+    index->FindPkgSyms(pkgSymsRequest, [&reExportSyms, &fullImportSym, &importFullPkg](const lsp::Symbol &sym) {
+        if (FileMove::IsValidExportSym(sym, importFullPkg, fullImportSym)) {
+            reExportSyms.emplace_back(sym);
+        }
+    });
+    return reExportSyms;
 }
 
 void FileMove::DealMoveFilePackageName(const ArkAST *ast, const std::string &targetPkg,
@@ -571,7 +576,7 @@ bool FileMove::ExistImportForTargetPkg(lsp::SymbolID symbolID, std::string targe
     if (!index) {
         return false;
     }
-    const lsp::RefsRequest importRefReq{{symbolID}, lsp::RefKind::IMPORT};
+    const lsp::RefsRequest importRefReq{{symbolID}, lsp::RefKind::IMPORT, std::nullopt};
     bool isImport = false;
     auto DealImport = [](File *f, Position start, Position end, bool isMoveFile) {
         for (const auto &importSpec : f->imports) {

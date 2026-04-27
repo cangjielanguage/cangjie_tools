@@ -27,7 +27,7 @@ void FindReferencesImpl::GetCurPkgUesage(Ptr<Decl> decl, const ArkAST &ast, Refe
             continue;
         }
         auto range = GetProperRange(U, ast.tokens);
-        Location loc = {URI::URIFromAbsolutePath(U->curFile->filePath).ToString(), range};
+        Location loc = {{URI::URIFromAbsolutePath(U->curFile->filePath).ToString()}, {range.start, range.end}};
         (void)result.References.emplace(loc);
     }
 }
@@ -134,7 +134,7 @@ void FindReferencesImpl::FindReferences(const ArkAST &ast, ReferencesResult &res
         index->FindRiddenDown(topId, ids);
         (void)ids.insert(id);
 
-        lsp::RefsRequest req{ids, lsp::RefKind::REFERENCE};
+        lsp::RefsRequest req{ids, lsp::RefKind::REFERENCE, std::nullopt};
         lsp::Ref definition{ {}, {}, 0 };
         index->RefsFindReference(req, definition, [&result, pos, curIdx, ast](const lsp::Ref &ref) {
             if (ref.isCjoRef) {
@@ -151,15 +151,15 @@ void FindReferencesImpl::FindReferences(const ArkAST &ast, ReferencesResult &res
                 return;
             }
             CompilerCangjieProject::GetInstance()->GetRealPath(realPath);
-            Location loc{URI::URIFromAbsolutePath(realPath).ToString(),
-                         TransformFromChar2IDE({ref.location.begin, ref.location.end})};
+            auto range = TransformFromChar2IDE({ref.location.begin, ref.location.end});
+            Location loc{{URI::URIFromAbsolutePath(realPath).ToString()}, {range.start, range.end}};
             (void)result.References.emplace(loc);
         });
         if (definition.container != 0) {
             auto realPath = definition.location.fileUri;
             CompilerCangjieProject::GetInstance()->GetRealPath(realPath);
-            Location defLoc{URI::URIFromAbsolutePath(realPath).ToString(),
-                TransformFromChar2IDE({definition.location.begin, definition.location.end})};
+            auto range = TransformFromChar2IDE({definition.location.begin, definition.location.end});
+            Location defLoc{{URI::URIFromAbsolutePath(realPath).ToString()}, {range.start, range.end}};
             auto it = result.References.find(defLoc);
             if (it != result.References.end()) {
                 result.References.erase(it);

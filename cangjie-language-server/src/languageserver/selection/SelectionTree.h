@@ -54,22 +54,22 @@ public:
         return Root ? &(*Root) : nullptr;
     }
 
-    const Scope SelectedScope() const
+    Scope SelectedScope() const
     {
         return scope;
     }
 
-    const Ptr<Cangjie::AST::Node> TargetDecl() const
+    Ptr<Cangjie::AST::Node> TargetDecl() const
     {
         return targetDecl;
     }
 
-    const Ptr<Cangjie::AST::Node> TopDecl() const
+    Ptr<Cangjie::AST::Node> TopDecl() const
     {
         return topDecl;
     }
 
-    const Ptr<Cangjie::AST::Node> OuterInterpExpr() const
+    Ptr<Cangjie::AST::Node> OuterInterpExpr() const
     {
         return outerInterpExpr;
     }

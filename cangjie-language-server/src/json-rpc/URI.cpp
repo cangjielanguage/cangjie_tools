@@ -185,7 +185,7 @@ URI URI::Parse(const std::string& origUri)
         u.authority = PercentDecode(uri.substr(0, pos));
         uri = uri.substr(pos);
     }
-    int oneMb = 1024 * 1024;
+    constexpr std::string::size_type oneMb = 1024 * 1024;
     // 1MB limit
     if (uri.length() > oneMb) {
         return u;

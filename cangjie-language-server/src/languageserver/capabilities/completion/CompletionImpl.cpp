@@ -437,6 +437,7 @@ void CompletionImpl::GenerateNamedArgumentCompletion(ark::CompletionResult &resu
 void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cangjie::Position &pos,
                                             ark::CompletionResult &result, int index, const std::string &prefix)
 {
+    (void)pos;
     int lparenIndex = -1;
     if (!CheckNamedParameter(input, index, lparenIndex)) {
         return;
@@ -466,7 +467,7 @@ void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cang
     for (int i = lparenIndex + 1; i < index; ++i) {
         // Heuristic rule: Identifier followed immediately by Colon (:)
         if (input.tokens[i].kind == Cangjie::TokenKind::IDENTIFIER &&
-            (i + 1 < input.tokens.size()) &&
+            (static_cast<size_t>(i + 1) < input.tokens.size()) &&
             input.tokens[i+1].kind == Cangjie::TokenKind::COLON) {
             usedNamedParams.insert(input.tokens[i].Value());
         }
@@ -643,7 +644,7 @@ void CompletionImpl::NormalParseImpl(
 
 int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdxInLine)
 {
-    if (firstTokIdxInLine >= input.tokens.size() || firstTokIdxInLine < 0) {
+    if (firstTokIdxInLine < 0 || static_cast<size_t>(firstTokIdxInLine) >= input.tokens.size()) {
         return firstTokIdxInLine;
     }
     if (input.tokens[firstTokIdxInLine].kind != TokenKind::DOT) {
@@ -721,7 +722,7 @@ std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start
             (void)chainedName.insert(zeroPos, input.tokens[i].Value());
         } else if (hasDot && identifier.find(input.tokens[i].kind) != identifier.end()) {
             (void)chainedName.insert(zeroPos, input.tokens[i].Value());
-            if (input.tokens[i].kind == TokenKind::QUEST && i - 1 >= 0) {
+            if (input.tokens[i].kind == TokenKind::QUEST && i > 0) {
                 (void)chainedName.insert(zeroPos, input.tokens[i - 1].Value());
                 skipQuest = true;
             }

@@ -77,7 +77,8 @@ public:
     template <class F, class... Args>
     void AddTask(const uint64_t taskId, const std::unordered_set<uint64_t> &dependencies, F &&func, Args &&...args)
     {
-        std::shared_ptr<Task> task = std::make_unique<Task>(Task{std::bind(std::forward<F>(func)), taskId});
+        std::shared_ptr<Task> task = std::make_unique<Task>(
+            Task{std::bind(std::forward<F>(func), std::forward<Args>(args)...), taskId});
         if (!task) {
             return;
         }

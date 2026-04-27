@@ -1147,7 +1147,9 @@ void CompletionEnv::CompleteFunctionName(CodeCompletion &completion, bool isRawI
 
 void CompletionEnv::DeclVarWithTuple(Ptr<const Node> node, bool isImport, bool isInScope, bool isSameName)
 {
-    if (!node || node->astKind != ASTKind::VAR_WITH_PATTERN_DECL && node->astKind != ASTKind::TUPLE_PATTERN) { return; }
+    if (!node || (node->astKind != ASTKind::VAR_WITH_PATTERN_DECL && node->astKind != ASTKind::TUPLE_PATTERN)) {
+        return;
+    }
     if (node->astKind == ASTKind::VAR_WITH_PATTERN_DECL) {
         auto varWithPatternDecl = dynamic_cast<const VarWithPatternDecl*>(node.get());
         if (varWithPatternDecl && varWithPatternDecl->irrefutablePattern &&
@@ -1369,7 +1371,7 @@ void CompletionEnv::CompleteClassOrStructDecl(const T &decl, const std::string &
         }
 
         if (it && (((it->identifier.Val().compare("init") == 0 && it->astKind == ASTKind::FUNC_DECL)) ||
-                it->astKind == ASTKind::PRIMARY_CTOR_DECL && !isImportedPrimaryCtor)) {
+                (it->astKind == ASTKind::PRIMARY_CTOR_DECL && !isImportedPrimaryCtor))) {
             // out package ensure it's PUBLIC  || in package ensure it's not Private
             bool flag = !isInScope && !(isInPackage && !it->TestAttr(Cangjie::AST::Attribute::PRIVATE)) &&
                         !((decl.fullPackageName != curPkgName && it->TestAttr(Cangjie::AST::Attribute::PUBLIC)) ||

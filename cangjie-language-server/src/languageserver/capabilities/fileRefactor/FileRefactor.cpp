@@ -323,7 +323,7 @@ std::string FileRefactor::GetImportFullPkg(const ImportContent &importContent)
 std::string FileRefactor::GetImportFullSym(const ImportContent &importContent)
 {
     std::stringstream ss;
-    for (int i = 0; i < importContent.prefixPaths.size(); ++i) {
+    for (size_t i = 0; i < importContent.prefixPaths.size(); ++i) {
         ss << importContent.prefixPaths[i];
         if (i != importContent.prefixPaths.size() - 1) {
             ss << CONSTANTS::DOT;
@@ -341,7 +341,7 @@ std::string FileRefactor::GetImportFullSym(const ImportContent &importContent)
 std::string FileRefactor::GetImportFullSymWithoutAlias(const ImportContent &importContent)
 {
     std::stringstream ss;
-    for (int i = 0; i < importContent.prefixPaths.size(); ++i) {
+    for (size_t i = 0; i < importContent.prefixPaths.size(); ++i) {
         ss << importContent.prefixPaths[i];
         if (i != importContent.prefixPaths.size() - 1) {
             ss << CONSTANTS::DOT;
@@ -501,7 +501,7 @@ bool FileRefactor::ContainFullSymImportForReExport()
 bool FileRefactor::FileContainFullSymImportForReExport(const File *pFile, bool isRefFile,
     std::string refactorFullSym, std::string originFullSym)
 {
-    for (auto &fileImport: fileNode->imports) {
+    for (auto &fileImport: pFile->imports) {
         if (!fileImport || fileImport->end.IsZero()) {
             continue;
         }

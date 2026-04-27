@@ -169,7 +169,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::set<TypeHierarchyItem> &results,
     auto id = hierarchyItem.symbolId;
     std::unordered_set<lsp::SymbolID> superTypeIds;
 
-    lsp::RelationsRequest inheritReq{id, lsp::RelationKind::BASE_OF};
+    lsp::RelationsRequest inheritReq{id, lsp::RelationKind::BASE_OF, std::nullopt};
     index->Relations(inheritReq, [&inheritReq, &superTypeIds](const lsp::Relation &spo) {
         // Subject    P    Object
         // ^               ^
@@ -179,7 +179,7 @@ void TypeHierarchyImpl::FindSuperTypesImpl(std::set<TypeHierarchyItem> &results,
         }
     });
 
-    lsp::RelationsRequest extendReq{id, lsp::RelationKind::EXTEND};
+    lsp::RelationsRequest extendReq{id, lsp::RelationKind::EXTEND, std::nullopt};
     index->Relations(extendReq, [&extendReq, &superTypeIds](const lsp::Relation &spo) {
         // Subject    P    Object
         // ^               ^
@@ -223,7 +223,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::set<TypeHierarchyItem> &results,
     auto id = hierarchyItem.symbolId;
     std::unordered_set<lsp::SymbolID> subTypeIds;
 
-    lsp::RelationsRequest relationReq{id, lsp::RelationKind::BASE_OF};
+    lsp::RelationsRequest relationReq{id, lsp::RelationKind::BASE_OF, std::nullopt};
     index->Relations(relationReq, [&relationReq, &subTypeIds](const lsp::Relation &spo) {
         // Subject    BASE OF    Object
         // ^                     ^
@@ -234,7 +234,7 @@ void TypeHierarchyImpl::FindSubTypesImpl(std::set<TypeHierarchyItem> &results,
         }
     });
 
-    lsp::RelationsRequest extendReq{id, lsp::RelationKind::EXTEND};
+    lsp::RelationsRequest extendReq{id, lsp::RelationKind::EXTEND, std::nullopt};
     index->Relations(extendReq, [&extendReq, &subTypeIds](const lsp::Relation &spo) {
         // Subject    EXTEND    Object
         // ^                    ^

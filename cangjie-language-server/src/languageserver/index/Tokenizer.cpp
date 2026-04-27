@@ -11,26 +11,10 @@ namespace ark {
 namespace lsp {
 namespace {
 
-inline constexpr bool IsUpper(char c) { return 'A' <= c && c <= 'Z'; }
-
-/**
- * Checks if character C is a valid letter as classified by "C" locale.
- */
-inline bool IsAlpha(char c)
-{
-    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
-}
-
 /**
  * Checks if character C is one of the 10 decimal digits.
  */
 inline bool IsDigit(char c) { return c >= '0' && c <= '9'; }
-
-/**
- * Checks whether character C is either a decimal digit or an uppercase or
- * lowercase letter as classified by "C" locale.
- */
-inline bool IsAlnum(char c) { return IsAlpha(c) || IsDigit(c); }
 
 /**
  * Returns the corresponding lowercase character if x is uppercase.

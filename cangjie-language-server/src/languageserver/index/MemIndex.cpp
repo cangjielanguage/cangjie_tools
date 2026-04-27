@@ -174,6 +174,7 @@ void MemIndex::FindImportSymsOnCompletion(
     const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
     std::function<void(const std::string &, const Symbol &, const CompletionItem &)> callback)
 {
+    (void)prefix;
     if (Options::GetInstance().IsOptionSet("test")) {
         return;
     }
@@ -395,7 +396,10 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
         }
     }
 }
-void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const {
+void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const
+{
+    (void)array;
+    (void)callback;
 }
 } // namespace lsp
 } // namespace ark

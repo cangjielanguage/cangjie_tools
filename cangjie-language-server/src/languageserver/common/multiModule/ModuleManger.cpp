@@ -33,7 +33,10 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         std::string moduleName = CONSTANTS::DEFAULT_ROOT_PACKAGE;
         std::string normalizeModulePath = FileStore::NormalizePath(URI::Resolve(workspace));
         duplicateModules[moduleName].push_back(normalizeModulePath);
-        moduleInfoMap[normalizeModulePath] = {moduleName, normalizeModulePath};
+        ModuleInfo moduleInfo;
+        moduleInfo.moduleName = moduleName;
+        moduleInfo.modulePath = normalizeModulePath;
+        moduleInfoMap[normalizeModulePath] = std::move(moduleInfo);
         requirePackages[moduleName].insert(moduleName);
         return;
     }
@@ -46,7 +49,10 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
             name = value.value(MODULE_JSON_NAME, "");
         }
         duplicateModules[name].push_back(path);
-        moduleInfoMap[path] = {name, path};
+        ModuleInfo moduleInfo;
+        moduleInfo.moduleName = name;
+        moduleInfo.modulePath = path;
+        moduleInfoMap[path] = std::move(moduleInfo);
         if (value.contains(SRC_PATH)) {
             auto srcPath = value.value(SRC_PATH, "");
             moduleInfoMap[path].srcPath = FileStore::NormalizePath(URI::Resolve(srcPath));
@@ -99,7 +105,7 @@ void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const 
             i++;
             continue;
         }
-        if (type == SPECIFIC && i == jsonData[COMMON_SPECIFIC_PATHS].size() - 1) {
+        if (type == SPECIFIC && static_cast<size_t>(i) == jsonData[COMMON_SPECIFIC_PATHS].size() - 1) {
             moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(
                 FileStore::NormalizePath(URI::Resolve(path)));
             moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME, ""));

@@ -624,7 +624,7 @@ std::vector<Ptr<Decl>> GetAimSubDecl(const std::string &curPkg,
                                      const std::string &editPkg)
 {
     std::vector<Ptr<Decl>> users{};
-    if (curPkg.empty() || !IsFromCIMap(curPkg) && !IsFromCIMapNotInSrc(curPkg)) {
+    if (curPkg.empty() || (!IsFromCIMap(curPkg) && !IsFromCIMapNotInSrc(curPkg))) {
         return users;
     }
     auto instance = CompilerCangjieProject::GetInstance();
@@ -1102,6 +1102,7 @@ bool IsModifierBeforeDecl(Ptr<const Decl> decl, const Position &pos)
 
 Range GetProperRange(const Ptr<Node>& node, const std::vector<Cangjie::Token> &tokens, bool converted)
 {
+    (void)converted;
     Range range;
     if (node->astKind == ASTKind::FUNC_ARG) {
         if (auto funcArg = dynamic_cast<FuncArg *>(node.get())) {
@@ -1480,7 +1481,7 @@ std::string GetSysCapFromDecl(const Decl &decl)
 
 TokenKind FindPreFirstValidTokenKind(const ark::ArkAST &input, int index)
 {
-    if (index >= input.tokens.size()) {
+    if (static_cast<size_t>(index) >= input.tokens.size()) {
         return TokenKind::INIT;
     }
     while (--index > 0) {

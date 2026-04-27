@@ -165,7 +165,7 @@ void RenameImpl::RenameByIndex(lsp::SymbolID id, DocumentChanges &documentChange
         UpdateUserMap(documentChanges, file, t);
     });
 
-    lsp::RefsRequest refsRequest{relationIds, lsp::RefKind::REFERENCE};
+    lsp::RefsRequest refsRequest{relationIds, lsp::RefKind::REFERENCE, std::nullopt};
     index->Refs(refsRequest, [&documentChanges, &newName, &range](const lsp::Ref &ref) {
         if (ref.isSuper) {
             return;

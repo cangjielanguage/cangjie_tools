@@ -233,7 +233,11 @@ public:
 
     Symbol GetAimSymbol(const Decl &decl) override;
     void GetFuncByName(const FuncSigRequest &req,
-                       std::function<void(const Symbol &)> callback) const override {}
+                       std::function<void(const Symbol &)> callback) const override
+    {
+        (void)req;
+        (void)callback;
+    }
 };
 
 } // namespace lsp

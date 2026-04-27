@@ -535,8 +535,8 @@ void SignatureHelpImpl::FindFuncDeclByDeclType(Ptr<Ty> declTy, const std::string
         declTy, packageNameForPath, *ast->file);
     for (auto &decl : extendMembers) {
         // Make sure extend has access
-        if (!decl || decl->fullPackageName != ast->semaCache->packageInstance->ctx->curPackage->fullPackageName &&
-                     decl->fullPackageName != id->fullPackageName && !decl->TestAttr(Attribute::PUBLIC)) {
+        if (!decl || (decl->fullPackageName != ast->semaCache->packageInstance->ctx->curPackage->fullPackageName &&
+                     decl->fullPackageName != id->fullPackageName && !decl->TestAttr(Attribute::PUBLIC))) {
             continue;
         }
         if (!decl || decl->identifier != funcName ||
@@ -722,7 +722,6 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
             return false;
         }
         auto nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->ty : node->ty;
-        Logger &logger = Logger::Instance();
         if (!Ty::IsTyCorrect(nodeTy)) {
             auto realPos = node->GetMacroCallNewPos(posOfMember);
             std::string realQuery = "_ = (" + std::to_string(realPos.fileID) + ", "
