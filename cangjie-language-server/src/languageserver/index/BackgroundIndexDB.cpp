@@ -573,7 +573,7 @@ void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
             continue;
         }
         auto relation = GetPackageRelation(curPkgName, pkgName);
-        db.GetReExportSymbolsWithCompletions(pkgName,
+        db.GetReExportSymbolsWithCompletions(pkgName, prefix,
             [&](const ReExportSymbol &sym, const CompletionItem &completionItem) {
             bool isAccessiable =
                 sym.modifier == Modifier::PUBLIC
@@ -584,11 +584,11 @@ void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
             if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
                 return true;
             }
-            if (normalCompleteCount >= normalCompleteSyms.size() || normalCompleteSyms.count(sym.id)) {
+            if (normalCompleteCount < normalCompleteSyms.size() && normalCompleteSyms.count(sym.id)) {
                 normalCompleteCount++;
                 return true;
             }
-            if (importDeclCount >= importDeclSyms.size() || importDeclSyms.count(sym.id)) {
+            if (importDeclCount < importDeclSyms.size() && importDeclSyms.count(sym.id)) {
                 importDeclCount++;
                 return true;
             }

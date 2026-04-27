@@ -178,6 +178,9 @@ bool FromJSON(const nlohmann::json &params, SignatureHelpParams &reply)
 
 bool FromJSON(const nlohmann::json &params, InitializeParams &reply)
 {
+    if (!params.contains("rootUri") || !params.contains("capabilities")) {
+        return false;
+    }
     if (params["rootUri"].is_null() || params["capabilities"].is_null()) {
         return false;
     }

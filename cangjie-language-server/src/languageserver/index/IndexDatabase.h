@@ -125,7 +125,7 @@ public:
     dberr_no GetReExportCompletion(const std::string &pkgName, const ReExportSymbol &sym,
         std::function<void(const ReExportSymbol &, const CompletionItem &)> callback);
 
-    dberr_no GetReExportSymbolsWithCompletions(const std::string &pkgName,
+    dberr_no GetReExportSymbolsWithCompletions(const std::string &pkgName, const std::string &prefix,
         std::function<void(const ReExportSymbol &, const CompletionItem &)> callback);
 
     dberr_no GetRelationsRiddenUp(const SymbolID &objectID, RelationKind kind,

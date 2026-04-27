@@ -667,7 +667,7 @@ void ArkServer::ProcessCompletion(const InputsAndAST &input, const Cangjie::Posi
     CompilerCangjieProject::GetInstance()->ClearParseCache("Completion");
     CompletionList completionList;
     for (auto &iter : result.completions) {
-        if (prefix.back() == '.' || IsMatchingCompletion(prefix, iter.name)) {
+        if (iter.show && (prefix.back() == '.' || IsMatchingCompletion(prefix, iter.name))) {
             if (iter.name.find(BOX_DECL_PREFIX) != std::string::npos) { continue; }
             auto score = CompilerCangjieProject::GetInstance()->CalculateScore(iter, prefix, result.cursorDepth);
             completionList.items.push_back(iter.Render(GetSortText(score), prefix));
