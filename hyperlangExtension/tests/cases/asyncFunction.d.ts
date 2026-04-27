@@ -31,7 +31,7 @@ declare class ASC {
  
 declare class ForParamToJs {
     constructor(
-        param1:common.Context,
+        // param1:common.Context,
         param2:Colors,
         param3:BigInt,
         param4:Uint8Array,

@@ -245,6 +245,7 @@ public class A2CJ {
         handleDefault(out)
         handleAsyncPlan(out)
         handleUseBigInt(gconfig, out)
+        handleUseContext(gconfig, out)
         handleHashMap(gconfig, out)
         handleTypeImport(gconfig, out)
     }

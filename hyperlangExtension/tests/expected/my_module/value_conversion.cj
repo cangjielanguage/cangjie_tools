@@ -31,17 +31,35 @@ import std.collection.{ HashMap }
     }*/
 
 public open class I1 {
-    
-    protected I1(public var a: Float64,
-    public var c: Array<UInt8>,
-    public var e: Array<Float32>,
-    public var g: HashMap<String, Array<UInt8>>,
-    public var h: MyStringEnum,
-    public var i: BigInt,
-    public var b!: Option<String> = None,
-    public var d!: Option<Array<UInt8>> = None,
-    public var f!: Option<Bool> = None) { }
-    
+    public var a: Float64
+    public var c: Array<UInt8>
+    public var e: Array<Float32>
+    public var g: HashMap<String, Array<UInt8>>
+    public var h: MyStringEnum
+    public var i: BigInt
+    public var b: Option<String> = None
+    public var d: Option<Array<UInt8>> = None
+    public var f: Option<Bool> = None
+    protected init(
+    a: Float64,
+    c: Array<UInt8>,
+    e: Array<Float32>,
+    g: HashMap<String, Array<UInt8>>,
+    h: MyStringEnum,
+    i: BigInt,
+    b!: Option<String> = None,
+    d!: Option<Array<UInt8>> = None,
+    f!: Option<Bool> = None) {
+        this.a = a
+        this.c = c
+        this.e = e
+        this.g = g
+        this.h = h
+        this.i = i
+        this.b = b
+        this.d = d
+        this.f = f
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -51,13 +69,13 @@ public open class I1 {
         obj["g"] = hashmap2Record<String, Array<UInt8>>(context, g, { context, i => i.toJSValue(context) })
         obj["h"] = h.get().toJSValue(context)
         obj["i"] = context.bigint(i).toJSValue()
-        if(let Some(v) <- b) {
+        if (let Some(v) <- b) {
             obj["b"] = v.toJSValue(context)
         }
-        if(let Some(v) <- d) {
+        if (let Some(v) <- d) {
             obj["d"] = toJSArray < UInt8 >(context, v, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) })
         }
-        if(let Some(v) <- f) {
+        if (let Some(v) <- f) {
             obj["f"] = v.toJSValue(context)
         }
         obj.toJSValue()
@@ -73,22 +91,22 @@ public open class I1 {
         MyStringEnum.parse(String.fromJSValue(context, obj["h"])),
         obj["i"].asBigInt().toBigInt(),
         b:
-        if(obj["b"].isNull()) {
+        if (obj["b"].isNull()) {
             None < String >
         } else {
             String.fromJSValue(context, obj["b"])
         },
         d: fromJSArrayOption < UInt8 >(context, obj["d"], { ctx: JSContext, val: JSValue => UInt8.fromJSValue(ctx, val) }),
         f:
-        if(obj["f"].isNull()) {
+        if (obj["f"].isNull()) {
             None < Bool >
         } else {
             Bool.fromJSValue(context, obj["f"])
         }
         )
     }
-    
 }
+
 
 /*class C1 {
     StaticKeywordsa: number = 123;
@@ -104,7 +122,6 @@ public open class I1 {
     }*/
 
 public class C1 {
-    
     protected C1(var arkts_object: JSObject) { }
     
     
@@ -184,7 +201,7 @@ public class C1 {
         get() {
             checkThreadAndCall < ?String >(getMainContext()) {
                 ctx: JSContext =>
-                if(getClassConstructorObj("my_module_valueConversion", "C1")["sc"].isNull()) {
+                if (getClassConstructorObj("my_module_valueConversion", "C1")["sc"].isNull()) {
                     None < String >
                 } else {
                     String.fromJSValue(ctx, getClassConstructorObj("my_module_valueConversion", "C1")["sc"])
@@ -223,7 +240,7 @@ public class C1 {
         get() {
             checkThreadAndCall < ?String >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["vd"].isNull()) {
+                if (arkts_object["vd"].isNull()) {
                     None < String >
                 } else {
                     String.fromJSValue(ctx, arkts_object["vd"])
@@ -256,11 +273,11 @@ public class C1 {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): C1 {
+    static func fromJSValue(_: JSContext, input: JSValue): C1 {
         C1(input.asObject())
     }
 }

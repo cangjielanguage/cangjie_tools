@@ -18,10 +18,14 @@ import std.math.numeric.*
     }*/
 
 public open class AutoGenType0InasyncFunction {
-    
-    protected AutoGenType0InasyncFunction(public var a: Float64,
-    public var b: String) { }
-    
+    public var a: Float64
+    public var b: String
+    protected init(
+    a: Float64,
+    b: String) {
+        this.a = a
+        this.b = b
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -37,8 +41,8 @@ public open class AutoGenType0InasyncFunction {
         String.fromJSValue(context, obj["b"])
         )
     }
-    
 }
+
 /***********ENUM***********/
 
 /* enum Colors {
@@ -101,27 +105,26 @@ public enum Colors <: ToString & Equatable < Colors > {
     }*/
 
 public class ASC {
-    
     protected ASC(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(param1:string, param2:{a:number,b:string}, param3:number, funcParam:()=>string, callback?:AsyncCallback<string>): void
 	 */
     public init(param1: String, param2: AutoGenType0InasyncFunction, param3: Float64, funcParam: () -> String, callback!: Option < AsyncCallback<String> >= None) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_asyncFunction", "ASC").toJSValue().asClass()
-            clazz.new([param1.toJSValue(__ctx), param2.toJSValue(__ctx), param3.toJSValue(__ctx), __ctx.function({ ctx, _ =>
+            clazz.new([param1.toJSValue(ctx), param2.toJSValue(ctx), param3.toJSValue(ctx), ctx.function({ ctx, _ =>
                 let ret = funcParam()
                 ret.toJSValue(ctx)
             }).toJSValue(), match(callback) {
-                case None => __ctx.undefined().toJSValue()
-                case _ => asyncCallbackWrapper < String >(__ctx, callback.getOrThrow())
+                case None => ctx.undefined().toJSValue()
+                case _ => asyncCallbackWrapper < String >(ctx, callback.getOrThrow())
             }]).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_asyncFunction", "ASC").toJSValue().asClass()
             clazz.new().asObject()
         }
@@ -136,49 +139,48 @@ public class ASC {
         jsObjApiCall < Unit >(getClassConstructorObj("my_module_asyncFunction", "ASC"),  "AS1", { ctx =>[asyncCallbackWrapper < Unit >(ctx, callback)] })
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): ASC {
+    static func fromJSValue(_: JSContext, input: JSValue): ASC {
         ASC(input.asObject())
     }
 }
 
 /*class DeclareKeyword ForParamToJs {
-    constructor(param1:common.Context, param2:Colors, param3:BigInt, param4:Uint8Array, param5:number[], param6:Array<number>, callback:AsyncCallback<string>, paramEnum:Array<Colors>, param7?:Array<number>, param8?:Colors, param9?:Array<UInt8>): void
+    constructor(param2:Colors, param3:BigInt, param4:Uint8Array, param5:number[], param6:Array<number>, callback:AsyncCallback<string>, paramEnum:Array<Colors>, param7?:Array<number>, param8?:Colors, param9?:Array<UInt8>): void
     }*/
 
 public class ForParamToJs {
-    
     protected ForParamToJs(var arkts_object: JSObject) { }
     /**
-	 * @brief constructor(param1:common.Context, param2:Colors, param3:BigInt, param4:Uint8Array, param5:number[], param6:Array<number>, callback:AsyncCallback<string>, paramEnum:Array<Colors>, param7?:Array<number>, param8?:Colors, param9?:Array<UInt8>): void
+	 * @brief constructor(param2:Colors, param3:BigInt, param4:Uint8Array, param5:number[], param6:Array<number>, callback:AsyncCallback<string>, paramEnum:Array<Colors>, param7?:Array<number>, param8?:Colors, param9?:Array<UInt8>): void
 	 */
-    public init(param1: JSValue/* FIXME: `JSValue/* FIXME: `common.Context` */` */, param2: Colors, param3: JSValue/* FIXME: `BigInt` */, param4: Array<UInt8>, param5: Array<Float64>, param6: Array<Float64>, callback: AsyncCallback<String>, paramEnum: Array<Colors>, param7!: Option < Array<Float64> >= None, param8!: Option < Colors >= None, param9!: Option < Array<UInt8> >= None) {
+    public init(param2: Colors, param3: JSValue/* FIXME: `BigInt` */, param4: Array<UInt8>, param5: Array<Float64>, param6: Array<Float64>, callback: AsyncCallback<String>, paramEnum: Array<Colors>, param7!: Option < Array<Float64> >= None, param8!: Option < Colors >= None, param9!: Option < Array<UInt8> >= None) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_asyncFunction", "ForParamToJs").toJSValue().asClass()
-            clazz.new([param1, param2.get().toJSValue(__ctx), param3, toJSArray < UInt8 >(__ctx, param4, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), toJSArray < Float64 >(__ctx, param5), toJSArray < Float64 >(__ctx, param6), asyncCallbackWrapper < String >(__ctx, callback), toJSArray < Colors >(__ctx, paramEnum, { ctx: JSContext, val: Colors => val.get().toJSValue(ctx) }), toJSArray < Float64 >(__ctx, param7), match(param8) {
-                case None => __ctx.undefined().toJSValue()
-                case _ => param8.getOrThrow().get().toJSValue(__ctx)
-            }, toJSArray < UInt8 >(__ctx, param9, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) })]).asObject()
+            clazz.new([param2.get().toJSValue(ctx), param3, toJSArray < UInt8 >(ctx, param4, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), toJSArray < Float64 >(ctx, param5), toJSArray < Float64 >(ctx, param6), asyncCallbackWrapper < String >(ctx, callback), toJSArray < Colors >(ctx, paramEnum, { ctx: JSContext, val: Colors => val.get().toJSValue(ctx) }), toJSArray < Float64 >(ctx, param7), match(param8) {
+                case None => ctx.undefined().toJSValue()
+                case _ => param8.getOrThrow().get().toJSValue(ctx)
+            }, toJSArray < UInt8 >(ctx, param9, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) })]).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_asyncFunction", "ForParamToJs").toJSValue().asClass()
             clazz.new().asObject()
         }
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): ForParamToJs {
+    static func fromJSValue(_: JSContext, input: JSValue): ForParamToJs {
         ForParamToJs(input.asObject())
     }
 }

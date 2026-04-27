@@ -92,7 +92,7 @@ class Scanner {
                     pos++
                 } while (s[pos] != r'"')
                 pos++
-                Str(input[start + 1..pos - 1])
+                Str(String(s[start + 1..pos - 1]))
             case _ => throw IllegalArgumentException("Unexpected token: ${c}")
         }
     }

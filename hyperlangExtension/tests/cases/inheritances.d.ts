@@ -54,3 +54,16 @@ interface F extends C {
 
 export interface BuglyLogAdapter extends p29 {
 }
+
+
+export interface INamespace {
+    /* Namespace options */
+    options?: { [k: string]: any };
+
+    /* Nested object descriptors */
+    nested?: { [k: string]: AnyNestedObject };
+}
+export interface IService extends INamespace {
+    /* Method descriptors */
+    methods: { [k: string]: IMethod };
+}

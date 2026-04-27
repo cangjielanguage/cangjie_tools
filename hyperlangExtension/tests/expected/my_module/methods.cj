@@ -24,10 +24,10 @@ public enum AutoGenType0Inmethods {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0Inmethods {
         
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         } 
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } 
         throw Exception("unsupport type!")
@@ -154,7 +154,6 @@ public enum EMStr <: ToString & Equatable < EMStr > {
     }*/
 
 public open class Drivable {
-    
     protected Drivable(var arkts_object: JSObject) { }
     
     
@@ -171,11 +170,11 @@ public open class Drivable {
         jsObjApiCall < Unit >( arkts_object, "stop", EMPTY_ARG)
     }
     
-    public open func toJSValue(context: JSContext): JSValue {
+    public open func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): Drivable {
+    public static func fromJSValue(_: JSContext, input: JSValue): Drivable {
         Drivable(input.asObject())
     }
 }
@@ -192,7 +191,6 @@ public open class Drivable {
     }*/
 
 public open class IM {
-    
     protected IM(var arkts_object: JSObject) { }
     
     
@@ -265,11 +263,11 @@ public open class IM {
             }).toJSValue()] })
     }
     
-    public open func toJSValue(context: JSContext): JSValue {
+    public open func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): IM {
+    public static func fromJSValue(_: JSContext, input: JSValue): IM {
         IM(input.asObject())
     }
 }
@@ -281,21 +279,20 @@ public open class IM {
     }*/
 
 public open class Animal {
-    
     protected Animal(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(name: string): void
 	 */
     public init(name: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass()
-            clazz.new(name.toJSValue(__ctx)).asObject()
+            clazz.new(name.toJSValue(ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass()
             clazz.new().asObject()
         }
@@ -322,11 +319,11 @@ public open class Animal {
         jsObjApiCall < Unit >( arkts_object, "move", { ctx =>[distance.toJSValue(ctx)] })
     }
     
-    public open func toJSValue(context: JSContext): JSValue {
+    public open func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): Animal {
+    public static func fromJSValue(_: JSContext, input: JSValue): Animal {
         Animal(input.asObject())
     }
 }
@@ -337,7 +334,6 @@ public open class Animal {
     }*/
 
 public class AnimalProtect {
-    
     protected AnimalProtect(var arkts_object: JSObject) { }
     
     // 受保护属性
@@ -363,11 +359,11 @@ public class AnimalProtect {
         jsObjApiCall < Unit >( arkts_object, "makeSound", EMPTY_ARG)
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): AnimalProtect {
+    static func fromJSValue(_: JSContext, input: JSValue): AnimalProtect {
         AnimalProtect(input.asObject())
     }
 }
@@ -378,7 +374,6 @@ public class AnimalProtect {
     }*/
 
 public class Box<T> where T <: JSInteropType<T> {
-    
     protected Box(var arkts_object: JSObject) { }
     
     // 属性
@@ -404,11 +399,11 @@ public class Box<T> where T <: JSInteropType<T> {
         jsObjApiCall < T >( arkts_object, "getValue", EMPTY_ARG) { ctx, info => T.fromJSValue(ctx, info) }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Box<T> {
+    static func fromJSValue(_: JSContext, input: JSValue): Box<T> {
         Box(input.asObject())
     }
 }
@@ -432,7 +427,6 @@ public class Box<T> where T <: JSInteropType<T> {
     }*/
 
 public class CM {
-    
     protected CM(var arkts_object: JSObject) { }
     
     // 静态成员
@@ -616,11 +610,11 @@ public class CM {
             }).toJSValue()] })
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): CM {
+    static func fromJSValue(_: JSContext, input: JSValue): CM {
         CM(input.asObject())
     }
 }
@@ -632,7 +626,6 @@ public class CM {
     }*/
 
 public class Calculator {
-    
     protected Calculator(var arkts_object: JSObject) { }
     
     
@@ -657,11 +650,11 @@ public class Calculator {
         jsObjApiCall < JSValue/* FIXME: `any` */ >( arkts_object, "add", { ctx =>[x, y] }) { ctx, info => info }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Calculator {
+    static func fromJSValue(_: JSContext, input: JSValue): Calculator {
         Calculator(input.asObject())
     }
 }
@@ -672,7 +665,6 @@ public class Calculator {
     }*/
 
 public class Car {
-    
     protected Car(var arkts_object: JSObject) { }
     
     // 只读属性
@@ -699,11 +691,11 @@ public class Car {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Car {
+    static func fromJSValue(_: JSContext, input: JSValue): Car {
         Car(input.asObject())
     }
 }
@@ -714,16 +706,15 @@ public class Car {
     }*/
 
 public class Car1 <: Drivable {
-    
     protected Car1(arkts_object: JSObject) { super(arkts_object) }
     
     
     
-    public func toJSValue(context: JSContext): JSValue {
+    public func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): Car1 {
+    public static func fromJSValue(_: JSContext, input: JSValue): Car1 {
         Car1(input.asObject())
     }
 }
@@ -733,7 +724,6 @@ public class Car1 <: Drivable {
     }*/
 
 public class Dog <: Animal {
-    
     protected Dog(arkts_object: JSObject) { super(arkts_object) }
     
     
@@ -744,11 +734,11 @@ public class Dog <: Animal {
         jsObjApiCall < Unit >( arkts_object, "bark", EMPTY_ARG)
     }
     
-    public func toJSValue(context: JSContext): JSValue {
+    public func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): Dog {
+    public static func fromJSValue(_: JSContext, input: JSValue): Dog {
         Dog(input.asObject())
     }
 }
@@ -758,32 +748,31 @@ public class Dog <: Animal {
     }*/
 
 public class Greeter {
-    
     protected Greeter(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(greeting: string): void
 	 */
     public init(greeting: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass()
-            clazz.new(greeting.toJSValue(__ctx)).asObject()
+            clazz.new(greeting.toJSValue(ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass()
             clazz.new().asObject()
         }
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Greeter {
+    static func fromJSValue(_: JSContext, input: JSValue): Greeter {
         Greeter(input.asObject())
     }
 }
@@ -794,21 +783,20 @@ public class Greeter {
     }*/
 
 public class MyClass {
-    
     protected MyClass(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(name: string): void
 	 */
     public init(name: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass()
-            clazz.new(name.toJSValue(__ctx)).asObject()
+            clazz.new(name.toJSValue(ctx)).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass()
             clazz.new().asObject()
         }
@@ -829,11 +817,11 @@ public class MyClass {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyClass {
+    static func fromJSValue(_: JSContext, input: JSValue): MyClass {
         MyClass(input.asObject())
     }
 }
@@ -842,16 +830,15 @@ public class MyClass {
     }*/
 
 public class Person {
-    
     protected Person(var arkts_object: JSObject) { }
     
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Person {
+    static func fromJSValue(_: JSContext, input: JSValue): Person {
         Person(input.asObject())
     }
 }
@@ -864,7 +851,6 @@ public class Person {
     }*/
 
 public class RecordTest {
-    
     protected RecordTest(var arkts_object: JSObject) { }
     
     
@@ -900,7 +886,7 @@ public class RecordTest {
         get() {
             checkThreadAndCall < Option<HashMap<String, String>> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["recordTest2"].isNull()) {
+                if (arkts_object["recordTest2"].isNull()) {
                     None < HashMap < String, String >>
                 } else {
                     record2Hashmap<String>(ctx, arkts_object["recordTest2"], { context, i => String.fromJSValue(context, i) })
@@ -920,7 +906,7 @@ public class RecordTest {
         get() {
             checkThreadAndCall < Option<HashMap<String, AutoGenType0Inmethods>> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["recordTest3"].isNull()) {
+                if (arkts_object["recordTest3"].isNull()) {
                     None < HashMap < String, AutoGenType0Inmethods >>
                 } else {
                     record2Hashmap<AutoGenType0Inmethods>(ctx, arkts_object["recordTest3"], { context, i => AutoGenType0Inmethods.fromJSValue(context, i) })
@@ -937,11 +923,11 @@ public class RecordTest {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): RecordTest {
+    static func fromJSValue(_: JSContext, input: JSValue): RecordTest {
         RecordTest(input.asObject())
     }
 }
@@ -951,7 +937,6 @@ public class RecordTest {
     }*/
 
 public open class Shape {
-    
     protected Shape(var arkts_object: JSObject) { }
     
     
@@ -963,11 +948,11 @@ public open class Shape {
         jsObjApiCall < Float64 >( arkts_object, "getArea", EMPTY_ARG)
     }
     
-    public open func toJSValue(context: JSContext): JSValue {
+    public open func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): Shape {
+    public static func fromJSValue(_: JSContext, input: JSValue): Shape {
         Shape(input.asObject())
     }
 }
@@ -979,21 +964,20 @@ public open class Shape {
     }*/
 
 public class TE {
-    
     protected TE(var arkts_object: JSObject) { }
     /**
   * @brief constructor(callback:AsyncCallback<string>, param1?:Array<UInt8>, param2?:Array<string>): void
   */
     public init(callback: AsyncCallback<String>, param1!: Option < Array<UInt8> >= None, param2!: Option < Array<String> >= None) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass()
-            clazz.new([asyncCallbackWrapper < String >(__ctx, callback), toJSArray < UInt8 >(__ctx, param1, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), toJSArray < String >(__ctx, param2)]).asObject()
+            clazz.new([asyncCallbackWrapper < String >(ctx, callback), toJSArray < UInt8 >(ctx, param1, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), toJSArray < String >(ctx, param2)]).asObject()
         }
     }
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass()
             clazz.new().asObject()
         }
@@ -1018,11 +1002,11 @@ public class TE {
         jsObjApiCallPromise < JSValue/* FIXME: `Promise<string>` */ >( arkts_object, "f1", callback, { ctx =>[result] }) { ctx, info => info }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): TE {
+    static func fromJSValue(_: JSContext, input: JSValue): TE {
         TE(input.asObject())
     }
 }
@@ -1108,7 +1092,7 @@ public func testUnion1(t: Option<String>): Option<String> {
             case None => ctx.undefined().toJSValue()
             case _ => t.getOrThrow().toJSValue(ctx)
         }] }) { ctx, info =>
-        if(info.isNull()) {
+        if (info.isNull()) {
             None < String >
         } else {
             String.fromJSValue(ctx, info)
@@ -1123,7 +1107,7 @@ public func testUnion2 < T, A, B >(t: Option<T>, s: A): Option<String> where T <
             case None => ctx.undefined().toJSValue()
             case _ => t.getOrThrow().toJSValue(ctx)
         }, s.toJSValue(ctx)] }) { ctx, info =>
-        if(info.isNull()) {
+        if (info.isNull()) {
             None < String >
         } else {
             String.fromJSValue(ctx, info)
@@ -1138,7 +1122,7 @@ public func testUnion2 < T, A, B >(t: Option<T>, s: B): Option<String> where T <
             case None => ctx.undefined().toJSValue()
             case _ => t.getOrThrow().toJSValue(ctx)
         }, s.toJSValue(ctx)] }) { ctx, info =>
-        if(info.isNull()) {
+        if (info.isNull()) {
             None < String >
         } else {
             String.fromJSValue(ctx, info)

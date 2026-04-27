@@ -111,9 +111,8 @@ public enum MyNumericEnum <: ToString & Equatable < MyNumericEnum > {
     }*/
 
 public open class ExportedInterface {
-    
-    protected ExportedInterface() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -127,16 +126,15 @@ public open class ExportedInterface {
         
         )
     }
-    
 }
+
 
 /*interface ExportKeyword I3 {
     }*/
 
 public open class I3 {
-    
-    protected I3() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -150,16 +148,15 @@ public open class I3 {
         
         )
     }
-    
 }
+
 
 /*interface MyInterface {
     }*/
 
 public open class MyInterface {
-    
-    protected MyInterface() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -173,23 +170,22 @@ public open class MyInterface {
         
         )
     }
-    
 }
+
 
 /*class ExportedClass {
     }*/
 
 public class ExportedClass {
-    
     protected ExportedClass(var arkts_object: JSObject) { }
     
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): ExportedClass {
+    static func fromJSValue(_: JSContext, input: JSValue): ExportedClass {
         ExportedClass(input.asObject())
     }
 }
@@ -198,16 +194,15 @@ public class ExportedClass {
     }*/
 
 public class MyClass {
-    
     protected MyClass(var arkts_object: JSObject) { }
     
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MyClass {
+    static func fromJSValue(_: JSContext, input: JSValue): MyClass {
         MyClass(input.asObject())
     }
 }

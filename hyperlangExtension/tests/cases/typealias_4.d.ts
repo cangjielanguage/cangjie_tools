@@ -26,3 +26,15 @@ export type TwoDimensionalTuple = [[number, string], [boolean, Date]];
 
 //元组与联合类型结合
 export type UnionTuple = [string | number, boolean, Date];
+
+//包含中文字符串的union类型
+export type another = 'A' | '中文';
+
+//包含中文字符和非法标识符串的union类型
+export type another2 = 'A' | '中文&';
+
+//包含非法标识符字符串的union类型
+export type another3 = 'do' | 'while'
+
+//包含非法标识符字符串的union类型
+export type NetworkType = 'WIFI' | '2G'

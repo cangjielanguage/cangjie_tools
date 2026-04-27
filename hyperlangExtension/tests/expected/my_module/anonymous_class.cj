@@ -32,9 +32,10 @@ public enum AutoGenType5InanonymousClass {
     }*/
 
 public open class AutoGenType0InanonymousClass {
-    
-    protected AutoGenType0InanonymousClass(public var n: Float64) { }
-    
+    public var n: Float64
+    protected init(n: Float64) {
+        this.n = n
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -48,17 +49,18 @@ public open class AutoGenType0InanonymousClass {
         Float64.fromJSValue(context, obj["n"])
         )
     }
-    
 }
+
 
 /*interface AutoGenType1InanonymousClass {
     n: number;
     }*/
 
 public open class AutoGenType1InanonymousClass {
-    
-    protected AutoGenType1InanonymousClass(public var n: Float64) { }
-    
+    public var n: Float64
+    protected init(n: Float64) {
+        this.n = n
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -72,17 +74,18 @@ public open class AutoGenType1InanonymousClass {
         Float64.fromJSValue(context, obj["n"])
         )
     }
-    
 }
+
 
 /*interface AutoGenType2InanonymousClass {
     msg: string;
     }*/
 
 public open class AutoGenType2InanonymousClass {
-    
-    protected AutoGenType2InanonymousClass(public var msg: String) { }
-    
+    public var msg: String
+    protected init(msg: String) {
+        this.msg = msg
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -96,8 +99,8 @@ public open class AutoGenType2InanonymousClass {
         String.fromJSValue(context, obj["msg"])
         )
     }
-    
 }
+
 
 /*interface AutoGenType3InanonymousClass {
     msg: string;
@@ -106,17 +109,23 @@ public open class AutoGenType2InanonymousClass {
     }*/
 
 public open class AutoGenType3InanonymousClass {
-    
-    protected AutoGenType3InanonymousClass(public var msg: String,
-    public var data: String,
-    public var code!: Option<JSValue/* FIXME: `undefined` */> = None) { }
-    
+    public var msg: String
+    public var data: String
+    public var code: Option<JSValue/* FIXME: `undefined` */> = None
+    protected init(
+    msg: String,
+    data: String,
+    code!: Option<JSValue/* FIXME: `undefined` */> = None) {
+        this.msg = msg
+        this.data = data
+        this.code = code
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
         obj["msg"] = msg.toJSValue(context)
         obj["data"] = data.toJSValue(context)
-        if(let Some(v) <- code) {
+        if (let Some(v) <- code) {
             obj["code"] = v
         }
         obj.toJSValue()
@@ -130,8 +139,8 @@ public open class AutoGenType3InanonymousClass {
         code: obj["code"]
         )
     }
-    
 }
+
 
 /*interface AutoGenType4InanonymousClass {
     code: number;
@@ -140,17 +149,23 @@ public open class AutoGenType3InanonymousClass {
     }*/
 
 public open class AutoGenType4InanonymousClass {
-    
-    protected AutoGenType4InanonymousClass(public var code: Float64,
-    public var msg: String,
-    public var data!: Option<JSValue/* FIXME: `undefined` */> = None) { }
-    
+    public var code: Float64
+    public var msg: String
+    public var data: Option<JSValue/* FIXME: `undefined` */> = None
+    protected init(
+    code: Float64,
+    msg: String,
+    data!: Option<JSValue/* FIXME: `undefined` */> = None) {
+        this.code = code
+        this.msg = msg
+        this.data = data
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
         obj["code"] = code.toJSValue(context)
         obj["msg"] = msg.toJSValue(context)
-        if(let Some(v) <- data) {
+        if (let Some(v) <- data) {
             obj["data"] = v
         }
         obj.toJSValue()
@@ -164,8 +179,8 @@ public open class AutoGenType4InanonymousClass {
         data: obj["data"]
         )
     }
-    
 }
+
 
 /*class ExportKeyword DeclareKeyword AnonymousClass {
     f1(p: {n: number}): {n: number}
@@ -185,7 +200,6 @@ public open class AutoGenType4InanonymousClass {
     }*/
 
 public class AnonymousClass {
-    
     protected AnonymousClass(var arkts_object: JSObject) { }
     
     
@@ -224,11 +238,11 @@ public class AnonymousClass {
         jsObjApiCallPromise < JSValue/* FIXME: `Promise<AutoGenType5InanonymousClass>` */ >( arkts_object, "f4", callback, EMPTY_ARG) { ctx, info => info }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): AnonymousClass {
+    static func fromJSValue(_: JSContext, input: JSValue): AnonymousClass {
         AnonymousClass(input.asObject())
     }
 }

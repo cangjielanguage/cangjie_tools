@@ -9,6 +9,7 @@ package hle.tool
 import std.collection.*
 import std.ast.*
 import std.regex.*
+import std.sync.Mutex
 import stdx.serialization.serialization.*
 
 public const i8: String = "Int8"
@@ -42,6 +43,7 @@ public let stropToken: Token = Token(TokenKind.IDENTIFIER, "?String")
 public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
+public let space = Token(TokenKind.IDENTIFIER, "")
 public let cangjieKeyword = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
 "do", "else", "enum", "extend", "for", "func", "false", "finally", "foreign", "Float16", "Float32", "Float64", "if",
 "in", "is", "init", "import", "interface", "Int8", "Int16", "Int32", "Int64", "IntNative", "let", "mut","main",
@@ -60,7 +62,20 @@ public let ContainerBase: Array<String> = ["Badge", "Column", "ColumnSplit", "Fl
 public let ShapeComponent: Array<String> = ["Circle", "Line", "Path", "Rect", "Shape", "Polygon"]
 
 // 记录用户自定义的类型名称（定义类、接口、枚举、泛型类型时更新）
-public var userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn"])
+private let userDefinedNamesLock: Mutex = Mutex()
+private let userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn", "Context", "BaseContext", "UIAbilityContext"])
+
+public func addUserDefinedName(name: String): Unit {
+    synchronized(userDefinedNamesLock) {
+        userDefinedNames.add(name)
+    }
+}
+
+public func isUserDefinedName(name: String): Bool {
+    synchronized(userDefinedNamesLock) {
+        userDefinedNames.contains(name)
+    }
+}
 
 //记录一个namespace的内容
 public class NameSpace {
@@ -100,10 +115,17 @@ public class Transform {
     public init() {}
 
     public init(fileContent: String) {
-        useBigInt = fileContent.contains(JsBigInt)
-        useContext = fileContent.contains(UIContext) || fileContent.contains("common.Context") || fileContent.contains(
-            "Context")
-        useHashMap = fileContent.contains(JsHashMap)
+        if (Regex("\\b${JsBigInt}\\b").find(fileContent).isSome()) {
+            useBigInt = true
+        }
+        if (Regex("\\bUIContext\\b").find(fileContent).isSome() || 
+            Regex("\\bcommon.Context\\b").find(fileContent).isSome() ||
+            Regex("\\bContext\\b").find(fileContent).isSome()) {
+            useContext = true
+        }
+        if (Regex("\\b${JsHashMap}\\b").find(fileContent).isSome()) {
+            useHashMap = true
+        }
     }
 }
 
@@ -125,7 +147,7 @@ public class TypeParameter <: Serializable<TypeParameter> {
 
         let result = TypeParameter()
         result.name = String.deserialize(dms.get("name"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -167,7 +189,7 @@ public class EnumType <: Serializable<EnumType> {
         result.name = String.deserialize(dms2.get("name"))
         result.keyValues = ArrayList<String>.deserialize(dms2.get("item-value"))
         result.comment = String.deserialize(dms2.get("comment"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 
@@ -408,7 +430,7 @@ public class TypeType <: Serializable<TypeType> {
         }
         let result = TypeType(typeName, String.deserialize(dms2.get("comment")),
             String.deserialize(dms2.get("type")), tsType)
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -585,7 +607,7 @@ public class ObjectType <: Serializable<ObjectType> & Equatable<ObjectType> {
             m.obj = result
         }
         result.comment = String.deserialize(dms2.get("comment"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -610,11 +632,11 @@ public class UnionType {
             return UNDEFINED
         }"###)),
             ("number", ("NUMBER(Float64)", "NUMBER(x)", "${ctxName}.number(x).toJSValue()", ###"
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } "###)),
             ("string", ("STRING(String)", "STRING(x)", "${ctxName}.string(x).toJSValue()", ###"
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }"###)),
             ("boolean", ("BOOLEAN(Bool)", "BOOLEAN(x)", "${ctxName}.boolean(x).toJSValue()", ###"
@@ -710,7 +732,11 @@ public class UnionType {
     }
 
     private func genIdentifier(t: String): String {
-        return Regex("[^0-9a-zA-Z_]").replaceAll(t.replace(" ", ""), "_").toAsciiUpper()
+        let base = Regex("[^\\p{XID_Continue}]", [Unicode]).replaceAll(t.replace(" ", ""), "_").toAsciiUpper()
+        if (!Regex("^\\p{XID_Start}", [Unicode]).matches(base)) {
+            return "LITERAL_${base}"
+        }
+        return base
     }
 
     public func signature(): String {
@@ -733,12 +759,12 @@ public class UnionType {
             v[0]
         } else if (genericSet.contains(t)) {
             t + 0.toString() + "(${t})"
-        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
+        } else if (isUserDefinedName(t) || t.startsWith("AutoGenType")) {
             // handle user-defined type
             "${name}" + t.toAsciiUpper() + "(${t})"
         } else if (isStringLiteral(t)) {
             // String Literal
-            t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'").toAsciiUpper()
+            genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
         } else {
             // handle unknown type
             genIdentifier(t) + "(JSValue/* FIXME: `${t}` */)"
@@ -752,14 +778,14 @@ public class UnionType {
             let x = Token(TokenKind.IDENTIFIER, t + 0.toString() + "(x)")
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
             (x, y)
-        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
+        } else if (isUserDefinedName(t) || t.startsWith("AutoGenType")) {
             let x = Token(TokenKind.IDENTIFIER, "${name}" + t.toAsciiUpper() + "(x)")
             let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
             (x, y)
         } else if (isStringLiteral(t)) {
-            let tmp = t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'")
+            let tmp = genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
             let x = Token(TokenKind.IDENTIFIER, tmp.toAsciiUpper())
-            let y = Token(TokenKind.IDENTIFIER, "${ctxName}.string(\"${tmp}\").toJSValue()")
+            let y = Token(TokenKind.IDENTIFIER, "${ctxName}.string(${t}).toJSValue()")
             (x, y)
         } else {
             let x = Token(TokenKind.IDENTIFIER, genIdentifier(t) + "(x)")

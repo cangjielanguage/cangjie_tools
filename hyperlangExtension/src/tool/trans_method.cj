@@ -383,7 +383,7 @@ public class TransMethod {
         let callbackParams = Tokens()
         for (i in 0..callbackInnerTypes.size) {
             let argName = Token(TokenKind.IDENTIFIER, "arg" + i.toString())
-            let fromJSToken = callbackInnerTypes[i].fromJSValue(gconfig, quote(info[$(i)]), quote(__ctx))
+            let fromJSToken = callbackInnerTypes[i].fromJSValue(gconfig, quote(info[$(i)]), quote(ctx))
             wrapperArgs.append(quote(let $(argName) = $(fromJSToken)))
             callbackParams.append(argName)
             if (i < callbackInnerTypes.size - 1) {
@@ -396,25 +396,25 @@ public class TransMethod {
         let firstParameterNameToken = Token(TokenKind.IDENTIFIER, this.methodType.parameters[0].name)
         let call = if (isMember) {
             if (isStatic) {
-                quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS), jsCallback]}))
+                quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS), jsCallback]}))
             } else {
-                quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS), jsCallback]}))
+                quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS), jsCallback]}))
             }
         } else {
-            quote($(apiToken)<$(retTypeToken)>($(staticConstructor) $(moduleName), $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS), jsCallback]}))
+            quote($(apiToken)<$(retTypeToken)>($(staticConstructor) $(moduleName), $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS), jsCallback]}))
         }
         quote(
             $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
                 let $(firstApiCallParamNameToken) = $(firstParameterNameToken).toString()
-                if (callbackManager.findCallbackObject($(firstApiCallParamNameToken), $(callbackParamToken)).isSome()) {
+                if$(space)(callbackManager.findCallbackObject($(firstApiCallParamNameToken), $(callbackParamToken)).isSome()) {
                     return
                 }
                 let jsCallback = checkThreadAndCall<JSValue>(getMainContext()) {
-                    __ctx => __ctx.function {
-                        __ctx: JSContext, info: JSCallInfo =>
+                    ctx => ctx.function {
+                        ctx: JSContext, info: JSCallInfo =>
                         $(wrapperArgs)
                         $(callbackParamToken).invoke($(callbackParams))
-                        __ctx.undefined().toJSValue()
+                        ctx.undefined().toJSValue()
                     }.toJSValue()
                 }
                 callbackManager.put($(firstApiCallParamNameToken), ($(callbackParamToken), jsCallback))
@@ -434,22 +434,22 @@ public class TransMethod {
         let firstParameterNameToken = Token(TokenKind.IDENTIFIER, parameters[0].name)
         let callbackParamToken = Token(TokenKind.IDENTIFIER, callbackParam.name)
         let ifCall = if (isMember) {
-            quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS), jsCallback ?? __ctx.undefined().toJSValue()]}))
+            quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS), jsCallback ?? ctx.undefined().toJSValue()]}))
         } else {
-            quote($(apiToken)<$(retTypeToken)>($(moduleName), $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS), jsCallback ?? __ctx.undefined().toJSValue()]}))
+            quote($(apiToken)<$(retTypeToken)>($(moduleName), $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS), jsCallback ?? ctx.undefined().toJSValue()]}))
         }
         let elseCall = if (isMember) {
-            quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS)] }))
+            quote(jsObjApiCall<$(retTypeToken)>($(staticConstructor) arkts_object, $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS)] }))
         } else {
-            quote($(apiToken)<$(retTypeToken)>($(moduleName), $(getArkTSFuncName()), {__ctx => [$(apiCallParamsToJS)] }))
+            quote($(apiToken)<$(retTypeToken)>($(moduleName), $(getArkTSFuncName()), {ctx => [$(apiCallParamsToJS)] }))
         }
 
         if (callbackParam.optional) {
             quote(
                 $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
-                    let __ctx = getMainContext()
+                    let ctx = getMainContext()
                     let $(firstApiCallParamNameToken) = $(firstParameterNameToken).toString()
-                    if (let Some(v) <- $(callbackParamToken)) {
+                    if$(space)(let Some(v) <- $(callbackParamToken)) {
                         let jsCallback = callbackManager.findCallbackObject($(firstApiCallParamNameToken), v, remove: true)
                         if (jsCallback.isNone()) {
                             throw BusinessException(401, "Callback does not exist.")
@@ -465,10 +465,10 @@ public class TransMethod {
         } else {
             quote(
                 $(prefix) func $(funcName)($(paramToken)):$(retTypeToken) {
-                    let __ctx = getMainContext()
+                    let ctx = getMainContext()
                     let $(firstApiCallParamNameToken) = $(firstParameterNameToken).toString()
                     let jsCallback = callbackManager.findCallbackObject($(firstApiCallParamNameToken), $(callbackParamToken), remove: true) 
-                    if (jsCallback.isNone()) {
+                    if$(space)(jsCallback.isNone()) {
                         throw BusinessException(401, "Callback does not exist.")
                     }
                     $(ifCall)
@@ -534,7 +534,7 @@ public class TransMethod {
         } else {
             apiCallParameters[0].name = "keyString"
         }
-        let apiCallParamsToJS = (parametersToJS(quote(__ctx), parameters: apiCallParameters) |> 
+        let apiCallParamsToJS = (parametersToJS(quote(ctx), parameters: apiCallParameters) |> 
         reduce {l: Tokens, r: Tokens => l + commaToken + r}).getOrDefault { => quote() }
 
         let firstApiCallParamNameToken = Token(TokenKind.IDENTIFIER, apiCallParameters[0].name)
@@ -554,7 +554,7 @@ public class TransMethod {
         let moduleName = gconfig.arkTSMoudleName
         let modulePrefix = gconfig.requireModulePrefixToken
         let paramToken = paramListToCJ()
-        var args = (parametersToJS(quote(__ctx)) |> reduce {l: Tokens, r: Tokens => l + commaToken + r})
+        var args = (parametersToJS(quote(ctx)) |> reduce {l: Tokens, r: Tokens => l + commaToken + r})
                    .getOrDefault { => quote() }
         if (this.methodType.parameters.size > 1) {
             args = Tokens([Token(TokenKind.LSQUARE)]) + args + Tokens([Token(TokenKind.RSQUARE)])
@@ -567,7 +567,7 @@ public class TransMethod {
                 quote(
                 $(prefix) init($(paramToken)) {
                     super(checkThreadAndCall<JSObject>(getMainContext()) {
-                        __ctx =>
+                        ctx =>
                             let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                             clazz.new($(args)).asObject()
                     })
@@ -576,8 +576,8 @@ public class TransMethod {
                 quote(
                 $(prefix) init($(paramToken)) {
                     super(checkThreadAndCall<JSObject>(getMainContext()) {
-                        __ctx =>
-                            let module = getJSModule(__ctx, $(moduleName), $(modulePrefix))
+                        ctx =>
+                            let module = getJSModule(ctx, $(moduleName), $(modulePrefix))
                             let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                             clazz.new($(args)).asObject()
                     })
@@ -589,7 +589,7 @@ public class TransMethod {
                 quote(
                 $(prefix) init($(paramToken)) {
                     arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
-                        __ctx =>
+                        ctx =>
                             let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                             clazz.new($(args)).asObject()
                     }
@@ -598,8 +598,8 @@ public class TransMethod {
                 quote(
                 $(prefix) init($(paramToken)) {
                     arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
-                        __ctx =>
-                            let module = getJSModule(__ctx, $(moduleName), $(modulePrefix))
+                        ctx =>
+                            let module = getJSModule(ctx, $(moduleName), $(modulePrefix))
                             let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                             clazz.new($(args)).asObject()
                     }
@@ -619,7 +619,7 @@ public class TransMethod {
             quote(
             public init() {
                 super(checkThreadAndCall<JSObject>(getMainContext()) {
-                    __ctx =>
+                    ctx =>
                         let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                         clazz.new().asObject()
                 })
@@ -629,7 +629,7 @@ public class TransMethod {
             quote(
             public init() {
                 arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
-                    __ctx =>
+                    ctx =>
                         let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
                         clazz.new().asObject()
                 }

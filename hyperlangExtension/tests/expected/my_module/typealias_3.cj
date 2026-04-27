@@ -12,13 +12,13 @@ import ohos.base.*
 
 
 public enum MyUnion8 {
-    | _STRING_NUMBER___(JSValue/* FIXME: `(string | number)[]` */)
-    | _KEY_STRING_(JSValue/* FIXME: `{ key: string }` */)
+    | LITERAL__STRING_NUMBER___(JSValue/* FIXME: `(string | number)[]` */)
+    | LITERAL__KEY_STRING_(JSValue/* FIXME: `{ key: string }` */)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
-            case _STRING_NUMBER___(x) => x
-            case _KEY_STRING_(x) => x
+            case LITERAL__STRING_NUMBER___(x) => x
+            case LITERAL__KEY_STRING_(x) => x
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): MyUnion8 {

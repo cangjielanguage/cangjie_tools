@@ -22,10 +22,10 @@ public enum AutoGenType0InunionTypes2 {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0InunionTypes2 {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -47,7 +47,7 @@ public enum AutoGenType1InunionTypes2 {
         if (input.isBoolean()) {
             return BOOLEAN(Bool.fromJSValue(context, input))
         } 
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -56,17 +56,17 @@ public enum AutoGenType1InunionTypes2 {
 
 public enum AutoGenType2InunionTypes2 {
     | NUMBER(Float64)
-    | _BOOLEAN_STRING___(JSValue/* FIXME: `(boolean | string)[]` */)
+    | LITERAL__BOOLEAN_STRING___(JSValue/* FIXME: `(boolean | string)[]` */)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
             case NUMBER(x) => context.number(x).toJSValue()
-            case _BOOLEAN_STRING___(x) => x
+            case LITERAL__BOOLEAN_STRING___(x) => x
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2InunionTypes2 {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } 
         throw Exception("unsupport type!")
@@ -85,7 +85,7 @@ public enum AutoGenType3InunionTypes2 {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InunionTypes2 {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } 
         throw Exception("unsupport type!")
@@ -99,10 +99,14 @@ public enum AutoGenType3InunionTypes2 {
     }*/
 
 public open class AutoGenType4InunionTypes2 {
-    
-    protected AutoGenType4InunionTypes2(public var city: String,
-    public var zipCode: String) { }
-    
+    public var city: String
+    public var zipCode: String
+    protected init(
+    city: String,
+    zipCode: String) {
+        this.city = city
+        this.zipCode = zipCode
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -118,8 +122,8 @@ public open class AutoGenType4InunionTypes2 {
         String.fromJSValue(context, obj["zipCode"])
         )
     }
-    
 }
+
 /***********OBJECT***********/
 
 /*interface UserProfile {
@@ -136,15 +140,29 @@ public open class AutoGenType4InunionTypes2 {
     }*/
 
 public open class UserProfile {
-    
-    protected UserProfile(public var array: Array<AutoGenType0InunionTypes2>,
-    public var test: (AutoGenType0InunionTypes2) -> String,
-    public var test1: AutoGenType2InunionTypes2,
-    public var test2: AutoGenType3InunionTypes2,
-    public var name: String,
-    public var address: AutoGenType4InunionTypes2,
-    public var id!: Option<AutoGenType0InunionTypes2> = None) { }
-    
+    public var array: Array<AutoGenType0InunionTypes2>
+    public var test: (AutoGenType0InunionTypes2) -> String
+    public var test1: AutoGenType2InunionTypes2
+    public var test2: AutoGenType3InunionTypes2
+    public var name: String
+    public var address: AutoGenType4InunionTypes2
+    public var id: Option<AutoGenType0InunionTypes2> = None
+    protected init(
+    array: Array<AutoGenType0InunionTypes2>,
+    test: (AutoGenType0InunionTypes2) -> String,
+    test1: AutoGenType2InunionTypes2,
+    test2: AutoGenType3InunionTypes2,
+    name: String,
+    address: AutoGenType4InunionTypes2,
+    id!: Option<AutoGenType0InunionTypes2> = None) {
+        this.array = array
+        this.test = test
+        this.test1 = test1
+        this.test2 = test2
+        this.name = name
+        this.address = address
+        this.id = id
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -158,7 +176,7 @@ public open class UserProfile {
         obj["test2"] = test2.toJSValue(context)
         obj["name"] = name.toJSValue(context)
         obj["address"] = address.toJSValue(context)
-        if(let Some(v) <- id) {
+        if (let Some(v) <- id) {
             obj["id"] = v.toJSValue(context)
         }
         obj.toJSValue()
@@ -180,13 +198,13 @@ public open class UserProfile {
         String.fromJSValue(context, obj["name"]),
         AutoGenType4InunionTypes2.fromJSValue(context, obj["address"]),
         id:
-        if(obj["id"].isNull()) {
+        if (obj["id"].isNull()) {
             None < AutoGenType0InunionTypes2 >
         } else {
             AutoGenType0InunionTypes2.fromJSValue(context, obj["id"])
         }
         )
     }
-    
 }
+
 

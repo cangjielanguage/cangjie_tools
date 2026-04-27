@@ -16,9 +16,8 @@ import ohos.base.*
     }*/
 
 public open class B {
-    
-    protected B() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -32,8 +31,8 @@ public open class B {
         
         )
     }
-    
 }
+
 
 /***********OBJECT***********/
 
@@ -41,9 +40,8 @@ public open class B {
     }*/
 
 public open class E {
-    
-    protected E() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -57,8 +55,8 @@ public open class E {
         
         )
     }
-    
 }
+
 
 /***********OBJECT***********/
 
@@ -66,9 +64,8 @@ public open class E {
     }*/
 
 public open class H {
-    
-    protected H() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -82,6 +79,6 @@ public open class H {
         
         )
     }
-    
 }
+
 

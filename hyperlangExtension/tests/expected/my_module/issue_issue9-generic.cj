@@ -22,7 +22,7 @@ public enum AutoGenType0Inissue_issue9_generic < T > where T <: JSInteropType<T>
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0Inissue_issue9_generic < T > {
         
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -43,7 +43,7 @@ public enum AutoGenType1Inissue_issue9_generic < T, U > where T <: JSInteropType
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1Inissue_issue9_generic < T, U > {
         
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -64,7 +64,7 @@ public enum AutoGenType2Inissue_issue9_generic < T, W > where T <: JSInteropType
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2Inissue_issue9_generic < T, W > {
         
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -85,7 +85,7 @@ public enum AutoGenType3Inissue_issue9_generic < T, M > where T <: JSInteropType
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3Inissue_issue9_generic < T, M > {
         
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -100,7 +100,6 @@ public enum AutoGenType3Inissue_issue9_generic < T, M > where T <: JSInteropType
     }*/
 
 public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
-    
     protected B(var arkts_object: JSObject) { }
     
     
@@ -117,11 +116,11 @@ public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
         jsObjApiCall < AutoGenType3Inissue_issue9_generic< T, M > >( arkts_object, "f2", { ctx =>[t.toJSValue(ctx)] }) { ctx, info => AutoGenType3Inissue_issue9_generic< T, M >.fromJSValue(ctx, info) }
     }
     
-    public open func toJSValue(context: JSContext): JSValue {
+    public open func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): B<W, M> {
+    public static func fromJSValue(_: JSContext, input: JSValue): B<W, M> {
         B(input.asObject())
     }
 }
@@ -132,7 +131,6 @@ public open class B<W, M> where W <: JSInteropType<W>, M <: JSInteropType<M> {
     }*/
 
 public class A<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
-    
     protected A(var arkts_object: JSObject) { }
     
     
@@ -149,11 +147,11 @@ public class A<T, U> where T <: JSInteropType<T>, U <: JSInteropType<U> {
         jsObjApiCall < AutoGenType1Inissue_issue9_generic< T, U > >( arkts_object, "f2", { ctx =>[t.toJSValue(ctx)] }) { ctx, info => AutoGenType1Inissue_issue9_generic< T, U >.fromJSValue(ctx, info) }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): A<T, U> {
+    static func fromJSValue(_: JSContext, input: JSValue): A<T, U> {
         A(input.asObject())
     }
 }

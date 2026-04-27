@@ -54,13 +54,14 @@ public func createSub(): JSValue/* FIXME: `Inheritances.SubClass` */ {
     }*/
 
 public open class ExportedInterface {
-    
-    protected ExportedInterface(public var myOption!: Option<String> = None) { }
-    
+    public var myOption: Option<String> = None
+    protected init(myOption!: Option<String> = None) {
+        this.myOption = myOption
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
-        if(let Some(v) <- myOption) {
+        if (let Some(v) <- myOption) {
             obj["myOption"] = v.toJSValue(context)
         }
         obj.toJSValue()
@@ -70,13 +71,13 @@ public open class ExportedInterface {
         let obj = input.asObject()
         ExportedInterface(
         myOption:
-        if(obj["myOption"].isNull()) {
+        if (obj["myOption"].isNull()) {
             None < String >
         } else {
             String.fromJSValue(context, obj["myOption"])
         }
         )
     }
-    
 }
+
 
