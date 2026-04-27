@@ -13,7 +13,8 @@ const std::unordered_set<DiagKind> IMPORT_FIX_KIND = {DiagKind::sema_undeclared_
     DiagKind::sema_undeclared_type_name, DiagKind::macro_undeclared_identifier};
 
 const std::unordered_set<DiagKindRefactor> IMPORT_FIX_RKIND = {DiagKindRefactor::parse_expected_decl,
-    DiagKindRefactor::lex_expected_identifier, DiagKindRefactor::sema_undeclared_identifier};
+    DiagKindRefactor::lex_expected_identifier, DiagKindRefactor::sema_undeclared_identifier,
+    DiagKindRefactor::sema_use_expr_without_import};
 
 LSPDiagObserver::LSPDiagObserver(Callbacks *c, Cangjie::DiagnosticEngine &engine)
     : Cangjie::DiagnosticHandler(engine, Cangjie::DiagHandlerKind::LSP_HANDLER), callback(c)

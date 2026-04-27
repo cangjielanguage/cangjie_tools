@@ -1285,13 +1285,13 @@ bool IsUnderPath(const std::string &basePath, const std::string &targetPath, boo
 
 std::string GetSubStrBetweenSingleQuote(const std::string& str)
 {
-    size_t start = str.find('\'');
-    if (start == std::string::npos) {
+    size_t end = str.rfind('\'');
+    if (end == std::string::npos) {
         return "";
     }
 
-    size_t end = str.find('\'', start + 1);
-    if (end == std::string::npos) {
+    size_t start = str.rfind('\'', end - 1);
+    if (start == std::string::npos) {
         return "";
     }
 
