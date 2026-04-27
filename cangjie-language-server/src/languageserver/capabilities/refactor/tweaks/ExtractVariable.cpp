@@ -203,7 +203,7 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
 
     textEdit.range = insertRange;
     textEdit.newText = insertText.str();
-    return std::move(textEdit);
+    return textEdit;
 }
 
 void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
@@ -360,7 +360,7 @@ void ExtractVariable::DealMultStatementOnSameLine(const Tweak::Selection &sel, c
         return;
     }
     int selToken = selStart - firstToken4CurLine;
-    if (selToken < 0 || selToken >= curLineTokens.size()) {
+    if (selToken < 0 || static_cast<size_t>(selToken) >= curLineTokens.size()) {
         return;
     }
     int i = selToken;
@@ -454,6 +454,6 @@ TextEdit ExtractVariable::ReplaceExprWithVar(const Selection &sel, Range &range,
     }
 
     textEdit.range = TransformFromChar2IDE(range);
-    return std::move(textEdit);
+    return textEdit;
 }
 } // namespace ark

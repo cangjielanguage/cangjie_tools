@@ -121,8 +121,8 @@ void InheritDeclUtil::HandleRelatedFuncDeclsFromTopLevel(Ptr<Decl> topLevel, boo
 
 void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
 {
-    bool isInvalid = !inDecl || !inDecl->outerDecl || inDecl->astKind != Cangjie::AST::ASTKind::FUNC_DECL &&
-                                                      inDecl->astKind != Cangjie::AST::ASTKind::PROP_DECL;
+    bool isInvalid = !inDecl || !inDecl->outerDecl || (inDecl->astKind != Cangjie::AST::ASTKind::FUNC_DECL &&
+                                                      inDecl->astKind != Cangjie::AST::ASTKind::PROP_DECL);
     if (isInvalid) { return; }
     Ptr<InheritableDecl> classLikeOrStructDecl{nullptr};
     pkgName = inDecl->fullPackageName;
@@ -246,8 +246,8 @@ void InheritDeclUtil::InsertRefUsers(std::unordered_set<Ptr<Cangjie::AST::Node> 
 {
     for (auto &user: users) {
         bool isInvalid = !user || !IsFromSrcOrNoSrc(user) || IsZeroPosition(user) ||
-                         user->TestAttr(Attribute::COMPILER_ADD) &&
-                         !user->TestAttr(Attribute::IS_CLONED_SOURCE_CODE);
+                         (user->TestAttr(Attribute::COMPILER_ADD) &&
+                          !user->TestAttr(Attribute::IS_CLONED_SOURCE_CODE));
         if (isInvalid) {
             continue;
         }

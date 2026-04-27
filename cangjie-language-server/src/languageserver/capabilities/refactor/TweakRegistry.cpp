@@ -51,7 +51,8 @@ std::unique_ptr<Tweak> TweakRegistry::Create(const std::string& id)
 std::vector<std::string> TweakRegistry::AvailableIds()
 {
     std::vector<std::string> ids;
-    for (const auto &[id, _] : GetRegistry()) {
+    for (const auto &[id, create] : GetRegistry()) {
+        (void)create;
         ids.push_back(id);
     }
     return ids;

@@ -118,8 +118,8 @@ bool IsOverrideable(const Ptr<ClassLikeDecl> owner, const Ptr<Decl> member)
 {
     // make sure member is member of owner before call this function
     if (auto funcDecl = DynamicCast<FuncDecl>(member)) {
-        if ((funcDecl->TestAttr(Attribute::OPEN) ||
-            (funcDecl->TestAttr(Attribute::ABSTRACT) && owner->TestAttr(Attribute::ABSTRACT)) &&
+        if (((funcDecl->TestAttr(Attribute::OPEN) ||
+            (funcDecl->TestAttr(Attribute::ABSTRACT) && owner->TestAttr(Attribute::ABSTRACT))) &&
             !funcDecl->TestAttr(Attribute::CONSTRUCTOR))) {
                 return true;
             }

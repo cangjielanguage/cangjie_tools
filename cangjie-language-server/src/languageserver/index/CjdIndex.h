@@ -58,11 +58,11 @@ public:
                         const std::string& ohosCjdPath,
                         const std::string& cjdCachePath,
                         bool enablePackaged = true)
-        : callback(cb),
+        : enablePackaged(enablePackaged),
           stdCjdPath(stdCjdPath),
           ohosCjdPath(ohosCjdPath),
           cjdCachePath(JoinPath(cjdCachePath, CANGJIE_VERSION)),
-          enablePackaged(enablePackaged)
+          callback(cb)
     {
         if (CreateDirs(this->cjdCachePath) == -1) {
             Trace::Log("cjd cache dir build failed");

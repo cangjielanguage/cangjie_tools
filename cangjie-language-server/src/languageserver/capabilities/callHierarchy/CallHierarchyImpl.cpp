@@ -84,7 +84,7 @@ void DealAnonymousConstructorRange(Range& range, const lsp::Symbol&containerSym)
     }
     
     lsp::SymbolID outerId = 0;
-    index->Relations({containerSym.id, lsp::RelationKind::CONTAINED_BY},
+    index->Relations({containerSym.id, lsp::RelationKind::CONTAINED_BY, std::nullopt},
                     [&outerId](const lsp::Relation& rel) {
                         outerId = rel.object;
                     });
@@ -215,7 +215,7 @@ void FindFuncDeclCaller(lsp::SymbolID id, lsp::SymbolIndex *index, vector <CallH
     // in common-specific project, the same symbol id can be in different file (specific symbol covered common symbol)
     // container symbol id -> <filePath -> refs>
     std::map<lsp::SymbolID, std::map<std::string, std::vector<lsp::Ref>>> callers;
-    const lsp::RefsRequest req{ids, lsp::RefKind::REFERENCE};
+    const lsp::RefsRequest req{ids, lsp::RefKind::REFERENCE, std::nullopt};
     // search refs
     index->Refs(req, [&callers, id](const lsp::Ref &ref) {
         if (ref.location.IsZeroLoc()) {

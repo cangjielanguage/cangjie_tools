@@ -1229,6 +1229,7 @@ struct ExtendInfo {
 
 void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath)
 {
+    (void)filePath;
     auto extendDecl = DynamicCast<ExtendDecl *>(&decl);
     bool isInvalidExtend = !extendDecl || !IsExportedExtendDecl(extendDecl) || !extendDecl->extendedType ||
         extendDecl->inheritedTypes.empty();
@@ -1249,9 +1250,7 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
             continue;
         }
         std::string signature = ItemResolverUtil::ResolveSignatureByNode(*member);
-        auto modifier = GetDeclModifier(*member);
         auto extendSymbolID = GetDeclSymbolID(*member);
-        ExtendItem extendItem = {.id = extendSymbolID};
         extendVec.push_back({.id=extendSymbolID, .name=signature});
         extendInfoMap.insert_or_assign(signature, extendVec.back());
     }
@@ -1292,7 +1291,6 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
             return;
         }
         auto interfaceModifier = GetDeclModifier(*targetDecl);
-        auto extendSymbolID = GetDeclSymbolID(*targetDecl);
         std::vector<Ptr<Decl>> members;
         collectInheritMember(*targetDecl, members);
         std::string interfaceName = ItemResolverUtil::ResolveSignatureByNode(*targetDecl);

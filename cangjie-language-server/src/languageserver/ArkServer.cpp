@@ -21,13 +21,6 @@
 
 #undef INTERFACE
 
-namespace {
-bool Contains(const Cangjie::StringPart &str, Cangjie::Position pos)
-{
-    return str.begin.column < pos.column < str.begin.column + str.value.size();
-}
-};
-
 namespace ark {
 using namespace Cangjie;
 bool CompareCallHierarchyOutgoingCall(const CallHierarchyOutgoingCall &letf, const CallHierarchyOutgoingCall &right)
@@ -140,6 +133,7 @@ void ArkServer::FindSuperTypes(const std::string &file, const TypeHierarchyItem 
                                const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -164,6 +158,7 @@ void ArkServer::FindSubTypes(const std::string &file, const TypeHierarchyItem &p
                              const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -216,6 +211,7 @@ void ArkServer::FindOnIncomingCalls(const std::string &file, const CallHierarchy
                                     const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::vector<CallHierarchyIncomingCall> results;
         CallHierarchyImpl::FindOnIncomingCallsImpl(results, params);
         nlohmann::json jsValue;
@@ -235,6 +231,7 @@ void ArkServer::FindOnOutgoingCalls(const std::string &file, const CallHierarchy
                                     const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::vector<CallHierarchyOutgoingCall> results;
         CallHierarchyImpl::FindOnOutgoingCallsImpl(results, params);
         std::sort(results.begin(), results.end(), CompareCallHierarchyOutgoingCall);
@@ -287,7 +284,7 @@ void ArkServer::FindReferences(const std::string &file,
 
 void ArkServer::FindFileReferences(const std::string &file, const Callback<ValueOrError> &reply) const
 {
-    auto action = [file, reply = std::move(reply), this](const InputsAndAST& inputAST) {
+    auto action = [file, reply = std::move(reply)](const InputsAndAST& inputAST) {
         ReferencesResult result;
         std::string unixPath = PathWindowsToLinux(file);
         if (inputAST.ast == nullptr) {
@@ -327,15 +324,56 @@ void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result
             continue;
         }
         auto range = GetProperRange(U, ast.tokens);
-        Location loc = {URI::URIFromAbsolutePath(U->curFile->filePath).ToString(), range};
+        Location loc = {{URI::URIFromAbsolutePath(U->curFile->filePath).ToString()}, {range.start, range.end}};
         (void)result.References.emplace(loc);
+    }
+}
+
+void GetExportsNameFromDecls(const std::vector<Ptr<Decl>> &decls, ArkAST &ast, ReferencesResult &result,
+                             const Callback<ValueOrError> &reply)
+{
+    if (!decls.empty()) {
+        // First verify if the downstream package status is stale.
+        auto definedPkg = decls[0]->fullPackageName;
+        auto downPackages = CompilerCangjieProject::GetInstance()->GetDependencyGraph()->GetDependents(definedPkg);
+        auto tasks = CompilerCangjieProject::GetInstance()->GetCjoManager()->CheckStatus(downPackages);
+        CompilerCangjieProject::GetInstance()->SubmitTasksToPool(tasks);
+    }
+
+    lsp::SymbolIndex *index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
+    if (!index) {
+        return;
+    }
+    ExportIDItem exportIdItem;
+    for (auto &decl : decls) {
+        if (decl->astKind == Cangjie::AST::ASTKind::PACKAGE_DECL) {
+            return;
+        }
+        auto id = GetSymbolId(*decl);
+        if (!IsGlobalOrMemberOrItsParam(*decl)) {
+            // For a local variable, maybe a function or a variable.
+            GetCurPkgUseAge(decl, ast, result);
+            continue;
+        }
+        if (id == lsp::INVALID_SYMBOL_ID) {
+            continue;
+        }
+        bool ret = CrossLanguangeDefinition::GetExportSID(GetArrayFromID(id), exportIdItem);
+        if (ret) {
+            nlohmann::json jsonValue;
+            jsonValue["exportName"] = exportIdItem.exportName;
+            jsonValue["containerName"] = exportIdItem.containerName;
+            ValueOrError val(ValueOrErrorCheck::VALUE, jsonValue);
+            reply(val);
+        }
+        break;
     }
 }
 
 void ArkServer::GetExportsName(
         const std::string &file, const ExportsNameParams &params, const Callback<ValueOrError> &reply) const
 {
-    auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
+    auto action = [params, file, reply = std::move(reply)](const InputsAndAST &inputAST) {
         int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
         if (fileId < 0) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -378,47 +416,7 @@ void ArkServer::GetExportsName(
         if (oldDecl->astKind == ASTKind::GENERIC_PARAM_DECL) {
             return;
         }
-
-        if (!decls.empty()) {
-            // First verify if the downstream package status is stale
-            auto definedPkg = decls[0]->fullPackageName;
-            // Find all downstream packages
-            auto downPackages = CompilerCangjieProject::GetInstance()->GetDependencyGraph()->GetDependents(definedPkg);
-            // Check the status of all downstream packages
-            auto tasks = CompilerCangjieProject::GetInstance()->GetCjoManager()->CheckStatus(downPackages);
-            // Compile all downstream packages before searching for references
-            CompilerCangjieProject::GetInstance()->SubmitTasksToPool(tasks);
-        }
-
-        lsp::SymbolIndex *index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
-        if (!index) {
-            return;
-        }
-        int curIdx = ast.GetCurToken(pos, 0, static_cast<int>(ast.tokens.size()) - 1);
-        ExportIDItem exportIdItem;
-        for (auto &decl : decls) {
-            if (decl->astKind == Cangjie::AST::ASTKind::PACKAGE_DECL) {
-                return;
-            }
-            auto id = GetSymbolId(*decl);
-            if (!IsGlobalOrMemberOrItsParam(*decl)) {
-                // For a local variable, maybe a function or a variable
-                GetCurPkgUseAge(decl, ast, result);
-                continue;
-            }
-            if (id == lsp::INVALID_SYMBOL_ID) {
-                continue;
-            }
-            bool ret = CrossLanguangeDefinition::GetExportSID(GetArrayFromID(id), exportIdItem);
-            if (ret) {
-                nlohmann::json jsonValue;
-                jsonValue["exportName"] = exportIdItem.exportName;
-                jsonValue["containerName"] = exportIdItem.containerName;
-                ValueOrError val(ValueOrErrorCheck::VALUE, jsonValue);
-                reply(val);
-            }
-            break;
-        }
+        GetExportsNameFromDecls(decls, ast, result, reply);
     };
     arkScheduler->RunWithAST("GetExportsName", file, action);
 }
@@ -1027,7 +1025,7 @@ static std::vector<std::unique_ptr<Tweak::Selection>> CreateTweakSelection(const
             result.push_back(std::move(tweakSelection));
             return true;
         });
-    return std::move(result);
+    return result;
 }
 
 void ArkServer::EnumerateTweaks(const std::string &file, Range range, const Callback<std::vector<TweakRef>> &cb) const
@@ -1084,7 +1082,7 @@ void ArkServer::EnumerateTweaks(const std::string &file, Range range, const Call
 void ArkServer::ApplyTweak(const std::string &file, Range selection, const std::string &id,
     std::map<std::string, std::string> extraOptions, const Callback<Tweak::Effect> &cb)
 {
-    auto action = [file, selection, id, extraOptions, cb = std::move(cb), this]
+    auto action = [file, selection, id, extraOptions, cb = std::move(cb)]
         (const InputsAndAST &inputAST) mutable {
             Tweak::Effect effect;
             if (!inputAST.ast || !inputAST.ast->sourceManager) {

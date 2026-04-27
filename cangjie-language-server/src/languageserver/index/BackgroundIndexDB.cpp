@@ -304,6 +304,7 @@ Symbol BackgroundIndexDB::GetAimSymbol(const Decl& decl)
 void BackgroundIndexDB::Callees(const std::string &pkgName, const SymbolID &declId,
     std::function<void(const SymbolID &, const Ref &)> callback) const
 {
+    (void)pkgName;
     db.GetReferred(declId, [&](const SymbolID &declSymId, const Ref &ref) {
         callback(declSymId, ref);
     });

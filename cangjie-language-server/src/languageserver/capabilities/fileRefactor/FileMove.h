@@ -29,6 +29,28 @@ private:
 
     static void DealReExport(const ArkAST *ast, const std::string &file, const std::string &targetPkg, FileRefactor &refactor);
 
+    struct ReExportContext {
+        lsp::SymbolIndex *index;
+        const std::string &file;
+        const std::string &fullPkgName;
+        const std::string &targetPkg;
+        FileRefactor &refactor;
+    };
+
+    struct ReExportSymbolInfo {
+        std::string symName;
+        lsp::Modifier modifier;
+        std::string originPkg;
+    };
+
+    static void DealSingleReExportRef(const ReExportContext &context, const ReExportSymbolInfo &symbolInfo,
+        const lsp::Ref &ref);
+
+    static void DealSingleReExport(const ReExportContext &context, const std::vector<lsp::Symbol> &reExportSyms,
+        lsp::Modifier modifier, const std::string &originPkg);
+
+    static std::vector<lsp::Symbol> GetReExportSyms(Ptr<ImportSpec> fileImport, lsp::SymbolIndex *index);
+
     static void DealMoveFilePackageName(const ArkAST *ast, const std::string &targetPkg, const std::string &targetPath, FileRefactorRespParams &result);
 
     static std::string GetFullPkgBySymScope(const std::string &symScope);

@@ -103,11 +103,6 @@ auto Column(Position &pos)
     return [&](uint32_t column) { pos.column = column; };
 }
 
-auto FileID(Position &pos, unsigned int fileid)
-{
-    return [&](uint32_t fileid) { pos.fileID = fileid; };
-}
-
 uint64_t GetIDFromArray(IDArray info)
 {
     uint64_t result = 0;
@@ -354,12 +349,12 @@ dberr_no IndexDatabase::Initialize(std::function<sqldb::Connection()> openConnec
     std::call_once(g_configureFlag, [] {
         ConfigureSQLite();
     });
-    sqldb::Connection sqlConnect = std::move(openConnection());
+    sqldb::Connection sqlConnect = openConnection();
     if (dberr_no Err = PrepareConnection(sqlConnect)) {
         std::cerr << "---------open db fail\n";
         return 1;
     }
-    sqldb::Statement selectSchemaEmpty = std::move(sqlConnect.prepare(sql::SelectSchemaEmpty));
+    sqldb::Statement selectSchemaEmpty = sqlConnect.prepare(sql::SelectSchemaEmpty);
     bool schemaEmpty;
     selectSchemaEmpty.execute(sqldb::into(schemaEmpty));
     if (schemaEmpty) {
@@ -373,7 +368,7 @@ dberr_no IndexDatabase::Initialize(std::function<sqldb::Connection()> openConnec
         }
         databaseCache.Get([&sqlConnect] { return std::move(sqlConnect); });
     } else {
-        sqldb::Statement PragmaApplicationID = std::move(sqlConnect.prepare(sql::PragmaApplicationID));
+        sqldb::Statement PragmaApplicationID = sqlConnect.prepare(sql::PragmaApplicationID);
         int32_t ApplicationID;
         try {
             PragmaApplicationID.execute(sqldb::into(ApplicationID));
@@ -422,7 +417,7 @@ dberr_no IndexDatabase::Initialize(std::function<sqldb::Connection()> openConnec
         if (upgradeFuture.valid()) {
             upgradeFuture.wait();
         }
-        sqldb::Connection connect = std::move(openConnect());
+        sqldb::Connection connect = openConnect();
         auto failed = PrepareConnection(connect);
         if (failed) {
             std::cerr << " -- prepareConnection fail for OpenDatabase\n";
@@ -486,6 +481,8 @@ dberr_no IndexDatabase::GetSourceFileRelations(
     std::string fileURI,
     std::function<bool(std::string)> callback)
 {
+    (void)fileURI;
+    (void)callback;
     return 0;
 }
 
@@ -493,6 +490,8 @@ dberr_no IndexDatabase::GetHeaderFileRelations(
     std::string fileURI,
     std::function<bool(std::string)> callback)
 {
+    (void)fileURI;
+    (void)callback;
     return 0;
 }
 
@@ -651,6 +650,10 @@ dberr_no IndexDatabase::GetFileWithUri(std::string fileUri,
 dberr_no IndexDatabase::GetSymbol(std::string filePath, size_t line, size_t col,
                                   std::function<bool(const Symbol &sym)> callback)
 {
+    (void)filePath;
+    (void)line;
+    (void)col;
+    (void)callback;
     return true;
 }
 
@@ -731,12 +734,18 @@ dberr_no IndexDatabase::GetReferred(const SymbolID &id,
 dberr_no IndexDatabase::GetUsedSymbols(std::string fileURI,
                                        std::set<SymbolID> &symbols)
 {
+    (void)fileURI;
+    (void)symbols;
     return true;
 }
 
 dberr_no IndexDatabase::GetReferenceAt(std::string fileURI, RefKind kind,
                                        Position pos, SymbolID &id)
 {
+    (void)fileURI;
+    (void)pos;
+    (void)kind;
+    (void)id;
     return true;
 }
 
@@ -744,6 +753,9 @@ dberr_no IndexDatabase::GetRelations(
     const SymbolID &subjectID, RelationKind kind,
     std::function<bool(const Relation &rel)> callback)
 {
+    (void)subjectID;
+    (void)kind;
+    (void)callback;
     IDArray idArray = GetArrayFromID(subjectID);
     if (kind == RelationKind::OVERRIDES) {
         Use(sql::SelectSubjectFromRelations)
@@ -778,6 +790,9 @@ dberr_no IndexDatabase::GetCallRelations(
     const SymbolID &subjectID, CallRelationKind kind,
     std::function<bool(const CallRelation &rel)> callback)
 {
+    (void)subjectID;
+    (void)kind;
+    (void)callback;
     return true;
 }
 
@@ -839,6 +854,8 @@ dberr_no IndexDatabase::DBUpdate::InsertFileWithId(int fileID, std::vector<std::
 
 dberr_no IndexDatabase::DBUpdate::InsertFile(std::string fileURI, FileDigest digest)
 {
+    (void)fileURI;
+    (void)digest;
     return true;
 }
 
@@ -860,12 +877,14 @@ dberr_no IndexDatabase::DBUpdate::UpdateFilesNotEnumerated()
 
 dberr_no IndexDatabase::DBUpdate::UpdateFileEnumerated(std::string fileURI)
 {
+    (void)fileURI;
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::RenameFile(
     std::pair<std::string, std::string> oldNewURI)
 {
+    (void)oldNewURI;
     return true;
 }
 

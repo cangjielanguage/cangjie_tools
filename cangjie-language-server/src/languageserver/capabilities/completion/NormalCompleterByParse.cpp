@@ -38,7 +38,7 @@ auto CollectAliasMap(const File &file)
 
 void SetAfterAT(const ark::ArkAST &input, ark::CompletionEnv& env, int curTokenIndex)
 {
-    if (curTokenIndex > 0 && curTokenIndex < input.tokens.size()) {
+    if (curTokenIndex > 0 && static_cast<size_t>(curTokenIndex) < input.tokens.size()) {
         auto preToken = input.tokens[static_cast<int>(curTokenIndex - 1)];
         if (preToken == "@") {
             env.isAfterAT = true;
@@ -53,11 +53,6 @@ std::string TrimDollonPkgName(const std::string &subPkgName)
         return subPkgName.substr(found + CONSTANTS::DOUBLE_COLON.size());
     }
     return subPkgName;
-}
-
-bool startsWith(const std::string& str, const std::string prefix)
-{
-    return (str.rfind(prefix, 0) == 0);
 }
 
 std::unordered_set<TokenKind> overrideFlag = {TokenKind::RCURL, TokenKind::IDENTIFIER, TokenKind::INTEGER_LITERAL};

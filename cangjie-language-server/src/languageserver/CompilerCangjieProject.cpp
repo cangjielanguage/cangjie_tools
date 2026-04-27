@@ -94,6 +94,7 @@ PkgInfo::PkgInfo(const std::string &pkgPath,
                  Callbacks *callback,
                  PkgType packageType)
 {
+    (void)callback;
     std::string moduleSrcPath  = CompilerCangjieProject::GetInstance()->GetModuleSrcPath(curModulePath);
     packagePath = pkgPath;
     if (!curModulePath.empty()) {
@@ -709,6 +710,8 @@ void CompilerCangjieProject::HandleFileNotInSource(const std::string &absName, c
 void CompilerCangjieProject::CompilerOneFile(
     const std::string &file, const std::string &contents, Position pos, const std::string &name)
 {
+    (void)pos;
+    (void)name;
     std::string absName = Normalize(file);
     Trace::Log("Start analyzing the file: ", absName);
 
@@ -2387,7 +2390,6 @@ void CompilerCangjieProject::UpdateOnDisk(const std::string &path)
         return;
     }
     std::string pkgName = found->second;
-    DataStatus status = cjoManager->GetStatus(pkgName);
     cacheManager->Store(pkgName, Digest(GetPathFromPkg(pkgName)), LSPCompilerInstance::astDataMap[pkgName].first);
 }
 

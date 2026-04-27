@@ -151,7 +151,7 @@ std::string StdioTransport::ReadBody(unsigned long long contentLength)
         clearerr(pFileIn);
         pos += read;
     }
-    return std::move(json);
+    return json;
 }
 
 std::string StdioTransport::ReadStandardMessage()

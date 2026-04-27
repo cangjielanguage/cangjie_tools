@@ -17,6 +17,7 @@ std::string DCompilerInstance::Denoising(std::string candidate)
 void DCompilerInstance::ImportCjoToManager(const std::unique_ptr<ark::CjoManager> &cjoManager,
                                            const std::unique_ptr<ark::DependencyGraph> &graph)
 {
+    (void)cjoManager;
     // Import stdlib cjo, priority is low.
     for (const auto &cjoCache: cjoFileCacheMap) {
         importManager.SetPackageCjoCache(cjoCache.first, cjoCache.second);

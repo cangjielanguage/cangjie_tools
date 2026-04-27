@@ -25,8 +25,8 @@ bool ark::CrossLanguangeDefinition::getCrossSymbols(const CrossLanguageJumpParam
         if (!outerName.empty() && outerName != crs.containerName) {
             return;
         }
-        Location loc{URI::URIFromAbsolutePath(realPath).ToString(),
-                     TransformFromChar2IDE({crs.location.begin, crs.location.end})};
+        auto range = TransformFromChar2IDE({crs.location.begin, crs.location.end});
+        Location loc{{URI::URIFromAbsolutePath(realPath).ToString()}, {range.start, range.end}};
         result.locations.emplace(loc);
     });
     return true;
@@ -65,10 +65,12 @@ bool ark::CrossLanguangeDefinition::getRegisterCrossSymbols(
                 if (!outerName.empty() && outerName != crs.containerName) {
                     return;
                 }
-                Location definitionLoc{URI::URIFromAbsolutePath(realPath).ToString(),
-                                       TransformFromChar2IDE({crs.location.begin, crs.location.end})};
-                Location declarationLoc{URI::URIFromAbsolutePath(realPath).ToString(),
-                                        TransformFromChar2IDE({crs.declaration.begin, crs.declaration.end})};
+                auto definitionRange = TransformFromChar2IDE({crs.location.begin, crs.location.end});
+                Location definitionLoc{{URI::URIFromAbsolutePath(realPath).ToString()},
+                                       {definitionRange.start, definitionRange.end}};
+                auto declarationRange = TransformFromChar2IDE({crs.declaration.begin, crs.declaration.end});
+                Location declarationLoc{{URI::URIFromAbsolutePath(realPath).ToString()},
+                                        {declarationRange.start, declarationRange.end}};
                 std::string registerName = crs.name;
                 int registerType = static_cast<int>(crs.crossType);
                 RegisterItem item{definitionLoc, declarationLoc, registerName, registerType};

@@ -31,8 +31,8 @@ using SerializedT = std::vector<uint8_t>;
 
 struct CjoData {
     std::optional<SerializedT> data;
-    DataStatus status;
-    bool isDocChange;
+    DataStatus status = DataStatus::FRESH;
+    bool isDocChange = false;
 };
 
 class CjoManager {

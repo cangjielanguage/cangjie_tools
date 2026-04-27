@@ -54,14 +54,23 @@ struct TypeDetail {
         return identifier;
     }
 
-    virtual void SetIdentifier(const std::string& oldId, const std::string& newId) {}
+    virtual void SetIdentifier(const std::string& oldId, const std::string& newId)
+    {
+        (void)oldId;
+        (void)newId;
+    }
 
     virtual bool Comparable(const std::unique_ptr<TypeDetail>& other)
     {
+        (void)other;
         return false;
     }
 
-    virtual void Diff(const std::unique_ptr<TypeDetail>& other, std::unordered_map<std::string, std::string>& diffs) {}
+    virtual void Diff(const std::unique_ptr<TypeDetail>& other, std::unordered_map<std::string, std::string>& diffs)
+    {
+        (void)other;
+        (void)diffs;
+    }
 };
 
 struct CommonTypeDetail: public TypeDetail {
@@ -76,6 +85,7 @@ struct CommonTypeDetail: public TypeDetail {
 
     bool Comparable(const std::unique_ptr<TypeDetail> &other) override
     {
+        (void)other;
         return true;
     }
 
