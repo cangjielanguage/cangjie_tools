@@ -16,7 +16,7 @@ void StructuralRuleGITF02::CheckExtendMemberDeclsHelper(
     Ptr<Cangjie::AST::InterfaceDecl> interface, Ptr<Cangjie::AST::Decl> member, bool& label)
 {
     for (auto& memberDecl : interface->GetMemberDecls()) {
-        if (memberDecl->identifier == member->identifier && memberDecl->ty == member->ty &&
+        if (memberDecl->identifier == member->identifier && memberDecl->GetTy() == member->GetTy() &&
             !CommonFunc::IsStdDerivedMacro(diagEngine, member->begin)) {
             Diagnose(member->begin, member->end,
                 CodeCheckDiagKind::G_ITF_02_prefer_implement_interfaces_at_type_definition, member->identifier.Val());

@@ -135,7 +135,7 @@ void HandleFuncBodyEntryAndExit(std::set<BreakpointLocation> &result, const Bloc
     // handle func entry
     HandlePos(result, ast, funcBody.body[implicitSuperNum]->begin, *funcBody.body[implicitSuperNum]);
     // handle func exit
-    if (retType.ty && retType.ty->kind == TypeKind::TYPE_UNIT) {
+    if (retType.GetTy() && retType.GetTy()->kind == TypeKind::TYPE_UNIT) {
         HandlePos(result, ast, funcBody.end, funcBody);
         return;
     }

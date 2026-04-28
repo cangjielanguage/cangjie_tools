@@ -455,12 +455,12 @@ std::string ItemResolverUtil::ResolveInsertByNode(const Cangjie::AST::Node &node
 
 std::string ItemResolverUtil::FetchTypeString(const Cangjie::AST::Type &type)
 {
-    if (type.ty == nullptr) {
+    if (type.GetTy() == nullptr) {
         return "";
     }
 
     std::string identifier;
-    return Meta::match(*(type.ty))(
+    return Meta::match(*(type.GetTy()))(
         [](const ClassTy &ty) {
             return GetString(ty);
         },
@@ -593,24 +593,24 @@ void ItemResolverUtil::ResolveVarDeclDetail(std::string &detail, const Cangjie::
         GetInitializerInfo(detail, decl, sourceManager, true);
         return;
     }
-    if (decl.ty != nullptr && decl.ty->kind == TypeKind::TYPE_FUNC) {
-        GetDetailByTy(decl.ty, detail);
+    if (decl.GetTy() != nullptr && decl.GetTy()->kind == TypeKind::TYPE_FUNC) {
+        GetDetailByTy(decl.GetTy(), detail);
         return;
     }
-    if (decl.ty == nullptr) {
+    if (decl.GetTy() == nullptr) {
         return;
     }
 
     // for parse info
-    if (GetString(*decl.ty) == "UnknownType") {
+    if (GetString(*decl.GetTy()) == "UnknownType") {
         GetInitializerInfo(detail, decl, sourceManager, false);
         return;
     }
-    std::string type = GetString(*decl.ty);
+    std::string type = GetString(*decl.GetTy());
     bool hasType = false;
     if (!type.empty()) {
         detail += ": ";
-        detail += GetString(*decl.ty);
+        detail += GetString(*decl.GetTy());
         hasType = true;
     }
     GetInitializerInfo(detail, decl, sourceManager, hasType);
@@ -826,11 +826,11 @@ void ItemResolverUtil::ProcessSingleParam(std::string &detail,
         detail += paramName;
         detail += param->isNamedParam ? "!: " : ": ";
     }
-    if (param->ty == nullptr) {
+    if (param->GetTy() == nullptr) {
         return;
     }
 
-    auto tyName = GetString(*param->ty);
+    auto tyName = GetString(*param->GetTy());
     bool getTypeByNodeAndType = param->type != nullptr &&
                                 (tyName == "UnknownType" ||
                                     (sourceManager && param->type->astKind == Cangjie::AST::ASTKind::FUNC_TYPE));
@@ -1003,7 +1003,7 @@ void ItemResolverUtil::ResolveFuncTypeParamSignature(std::string &detail,
             detail += ", ";
         }
         firstParams = false;
-        bool getTypeByNodeAndType = GetString(*paramType->ty) == "UnknownType"
+        bool getTypeByNodeAndType = GetString(*paramType->GetTy()) == "UnknownType"
                                         || (sourceManager && paramType->astKind == Cangjie::AST::ASTKind::FUNC_TYPE);
         if (paramType && !Ty::IsInitialTy(paramType->aliasTy)) {
             DealAliasType(paramType.get(), detail);
@@ -1013,7 +1013,7 @@ void ItemResolverUtil::ResolveFuncTypeParamSignature(std::string &detail,
             if (!paramType->typeParameterName.empty()) {
                 detail += paramType->typeParameterName + ": ";
             }
-            detail += GetString(*paramType->ty);
+            detail += GetString(*paramType->GetTy());
         }
     }
 }
@@ -1064,7 +1064,7 @@ void ItemResolverUtil::ResolveFuncTypeParamInsert(std::string &detail,
         if (paramType->typeParameterName.empty() && needDefaultParamName) {
             GenerateUniqueParamName(detail, parameterNameSet, parameterNum);
         }
-        bool getTypeByNodeAndType = GetString(*paramType->ty) == "UnknownType" ||
+        bool getTypeByNodeAndType = GetString(*paramType->GetTy()) == "UnknownType" ||
                                     (sourceManager && (paramType->astKind == Cangjie::AST::ASTKind::FUNC_TYPE ||
                                                           paramType->astKind == Cangjie::AST::ASTKind::TUPLE_TYPE));
         if (getTypeByNodeAndType) {
@@ -1074,7 +1074,7 @@ void ItemResolverUtil::ResolveFuncTypeParamInsert(std::string &detail,
                 detail += paramType->typeParameterName + ": ";
                 parameterNameSet.insert(paramType->typeParameterName);
             }
-            detail += GetString(*paramType->ty);
+            detail += GetString(*paramType->GetTy());
         }
         firstParams = false;
         if (numParm >= 0) {
@@ -1092,7 +1092,7 @@ int ItemResolverUtil::ResolveFuncParamInsert(std::string &detail, const std::str
     }
 
     auto resolveTypeName = [param, sourceManager, myFilePath](std::string &out, bool includeTupleCheck) {
-        auto tyName = GetString(*param->ty);
+        auto tyName = GetString(*param->GetTy());
         bool byNodeAndType = param->type != nullptr &&
             (tyName == "UnknownType" ||
              (sourceManager && (param->type->astKind == Cangjie::AST::ASTKind::FUNC_TYPE ||
@@ -1107,7 +1107,7 @@ int ItemResolverUtil::ResolveFuncParamInsert(std::string &detail, const std::str
             out += typeName.empty() ? tyName : typeName;
             return;
         }
-        out += (param->ty ? tyName : "");
+        out += (param->GetTy() ? tyName : "");
     };
 
     auto handleNamed = [&detail, paramName, resolveTypeName, param, myFilePath, sourceManager](int cur) {
@@ -1118,7 +1118,7 @@ int ItemResolverUtil::ResolveFuncParamInsert(std::string &detail, const std::str
         if (assignExpr && assignExpr->desugarExpr) {
             assignExpr = assignExpr->desugarExpr;
         }
-        bool hasDefault = param->ty && assignExpr && !assignExpr->ToString().empty();
+        bool hasDefault = param->GetTy() && assignExpr && !assignExpr->ToString().empty();
         resolveTypeName(detail, true);
         if (hasDefault) {
             detail += " = ";
@@ -1544,13 +1544,13 @@ void ItemResolverUtil::ResolveClassDeclDetail(std::string &detail, Cangjie::AST:
     if (decl.inheritedTypes.size() == 0) {
         return;
     }
-    if (decl.inheritedTypes.size() == 1 && decl.inheritedTypes[0]->ty->IsObject()) {
+    if (decl.inheritedTypes.size() == 1 && decl.inheritedTypes[0]->GetTy()->IsObject()) {
         return;
     }
     detail += " <: ";
     bool isFirst = true;
     for (auto &iterFace : decl.inheritedTypes) {
-        if (iterFace == nullptr || decl.curFile == nullptr || iterFace->ty->IsObject()) {
+        if (iterFace == nullptr || decl.curFile == nullptr || iterFace->GetTy()->IsObject()) {
             continue;
         }
         if (!isFirst) {
@@ -1701,7 +1701,7 @@ void ItemResolverUtil::DealAliasType(Ptr<Cangjie::AST::Type> type, std::string &
             detail += GetFuncTypeString(type);
             break;
         case ASTKind::REF_TYPE:
-            if (type->ty && type->ty->kind == Cangjie::AST::TypeKind::TYPE_VARRAY) {
+            if (type->GetTy() && type->GetTy()->kind == Cangjie::AST::TypeKind::TYPE_VARRAY) {
                 detail += GetTypeString(*type);
             } else {
                 detail += type->ToString();
@@ -1758,9 +1758,9 @@ std::string ItemResolverUtil::GetTypeString(const Cangjie::AST::Type &type)
     std::string identifier{};
     return Meta::match(type)(
         [](const RefType &type) { 
-            if (type.ty && type.ty->kind == Cangjie::AST::TypeKind::TYPE_VARRAY && !type.typeArguments.empty()) {
+            if (type.GetTy() && type.TyKind() == Cangjie::AST::TypeKind::TYPE_VARRAY && !type.typeArguments.empty()) {
                 auto paramType = type.typeArguments.begin()->get();
-                auto varrayTy = DynamicCast<VArrayTy>(type.ty);
+                auto varrayTy = DynamicCast<VArrayTy>(type.GetTy());
                 if (!varrayTy || !paramType) {
                     return type.ref.identifier.Val();
                 }

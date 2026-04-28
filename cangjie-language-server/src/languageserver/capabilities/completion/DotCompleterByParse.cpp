@@ -299,7 +299,7 @@ void DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_pt
     auto searchTy = [&ty, &macroBeginPos, &maNextTokenPos, &resExpr](auto node) {
         if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
             if (ma->begin == macroBeginPos && (maNextTokenPos.IsZero() || ma->end <= maNextTokenPos)) {
-                ty = ma->ty;
+                ty = ma->GetTy();
                 resExpr = ma;
                 return VisitAction::STOP_NOW;
             }
@@ -348,10 +348,10 @@ void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::stri
                 isEnumCtor = true;
                 env.SetValue(FILTER::IS_STATIC, false);
             }
-            Ptr<Ty> ty = decl->ty;
+            Ptr<Ty> ty = decl->GetTy();
             auto vd = DynamicCast<VarDecl *>(decl);
             if (vd && vd->type) {
-                ty = vd->type->ty;
+                ty = vd->type->GetTy();
             }
             CompleteFromType(decl->identifier, pos, ty, env);
         }
@@ -1061,7 +1061,7 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &ex
             visibleMembers.insert(symbol);
         }
 
-        if (decl && decl->ty && decl->ty->HasGeneric()) {
+        if (decl && decl->GetTy() && decl->GetTy()->HasGeneric()) {
             continue;
         }
 
@@ -1201,7 +1201,7 @@ void DotCompleterByParse::CompleteFromType(const std::string &identifier,
         if (!aliasDecl || !aliasDecl->type) {
             return;
         }
-        CompleteFromType(identifier, pos, aliasDecl->type->ty, env);
+        CompleteFromType(identifier, pos, aliasDecl->type->GetTy(), env);
     } else if (typeid(*type) == typeid(GenericsTy)) {
         auto genericsDecl = dynamic_cast<GenericsTy *>(type)->upperBounds;
         for (auto ty : genericsDecl) {
@@ -1250,7 +1250,7 @@ void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position 
     if (ark::Is<ClassDecl>(classDecl->GetSuperClassDecl().get())) {
         auto superClass = classDecl->GetSuperClassDecl();
         env.SetValue(FILTER::IS_SUPER, true);
-        CompleteClassDecl(superClass->ty, pos, env, isSuperOrThis);
+        CompleteClassDecl(superClass->GetTy(), pos, env, isSuperOrThis);
     }
 }
 
@@ -1276,8 +1276,8 @@ void DotCompleterByParse::CompleteSuperInterface(Ptr<const InterfaceDecl> interf
             continue;
         }
         auto refType = dynamic_cast<RefType*>(inheritedType.get().get());
-        if (Cangjie::Is<InterfaceTy>(refType->ty.get()) && !IsHiddenDecl(refType->ref.target)) {
-            CompleteFromType("", pos, refType->ty, env);
+        if (Cangjie::Is<InterfaceTy>(refType->GetTy().get()) && !IsHiddenDecl(refType->ref.target)) {
+            CompleteFromType("", pos, refType->GetTy(), env);
         }
     }
 }

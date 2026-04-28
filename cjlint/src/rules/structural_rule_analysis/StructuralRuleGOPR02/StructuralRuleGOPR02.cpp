@@ -35,10 +35,10 @@ void StructuralRuleGOPR02::CheckParenthesesOpertorInEnum(EnumDecl& enumDecl)
 
 void StructuralRuleGOPR02::CheckParenthesesOpertorInExtend(ExtendDecl& extendDecl)
 {
-    if (!extendDecl.ty) {
+    if (!extendDecl.GetTy()) {
         return;
     }
-    if (extendDecl.ty->kind != TypeKind::TYPE_ENUM) {
+    if (extendDecl.GetTy()->kind != TypeKind::TYPE_ENUM) {
         return;
     }
     for (auto& decl : extendDecl.GetMemberDecls()) {

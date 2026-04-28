@@ -766,8 +766,8 @@ void ExtractFunction::GetParam(ExtractedFunction& function, Cangjie::AST::RefExp
     }
     ExtractedFunction::Param param;
     param.name = refExpr->ref.identifier;
-    if (decl->ty->HasGeneric()) {
-        CollectGenerics(*decl->ty, function.generics);
+    if (decl->GetTy()->HasGeneric()) {
+        CollectGenerics(*decl->GetTy(), function.generics);
     }
     param.type = GetVarDeclType(decl, sel.arkAst->sourceManager);
     function.params.emplace(std::move(param));

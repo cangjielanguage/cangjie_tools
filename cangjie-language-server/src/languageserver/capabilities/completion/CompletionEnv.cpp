@@ -457,7 +457,7 @@ void CompletionEnv::DealMatchExpr(Ptr<Node> node, const Position pos)
         std::string query = "_ = (" + std::to_string(pos.fileID) + ", " + std::to_string(selPosition.line) + ", " +
                             std::to_string(selPosition.column) + ")";
         auto symbols = SearchContext(cache->packageInstance->ctx, query);
-        if (auto target = Ty::GetDeclPtrOfTy(symbols[0]->node->ty)) {
+        if (auto target = Ty::GetDeclPtrOfTy(symbols[0]->node->GetTy())) {
             matchSelector = target->identifier;
         }
 
@@ -1083,7 +1083,7 @@ void CompletionEnv::CompleteNode(
         return;
     }
     // skip VArray type
-    bool skipVAaary = node->ty->kind == TypeKind::TYPE_VARRAY && signature == "VArray<T>";
+    bool skipVAaary = node->GetTy()->kind == TypeKind::TYPE_VARRAY && signature == "VArray<T>";
     if (skipVAaary) {
         return;
     }
@@ -1495,7 +1495,7 @@ bool CompletionEnv::CheckInsideVarDecl(const Decl &decl) const
     if (!ark::Is<VarDecl>(&decl)) {
         return true;
     }
-    if (decl.ty != nullptr && decl.ty->kind == Cangjie::AST::TypeKind::TYPE_ENUM) {
+    if (decl.GetTy() != nullptr && decl.GetTy()->kind == Cangjie::AST::TypeKind::TYPE_ENUM) {
         return true;
     }
     if (GetValue(FILTER::INSIDE_VARDECL)) {

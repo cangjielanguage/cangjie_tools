@@ -338,22 +338,22 @@ void MatchBracket(const std::string &type, size_t &index, int &count)
 std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager)
 {
     std::string type;
-    if ((!decl->ty || GetString(*decl->ty) == "UnknownType") && decl->type) {
+    if ((!decl->GetTy() || GetString(*decl->GetTy()) == "UnknownType") && decl->type) {
         type = sourceManager->GetContentBetween(decl->type->begin, decl->type->end);
         std::string realType = ReplaceTuple(type);
         type = realType.empty() ? type : realType;
         return type;
     }
-    if (!decl->ty) {
+    if (!decl->GetTy()) {
         return type;
     }
-    if (decl->ty->kind == TypeKind::TYPE_FUNC) {
-        ItemResolverUtil::GetDetailByTy(decl->ty, type, true);
+    if (decl->GetTy()->kind == TypeKind::TYPE_FUNC) {
+        ItemResolverUtil::GetDetailByTy(decl->GetTy(), type, true);
         std::string realType = ReplaceTuple(type);
         type = realType.empty() ? type : realType;
         return type;
     }
-    type = GetString(*decl->ty);
+    type = GetString(*decl->GetTy());
     std::string realType = ReplaceTuple(type);
     type = realType.empty() ? type : realType;
     return type;
@@ -423,8 +423,8 @@ bool IsFuncSignatureIdentical(const Cangjie::AST::FuncDecl &funcDecl1, const Can
     if (funcDecl1.identifier != funcDecl2.identifier) {
         return false;
     }
-    auto funcTy1 = dynamic_cast<FuncTy *>(funcDecl1.ty.get());
-    auto funcTy2 = dynamic_cast<FuncTy *>(funcDecl2.ty.get());
+    auto funcTy1 = dynamic_cast<FuncTy *>(funcDecl1.GetTy().get());
+    auto funcTy2 = dynamic_cast<FuncTy *>(funcDecl2.GetTy().get());
     if (!funcTy1 || !funcTy2 || !IsFuncParameterTypesIdentical(*funcTy1, *funcTy2) ||
         !(CheckTypeCompatibility(funcTy1->retTy, funcTy2->retTy) == TypeCompatibility::IDENTICAL)) {
         return false;
@@ -486,7 +486,7 @@ Range GetRangeFromNode(Ptr<const Node> p, const std::vector<Cangjie::Token> &tok
         range = GetMacroRange<MacroExpandExpr>(*p);
     } else if (p->astKind == ASTKind::FUNC_ARG) {
         range = GetNamedFuncArgRange(*p);
-    } else if (p->ty && !p->ty->typeArgs.empty()) {
+    } else if (p->GetTy() && !p->GetTy()->typeArgs.empty()) {
         range = GetIdentifierRange(p);
     } else if (p->astKind == ASTKind::REF_TYPE) {
         range = GetRefTypeRange(p);
@@ -597,10 +597,10 @@ void AddTopDecl(const std::string &curPkg,
                 Ptr<InheritableDecl> inheritableDecl)
 {
     for (auto &in : inheritableDecl->inheritedTypes) {
-        if (!in->ty || in->ty->name.empty()) {
+        if (!in->GetTy() || in->GetTy()->name.empty()) {
             continue;
         }
-        if (superDecl.find(in->ty->name) != superDecl.end()) {
+        if (superDecl.find(in->GetTy()->name) != superDecl.end()) {
             users.push_back(memDecl.get());
             return;
         }
@@ -608,10 +608,10 @@ void AddTopDecl(const std::string &curPkg,
     auto extendDecls = CompilerCangjieProject::GetInstance()->GetExtendDecls(inheritableDecl, curPkg);
     for (auto extendDecl : extendDecls) {
         for (auto &in : extendDecl->inheritedTypes) {
-            if (!in->ty || in->ty->name.empty()) {
+            if (!in->GetTy() || in->GetTy()->name.empty()) {
                 continue;
             }
-            if (superDecl.find(in->ty->name) != superDecl.end()) {
+            if (superDecl.find(in->GetTy()->name) != superDecl.end()) {
                 users.push_back(memDecl.get());
                 return;
             }
@@ -978,11 +978,11 @@ std::vector<std::string> GetFuncParamsTypeName(Ptr<const Cangjie::AST::FuncDecl>
     std::vector<std::string> paramsLists;
     for (auto &paramList : decl->funcBody->paramLists) {
         for (auto &param : paramList->params) {
-            if (param == nullptr || param->ty == nullptr) {
+            if (param == nullptr || param->GetTy() == nullptr) {
                 (void)paramsLists.emplace_back("");
                 continue;
             }
-            (void)paramsLists.emplace_back(GetString(*param->ty));
+            (void)paramsLists.emplace_back(GetString(*param->GetTy()));
         }
     }
     return paramsLists;
@@ -1038,13 +1038,13 @@ std::string GetConstructorIdentifier(const Decl &decl, bool getTargetName)
 std::string GetVarDeclType(Ptr<const VarDecl> decl)
 {
     std::string detail;
-    if (decl == nullptr || decl->ty == nullptr) {
+    if (decl == nullptr || decl->GetTy() == nullptr) {
         return detail;
     }
-    if (decl->ty->kind != TypeKind::TYPE_FUNC) {
-        detail = GetString(*decl->ty);
+    if (decl->GetTy()->kind != TypeKind::TYPE_FUNC) {
+        detail = GetString(*decl->GetTy());
     }
-    auto funcTy = dynamic_cast<FuncTy *>(decl->ty.get());
+    auto funcTy = dynamic_cast<FuncTy *>(decl->GetTy().get());
     if (funcTy == nullptr) {
         return detail;
     }

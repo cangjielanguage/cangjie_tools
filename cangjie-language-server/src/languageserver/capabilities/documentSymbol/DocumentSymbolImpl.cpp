@@ -130,7 +130,7 @@ std::string GetDocumentSymbolNameByFuncDecl(const FuncDecl &decl, bool isMain)
         detail += ": Int64";
         return detail;
     }
-    Ty *retTy = decl.funcBody->retType ? decl.funcBody->retType->ty : nullptr;
+    Ty *retTy = decl.funcBody->retType ? decl.funcBody->retType->GetTy() : nullptr;
     std::string retTyStr;
     if (retTy) {
         retTyStr = GetString(*retTy);
@@ -168,11 +168,11 @@ void GetDocumentSymbolName(std::string &identifierName, std::string &name, Ptr<D
         return;
     } else if (decl->astKind == ASTKind::EXTEND_DECL) {
         auto *extendDecl = dynamic_cast<ExtendDecl*>(decl.get());
-        if (extendDecl && extendDecl->extendedType && extendDecl->extendedType->ty) {
+        if (extendDecl && extendDecl->extendedType && extendDecl->extendedType->GetTy()) {
             // extend primitive type, including char, bool, Int32, etc.
             auto *primitiveType = dynamic_cast<PrimitiveType*>(extendDecl->extendedType.get().get());
             if (primitiveType == nullptr) {
-                identifierName = extendDecl->extendedType->ty->name;
+                identifierName = extendDecl->extendedType->GetTy()->name;
                 name = identifierName + GetGenericList(decl.get());
             } else {
                 identifierName = primitiveType->str;

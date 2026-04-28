@@ -56,10 +56,10 @@ TEST(FindDeclUsageTest, CheckParamListEqual_SameParamLists) {
 
     // Add identical parameters
     auto param1 = new FuncParam();
-    param1->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param1->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     auto param2 = new FuncParam();
-    param2->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param2->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     srcList->params.emplace_back(param1);
     targetList->params.emplace_back(param2);
@@ -73,13 +73,13 @@ TEST(FindDeclUsageTest, CheckParamListEqual_DifferentParamCount) {
     auto targetList = new FuncParamList();
 
     auto param1 = new FuncParam();
-    param1->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param1->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     auto param2 = new FuncParam();
-    param2->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param2->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     auto param3 = new FuncParam();
-    param3->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param3->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     srcList->params.emplace_back(param1);
     targetList->params.emplace_back(param2);
@@ -236,10 +236,10 @@ TEST(FindDeclUsageTest, CheckMacroFunc_ValidMacroFunction) {
     auto target = Ptr<FuncDecl>(new FuncDecl());
 
     decl.isInMacroCall = true;
-    decl.ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32));
+    decl.SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)));
     decl.identifier = "testFunc";
 
-    target->ty = decl.ty; // Same type
+    target->SetTy(decl.GetTy()); // Same type
     target->identifier = "testFunc";
 
     EXPECT_FALSE(checkMacroFunc(decl, target));
@@ -251,10 +251,10 @@ TEST(FindDeclUsageTest, CheckMacroFunc_NotInMacroCall) {
     auto target = Ptr<FuncDecl>(new FuncDecl());
 
     decl.isInMacroCall = false; // Not in macro call
-    decl.ty = Ptr<Ty>();
+    decl.SetTy(Ptr<Ty>());
     decl.identifier = "testFunc";
 
-    target->ty = decl.ty;
+    target->SetTy(decl.GetTy());
     target->identifier = "testFunc";
 
     EXPECT_FALSE(checkMacroFunc(decl, target));
@@ -266,10 +266,10 @@ TEST(FindDeclUsageTest, CheckMacroFunc_DifferentIdentifiers) {
     auto target = Ptr<FuncDecl>(new FuncDecl());
 
     decl.isInMacroCall = true;
-    decl.ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32));
+    decl.SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)));
     decl.identifier = "testFunc1";
 
-    target->ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32));
+    target->SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)));
     target->identifier = "testFunc2"; // Different identifier
 
     EXPECT_FALSE(checkMacroFunc(decl, target));
@@ -391,8 +391,8 @@ TEST(FindDeclUsageTest, CheckParamListEqual_NullParamType) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->ty = nullptr;
-    targetParam->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    srcParam->SetTy(nullptr);
+    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     srcList->params.emplace_back(srcParam);
     targetList->params.emplace_back(targetParam);
@@ -408,8 +408,8 @@ TEST(FindDeclUsageTest, CheckParamListEqual_DifferentParamTypes) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
-    targetParam->ty = new PrimitiveTy(TypeKind::TYPE_INT64);
+    srcParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT64));
 
     srcList->params.emplace_back(srcParam);
     targetList->params.emplace_back(targetParam);
@@ -433,8 +433,8 @@ TEST(FindDeclUsageTest, CheckFunctionEqual_DifferentParamLists) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
-    targetParam->ty = new PrimitiveTy(TypeKind::TYPE_INT64);
+    srcParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT64));
 
     srcParamList->params.emplace_back(srcParam);
     targetParamList->params.emplace_back(targetParam);
@@ -534,7 +534,7 @@ TEST(FindDeclUsageTest, CheckMacroFunc_NullTarget) {
     // Test checkMacroFunc with null target
     Decl decl;
     decl.isInMacroCall = true;
-    decl.ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_FUNC));
+    decl.SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_FUNC)));
     decl.identifier = "testFunc";
 
     EXPECT_FALSE(checkMacroFunc(decl, nullptr));
@@ -546,8 +546,8 @@ TEST(FindDeclUsageTest, CheckMacroFunc_DifferentTypes) {
     auto target = Ptr<FuncDecl>(new FuncDecl());
 
     decl.isInMacroCall = true;
-    decl.ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32));
-    target->ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT64));
+    decl.SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)));
+    target->SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT64)));
     decl.identifier = "testFunc";
     target->identifier = "testFunc";
 
@@ -560,8 +560,8 @@ TEST(FindDeclUsageTest, CheckMacroFunc_NonFunctionType) {
     auto target = Ptr<FuncDecl>(new FuncDecl());
 
     decl.isInMacroCall = true;
-    decl.ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)); // Not function type
-    target->ty = Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32));
+    decl.SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32))); // Not function type
+    target->SetTy(Ptr<Ty>(new PrimitiveTy(TypeKind::TYPE_INT32)));
     decl.identifier = "testFunc";
     target->identifier = "testFunc";
 

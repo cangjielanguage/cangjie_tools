@@ -61,10 +61,10 @@ void StructuralRuleGCON01::SynchronizedObjectFinder(Ptr<Node> node)
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [this](const VarDecl &varDecl) {
-                if (varDecl.ty == nullptr) {
+                if (varDecl.GetTy() == nullptr) {
                     return VisitAction::SKIP_CHILDREN;
                 }
-                if (varDecl.ty->name != "ReentrantMutex") {
+                if (varDecl.GetTy()->name != "ReentrantMutex") {
                     return VisitAction::SKIP_CHILDREN;
                 }
 

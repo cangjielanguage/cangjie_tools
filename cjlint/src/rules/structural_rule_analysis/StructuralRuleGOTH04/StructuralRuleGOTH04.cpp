@@ -86,12 +86,12 @@ void StructuralRuleGOTH04::AnalyzeVarDecl(const VarDecl& varDecl)
     if (!IsSensitiveDataVar(varDecl.identifier)) {
         return;
     }
-    if (!varDecl.ty) {
+    if (!varDecl.GetTy()) {
         return;
     }
 
     bool flag = false;
-    VarDeclTypeAnalysis(varDecl.ty, flag);
+    VarDeclTypeAnalysis(varDecl.GetTy(), flag);
     if (flag) {
         Diagnose(varDecl.identifier.Begin(), varDecl.identifier.End(),
             CodeCheckDiagKind::G_OTH_04_avoid_use_string_type_to_store_sensitive_data, varDecl.identifier.Val());

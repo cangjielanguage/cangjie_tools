@@ -26,11 +26,11 @@ void StructuralRuleFFIC7::CheckPointerExpr(Ptr<AST::Node> node)
             return VisitAction::WALK_CHILDREN;
         }
         auto pointerExpr = StaticAs<ASTKind::POINTER_EXPR>(node);
-        auto toTy = GetType(pointerExpr->ty);
-        if (!pointerExpr->arg || !pointerExpr->arg->ty) {
+        auto toTy = GetType(pointerExpr->GetTy());
+        if (!pointerExpr->arg || !pointerExpr->arg->GetTy()) {
             return VisitAction::WALK_CHILDREN;
         }
-        auto fromTy = GetType(pointerExpr->arg->ty);
+        auto fromTy = GetType(pointerExpr->arg->GetTy());
         if (!toTy || !fromTy) {
             return VisitAction::WALK_CHILDREN;
         }

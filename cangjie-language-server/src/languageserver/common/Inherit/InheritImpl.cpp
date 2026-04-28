@@ -15,15 +15,15 @@ void HandleSuperDecl(std::queue<Ptr<InheritableDecl> > &queues, InheritableDecl 
 {
     size_t invalidDeclCount = 0;
     for (auto &it : inheritableDecl.inheritedTypes) {
-        if (it->ty == nullptr) {
+        if (it->GetTy() == nullptr) {
             invalidDeclCount++;
             continue;
         }
         Ptr<ClassLikeDecl> superDecl = nullptr;
-        if (it->ty->kind == TypeKind::TYPE_CLASS) {
-            superDecl = dynamic_cast<ClassTy *>(it->ty.get())->decl;
-        } else if (it->ty->kind == TypeKind::TYPE_INTERFACE) {
-            superDecl = dynamic_cast<InterfaceTy *>(it->ty.get())->decl;
+        if (it->GetTy()->kind == TypeKind::TYPE_CLASS) {
+            superDecl = dynamic_cast<ClassTy *>(it->GetTy().get())->decl;
+        } else if (it->GetTy()->kind == TypeKind::TYPE_INTERFACE) {
+            superDecl = dynamic_cast<InterfaceTy *>(it->GetTy().get())->decl;
         }
         if (!superDecl) {
             invalidDeclCount++;

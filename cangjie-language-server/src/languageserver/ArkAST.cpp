@@ -460,11 +460,11 @@ std::vector<Ptr<Decl>> ArkAST::FindRealDecl(const ark::ArkAST& nowAst, const std
 
 Ptr<Decl> ArkAST::GetDelFromType(Ptr<const Cangjie::AST::Type> type) const
 {
-    if (type == nullptr || type->ty == nullptr) {
+    if (type == nullptr || type->GetTy() == nullptr) {
         return nullptr;
     }
     Ptr<Decl> decl = nullptr;
-    return Meta::match(*(type->ty))(
+    return Meta::match(*(type->GetTy()))(
         [&](const ClassTy &classTy) {
             decl = classTy.decl;
             return decl;

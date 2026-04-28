@@ -390,8 +390,8 @@ std::string ResolveExtendTargetName(const Cangjie::AST::ExtendDecl &decl)
             extendName = extendName.substr(0, genericPos);
         }
     }
-    if (extendName.empty() && decl.extendedType && decl.extendedType->ty) {
-        extendName = Trim(decl.extendedType->ty->name);
+    if (extendName.empty() && decl.extendedType && decl.extendedType->GetTy()) {
+        extendName = Trim(decl.extendedType->GetTy()->name);
     }
     return extendName;
 }
@@ -761,18 +761,18 @@ std::string ResolveInheritedTypeText(const Ptr<Type> &inherited, SourceManager *
     if (sm) {
         typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
     }
-    if (typeName.empty() && inherited->ty) {
-        typeName = Trim(inherited->ty->String());
+    if (typeName.empty() && inherited->GetTy()) {
+        typeName = Trim(inherited->GetTy()->String());
     }
     return typeName;
 }
 
 bool IsInterfaceInheritedType(const Ptr<Type> &inherited)
 {
-    if (!inherited || !inherited->ty || inherited->ty->IsObject()) {
+    if (!inherited || !inherited->GetTy() || inherited->GetTy()->IsObject()) {
         return false;
     }
-    auto decl = Ty::GetDeclPtrOfTy(inherited->ty);
+    auto decl = Ty::GetDeclPtrOfTy(inherited->GetTy());
     return DynamicCast<InterfaceDecl *>(decl) != nullptr;
 }
 
@@ -781,10 +781,10 @@ std::vector<InterfaceDecl *> CollectDirectInheritedInterfaceDecls(InheritableDec
     std::vector<InterfaceDecl *> inheritedInterfaces;
     std::unordered_set<InterfaceDecl *> seen;
     for (auto &inherited : decl.inheritedTypes) {
-        if (!inherited || !inherited->ty || inherited->ty->IsObject()) {
+        if (!inherited || !inherited->GetTy() || inherited->GetTy()->IsObject()) {
             continue;
         }
-        auto interfaceDecl = DynamicCast<InterfaceDecl *>(Ty::GetDeclPtrOfTy(inherited->ty));
+        auto interfaceDecl = DynamicCast<InterfaceDecl *>(Ty::GetDeclPtrOfTy(inherited->GetTy()));
         if (!interfaceDecl || !seen.insert(interfaceDecl).second) {
             continue;
         }
@@ -819,7 +819,7 @@ void CollectInheritedTypesForExtract(const Cangjie::AST::InheritableDecl &decl,
         if (!inherited) {
             continue;
         }
-        if (inherited->ty && inherited->ty->IsObject()) {
+        if (inherited->GetTy() && inherited->GetTy()->IsObject()) {
             continue;
         }
         std::string typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
@@ -845,7 +845,7 @@ void CollectInheritedTypesForExtract(const Cangjie::AST::ExtendDecl &decl,
         if (!inherited) {
             continue;
         }
-        if (inherited->ty && inherited->ty->IsObject()) {
+        if (inherited->GetTy() && inherited->GetTy()->IsObject()) {
             continue;
         }
         std::string typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
@@ -1679,7 +1679,7 @@ bool HasRealInheritedType(const Cangjie::AST::InheritableDecl &decl)
         if (!ty) {
             continue;
         }
-        if (!ty->ty || !ty->ty->IsObject()) {
+        if (!ty->GetTy() || !ty->GetTy()->IsObject()) {
             return true;
         }
     }
@@ -2262,7 +2262,7 @@ ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl
 {
     ClassInheritUpdate update;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         update.hasRealInherited = true;
@@ -2318,7 +2318,7 @@ bool AlreadyInheritsInterface(Cangjie::AST::InheritableDecl &decl,
                               const std::string &interfaceTypeName)
 {
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         if (IsSameTypeName(ResolveInheritedTypeText(ty, sm), interfaceTypeName)) {
@@ -2332,7 +2332,7 @@ Cangjie::Position FindLastRealInheritedTypeEnd(Cangjie::AST::InheritableDecl &de
 {
     Cangjie::Position tail = Cangjie::INVALID_POSITION;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         tail = ty->GetEnd();
@@ -2387,7 +2387,7 @@ TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
     auto *sm = sel.arkAst->sourceManager;
     std::string interfaceTypeName = info.name + info.genericParams;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         if (IsSameTypeName(ResolveInheritedTypeText(ty, sm), interfaceTypeName)) {
@@ -2398,7 +2398,7 @@ TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
     bool hasRealInherited = false;
     Cangjie::Position tail = Cangjie::INVALID_POSITION;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         hasRealInherited = true;

@@ -435,13 +435,13 @@ std::string CommonFunc::GetFuncDeclParentTyName(Ptr<const Cangjie::AST::FuncDecl
         return "";
     }
     if (pFuncDecl->funcBody->parentClassLike) {
-        return pFuncDecl->funcBody->parentClassLike->ty->name;
+        return pFuncDecl->funcBody->parentClassLike->GetTy()->name;
     }
     if (pFuncDecl->funcBody->parentStruct) {
-        return pFuncDecl->funcBody->parentStruct->ty->name;
+        return pFuncDecl->funcBody->parentStruct->GetTy()->name;
     }
     if (pFuncDecl->funcBody->parentEnum) {
-        return pFuncDecl->funcBody->parentEnum->ty->name;
+        return pFuncDecl->funcBody->parentEnum->GetTy()->name;
     }
     return "";
 }

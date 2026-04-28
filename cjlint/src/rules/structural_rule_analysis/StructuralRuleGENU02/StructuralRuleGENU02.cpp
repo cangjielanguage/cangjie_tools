@@ -23,19 +23,19 @@ bool StructuralRuleGENU02::CheckTyEqualityHelper(Cangjie::AST::Ty* base, Cangjie
         auto classDecl = static_cast<Cangjie::AST::ClassLikeDecl*>(Cangjie::AST::Ty::GetDeclOfTy(derived).get());
         // Explicit Inheritance When Class Is Declared
         for (auto& super : classDecl->inheritedTypes) {
-            if (super->ty == base) {
+            if (super->GetTy() == base) {
                 return true;
             }
-            if (CheckTyEqualityHelper(base, super->ty)) {
+            if (CheckTyEqualityHelper(base, super->GetTy())) {
                 return true;
             }
         }
         // Inheritance relationship defined by extension
         for (auto& super : inheritedClassMap[derived]) {
-            if (super->ty == base) {
+            if (super->GetTy() == base) {
                 return true;
             }
-            if (CheckTyEqualityHelper(base, super->ty)) {
+            if (CheckTyEqualityHelper(base, super->GetTy())) {
                 return true;
             }
         }
@@ -63,7 +63,7 @@ void StructuralRuleGENU02::DuplicatedEnumCtrOrFuncHelper(const Cangjie::AST::Fun
     auto& params = funcDecl.funcBody->paramLists[0]->params;
     std::vector<AST::Ty*> args;
     for (size_t i = 0; i < params.size(); i++) {
-        args.emplace_back(params[i]->ty);
+        args.emplace_back(params[i]->GetTy());
     }
     auto isEnumCtr = funcDecl.TestAttr(Attribute::ENUM_CONSTRUCTOR);
     auto enumCtr = EnumCtr(funcDecl.identifier, args, isEnumCtr);
@@ -132,9 +132,9 @@ void StructuralRuleGENU02::FindExtendHelper(Ptr<Cangjie::AST::Node> node)
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [this](const ExtendDecl& extendDecl) {
-                if (extendDecl.extendedType->ty->IsClassLike()) {
+                if (extendDecl.extendedType->GetTy()->IsClassLike()) {
                     for (auto& type : extendDecl.inheritedTypes) {
-                        inheritedClassMap[extendDecl.extendedType->ty].emplace_back(type.get());
+                        inheritedClassMap[extendDecl.extendedType->GetTy()].emplace_back(type.get());
                     }
                 }
                 return VisitAction::SKIP_CHILDREN;

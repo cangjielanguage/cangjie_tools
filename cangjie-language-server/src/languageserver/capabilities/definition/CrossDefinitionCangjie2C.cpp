@@ -82,24 +82,24 @@ void CrossDefinitionCangjie2C::Cangjie2CGetFuncMessage(std::vector<message> &Cro
 {
     message message;
     bool inValid = !funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->retType ||
-                   !funcDecl->funcBody->retType->ty || funcDecl->funcBody->paramLists.empty() ||
-                   GetCType(funcDecl->funcBody->retType->ty) == "unknown";
+                   !funcDecl->funcBody->retType->GetTy() || funcDecl->funcBody->paramLists.empty() ||
+                   GetCType(funcDecl->funcBody->retType->GetTy()) == "unknown";
     if (inValid) { return; }
     for (const auto &item: funcDecl->funcBody->paramLists[0]->params) {
-        string basicString = GetCType(item->ty);
+        string basicString = GetCType(item->GetTy());
         if (basicString == "unknown") {
             message.functionParameters = {};
             return;
         }
         // first [] to *
-        if (item->ty->kind == TypeKind::TYPE_VARRAY) {
+        if (item->GetTy()->kind == TypeKind::TYPE_VARRAY) {
             ConvertFirstVArray(basicString);
         }
         (void) message.functionParameters.emplace_back(basicString);
     }
     message.targetLanguage = "C";
     message.functionName = funcDecl->identifier;
-    message.retType = GetCType(funcDecl->funcBody->retType->ty);
+    message.retType = GetCType(funcDecl->funcBody->retType->GetTy());
     if (funcDecl->hasVariableLenArg) {
         (void) message.functionParameters.emplace_back("...");
     }

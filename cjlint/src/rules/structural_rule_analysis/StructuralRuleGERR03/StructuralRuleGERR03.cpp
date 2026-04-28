@@ -27,10 +27,10 @@ void StructuralRuleGERR03::FindMemberAccess(Ptr<Cangjie::AST::Node> node)
 
 void StructuralRuleGERR03::CheckMemberAccessAttribute(const Cangjie::AST::MemberAccess &memberAccess)
 {
-    if (memberAccess.baseExpr == nullptr || memberAccess.baseExpr->ty == nullptr) {
+    if (memberAccess.baseExpr == nullptr || memberAccess.baseExpr->GetTy() == nullptr) {
         return;
     }
-    if (memberAccess.field == "getOrThrow" && memberAccess.baseExpr->ty->name == "Option") {
+    if (memberAccess.field == "getOrThrow" && memberAccess.baseExpr->GetTy()->name == "Option") {
         Diagnose(memberAccess.baseExpr->end, memberAccess.baseExpr->end + 1,
             CodeCheckDiagKind::G_ERR_03_avoid_option_getorthrow);
     }

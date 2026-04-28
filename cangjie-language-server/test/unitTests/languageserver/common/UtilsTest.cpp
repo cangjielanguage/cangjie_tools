@@ -767,7 +767,7 @@ struct FakeFuncTy : public Cangjie::AST::FuncTy {
 struct FakeFuncDecl : public Cangjie::AST::FuncDecl {
     FakeFuncDecl(const std::string &id, Ptr<Cangjie::AST::Ty> t) {
         identifier = id;
-        ty = std::move(t);
+        SetTy(t);
     }
 };
 

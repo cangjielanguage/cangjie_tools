@@ -160,7 +160,7 @@ StructuralRuleGCON03::MutexState StructuralRuleGCON03::IsReentrantMutex(Ptr<Cang
         return MutexState::NOT_MUTEX;
     }
     auto ref = As<ASTKind::REF_EXPR>(memberAccess->baseExpr.get());
-    if (ref == nullptr || ref->ref.target == nullptr || ref->ref.target->ty->name != "ReentrantMutex") {
+    if (ref == nullptr || ref->ref.target == nullptr || ref->ref.target->GetTy()->name != "ReentrantMutex") {
         return MutexState::NOT_MUTEX;
     }
     return memberAccess->field == "lock" ? MutexState::MUTEX_LOCK : MutexState::MUTEX_UNLOCK;

@@ -87,7 +87,7 @@ void DealTypeAliasDecl(Ptr<Decl> &decl)
     if (ark::Is<Cangjie::AST::TypeAliasDecl>(decl.get())) {
         auto typeAliasDecl = dynamic_cast<const TypeAliasDecl*>(decl.get());
         if (!typeAliasDecl || !typeAliasDecl->type) { return; }
-        decl = ItemResolverUtil::GetDeclByTy(typeAliasDecl->type->ty);
+        decl = ItemResolverUtil::GetDeclByTy(typeAliasDecl->type->GetTy());
     }
 }
 
