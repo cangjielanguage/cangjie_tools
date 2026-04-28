@@ -161,6 +161,7 @@ void CrashReporter::SignalHandler(int sig)
 
 void SigpipeHandler(int unused)
 {
+    (void)unused;
     ark::Logger::Instance().LogMessage(ark::MessageType::MSG_ERROR,
                                        "Macro expand throw Sigpipe Exception!");
 }

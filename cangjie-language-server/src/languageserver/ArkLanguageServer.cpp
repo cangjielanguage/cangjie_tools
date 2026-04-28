@@ -1267,7 +1267,8 @@ void ArkLanguageServer::ImportAllSymsCodeAction(std::vector<DiagnosticToken> &di
     for (auto &diagnostic : diagnostics) {
         groups[diagnostic.range].push_back(&diagnostic);
     }
-    for (auto &[range, diags] : groups) {
+    for (auto &[unusedRange, diags] : groups) {
+        (void)unusedRange;
         if (diags.size() <= 1) {
             continue;
         }
