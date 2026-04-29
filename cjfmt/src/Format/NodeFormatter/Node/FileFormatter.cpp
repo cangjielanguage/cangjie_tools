@@ -54,6 +54,11 @@ void AddImportSpecs(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource&
     }
 }
 
+bool HasHeader(const Cangjie::AST::File& file)
+{
+    return file.feature || file.package || !file.imports.empty();
+}
+
 void AddFileHeader(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource& astToFormatSource, int level)
 {
     if (file.feature) {
@@ -67,7 +72,7 @@ void AddFileHeader(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource& 
     AddPackageSpec(doc, file, astToFormatSource, level);
     AddImportSpecs(doc, file, astToFormatSource, level);
 
-    if (file.feature || file.package || !file.imports.empty()) {
+    if (HasHeader(file)) {
         doc.members.emplace_back(DocType::SEPARATE, level, "");
         doc.members.emplace_back(DocType::SEPARATE, level, "");
     }
