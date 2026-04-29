@@ -78,6 +78,7 @@
 #include "Format/NodeFormatter/Expr/WildcardExprFormatter.h"
 #include "Format/NodeFormatter/Node/AnnotationFormatter.h"
 #include "Format/NodeFormatter/Node/ClassBodyFormatter.h"
+#include "Format/NodeFormatter/Node/FeaturesDirectiveFormatter.h"
 #include "Format/NodeFormatter/Node/FileFormatter.h"
 #include "Format/NodeFormatter/Node/FuncArgFormatter.h"
 #include "Format/NodeFormatter/Node/FuncBodyFormatter.h"
@@ -180,6 +181,7 @@ void TraveDepthLimitedDirs(
 
 void RegisterNode(ASTToFormatSource& toSourceManager, FormattingOptions& options)
 {
+    toSourceManager.RegisterNode<FeaturesDirectiveFormatter>(ASTKind::FEATURES_DIRECTIVE, options);
     toSourceManager.RegisterNode<PackageSpecFormatter>(ASTKind::PACKAGE_SPEC, options);
     toSourceManager.RegisterNode<FileFormatter>(ASTKind::FILE, options);
     toSourceManager.RegisterNode<ImportSpecFormatter>(ASTKind::IMPORT_SPEC, options);
