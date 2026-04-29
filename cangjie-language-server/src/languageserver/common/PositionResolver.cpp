@@ -5,8 +5,9 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "PositionResolver.h"
-#include <codecvt>
+#include <vector>
 #include "../CompilerCangjieProject.h"
+#include "cangjie/Utils/Unicode.h"
 
 namespace ark {
 bool IsUTF8(const std::string &str)
@@ -45,19 +46,39 @@ bool IsUTF8(const std::string &str)
 
 std::basic_string<char32_t> UTF8ToChar32(const std::string &str)
 {
-    try {
-        std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-        return conv.from_bytes(str);
-    } catch (const std::exception& e) {
-        // deal with illegal utf-8 string
+    if (str.empty()) {
         return std::u32string();
     }
+    std::vector<Cangjie::Unicode::UTF32> utf32(str.size());
+    const auto *sourceStart = reinterpret_cast<const Cangjie::Unicode::UTF8 *>(str.data());
+    const auto *sourceEnd = sourceStart + str.size();
+    auto *targetStart = utf32.data();
+    auto *targetEnd = targetStart + utf32.size();
+    auto result = Cangjie::Unicode::ConvertUTF8toUTF32(&sourceStart, sourceEnd, &targetStart, targetEnd);
+    if (result != Cangjie::Unicode::ConversionResult::OK) {
+        return std::u32string();
+    }
+    std::u32string char32Str;
+    char32Str.reserve(static_cast<size_t>(targetStart - utf32.data()));
+    for (auto *it = utf32.data(); it < targetStart; ++it) {
+        char32Str.push_back(static_cast<char32_t>(*it));
+    }
+    return char32Str;
 }
 
 std::string Char32ToUTF8(const std::basic_string<char32_t>& str)
 {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-    return conv.to_bytes(str);
+    std::vector<Cangjie::Unicode::UTF32> utf32;
+    utf32.reserve(str.size());
+    for (auto ch : str) {
+        utf32.push_back(static_cast<Cangjie::Unicode::UTF32>(ch));
+    }
+    std::string result;
+    if (!Cangjie::Unicode::ConvertUTF32ToUTF8String(Cangjie::Unicode::ArrayRef<Cangjie::Unicode::UTF32>(utf32),
+        result)) {
+        return "";
+    }
+    return result;
 }
 
 int GetFirstTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, int declLine)
