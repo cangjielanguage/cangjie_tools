@@ -68,6 +68,16 @@ public:
 
     void PublishCompletionTip(const CompletionTip &params) override;
 
+    std::string CreateProgressToken() override;
+
+    void SendWorkDoneProgressCreate(const WorkDoneProgressCreateParams &params) override;
+
+    void SendWorkDoneProgressBegin(const std::string &token, const WorkDoneProgressBegin &begin) override;
+
+    void SendWorkDoneProgressReport(const std::string &token, const WorkDoneProgressReport &report) override;
+
+    void SendWorkDoneProgressEnd(const std::string &token, const WorkDoneProgressEnd &end) override;
+
     lsp::IndexDatabase *GetIndexDB() const
     {
         return arkIndexDB;
