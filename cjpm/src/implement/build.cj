@@ -969,7 +969,7 @@ func getTypeCommand(compileTask: CompileTask): ArrayList<String> {
         res.add("--lto=${compileTask.ltoValue}")
         if (compileTask.outputType == Dynamic && compileTask.keepPkgVisibility.isSome()) {
             let keepPkgVisibilityStr = String.join(compileTask.keepPkgVisibility.getOrThrow(), delimiter: ",")
-            res.add("--lto-keep-pkg-visibility=\"${keepPkgVisibilityStr}\"")
+            res.add(all: extractOptionByString("--lto-keep-pkg-visibility=\"${keepPkgVisibilityStr}\""))
         }
     }
 
@@ -1268,8 +1268,23 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     return res
 }
 
-@When[os == "Linux" || os == "Windows"]
-func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
+func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
+    cLibNameList: ArrayList<String>): ArrayList<String> {
+    let compileTarget = if (crossCompileTarget.isEmpty()) {
+        targetConfigName
+    } else {
+        crossCompileTarget
+    }
+
+    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
+        return getForcedBinDepForMac(compileTask, buildConfig, binDepSet, cLibNameList)
+    } else {
+        return getForcedBinDepForLinuxOrWin(compileTask, buildConfig, binDepSet, cLibNameList)
+    }
+}
+
+func getForcedBinDepForLinuxOrWin(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
+    cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
     binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask.isLto), at: 0)
     binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask.isLto), at: 0)
@@ -1280,8 +1295,8 @@ func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepS
     return binOptions
 }
 
-@When[os == "macOS"]
-func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
+
+func getForcedBinDepForMac(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
 
     let cLibLinkMap = if (compileTask.isCrossCompile) {
@@ -1317,7 +1332,6 @@ func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepS
     return binOptions
 }
 
-@When[os == "macOS"]
 func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet<String>, isLto: Bool): ArrayList<String> {
     let libPathSet = ArrayList<String>()
     for ((_, eachModuleDepMap) in binDepMap) {
