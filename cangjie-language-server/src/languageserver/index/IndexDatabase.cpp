@@ -350,7 +350,7 @@ dberr_no IndexDatabase::Initialize(std::function<sqldb::Connection()> openConnec
         ConfigureSQLite();
     });
     sqldb::Connection sqlConnect = openConnection();
-    if (dberr_no Err = PrepareConnection(sqlConnect)) {
+    if (PrepareConnection(sqlConnect)) {
         std::cerr << "---------open db fail\n";
         return 1;
     }

@@ -851,6 +851,7 @@ void CompilerCangjieProject::ParseOneFile(
     std::string dirPath = GetDirPath(filePath);
     std::string fullPkgName = GetFullPkgName(filePath);
     auto [fileKind, modulePath] = GetCangjieFileKind(filePath);
+    (void)modulePath;
     // for normalComplete
     if (taskName == "Completion") {
         if (fileKind == CangjieFileKind::IN_PROJECT_NOT_IN_SOURCE) {
@@ -2256,7 +2257,8 @@ void CompilerCangjieProject::GetDiagCurEditFile(const std::string &file)
 
 void CompilerCangjieProject::StoreAllPackagesCache()
 {
-    for (auto& [fullPkgName, _]: pkgInfoMap) {
+    for (auto& item: pkgInfoMap) {
+        const auto& fullPkgName = item.first;
         StorePackageCache(fullPkgName);
     }
 }
