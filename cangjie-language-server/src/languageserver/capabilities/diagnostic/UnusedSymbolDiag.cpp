@@ -352,6 +352,10 @@ static bool ShouldSkipFuncParam(const FuncParam* funcParam)
         return true;
     }
 
+    if (outerFunc->outerDecl && outerFunc->outerDecl->astKind == ASTKind::ENUM_DECL) {
+        return true;
+    }
+
     if (outerFunc->outerDecl && outerFunc->outerDecl->astKind == ASTKind::INTERFACE_DECL) {
         return true;
     }
