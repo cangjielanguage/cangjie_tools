@@ -45,6 +45,7 @@ inline const std::unordered_set<Cangjie::AST::ASTKind> UNUSED_CHECK_KINDS = {
     Cangjie::AST::ASTKind::STRUCT_DECL,
     Cangjie::AST::ASTKind::ENUM_DECL,
     Cangjie::AST::ASTKind::INTERFACE_DECL,
+    Cangjie::AST::ASTKind::TYPE_ALIAS_DECL,
 };
 
 class UnusedSymbolDiag {
