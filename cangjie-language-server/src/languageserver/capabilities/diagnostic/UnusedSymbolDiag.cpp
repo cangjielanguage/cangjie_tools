@@ -155,7 +155,8 @@ std::unordered_set<SymbolID> UnusedSymbolDiag::CollectExcludedMacroDecls(
 // ---------------------------------------------------------------------------
 static bool ShouldExcludeByTypeOrModifier(const Symbol& symbol)
 {
-    if (symbol.modifier == Modifier::PUBLIC || symbol.modifier == Modifier::PROTECTED) {
+    if ((symbol.modifier == Modifier::PUBLIC || symbol.modifier == Modifier::PROTECTED) &&
+        symbol.kind != ASTKind::TYPE_ALIAS_DECL) {
         return true;
     }
 
@@ -237,6 +238,8 @@ std::string UnusedSymbolDiag::GetKindDescription(ASTKind kind)
             return "Enum";
         case ASTKind::INTERFACE_DECL:
             return "Interface";
+        case ASTKind::TYPE_ALIAS_DECL:
+            return "Type alias";
         default:
             return "Symbol";
     }
