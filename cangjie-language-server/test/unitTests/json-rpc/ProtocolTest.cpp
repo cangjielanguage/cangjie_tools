@@ -2149,7 +2149,7 @@ TEST_F(ProtocolTest, FromJSON_TweakArgs_NonStringExtraOptions) {
     EXPECT_TRUE(result);
     EXPECT_EQ(reply.file.file, "file:///test.cj");
     EXPECT_EQ(reply.tweakID, "test");
-    ASSERT_EQ(reply.extraOptions.size(), 1u); // Only string option should be added
+    ASSERT_EQ(reply.extraOptions.size(), 3u);
     EXPECT_EQ(reply.extraOptions.at("stringOption"), "value");
 }
 

@@ -367,6 +367,11 @@ struct TextDocumentEdit {
     std::vector<TextEdit> textEdits{};
 };
 
+struct CreateFile {
+    std::string kind = "create";
+    std::string uri;
+};
+
 struct TextDocumentContentChangeEvent {
     std::optional<Range> range;
 
@@ -522,6 +527,7 @@ bool ToJSON(const PublishDiagnosticsParams &params, nlohmann::json &reply);
 
 struct WorkspaceEdit {
     std::map<std::string, std::vector<TextEdit>> changes;
+    std::vector<nlohmann::json> documentChanges;
 };
 bool ToJSON(const WorkspaceEdit &params, nlohmann::json &reply);
 
@@ -551,6 +557,7 @@ struct CodeAction {
 bool ToJSON(const CodeAction &params, nlohmann::json &reply);
 
 bool ToJSON(const TextDocumentEdit &params, nlohmann::json &reply);
+bool ToJSON(const CreateFile &params, nlohmann::json &reply);
 
 struct DocumentLinkParams {
     TextDocumentIdentifier textDocument;

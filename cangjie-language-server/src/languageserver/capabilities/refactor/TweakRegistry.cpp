@@ -12,6 +12,7 @@
 #include "tweaks/IntroduceConstant.h"
 #include "tweaks/InlineFunction.h"
 #include "tweaks/InlineVariable.h"
+#include "tweaks/ExtractInterface.h"
 
 namespace ark {
 #define REGISTER_TWEAK(TweakClass) \
@@ -31,6 +32,7 @@ REGISTER_TWEAK(ExtractVariable)
 REGISTER_TWEAK(IntroduceConstant)
 REGISTER_TWEAK(InlineFunction)
 REGISTER_TWEAK(InlineVariable)
+REGISTER_TWEAK(ExtractInterface)
 
 std::unordered_map<std::string, TweakRegistry::Creator>& TweakRegistry::GetRegistry()
 {
