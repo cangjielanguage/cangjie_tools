@@ -11,13 +11,13 @@ import ohos.ark_interop_helper.*
 import ohos.base.*
 
 public enum AutoGenType5InanonymousClass {
-    | AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(AutoGenType3InanonymousClass)
     | AutoGenType5InanonymousClassAUTOGENTYPE4INANONYMOUSCLASS(AutoGenType4InanonymousClass)
+    | AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(AutoGenType3InanonymousClass)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
-            case AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(x) => x.toJSValue(context)
             case AutoGenType5InanonymousClassAUTOGENTYPE4INANONYMOUSCLASS(x) => x.toJSValue(context)
+            case AutoGenType5InanonymousClassAUTOGENTYPE3INANONYMOUSCLASS(x) => x.toJSValue(context)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5InanonymousClass {
@@ -103,52 +103,12 @@ public open class AutoGenType2InanonymousClass {
 
 
 /*interface AutoGenType3InanonymousClass {
-    msg: string;
-    data: string;
-    code?: undefined;
-    }*/
-
-public open class AutoGenType3InanonymousClass {
-    public var msg: String
-    public var data: String
-    public var code: Option<JSValue/* FIXME: `undefined` */> = None
-    protected init(
-    msg: String,
-    data: String,
-    code!: Option<JSValue/* FIXME: `undefined` */> = None) {
-        this.msg = msg
-        this.data = data
-        this.code = code
-    }
-    
-    public open func toJSValue(context: JSContext): JSValue {
-        let obj = context.object()
-        obj["msg"] = msg.toJSValue(context)
-        obj["data"] = data.toJSValue(context)
-        if (let Some(v) <- code) {
-            obj["code"] = v
-        }
-        obj.toJSValue()
-    }
-    
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InanonymousClass {
-        let obj = input.asObject()
-        AutoGenType3InanonymousClass(
-        String.fromJSValue(context, obj["msg"]),
-        String.fromJSValue(context, obj["data"]),
-        code: obj["code"]
-        )
-    }
-}
-
-
-/*interface AutoGenType4InanonymousClass {
     code: number;
     msg: string;
     data?: undefined;
     }*/
 
-public open class AutoGenType4InanonymousClass {
+public open class AutoGenType3InanonymousClass {
     public var code: Float64
     public var msg: String
     public var data: Option<JSValue/* FIXME: `undefined` */> = None
@@ -171,12 +131,52 @@ public open class AutoGenType4InanonymousClass {
         obj.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4InanonymousClass {
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InanonymousClass {
         let obj = input.asObject()
-        AutoGenType4InanonymousClass(
+        AutoGenType3InanonymousClass(
         Float64.fromJSValue(context, obj["code"]),
         String.fromJSValue(context, obj["msg"]),
         data: obj["data"]
+        )
+    }
+}
+
+
+/*interface AutoGenType4InanonymousClass {
+    msg: string;
+    data: string;
+    code?: undefined;
+    }*/
+
+public open class AutoGenType4InanonymousClass {
+    public var msg: String
+    public var data: String
+    public var code: Option<JSValue/* FIXME: `undefined` */> = None
+    protected init(
+    msg: String,
+    data: String,
+    code!: Option<JSValue/* FIXME: `undefined` */> = None) {
+        this.msg = msg
+        this.data = data
+        this.code = code
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["msg"] = msg.toJSValue(context)
+        obj["data"] = data.toJSValue(context)
+        if (let Some(v) <- code) {
+            obj["code"] = v
+        }
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4InanonymousClass {
+        let obj = input.asObject()
+        AutoGenType4InanonymousClass(
+        String.fromJSValue(context, obj["msg"]),
+        String.fromJSValue(context, obj["data"]),
+        code: obj["code"]
         )
     }
 }

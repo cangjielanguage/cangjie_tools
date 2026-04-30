@@ -224,7 +224,7 @@ class TypeParser {
             case Identifier("union") =>
                 let args = parseTypeList()
                 if (args.size > 0) {
-                    TsUnion(args)
+                    TsUnion(ArrayList<TsType>(args))
                 } else {
                     syntaxError("'('", Close)
                 }

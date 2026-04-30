@@ -290,13 +290,6 @@ public open class Animal {
             clazz.new(name.toJSValue(ctx)).asObject()
         }
     }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Animal").toJSValue().asClass()
-            clazz.new().asObject()
-        }
-    }
     
     public mut prop name: String {
         get() {
@@ -759,13 +752,6 @@ public class Greeter {
             clazz.new(greeting.toJSValue(ctx)).asObject()
         }
     }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "Greeter").toJSValue().asClass()
-            clazz.new().asObject()
-        }
-    }
     
     
     func toJSValue(_: JSContext): JSValue {
@@ -792,13 +778,6 @@ public class MyClass {
             ctx =>
             let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass()
             clazz.new(name.toJSValue(ctx)).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "MyClass").toJSValue().asClass()
-            clazz.new().asObject()
         }
     }
     
@@ -973,13 +952,6 @@ public class TE {
             ctx =>
             let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass()
             clazz.new([asyncCallbackWrapper < String >(ctx, callback), toJSArray < UInt8 >(ctx, param1, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) }), toJSArray < String >(ctx, param2)]).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_methods", "TE").toJSValue().asClass()
-            clazz.new().asObject()
         }
     }
     

@@ -608,33 +608,4 @@ public class TransMethod {
         }
         result
     }
-
-    func generateEmptyParamConstructor(className: String, superCall: Bool): Tokens {
-        let result = Tokens()
-        let quotedClass = quote($(className))
-        let moduleName = gconfig.arkTSMoudleName
-
-        if (superCall) {
-            result.append(
-            quote(
-            public init() {
-                super(checkThreadAndCall<JSObject>(getMainContext()) {
-                    ctx =>
-                        let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
-                        clazz.new().asObject()
-                })
-            }))
-        } else {
-            result.append(
-            quote(
-            public init() {
-                arkts_object = checkThreadAndCall<JSObject>(getMainContext()) {
-                    ctx =>
-                        let clazz = getClassConstructorObj($(moduleName), $(quotedClass)).toJSValue().asClass()
-                        clazz.new().asObject()
-                }
-            }))
-        }
-        result
-    }
 }

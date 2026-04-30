@@ -56,12 +56,12 @@ public enum AutoGenType1InunionTypes2 {
 
 public enum AutoGenType2InunionTypes2 {
     | NUMBER(Float64)
-    | LITERAL__BOOLEAN_STRING___(JSValue/* FIXME: `(boolean | string)[]` */)
+    | AUTOGENTYPE1INUNIONTYPES2__(Array<AutoGenType1InunionTypes2>)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
             case NUMBER(x) => context.number(x).toJSValue()
-            case LITERAL__BOOLEAN_STRING___(x) => x
+            case AUTOGENTYPE1INUNIONTYPES2__(x) => toJSArray < AutoGenType1InunionTypes2 >(context, x, { ctx: JSContext, val: AutoGenType1InunionTypes2 => val.toJSValue(ctx) })
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2InunionTypes2 {
@@ -75,12 +75,12 @@ public enum AutoGenType2InunionTypes2 {
 
 public enum AutoGenType3InunionTypes2 {
     | NUMBER(Float64)
-    | BOOLEAN__(JSValue/* FIXME: `boolean[]` */)
+    | BOOLEAN__(Array<Bool>)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
             case NUMBER(x) => context.number(x).toJSValue()
-            case BOOLEAN__(x) => x
+            case BOOLEAN__(x) => toJSArray < Bool >(context, x)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InunionTypes2 {

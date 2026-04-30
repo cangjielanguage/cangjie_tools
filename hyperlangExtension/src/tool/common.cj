@@ -44,7 +44,7 @@ public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
 public let space = Token(TokenKind.IDENTIFIER, "")
-public let cangjieKeyword = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
+public let cangjieKeyword: Array<String> = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
 "do", "else", "enum", "extend", "for", "func", "false", "finally", "foreign", "Float16", "Float32", "Float64", "if",
 "in", "is", "init", "import", "interface", "Int8", "Int16", "Int32", "Int64", "IntNative", "let", "mut","main",
 "macro", "match", "Nothing", "open", "operator", "override", "prop", "public", "package", "private", "protected",
@@ -355,6 +355,7 @@ public class TypeType <: Serializable<TypeType> {
     public var comment: String = ""
     public var aliasType: String = ""
     public var tsType: TsType = TsAny
+    public var gconfig: Option<GlobalConfig> = None
 
     public init() {}
 
@@ -383,7 +384,7 @@ public class TypeType <: Serializable<TypeType> {
                 }
                 if (nonNullTypes.size != 1) {
                     // handle union type, convert it to enum
-                    let ut = UnionType(name, tsType, ArrayList<String>())
+                    let ut = UnionType(name, tsType, ArrayList<String>(), gconfig)
                     tok.append(ut.genTokens())
                     return tok
                 }
@@ -617,8 +618,9 @@ public class UnionType {
     let name: String
     // metaInfo like: string | number
     let metaInfo: TsType
-    let typeList = ArrayList<String>()
+    var typeList = ArrayList<TsType>()
     let ctxName = "context"
+    let ctxToken = Token(TokenKind.IDENTIFIER, ctxName)
     let genericParams: ArrayList<TypeParameter>
     let genericSet = HashSet<String>()
     let nativeTypeMap = HashMap<String, (String, String, String, String)>(
@@ -709,14 +711,16 @@ public class UnionType {
         }"###))
         ]
     )
+    var gconfig: Option<GlobalConfig> = None
 
-    public init(_name: String, _metaInfo: TsType, _genericParams: ArrayList<String>) {
+    public init(_name: String, _metaInfo: TsType, _genericParams: ArrayList<String>, gconfig: Option<GlobalConfig>) {
         name = _name
         metaInfo = _metaInfo
         match (metaInfo) {
-            case TsUnion(list) => typeList.add(all: list.map {it => it.toString()})
+            case TsUnion(list) => typeList = ArrayList(list)
             case _ => throw IllegalArgumentException("Input is not a union type")
         }
+        this.gconfig = gconfig
         genericParams = _genericParams |> map {item =>
             let result = TypeParameter()
             result.name = item
@@ -753,13 +757,16 @@ public class UnionType {
         ret
     }
 
-    func getStringToken(t: String): String {
+    func getStringToken(ty: TsType): String {
+        let t = ty.toString()
+        let cjType = ty.toCJType()
         return if (let Some(v) <- nativeTypeMap.get(t)) {
             // handle native type
             v[0]
         } else if (genericSet.contains(t)) {
             t + 0.toString() + "(${t})"
-        } else if (isUserDefinedName(t) || t.startsWith("AutoGenType")) {
+        // additionally judge for the cases such as "AutoGenType*?"、"AutoGenType*[]"
+        } else if (isUserDefinedName(t) || (t.startsWith("AutoGenType") && cjType.startsWith("AutoGenType"))) {
             // handle user-defined type
             "${name}" + t.toAsciiUpper() + "(${t})"
         } else if (isStringLiteral(t)) {
@@ -767,29 +774,32 @@ public class UnionType {
             genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
         } else {
             // handle unknown type
-            genIdentifier(t) + "(JSValue/* FIXME: `${t}` */)"
+            genIdentifier(t) + "(${ty.toCJTypeTokens()})"
         }
     }
 
-    func getIdentifierToken(t: String): (Token, Token) {
+    func getIdentifierToken(ty: TsType): (Token, Tokens) {
+        let t = ty.toString()
+        let cjType = ty.toCJType()
         return if (let Some(c) <- nativeTypeMap.get(t)) {
-            (Token(TokenKind.IDENTIFIER, c[1]), Token(TokenKind.IDENTIFIER, c[2]))
+            (Token(TokenKind.IDENTIFIER, c[1]), Tokens(Token(TokenKind.IDENTIFIER, c[2])))
         } else if (genericSet.contains(t)) {
             let x = Token(TokenKind.IDENTIFIER, t + 0.toString() + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
+            let y = quote(x.toJSValue(context))
             (x, y)
-        } else if (isUserDefinedName(t) || t.startsWith("AutoGenType")) {
+        // additionally judge for the cases such as "AutoGenType*?"、"AutoGenType*[]"
+        } else if (isUserDefinedName(t) || (t.startsWith("AutoGenType") && cjType.startsWith("AutoGenType"))) {
             let x = Token(TokenKind.IDENTIFIER, "${name}" + t.toAsciiUpper() + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
+            let y = quote(x.toJSValue(context))
             (x, y)
         } else if (isStringLiteral(t)) {
             let tmp = genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
             let x = Token(TokenKind.IDENTIFIER, tmp.toAsciiUpper())
-            let y = Token(TokenKind.IDENTIFIER, "${ctxName}.string(${t}).toJSValue()")
+            let y = quote($(ctxToken).string($(t)).toJSValue())
             (x, y)
         } else {
             let x = Token(TokenKind.IDENTIFIER, genIdentifier(t) + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x")
+            let y = ty.toJSValue(gconfig.getOrThrow(), quote(x), quote($(ctxToken)))
             (x, y)
         }
     }
@@ -813,14 +823,14 @@ public class UnionType {
         ret.append(quote(match(this) {) + nl)
         for (t in typeList) {
             let (cs, cv) = getIdentifierToken(t)
-            ret.append(quote(case $(cs) => ) + cv + nl)
+            ret.append(quote(case $(cs) => $(cv)) + nl)
         }
 
         ret.append(quote(}) + nl + quote(}) + nl)
         
         ret.append(quote(public static func fromJSValue(context: JSContext, input: JSValue): $(nameToken)$(typeParameters) {) + nl)
         for (t in typeList) {
-            if (let Some(c) <- nativeTypeMap.get(t)) {
+            if (let Some(c) <- nativeTypeMap.get(t.toString())) {
                 ret.append(Token(TokenKind.IDENTIFIER, c[3]))       
             }
         }

@@ -10,6 +10,28 @@ import ohos.ark_interop.*
 import ohos.ark_interop_helper.*
 import ohos.base.*
 
+public enum AutoGenType0Inissue_issue4 {
+    | STRING(String)
+    | NUMBER(Float64)
+    
+    public func toJSValue(context: JSContext): JSValue {
+        match(this) {
+            case STRING(x) => context.string(x).toJSValue()
+            case NUMBER(x) => context.number(x).toJSValue()
+        }
+    }
+    public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType0Inissue_issue4 {
+        
+        if (input.isString()) {
+            return STRING(String.fromJSValue(context, input))
+        } 
+        if (input.isNumber()) {
+            return NUMBER(Float64.fromJSValue(context, input))
+        } 
+        throw Exception("unsupport type!")
+    }
+}
+
 //简单元组类型
 public type BasicTuple = (Float64, String, Bool)
 
@@ -32,6 +54,6 @@ public type TupleArray = Array<(Float64, String)>
 public type TwoDimensionalTuple = ((Float64, String), (Bool, JSValue/* FIXME: `Date` */))
 
 //元组与联合类型结合
-public type UnionTuple = (JSValue/* FIXME: `string | number` */, Bool, JSValue/* FIXME: `Date` */)
+public type UnionTuple = (AutoGenType0Inissue_issue4, Bool, JSValue/* FIXME: `Date` */)
 
 

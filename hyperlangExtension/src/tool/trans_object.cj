@@ -129,7 +129,7 @@ public class TransObject {
         }
     }
 
-     // 翻译只有property，没有method的interface
+     // translate the interface that only has properties and no methods.
     func genPropWithOutArktsObject(property: Tokens, jsValueConvertToken: Tokens, templateClassNameToken: Token) {
         let classNameToken = Token(TokenKind.IDENTIFIER, arkName)
         let getPropertyItem = Tokens()
@@ -147,7 +147,7 @@ public class TransObject {
                 totalProperties.add(p)
             }
         }
-        // 仓颉语法 函数非命名参数只能定义在命名参数之前
+        // Cangjie syntax: function non-named parameters must appear before named parameters.
         for (p in arkParentsProperties) {
             if (p.isOptional) {
                 totalProperties.add(p)
@@ -178,15 +178,12 @@ public class TransObject {
         )
     }
 
-    private func genConstructor(tm: TransMethod, arkMethod: MethodType, constructorToken: Tokens) {
+    private func genConstructor(tm: TransMethod, constructorToken: Tokens) {
         var superCall = false
         if (arkParentsMethods.size > 0 || arkParentsCategories.contains("class")) {
             superCall = true
         }
         constructorToken.append(tm.generateConstructor(arkName, superCall))
-        if (arkMethod.parameters.size != 0) {
-            constructorToken.append(tm.generateEmptyParamConstructor(arkName, superCall))
-        }
     }
 
     private func processArkMethod(constructorToken: Tokens, methodToken: Tokens) {
@@ -231,7 +228,7 @@ public class TransObject {
                 arkMethod.parameters = param
                 let tm = TransMethod(arkMethod, arkName, gconfig)
                 if (arkMethod.isConstructor) {
-                    genConstructor(tm, arkMethod, constructorToken)
+                    genConstructor(tm, constructorToken)
                 } else if (arkMethod.isStatic()) {
                     methodToken.append(tm.generateFunc())
                 } else {
@@ -395,7 +392,7 @@ public class TransObject {
                 $(modifiersTokens) class $(templateClassNameToken)$(parent)$(classConstraintsToken) {
                     $(eventManager)))
 
-        // 主构造函数
+        // the main constructor
          if (arkParents.size == 0 || (!arkParentsCategories.contains("class") && arkParentsMethods.size == 0)) {
             tokens.append(quote(protected $(classNameToken)(var arkts_object: JSObject)))
          } else {
@@ -403,10 +400,10 @@ public class TransObject {
          }
 
         if (arkParents.size > 0 ) {
-            // 父类有arkts_object属性
+            // The parent class has arkts_object attribute
             if (arkParentsCategories[0] == "class" || arkParentsMethods.size > 0) {
                 tokens.append(quote({ super(arkts_object) }))
-            // 父类是只有property，没有method的interface(没有arkts_object属性)
+            // The parent class is an interface that only has properties and no methods(without arkts_object attribute).
             } else if (arkParentsCategories[0] == "interface") {
             /* The generated code is as follows
                 super(Float64.fromJSValue(getMainContext(), arkts_object["p"]))

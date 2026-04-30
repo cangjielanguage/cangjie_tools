@@ -195,6 +195,7 @@ public class A2CJ {
     public func transType(typeType: TypeType): Tokens {
         let ret = Tokens()
         ret.append(Token(TokenKind.COMMENT, typeType.comment) + nl)
+        typeType.gconfig = gconfig
         ret.append(typeType.generate() + nl)
         ret
     }
@@ -226,7 +227,7 @@ public class A2CJ {
         out.append(nl)
         
         for (items in gconfig.requiredUnionMembers) {
-            let ut = UnionType(items[0], items[1], items[2])
+            let ut = UnionType(items[0], items[1], items[2], gconfig)
             out.append(ut.genTokens())
             out.append(nl) // Extra newline after union enums
         }

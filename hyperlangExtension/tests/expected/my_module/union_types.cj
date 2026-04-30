@@ -102,7 +102,7 @@ public enum AutoGenType3InunionTypes {
     | STRING(String)
     | BOOLEAN(Bool)
     | BIGINT(BigInt)
-    | VOID(JSValue/* FIXME: `void` */)
+    | VOID(Unit)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
@@ -110,7 +110,7 @@ public enum AutoGenType3InunionTypes {
             case STRING(x) => context.string(x).toJSValue()
             case BOOLEAN(x) => context.boolean(x).toJSValue()
             case BIGINT(x) => context.bigint(x).toJSValue()
-            case VOID(x) => x
+            case VOID(x) => x.toJSValue(context)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InunionTypes {

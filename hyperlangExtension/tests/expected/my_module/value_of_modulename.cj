@@ -27,13 +27,6 @@ public class Greeter {
             clazz.new(greeting.toJSValue(ctx)).asObject()
         }
     }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").toJSValue().asClass()
-            clazz.new().asObject()
-        }
-    }
     
     
     func toJSValue(_: JSContext): JSValue {

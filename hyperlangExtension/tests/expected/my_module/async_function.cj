@@ -122,13 +122,6 @@ public class ASC {
             }]).asObject()
         }
     }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_asyncFunction", "ASC").toJSValue().asClass()
-            clazz.new().asObject()
-        }
-    }
     
     /**
 	 * @brief AS1(callback:AsyncCallback<void>): void
@@ -165,13 +158,6 @@ public class ForParamToJs {
                 case None => ctx.undefined().toJSValue()
                 case _ => param8.getOrThrow().get().toJSValue(ctx)
             }, toJSArray < UInt8 >(ctx, param9, { ctx: JSContext, val: UInt8 => val.toJSValue(ctx) })]).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_asyncFunction", "ForParamToJs").toJSValue().asClass()
-            clazz.new().asObject()
         }
     }
     

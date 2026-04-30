@@ -543,13 +543,6 @@ public open class BasePlugin {
             clazz.new(d12).asObject()
         }
     }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            ctx =>
-            let clazz = getClassConstructorObj("cases_interface", "BasePlugin").toJSValue().asClass()
-            clazz.new().asObject()
-        }
-    }
     
     public mut prop pluginVersion: String {
         get() {
