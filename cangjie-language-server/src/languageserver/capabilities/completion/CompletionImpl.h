@@ -59,6 +59,12 @@ struct CompletionResult {
     std::unordered_set<ark::lsp::SymbolID> importDeclsSymID {};
 };
 
+struct IfImportInfo {
+    bool needImport = false;
+    Range textEditRange;
+    std::string importText;
+};
+
 class CompletionImpl {
 public:
     static void CodeComplete(const ArkAST &input, Cangjie::Position pos,
@@ -93,9 +99,6 @@ private:
 
     static void AutoImportPackageComplete(const ArkAST &input, CompletionResult &result, const std::string &prefix);
 
-    static void AutoImportIfComponent(const ArkAST &input, ark::CompletionResult &result, Position pos,
-        std::string prefix);
-
     static void GenerateNamedArgumentCompletion(ark::CompletionResult &result, const std::string &prefix,
                         std::unordered_set<std::string> usedNamedParams, int positionalsUsed,
                         std::unordered_set<std::string> suggestedParamNames, const std::vector<OwnedPtr<FuncParamList>> &paramLists,
@@ -110,33 +113,7 @@ private:
 
     static bool IsAlreadyImportedIf(const ArkAST &input);
 
-    struct IfComponentChainState {
-        bool inFuncBody = false;
-        bool inLambdaBody = false;
-        bool inContainer = false;
-        bool inBuildFunc = false;
-        bool inComponent = false;
-    };
-
-    static IfComponentChainState CheckCodeStructureCondition(
-        const std::vector<Symbol*> &syms, Position pos, const std::set<std::string> &containerComponents);
-
-    using IfComponentHandler = std::function<bool(const Symbol*, Position, IfComponentChainState&, bool)>;
-
-    static IfComponentHandler CreateFuncBodyHandler(Position pos);
-
-    static IfComponentHandler CreateLambdaBodyHandler(Position pos);
-
-    static IfComponentHandler CreateContainerHandler(const std::set<std::string> &containerComponents);
-
-    static IfComponentHandler CreateBuildFuncHandler();
-
-    static IfComponentHandler CreateComponentHandler();
-
-    static std::vector<IfComponentHandler> CreateIfComponentHandlers(
-        Position pos, const std::set<std::string> &containerComponents);
-
-    static void AddIfComponentCompletion(const ArkAST &input, CompletionResult &result);
+    static IfImportInfo GetIfImportInfo(const ArkAST &input, Position pos, const std::string &prefix);
 };
 } // namespace ark
 
