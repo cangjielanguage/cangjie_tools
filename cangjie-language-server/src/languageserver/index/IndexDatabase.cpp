@@ -14,43 +14,6 @@
 
 namespace ark {
 namespace lsp {
-
-std::string EscapeLikePattern(const std::string& input)
-{
-    std::string result;
-    for (char c : input) {
-        if (c == '%' || c == '_' || c == '\\') {
-            result += '\\';
-        }
-        result += c;
-    }
-    return result;
-}
-
-std::string EscapeGlobPattern(const std::string& input)
-{
-    std::string result;
-    for (char c : input) {
-        if (c == '*' || c == '?' || c == '[' || c == ']') {
-            result += '\\';
-        }
-        result += c;
-    }
-    return result;
-}
-
-std::string EscapeFts5Pattern(const std::string& input)
-{
-    std::string result;
-    for (char c : input) {
-        if (c == '"') {
-            result += '"';
-        }
-        result += c;
-    }
-    return result;
-}
-
 namespace sql {
 
 #define EXPAND(...) #__VA_ARGS__
@@ -581,9 +544,8 @@ dberr_no IndexDatabase::GetPkgSymbols(std::string pkgName, std::function<bool(co
 #ifndef NO_EXCEPTIONS
     try {
 #endif
-        std::string scopePrefix = EscapeLikePattern(pkgName) + ":%";
-        std::string escapedPkgName = EscapeLikePattern(pkgName);
-        Use(sql::SelectSymbolsByPkgName).execute(sqldb::with(escapedPkgName, scopePrefix),
+        std::string scopePrefix = pkgName + ":";
+        Use(sql::SelectSymbolsByPkgName).execute(sqldb::with(pkgName, scopePrefix),
             [&](sqldb::Result Row) {
             Symbol resSym;
             PopulateSymbol(Row, resSym);
@@ -601,7 +563,7 @@ dberr_no IndexDatabase::GetPkgSymbols(std::string pkgName, std::function<bool(co
 dberr_no IndexDatabase::GetSymbolsAndCompletions(const std::string &prefix,
     std::function<void(const Symbol &sym, const CompletionItem &completion)> callback)
 {
-    std::string fuzzyPrefix = EscapeLikePattern(AddPercentAfterEachUTF8Char(prefix));
+    std::string fuzzyPrefix = AddPercentAfterEachUTF8Char(prefix);
 #ifndef NO_EXCEPTIONS
     try {
 #endif
@@ -741,8 +703,7 @@ dberr_no IndexDatabase::GetMatchingSymbols(
     std::stringstream patternStream;
     auto Tokenize = GetIdentifierTokenizer();
     Tokenize(query, [&patternStream](std::string_view token, size_t) {
-        std::string escapedToken = EscapeFts5Pattern(std::string(token));
-        patternStream << '"' << escapedToken << '"' << '*' << ' ';
+        patternStream << '"' << token << '"' << '*' << ' ';
     });
     std::string pattern = patternStream.str();
 #ifndef NO_EXCEPTIONS
