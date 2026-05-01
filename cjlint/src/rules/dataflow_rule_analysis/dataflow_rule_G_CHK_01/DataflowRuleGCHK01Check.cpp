@@ -85,7 +85,7 @@ static std::set<Cangjie::CHIR::Block*> GetDecontaminatBlock(CHIR::Value* value)
 static bool IsMemberFunc(CHIR::Value* value)
 {
     if (value->IsFuncWithBody()) {
-        auto func = VirtualCast<CHIR::Func*>(value);
+        auto func = StaticCast<CHIR::Function*>(value);
         if (func->TestAttr(Attribute::STATIC)) {
             return false;
         }
@@ -462,15 +462,12 @@ void DataflowRuleGCHK01Check::GetPerilousGlobalVar(CHIR::GlobalVar* globalVar)
 
 void DataflowRuleGCHK01Check::CheckBasedOnCHIR(CHIR::Package& package)
 {
-    auto globalVars = package.GetGlobalVars();
+    auto globalVars = package.GetGlobalVarsWithInit();
     for (auto var : globalVars) {
         GetPerilousGlobalVar(var);
     }
-    auto funcs = package.GetGlobalFuncs();
+    auto funcs = package.GetGlobalFuncsWithBody(false);
     for (auto& func : funcs) {
-        if (func->TestAttr(CHIR::Attribute::IMPORTED)) {
-            continue;
-        }
         auto identifier = func->GetIdentifier();
         // Check whether the function is the initialization function of global variables.
         // If yes, skip this step.

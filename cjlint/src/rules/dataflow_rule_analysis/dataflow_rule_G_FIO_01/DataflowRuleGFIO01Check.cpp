@@ -101,7 +101,7 @@ static void FIO01AnalysisHelper(
     }
 }
 
-FIO01Analysis::FIO01Analysis(Func* func, const std::vector<std::string>& files) : GenKillAnalysis(func)
+FIO01Analysis::FIO01Analysis(Function* func, const std::vector<std::string>& files) : GenKillAnalysis(func)
 {
     size_t allocateIdx = 0;
     for (auto fileName : files) {
@@ -156,7 +156,7 @@ static void GetFileNamePositionHelper(
     }
 }
 
-static std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> GetFileNamePosition(Func* func)
+static std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> GetFileNamePosition(Function* func)
 {
     std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>> fileNamePosMap;
     for (auto bb : func->GetBody()->GetBlocks()) {
@@ -219,7 +219,7 @@ FIO01Domain FIO01Analysis::Bottom()
     return FIO01Domain(domainSize, &allocateIdxMap);
 }
 
-std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Func* func)
+std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Function* func)
 {
     std::vector<std::string> files{};
     auto analysis = std::make_unique<FIO01Analysis>(func);
@@ -244,7 +244,7 @@ std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Fu
     return files;
 }
 
-void DataflowRuleGFIO01Check::CheckNormalFunc(CHIR::Func* func, const std::vector<std::string>& files,
+void DataflowRuleGFIO01Check::CheckNormalFunc(CHIR::Function* func, const std::vector<std::string>& files,
     std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>>& posMap)
 {
     auto analysis = std::make_unique<FIO01Analysis>(func, files);
@@ -281,8 +281,8 @@ void DataflowRuleGFIO01Check::CheckBasedOnCHIR(CHIR::Package& package)
     // Collect the function translated from the default argument and bind it to the original function
     std::map<std::string, std::vector<std::string>> funcWithDefaultParams;
     std::map<std::string, std::map<std::string, std::pair<Cangjie::Position, Cangjie::Position>>> fileNamePosMap;
-    for (auto func : package.GetGlobalFuncs()) {
-        if (func->GetFuncKind() != FuncKind::DEFAULT_PARAMETER_FUNC || func->TestAttr(CHIR::Attribute::IMPORTED)) {
+    for (auto func : package.GetGlobalFuncsWithBody(false)) {
+        if (func->GetFuncKind() != FuncKind::DEFAULT_PARAMETER_FUNC) {
             continue;
         }
         auto files = CheckDefaultParamFunc(func);
@@ -297,8 +297,8 @@ void DataflowRuleGFIO01Check::CheckBasedOnCHIR(CHIR::Package& package)
         }
     }
 
-    for (auto func : package.GetGlobalFuncs()) {
-        if (func->GetFuncKind() == FuncKind::DEFAULT_PARAMETER_FUNC || func->TestAttr(CHIR::Attribute::IMPORTED)) {
+    for (auto func : package.GetGlobalFuncsWithBody(false)) {
+        if (func->GetFuncKind() == FuncKind::DEFAULT_PARAMETER_FUNC) {
             continue;
         }
         // skip global var init func which is compilerAdd

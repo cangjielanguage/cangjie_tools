@@ -34,7 +34,7 @@ static bool IsUsedInStore(Ptr<CHIR::Load> load)
 
 static bool IsPropSetter(CHIR::Value* value)
 {
-    if (auto func = DynamicCast<FuncBase>(value)) {
+    if (auto func = DynamicCast<Function>(value)) {
         return func->GetFuncKind() == FuncKind::SETTER;
     }
     return false;
@@ -66,8 +66,8 @@ void DataflowRuleVAR01Check::AddOrEraseElement(Ptr<CHIR::Value> var, GlobalVarAs
         if (localVarAssignCountMap.count(Ptr(localVar)) > 0) {
             localVarAssignCountMap[Ptr(localVar)] += 1;
         }
-    } else if (var->IsGlobalVarInCurPackage()) {
-        auto globalVar = VirtualCast<CHIR::GlobalVar*>(var);
+    } else if (var->IsGlobalVarWithInitializer()) {
+        auto globalVar = StaticCast<CHIR::GlobalVar*>(var);
         if (globalVarAssignCountMap.count(Ptr(globalVar)) > 0) {
             globalVarAssignCountMap[globalVar] += 1;
         }
@@ -152,7 +152,7 @@ void DataflowRuleVAR01Check::CheckCustomTypeDef(
                 ? setName.substr(1,
                     (setName.size() > 4 && setName.substr(setName.size() - 3) == "set") ? setName.size() - 4
                         : setName.size() - 1) : setName);
-            auto loc = StaticCast<CHIR::Func*>(func)->GetPropLocation();
+            auto loc = StaticCast<CHIR::Function*>(func)->GetPropLocation();
             auto begPos = Cangjie::Position(loc.GetFileID(), loc.GetBeginPos().line, loc.GetBeginPos().column);
             auto endPos = Cangjie::Position(loc.GetFileID(), loc.GetEndPos().line, loc.GetEndPos().column);
             if (!isGeneric && !isGenericInstance) {
@@ -207,7 +207,7 @@ template <typename T> static bool IsCallLocalFunc(T* apply)
 {
     auto callee = apply->GetCallee();
     if (callee->IsFuncWithBody()) {
-        auto func = VirtualCast<CHIR::Func*>(callee);
+        auto func = StaticCast<CHIR::Function*>(callee);
         if (func->GetFuncKind() == Cangjie::CHIR::LAMBDA) {
             return true;
         }
@@ -338,10 +338,7 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIR(CHIR::Package& package)
         diagEngine->Diagnose(genericDef.second.first.first, genericDef.second.first.second,
             CodeCheckDiagKind::G_VAR_01_prefer_immutable_prop, genericDef.second.second);
     }
-    for (auto& globalVar : package.GetGlobalVars()) {
-        if (globalVar->TestAttr(CHIR::Attribute::IMPORTED)) {
-            continue;
-        }
+    for (auto& globalVar : package.GetGlobalVarsWithInit(false)) {
         if (!globalVar->TestAttr(Attribute::READONLY) && !IsExternalGlobalVar(globalVar)) {
             CheckGlobalVar(globalVar);
         }
@@ -351,8 +348,8 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIR(CHIR::Package& package)
         diagEngine->Diagnose(
             loc.first, loc.second, CodeCheckDiagKind::G_VAR_01_prefer_immutable_var, staticVar->GetSrcCodeIdentifier());
     }
-    for (auto& func : package.GetGlobalFuncs()) {
-        if (CommonFunc::IsGenericInstantated(func) || func->TestAttr(CHIR::Attribute::IMPORTED)) {
+    for (auto& func : package.GetGlobalFuncsWithBody(false)) {
+        if (CommonFunc::IsGenericInstantated(func)) {
             continue;
         }
         CheckBasedOnCHIRFunc(*func->GetBody(), memberVarMap);

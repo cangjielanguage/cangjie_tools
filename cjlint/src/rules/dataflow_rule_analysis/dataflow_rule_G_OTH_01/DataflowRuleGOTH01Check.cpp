@@ -90,8 +90,8 @@ static std::string GetLogMsg(const CHIR::Expression* expr)
             auto applyAdd = static_cast<const CHIR::Apply*>(expr);
             auto add = applyAdd->GetCallee();
             if (add->IsImportedFunc()) {
-                auto importedVal = VirtualCast<CHIR::ImportedFunc*>(add);
-                if (importedVal->GetSrcCodeIdentifier() == "+" && importedVal->GetSourcePackageName() == "std.core") {
+                auto importedVal = StaticCast<CHIR::Function*>(add);
+                if (importedVal->GetSrcCodeIdentifier() == "+" && importedVal->GetPackageName() == "std.core") {
                     return GetSubLogMsg(applyAdd->GetArgs()[0]) + GetSubLogMsg(applyAdd->GetArgs()[1]);
                 }
             }
@@ -130,7 +130,7 @@ template <typename T> static bool GetLogLevel(Ptr<T> apply, int index)
     auto load = dynamic_cast<const CHIR::Load*>(expr);
     if (load) {
         auto value = load->GetLocation();
-        if ((!value->IsImportedVar() && !value->IsGlobalVarInCurPackage()) ||
+        if ((!value->IsImportedVar() && !value->IsGlobalVarWithInitializer()) ||
             value->GetSrcCodeIdentifier() == "OFF") {
             return false;
         }
@@ -274,11 +274,8 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
             CheckApplyOrInvoke<CHIR::ApplyWithException>(applyWithExcept, state);
         }
     };
-    auto funcs = package.GetGlobalFuncs();
+    auto funcs = package.GetGlobalFuncsWithBody(false);
     for (auto& func : funcs) {
-        if (func->TestAttr(CHIR::Attribute::IMPORTED)) {
-            continue;
-        }
         auto result = analysisWrapper->CheckFuncResult(*func);
         if (!result) {
             continue;
