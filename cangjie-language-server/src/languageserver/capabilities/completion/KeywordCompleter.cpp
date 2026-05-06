@@ -79,7 +79,8 @@ std::vector<CodeSnippet> KeywordCompleter::codeSnippetList = {
 std::vector<std::string> KeywordCompleter::keyWordFromLSP = {"true", "false", "When"};
 
 void KeywordCompleter::AddKeyWord(
-    const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition)
+    const char *tokens[], int size, ark::CompletionResult &result, std::function<bool(const char *)> condition,
+    const IfImportInfo &ifImportInfo)
 {
     for (int i = 0; i < size; i++) {
         std::string token(tokens[i]);
@@ -90,11 +91,18 @@ void KeywordCompleter::AddKeyWord(
         item.name = item.label = item.insertText = token;
         item.kind = CompletionItemKind::CIK_KEYWORD;
         item.sortType = SortType::KEYWORD;
+        if (ifImportInfo.needImport && token == "if") {
+            item.detail = ifImportInfo.importText;
+            TextEdit textEdit;
+            textEdit.range = ifImportInfo.textEditRange;
+            textEdit.newText = ifImportInfo.importText + "\n";
+            item.additionalTextEdits = std::vector<TextEdit>{textEdit};
+        }
         result.completions.push_back(item);
     }
 }
 
-void KeywordCompleter::AddKeyWordByLSP(ark::CompletionResult &result)
+void KeywordCompleter::AddKeyWordByLSP(ark::CompletionResult &result, const IfImportInfo &ifImportInfo)
 {
     for (auto &keyWord : keyWordFromLSP) {
         CodeCompletion item;
@@ -111,17 +119,25 @@ void KeywordCompleter::AddKeyWordByLSP(ark::CompletionResult &result)
         item.label = iter.label;
         item.insertText = iter.snippet;
         item.sortType = SortType::KEYWORD;
+        if (ifImportInfo.needImport && iter.keyWord == "if") {
+            item.detail = ifImportInfo.importText;
+            TextEdit textEdit;
+            textEdit.range = ifImportInfo.textEditRange;
+            textEdit.newText = ifImportInfo.importText + "\n";
+            item.additionalTextEdits = std::vector<TextEdit>{textEdit};
+        }
         result.completions.push_back(item);
     }
 }
 
-void KeywordCompleter::Complete(ark::CompletionResult &result)
+void KeywordCompleter::Complete(ark::CompletionResult &result, const IfImportInfo &ifImportInfo)
 {
     AddKeyWord(Cangjie::TOKENS, static_cast<int>(sizeof(Cangjie::TOKENS) / sizeof(Cangjie::TOKENS[0])), result,
-        [](const char *token) { return !IsExperimental(token); });
+        [](const char *token) { return !IsExperimental(token); }, ifImportInfo);
+    IfImportInfo emptyInfo;
     AddKeyWord(Cangjie::ANNOTATION_TOKENS,
         static_cast<int>(sizeof(Cangjie::ANNOTATION_TOKENS) / sizeof(Cangjie::ANNOTATION_TOKENS[0])), result,
-        [](const char *) { return true; });
-    AddKeyWordByLSP(result);
+        [](const char *) { return true; }, emptyInfo);
+    AddKeyWordByLSP(result, ifImportInfo);
 }
 } // namespace ark
