@@ -21,17 +21,7 @@
 
 namespace ark {
 
-/// ArkUI component lifecycle method names that should not be reported as unused
-/// when they belong to a class/struct decorated with @Entry or @Component.
-inline const std::unordered_set<std::string> ARKUI_LIFECYCLE_METHODS = {
-    "aboutToAppear", "aboutToDisappear",
-    "onPageShow", "onPageHide", "onBackPress",
-    "onMeasureSize", "onPlaceChildren",
-    "aboutToReuse", "aboutToRecycle",
-    "onWillApplyTheme", "build"
-};
-
-/// Macro names whose decorated class/struct (and their lifecycle methods)
+/// Macro names whose decorated class/struct (and all their members)
 /// should be excluded from unused symbol reporting.
 inline const std::unordered_set<std::string> EXCLUDED_MACRO_NAMES = {
     "Entry", "Component"

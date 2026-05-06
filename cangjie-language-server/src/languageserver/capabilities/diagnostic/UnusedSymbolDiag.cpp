@@ -170,10 +170,6 @@ static bool ShouldExcludeByTypeOrModifier(const Symbol& symbol)
         return true;
     }
 
-    if (!symbol.curMacroCall.IsZeroLoc()) {
-        return true;
-    }
-
     if (symbol.isMemberParam) {
         return true;
     }
@@ -203,18 +199,13 @@ bool UnusedSymbolDiag::ShouldExclude(
         }
     }
 
-    if ((symbol.kind == ASTKind::CLASS_DECL || symbol.kind == ASTKind::STRUCT_DECL) &&
-        excludedMacroDecls.count(symbol.id) > 0) {
+    if (excludedMacroDecls.count(symbol.id) > 0) {
         return true;
     }
 
-    if (symbol.kind == ASTKind::FUNC_DECL) {
-        if (ARKUI_LIFECYCLE_METHODS.count(symbol.name) > 0) {
-            SymbolID containerId = GetContainerID(symbol.id, relations);
-            if (containerId != INVALID_SYMBOL_ID && excludedMacroDecls.count(containerId) > 0) {
-                return true;
-            }
-        }
+    SymbolID containerId = GetContainerID(symbol.id, relations);
+    if (containerId != INVALID_SYMBOL_ID && excludedMacroDecls.count(containerId) > 0) {
+        return true;
     }
 
     return false;
@@ -429,7 +420,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
             return VisitAction::WALK_CHILDREN;
         }
 
-        if (decl->isInMacroCall || decl->curMacroCall) {
+        if (decl->isInMacroCall) {
             return VisitAction::WALK_CHILDREN;
         }
 
