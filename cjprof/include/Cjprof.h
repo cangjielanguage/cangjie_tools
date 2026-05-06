@@ -7,6 +7,7 @@
 #ifndef CANGJIE__CJPROF_H
 #define CANGJIE__CJPROF_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <set>

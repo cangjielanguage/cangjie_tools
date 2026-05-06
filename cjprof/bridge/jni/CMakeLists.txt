@@ -31,7 +31,7 @@ add_library(cjprof-jni SHARED
 )
 
 if (CMAKE_BUILD_TYPE MATCHES Release AND MINGW)
-    target_link_options(cjprof-jni PRIVATE -static)
+    target_link_options(cjprof-jni PRIVATE -static -Wl,--allow-multiple-definition)
 endif ()
 
 set_target_properties(cjprof-jni PROPERTIES
@@ -42,5 +42,5 @@ find_library(CJPROF_LIBRARY NAMES cjprof)
 if(CJPROF_LIBRARY)
     target_link_libraries(cjprof-jni ${CJPROF_LIBRARY})
 else()
-    message(WARNING "libcjprof.so not found, please ensure it is in system library path")
+    message(WARNING "cjprof library not found, please ensure it is in system library path")
 endif()

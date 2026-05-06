@@ -82,8 +82,9 @@ def build_jni(debug=True, target="native"):
     if not shutil.which("cmake"):
         echo_error("cmake not found")
         sys.exit(1)
-    if not shutil.which("make"):
-        echo_error("make not found")
+    make_cmd = "mingw32-make" if sys.platform == "win32" else "make"
+    if not shutil.which(make_cmd):
+        echo_error(f"{make_cmd} not found")
         sys.exit(1)
 
     win32_target_dir = ""
@@ -102,13 +103,16 @@ def build_jni(debug=True, target="native"):
         echo_info(f"{result.stderr}")
         win32_target_dir = find_jni_headers_and_copy(result.stdout)
     else:
-        subprocess.run(["cmake", "-DCMAKE_BUILD_TYPE=" + build_type, "..", "-DCMAKE_LIBRARY_PATH=../../build/build/src"], cwd=BUILD_DIR, check=True)
+        cmake_args = ["cmake", "-DCMAKE_BUILD_TYPE=" + build_type, "..", "-DCMAKE_LIBRARY_PATH=../../build/build/src"]
+        if sys.platform == "win32":
+            cmake_args += ["-G", "MinGW Makefiles", "-DSTRIP_LIB_PREFIX=" + "ON"]
+        subprocess.run(cmake_args, cwd=BUILD_DIR, check=True)
     try:
-        subprocess.run(["make", f"-j{os.cpu_count() or 1}"], cwd=BUILD_DIR, check=True)
+        subprocess.run([make_cmd, f"-j{os.cpu_count() or 1}"], cwd=BUILD_DIR, check=True)
     except subprocess.CalledProcessError as e:
         if win32_target_dir != "":
             shutil.rmtree(win32_target_dir)
-        raise RuntimeError(f"make error: {e.stderr}") from e
+        raise RuntimeError(f"{make_cmd} error: {e.stderr}") from e
     if win32_target_dir != "":
         shutil.rmtree(win32_target_dir)
     echo_info("JNI library built successfully")
@@ -133,7 +137,7 @@ def compile_java():
         java_model_dir / "InstanceDiffNode.java",
         java_model_dir / "ConstructorNode.java",
         java_model_dir / "ConstructorDiffNode.java",
-        java_model_dir / "Frame.jave",
+        java_model_dir / "Frame.java",
         java_model_dir / "ThreadInfo.java",
         java_main_dir / "CjprofException.java",
     ]

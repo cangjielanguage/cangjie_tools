@@ -23,7 +23,7 @@ if (NOT APPLE AND NOT WIN32)
 endif ()
 
 if (WIN32)
-  set(LINK_FLAGS "-pie -Wl,--no-insert-timestamp -Wl,--no-undefined")
+  set(LINK_FLAGS "-Wl,--no-insert-timestamp -Wl,--no-undefined")
 endif ()
 
 if (APPLE)
