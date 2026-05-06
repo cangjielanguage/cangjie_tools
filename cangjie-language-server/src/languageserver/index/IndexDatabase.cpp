@@ -902,22 +902,24 @@ dberr_no IndexDatabase::GetReExportCompletion(const std::string &pkgName, const 
     return true;
 }
 
-dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkgName,
+dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkgName, const std::string &prefix,
     std::function<void(const ReExportSymbol &, const CompletionItem &)> callback)
 {
 #ifndef NO_EXCEPTIONS
     try {
 #endif
-        Use(sql::SelectReExportSymbolsWithCompletions).execute(sqldb::with(pkgName), [&](sqldb::Result Row) {
-            ReExportSymbol reExportSym;
-            CompletionItem completionItem;
-            IDArray idArray;
-            std::string cjPkgName;
-            Row.store(cjPkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.kind,
-                reExportSym.signature, completionItem.label, completionItem.insertText);
-            reExportSym.id = GetIDFromArray(idArray);
-            callback(reExportSym, completionItem);
-            return true;
+        std::string fuzzyPrefix = AddPercentAfterEachUTF8Char(prefix);
+        Use(sql::SelectReExportSymbolsWithCompletions).execute(sqldb::with(fuzzyPrefix, pkgName),
+            [&](sqldb::Result Row) {
+                ReExportSymbol reExportSym;
+                CompletionItem completionItem;
+                IDArray idArray;
+                std::string cjPkgName;
+                Row.store(cjPkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.kind,
+                    reExportSym.signature, completionItem.label, completionItem.insertText);
+                reExportSym.id = GetIDFromArray(idArray);
+                callback(reExportSym, completionItem);
+                return true;
         });
 #ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {

@@ -579,5 +579,5 @@ SQL(SelectReExportSymbolsWithCompletions,
   SELECT s.CJPackageName, s.SymbolID, s.Name, s.Modifier, s.Kind, s.Signature, c.Label, c.InsertText
   FROM reexport_symbols s
   LEFT JOIN reexport_completions c ON s.Name = c.Name AND s.SymbolID = c.SymbolID
-  WHERE s.CJPackageName = :CJPackageName
+  WHERE s.Name LIKE :Prefix COLLATE NOCASE AND s.CJPackageName = :CJPackageName
 );
