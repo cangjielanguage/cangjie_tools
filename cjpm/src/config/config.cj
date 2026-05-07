@@ -294,7 +294,7 @@ public func getNativeLdLibraryConfig(ldPath: HashSet<String>): String {
 @When[os == "macOS"]
 public let PATH: String = "PATH"
 @When[os == "macOS"]
-public let LD_PATH: String = "DYLD_LIBRARY_PATH"
+public let LD_PATH: String = "DYLD_FALLBACK_LIBRARY_PATH"
 
 @When[os == "macOS"]
 public func makeDylibName(file: String): String {
@@ -303,7 +303,7 @@ public func makeDylibName(file: String): String {
 
 @When[os == "macOS"]
 public func setLdLibraryPath(ldPath: HashSet<String>): String {
-    // On certain versions of MacOS, DYLD_LIBRARY_PATH does not propagate
+    // On certain versions of MacOS, DYLD_FALLBACK_LIBRARY_PATH does not propagate
     // to child processes, so we need to set it manually
     let finalLdPath = ldPath.clone()
     if (let Some(pathElements) <- getVariable(LD_PATH)?.split(SPLIT_ENV, removeEmpty: true)) {

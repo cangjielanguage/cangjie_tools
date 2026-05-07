@@ -248,9 +248,9 @@ private const currentArch: String = "x86_64"
 
 @When[os == "macOS"]
 public func getExtraRuntimePaths(): Array<String> {
-    // DYLD_LIBRARY_PATH cannot be propagated by shells (or any system level interpreters) on MacOS if
+    // DYLD_FALLBACK_LIBRARY_PATH cannot be propagated by shells (or any system level interpreters) on MacOS if
     // System Integration Protection (SIP) is enabled. Here we add Cangjie runtime directory into
-    // DYLD_LIBRARY_PATH to ensure cjc could find runtime libraries when SIP is enabled.
+    // DYLD_FALLBACK_LIBRARY_PATH to ensure cjc could find runtime libraries when SIP is enabled.
     var maybeCangjieHome = getVariable("CANGJIE_HOME")
     // If CANGJIE_HOME is not set, use the directory where cjc is located.
     if (maybeCangjieHome.isNone()) {
