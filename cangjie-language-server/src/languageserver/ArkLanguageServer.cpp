@@ -1778,6 +1778,9 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
 
         symbolKindDesc = GetSymbolKindDescription(decl->astKind);
         deleteRange = {decl->begin, decl->end};
+        if (decl->curMacroCall && !decl->isInMacroCall) {
+            deleteRange = {decl->curMacroCall->begin, decl->curMacroCall->end};
+        }
         found = true;
         return VisitAction::STOP_NOW;
     };
