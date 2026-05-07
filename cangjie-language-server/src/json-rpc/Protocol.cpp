@@ -19,6 +19,25 @@ ark::lsp::SymbolID ParseSymbolID(std::string symbol)
     }
 #endif
 }
+
+void AddCommandExtraOption(nlohmann::json &reply, const std::string &key, const std::string &value)
+{
+    if (!value.empty() && (value.front() == '[' || value.front() == '{')) {
+        nlohmann::json parsed = nlohmann::json::parse(value, nullptr, false);
+        if (!parsed.is_discarded()) {
+            reply[key] = std::move(parsed);
+            return;
+        }
+    }
+    reply[key] = value;
+}
+
+void AddCommandExtraOptions(nlohmann::json &reply, const std::map<std::string, std::string> &extraOptions)
+{
+    for (const auto &[key, value] : extraOptions) {
+        AddCommandExtraOption(reply, key, value);
+    }
+}
 }
 
 namespace ark {
@@ -444,9 +463,7 @@ bool ToJSON(const Command &params, nlohmann::json &reply)
         temp["selection"]["end"]["line"] = iter.range.end.line;
         temp["selection"]["end"]["character"] = iter.range.end.column;
         if (!iter.extraOptions.empty()) {
-            for (const auto &[key, value] : iter.extraOptions) {
-                temp[key] = value;
-            }
+            AddCommandExtraOptions(temp, iter.extraOptions);
         }
         jsonValue.push_back(temp);
     }
@@ -728,23 +745,28 @@ bool ToJSON(const PublishDiagnosticsParams &params, nlohmann::json &reply)
 
 bool ToJSON(const WorkspaceEdit &params, nlohmann::json &reply)
 {
-    nlohmann::json changesJson;
-    for (const auto &change : params.changes) {
-        const std::string &uri = change.first;
-        const std::vector<TextEdit> &edits = change.second;
-        nlohmann::json editItems;
-        for (const auto &edit : edits) {
-            nlohmann::json temp;
-            temp["range"]["start"]["line"] = edit.range.start.line;
-            temp["range"]["start"]["character"] = edit.range.start.column;
-            temp["range"]["end"]["line"] = edit.range.end.line;
-            temp["range"]["end"]["character"] = edit.range.end.column;
-            temp["newText"] = edit.newText;
-            editItems.push_back(temp);
+    if (!params.changes.empty()) {
+        nlohmann::json changesJson;
+        for (const auto &change : params.changes) {
+            const std::string &uri = change.first;
+            const std::vector<TextEdit> &edits = change.second;
+            nlohmann::json editItems;
+            for (const auto &edit : edits) {
+                nlohmann::json editJson;
+                editJson["range"]["start"]["line"] = edit.range.start.line;
+                editJson["range"]["start"]["character"] = edit.range.start.column;
+                editJson["range"]["end"]["line"] = edit.range.end.line;
+                editJson["range"]["end"]["character"] = edit.range.end.column;
+                editJson["newText"] = edit.newText;
+                editItems.push_back(editJson);
+            }
+            changesJson[uri] = editItems;
         }
-        changesJson[uri] = editItems;
+        reply["changes"] = changesJson;
     }
-    reply["changes"] = changesJson;
+    if (!params.documentChanges.empty()) {
+        reply["documentChanges"] = params.documentChanges;
+    }
     return true;
 }
 
@@ -763,6 +785,13 @@ bool ToJSON(const TextDocumentEdit &params, nlohmann::json &reply)
         (void) editItems.push_back(temp);
     }
     reply["edits"] = editItems;
+    return true;
+}
+
+bool ToJSON(const CreateFile &params, nlohmann::json &reply)
+{
+    reply["kind"] = params.kind;
+    reply["uri"] = params.uri;
     return true;
 }
 
@@ -917,8 +946,12 @@ bool FromJSON(const nlohmann::json &params, TweakArgs &reply)
     if (params.contains("extraOptions") && params["extraOptions"].is_object()) {
         const auto &extraOptions = params["extraOptions"];
         for (auto it = extraOptions.begin(); it != extraOptions.end(); ++it) {
-            if (it.value().is_string()) {
-                reply.extraOptions[it.key()] = it.value().get<std::string>();
+            const auto &v = it.value();
+            if (v.is_string()) {
+                reply.extraOptions[it.key()] = v.get<std::string>();
+            } else if (v.is_array() || v.is_object() || v.is_boolean() || v.is_number()) {
+                // Serialize non-string values so tweaks can parse them as needed.
+                reply.extraOptions[it.key()] = v.dump();
             }
         }
     }
@@ -934,7 +967,7 @@ bool FromJSON(const nlohmann::json &params, ExecuteCommandParams &reply)
 
 bool ToJSON(const ApplyWorkspaceEditParams &params, nlohmann::json &reply)
 {
-    if (!params.edit.changes.empty()) {
+    if (!params.edit.changes.empty() || !params.edit.documentChanges.empty()) {
         nlohmann::json edit;
         ToJSON(params.edit, edit);
         reply["edit"] = edit;

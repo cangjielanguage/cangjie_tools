@@ -20,6 +20,44 @@ namespace ark {
 using namespace Cangjie;
 using namespace Cangjie::FileUtil;
 using namespace CONSTANTS;
+
+namespace {
+using TweakReply = std::function<void(const ValueOrError &)>;
+
+void ReplyTweakNoEdit(const TweakReply &reply)
+{
+    ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+    reply(value);
+}
+
+Range BuildTweakSelectionRange(unsigned int fileId, const TweakArgs &args)
+{
+    Range range;
+    range.start = Cangjie::Position{
+        fileId,
+        args.selection.start.line,
+        args.selection.start.column
+    };
+    range.end = Cangjie::Position{
+        fileId,
+        args.selection.end.line,
+        args.selection.end.column
+    };
+    return range;
+}
+
+ValueOrError BuildTweakWorkspaceEditValue(Tweak::Effect effect)
+{
+    ApplyWorkspaceEditParams editParams;
+    editParams.edit.changes = std::move(effect.applyEdits);
+    editParams.edit.documentChanges = std::move(effect.documentChanges);
+    nlohmann::json res;
+    ToJSON(editParams, res);
+
+    return ValueOrError(ValueOrErrorCheck::VALUE, res);
+}
+} // namespace
+
 // MessageHandler dispatches incoming LSP messages.
 // It handles cross-cutting concerns:
 //  - serialize/deserialize protocol objects to JSON
@@ -1751,7 +1789,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     std::string symbolName;
     std::string symbolKindDesc;
     const FuncBody* currentFuncBody = nullptr;
-    
+
     std::function<VisitAction(Ptr<const Node>)> finder = [&](Ptr<const Node> node) -> VisitAction {
         if (auto funcBody = DynamicCast<const FuncBody*>(node)) {
             currentFuncBody = funcBody;
@@ -1940,39 +1978,19 @@ void ArkLanguageServer::OnCommandApplyTweak(const TweakArgs &args, nlohmann::jso
 
     auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(args.file.file);
     if (!fileId) {
-        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-        reply(value);
+        ReplyTweakNoEdit(reply);
         return;
     }
-    Range range;
-    range.start = Cangjie::Position{
-        fileId.value_or(0),
-        args.selection.start.line,
-        args.selection.start.column
-    };
-    range.end = Cangjie::Position{
-        fileId.value_or(0),
-        args.selection.end.line,
-        args.selection.end.column
-    };
+    Range range = BuildTweakSelectionRange(fileId.value_or(0), args);
 
     auto action = [this, reply = std::move(reply)](Tweak::Effect effect) mutable {
-        if (effect.applyEdits.empty()) {
-            ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-            reply(value);
+        if (effect.applyEdits.empty() && effect.documentChanges.empty()) {
+            ReplyTweakNoEdit(reply);
             return;
         }
-        ValueOrError commandValue(ValueOrErrorCheck::VALUE, nullptr);
-        reply(commandValue);
-
-        ApplyWorkspaceEditParams editParams;
-        editParams.edit.changes = std::move(effect.applyEdits);
-        nlohmann::json res;
-        ToJSON(editParams, res);
-
-        ValueOrError value(ValueOrErrorCheck::VALUE, res);
+        ReplyTweakNoEdit(reply);
+        ValueOrError value = BuildTweakWorkspaceEditValue(std::move(effect));
         Notify("workspace/applyEdit", value);
-        return;
     };
     Server->ApplyTweak(file, range, args.tweakID, args.extraOptions, std::move(action));
 }

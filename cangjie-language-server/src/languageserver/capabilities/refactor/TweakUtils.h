@@ -26,6 +26,16 @@ public:
     static bool CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode);
 
     static Range FindGlobalInsertPos(const File &file, Range &range);
+
+    static size_t FindTokenBoundaryPos(const std::string &text, const std::string &token);
+
+    static void AdvancePosition(Cangjie::Position &pos, const std::string &text, size_t from, size_t to);
+
+    static Cangjie::Position PositionAtOffset(Cangjie::Position start, const std::string &text, size_t offset);
+
+    static std::string NormalizeSignature(const std::string &signature);
+
+    static std::string IndentTextBlock(const std::string &text, const std::string &indent);
 private:
     static Ptr<Block> GetSatisfiedBlock(const ASTContext &ctx, Range &range, const std::string &scopeName,
         bool &isGlobal);

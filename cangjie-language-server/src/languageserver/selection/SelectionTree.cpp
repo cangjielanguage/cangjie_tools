@@ -23,7 +23,7 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
         if (!node) {
             return VisitAction::STOP_NOW;
         }
-        if (node->begin > end || node->end < start) {
+        if (node->begin >= end || node->end <= start) {
             return VisitAction::SKIP_CHILDREN;
         }
         if (node->isInMacroCall) {
@@ -60,7 +60,7 @@ bool SelectionTree::FindSelectNode(Decl *decl, Position start, Position end)
 void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position start, Position end)
 {
     const Ptr<Node> parent = rootTreeNode->node.get();
-    if (parent->begin > end || parent->end < start) {
+    if (parent->begin >= end || parent->end <= start) {
         rootTreeNode->selected = Selection::Unselected;
     } else if (parent->begin >= start && parent->end <= end) {
         rootTreeNode->selected = Selection::Complete;
@@ -77,7 +77,7 @@ void SelectionTree::BuildTreeNode(SelectionTreeNode *rootTreeNode, Position star
         const Ptr<SelectionTreeNode> treeNode = new SelectionTreeNode();  // maybe cause memory leak, add destructure
         treeNode->node = node.get(); // maybe cause memory leak
         treeNode->Parent = parent.get();
-        if (node->begin > end || node->end < start) {
+        if (node->begin >= end || node->end <= start) {
             treeNode->selected = Selection::Unselected;
         } else if (node->begin >= start && node->end <= end) {
             treeNode->selected = Selection::Complete;
@@ -222,6 +222,18 @@ void SelectionTree::MatchSelectedScope(Ptr<Node> node, Position start, Position 
                 return;
             }
             scope = Scope::FUNC_BODY;
+            targetDecl = node;
+            return;
+        }
+        case ASTKind::CLASS_DECL:
+        case ASTKind::STRUCT_DECL:
+        case ASTKind::INTERFACE_DECL:
+        case ASTKind::ENUM_DECL:
+        case ASTKind::EXTEND_DECL: {
+            if (start < node->begin || end > node->end) {
+                return;
+            }
+            scope = Scope::TYPE_DECL;
             targetDecl = node;
             return;
         }
