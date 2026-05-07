@@ -5,6 +5,8 @@
         <licensefile></licensefile>
         <policylist>
             <policy name="projectPolicy" desc="">
+                <policyitem type="copyright" name="Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
+                <policyitem type="copyright" name="REM Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
                 <policyitem type="copyright" name="Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
                 <policyitem type="copyright" name="REM Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
                 <policyitem type="copyright" name="Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc=""/>
