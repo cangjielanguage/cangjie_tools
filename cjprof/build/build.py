@@ -76,26 +76,26 @@ def prepare_build():
     if not os.path.exists(os.path.join(THIRDPARTY_DIR, "boundscheck")):
         download_boundscheck()
 
-# use llvm toolchain on linux
-if not IS_WINDOWS:
-    clang_path = shutil.which("clang")
-    clang_pp_path = shutil.which("clang++")
-    if not clang_path:
-        LOG.error("clang is required to build cangjie compiler")
-    if not clang_pp_path:
-        LOG.error("clang++ is requreed to build cangjie compiler")
+def setup_compiler():
+    if not IS_WINDOWS:
+        clang_path = shutil.which("clang")
+        clang_pp_path = shutil.which("clang++")
+        if not clang_path:
+            LOG.error("clang is required to build cangjie compiler")
+        if not clang_pp_path:
+            LOG.error("clang++ is required to build cangjie compiler")
 
-    os.environ["CC"] = clang_path
-    os.environ["CXX"] = clang_pp_path
-else:
-    c_compiler = shutil.which("gcc")
-    cxx_compiler = shutil.which("g++")
-    if not c_compiler:
-        LOG.error("gcc is required to build cangjie compiler")
-    if not cxx_compiler:
-        LOG.error("g++ is requreed to build cangjie compiler")
-    os.environ["CC"] = c_compiler
-    os.environ["CXX"] = cxx_compiler
+        os.environ["CC"] = clang_path
+        os.environ["CXX"] = clang_pp_path
+    else:
+        c_compiler = shutil.which("gcc")
+        cxx_compiler = shutil.which("g++")
+        if not c_compiler:
+            LOG.error("gcc is required to build cangjie compiler")
+        if not cxx_compiler:
+            LOG.error("g++ is required to build cangjie compiler")
+        os.environ["CC"] = c_compiler
+        os.environ["CXX"] = cxx_compiler
 
 
 def log_output(output):
@@ -157,6 +157,13 @@ def generate_cmake_defs(args):
     if IS_MAC:
         return [
             "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
+            "-DUSE_CXX17_FEATURES=" + "ON",
+        ] + [arg for arg in args.cmake_args if arg != "--"]
+
+    if IS_WINDOWS:
+        return [
+            "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
+            "-DSTRIP_LIB_PREFIX=" + "ON",
             "-DUSE_CXX17_FEATURES=" + "ON",
         ] + [arg for arg in args.cmake_args if arg != "--"]
 
@@ -342,4 +349,5 @@ def main():
 if __name__ == "__main__":
     LOG = init_log("root")
     os.environ["LANG"] = "C.UTF-8"
+    setup_compiler()
     main()

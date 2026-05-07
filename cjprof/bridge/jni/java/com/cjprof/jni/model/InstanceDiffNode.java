@@ -28,5 +28,5 @@ public class InstanceDiffNode extends InstanceNode {
 
     private long sizeDelta;
 
-    private boolean isAdded;
+    private boolean added;
 }

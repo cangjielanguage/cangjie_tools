@@ -7,6 +7,7 @@
 #ifndef HEAP_ANALYZER_H
 #define HEAP_ANALYZER_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>

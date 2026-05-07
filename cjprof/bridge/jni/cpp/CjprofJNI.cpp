@@ -525,7 +525,7 @@ static void initInstanceDiffNodeFields(JNIEnv* env) {
     fid_instanceDiffNode_addedSize = env->GetFieldID(g_instanceDiffNodeClass, "addedSize", "I");
     fid_instanceDiffNode_removedSize = env->GetFieldID(g_instanceDiffNodeClass, "removedSize", "I");
     fid_instanceDiffNode_sizeDelta = env->GetFieldID(g_instanceDiffNodeClass, "sizeDelta", "J");
-    fid_instanceDiffNode_added = env->GetFieldID(g_instanceDiffNodeClass, "added", "I");
+    fid_instanceDiffNode_added = env->GetFieldID(g_instanceDiffNodeClass, "added", "Z");
 }
 
 static void initFrameFields(JNIEnv* env) {
