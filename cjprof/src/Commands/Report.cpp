@@ -22,6 +22,7 @@ int Report::Execute(int argc, char **argv)
     if (canonicalPath == nullptr) {
         return ERR;
     }
+    free(canonicalPath);
     if (ifs.fail()) {
         fprintf(stderr, "error: Open file '%s' failed.\n", cfg.input.c_str());
         return ERR;
@@ -29,6 +30,10 @@ int Report::Execute(int argc, char **argv)
 
     ifs.seekg(0, ifs.end);
     auto size = ifs.tellg();
+    if (size <= 0) {
+        fprintf(stderr, "error: Cannot determine file size.\n");
+        return false;
+    }
     ifs.seekg(0, ifs.beg);
 
     auto buf = new char[size];

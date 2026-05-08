@@ -548,7 +548,7 @@ void FlameGraph::Report()
         }
     }
 
-    int times = std::get<3>(m_mergedStackNodes.back());
+    int times = m_mergedStackNodes.empty() ? 0 : std::get<3>(m_mergedStackNodes.back());
     /* Margins on both sides of the image. */
     float sideMargin = 10;
     /* Margins on top of the image. */
@@ -617,6 +617,9 @@ void FlameGraph::GenSortedStacks()
 
 void FlameGraph::MergeStacks()
 {
+    if (m_sortedStacks.empty()) {
+        return;
+    }
     std::map<std::pair<FuncName, StackDepth>, StartTime> unresolvedNodes;
     Stack &last = std::get<0>(m_sortedStacks[0]);
     for (size_t i = 0; i < last.size(); i++) {

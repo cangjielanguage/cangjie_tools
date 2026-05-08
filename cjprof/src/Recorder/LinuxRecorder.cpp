@@ -201,7 +201,13 @@ static std::string GetSymNameByAddr(const std::vector<Symbol> &syms, uint64_t ad
         auto demangle = Cangjie::Demangle((*it).name).GetFullName();
         /* If it is not a Cangjie mangled name, try using the demangle rule of C++. */
         if (demangle == (*it).name) {
-            return abi::__cxa_demangle((*it).name.c_str(), nullptr, nullptr, nullptr) ?: demangle;
+            int status;
+            char* demangled = abi::__cxa_demangle((*it).name.c_str(), nullptr, nullptr, &status);
+            if (status == 0 && demangled) {
+                std::string result(demangled);
+                free(demangled);
+                return result;
+            }
         }
 
         return demangle;
@@ -238,7 +244,12 @@ void LinuxRecorder::MergeSampleData()
         }
 
         ifs.seekg(0, ifs.end);
-        uint64_t size = static_cast<uint64_t>(ifs.tellg());
+        auto pos = ifs.tellg();
+        if (pos <= 0) {
+            fprintf(stderr, "error: Cannot determine file size.\n");
+            return;
+        }
+        uint64_t size = static_cast<uint64_t>(pos);
         auto data = std::make_unique<char[]>(size);
 
         ifs.seekg(0, ifs.beg);
@@ -400,6 +411,7 @@ static std::vector<pid_t> GetSubPid(pid_t pid)
         return {};
     }
     DIR *dir = opendir(canonicalPath);
+    free(canonicalPath);
     if (!dir) {
         return {};
     }
