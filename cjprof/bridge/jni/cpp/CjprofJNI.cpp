@@ -114,6 +114,9 @@ static jstring getCachedString(JNIEnv* env, const std::string& str) {
         return it->second;
     }
     jstring jstr = env->NewStringUTF(str.c_str());
+    if (jstr == nullptr) {
+        return nullptr;
+    }
     jstring globalStr = (jstring)env->NewGlobalRef(jstr);
     env->DeleteLocalRef(jstr);
     g_string_cache[str] = globalStr;
@@ -426,6 +429,10 @@ static std::vector<std::string> javaListToStringVector(JNIEnv* env, jobject java
     for (jint i = 0; i < size; i++) {
         jstring jstr = (jstring) env->CallObjectMethod(javaList, getMethod, i);
         const char* str = env->GetStringUTFChars(jstr, nullptr);
+        if (str == nullptr) {
+            env->DeleteLocalRef(jstr);
+            return result;
+        }
         result.push_back(str);
         env->ReleaseStringUTFChars(jstr, str);
         env->DeleteLocalRef(jstr);
@@ -610,6 +617,9 @@ JNIEXPORT jobject JNICALL Java_com_cjprof_jni_Cjprof_queryAllHeapSnapshot(JNIEnv
 
 JNIEXPORT jlong JNICALL Java_com_cjprof_jni_Cjprof_getSnapshotIDByFilePath(JNIEnv* env, jclass, jstring jFilePath) {
     const char* filePath = env->GetStringUTFChars(jFilePath, nullptr);
+    if (filePath == nullptr) {
+        return 0;
+    }
     uint64_t id = Cjprof::GetSnapshotIDByFilePath(std::string(filePath));
     env->ReleaseStringUTFChars(jFilePath, filePath);
     return static_cast<jlong>(id);
@@ -744,6 +754,9 @@ JNIEXPORT jobject JNICALL Java_com_cjprof_jni_Cjprof_getThreadInfos(JNIEnv* env,
 
 JNIEXPORT jint JNICALL Java_com_cjprof_jni_Cjprof_querySnapshotCountOfResults(JNIEnv* env, jclass, jstring keyword, jboolean isIgnoreCase, jlong snapshotId) {
     const char* kw = env->GetStringUTFChars(keyword, nullptr);
+    if (kw == nullptr) {
+        return 0;
+    }
     uint32_t count = Cjprof::QuerySnapshotCountOfResults(std::string(kw), static_cast<bool>(isIgnoreCase), static_cast<uint64_t>(snapshotId));
     env->ReleaseStringUTFChars(keyword, kw);
     return static_cast<jint>(count);
@@ -751,6 +764,9 @@ JNIEXPORT jint JNICALL Java_com_cjprof_jni_Cjprof_querySnapshotCountOfResults(JN
 
 JNIEXPORT jobject JNICALL Java_com_cjprof_jni_Cjprof_querySnapshotNodeByIndex(JNIEnv* env, jclass, jstring keyword, jboolean isIgnoreCase, jlong snapshotId, jint length, jint index) {
     const char* kw = env->GetStringUTFChars(keyword, nullptr);
+    if (kw == nullptr) {
+        return nullptr;
+    }
     Cjprof::ConstructorNode node = Cjprof::QuerySnapshotNodeByIndex(
         std::string(kw), static_cast<bool>(isIgnoreCase),
         static_cast<uint64_t>(snapshotId), static_cast<uint32_t>(length), static_cast<uint32_t>(index));
@@ -760,6 +776,9 @@ JNIEXPORT jobject JNICALL Java_com_cjprof_jni_Cjprof_querySnapshotNodeByIndex(JN
 
 JNIEXPORT jint JNICALL Java_com_cjprof_jni_Cjprof_queryComparisonCountOfResults(JNIEnv* env, jclass, jstring keyword, jboolean isIgnoreCase, jlong baseId, jlong targetId) {
     const char* kw = env->GetStringUTFChars(keyword, nullptr);
+    if (kw == nullptr) {
+        return 0;
+    }
     uint32_t count = Cjprof::QueryComparisonCountOfResults(
         std::string(kw), static_cast<bool>(isIgnoreCase),
         static_cast<uint64_t>(baseId), static_cast<uint64_t>(targetId));
@@ -769,6 +788,9 @@ JNIEXPORT jint JNICALL Java_com_cjprof_jni_Cjprof_queryComparisonCountOfResults(
 
 JNIEXPORT jobject JNICALL Java_com_cjprof_jni_Cjprof_queryComparisonNodeByIndex(JNIEnv* env, jclass, jstring keyword, jboolean isIgnoreCase, jlong baseId, jlong targetId, jint length, jint index) {
     const char* kw = env->GetStringUTFChars(keyword, nullptr);
+    if (kw == nullptr) {
+        return nullptr;
+    }
     Cjprof::ConstructorDiffNode node = Cjprof::QueryComparisonNodeByIndex(
         std::string(kw), static_cast<bool>(isIgnoreCase),
         static_cast<uint64_t>(baseId), static_cast<uint64_t>(targetId),
