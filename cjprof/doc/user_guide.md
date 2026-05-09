@@ -1,14 +1,14 @@
-# Cangjie Profile User Guide
+# Cangjie Profile Tool
 
 ## Overview
 
-`cjprof` (Cangjie Profile) is a performance profiling tool for the Cangjie programming language. It supports the following features:
+`cjprof (Cangjie Profile)` is a performance profiling tool for the Cangjie programming language. It supports the following features:
 
 - Perform CPU hot function sampling on Cangjie programs and export sampling data.
 - Analyze hot function sampling data and generate CPU hot function statistical reports or flame graphs.
 - Dump heap memory of Cangjie applications and analyze it to generate analysis reports.
 
-Currently, `cjprof` only supports the `Linux` operating system.
+Currently, `cjprof` supports the above features on `Linux` systems, and only supports heap memory analysis for Cangjie applications on `macOS` and `Windows` systems.
 
 ## Usage Instructions
 
@@ -155,7 +155,7 @@ Specifies the heap memory data file to analyze. The default is `cjprof.data`.
 Specifies the filename of the exported heap memory data. The default is `cjprof.data`.
 
 `--show-reference[=<objnames>]`
-Displays object reference relationships in the analysis report. `objnames` are the names of objects to display, separated by `;` for multiple objects. All objects are displayed by default if not specified.
+Displays object reference relationships in the analysis report. `objnames` are the names of objects to display, separated by `;` for multiple objects. When not specified, all objects are displayed by default. If the object is a root node of the heap, the root node category of the heap it belongs to will also be displayed.
 
 `--incoming-reference`
 Displays referenced-by relationships of objects instead of reference relationships. Must be used together with `--show-reference`.
@@ -267,3 +267,390 @@ CCC @ 0x7f12345678e0                            16             16
 - **Retained Heap** refers to the sum of the shallow heap sizes of all objects that can be freed (i.e., objects directly or indirectly referenced by the object) after the object is garbage collected.
 
 - When the object reference hierarchy exceeds the maximum display depth, or duplicate objects appear due to circular references, `...` is used to omit subsequent references.
+
+#### Memory Analysis API
+
+The `cjprof` dynamic library provides the following memory analysis APIs to support secondary development.
+
+##### Parse Heap Snapshot Files
+
+```cpp
+bool ParseHeapSnapshotFiles(std::vector<std::string>& filePaths);
+```
+
+`ParseHeapSnapshotFiles` accepts the following input parameters:
+
+- filePaths: List of heap snapshot file paths
+
+Returns `true` only when all heap snapshots are parsed successfully.
+
+##### Clean Heap Snapshot Data
+
+```cpp
+void CleanHeapSnapshotFiles(std::vector<uint64_t> ids);
+```
+
+`CleanHeapSnapshotFiles` accepts the following input parameters:
+
+- ids: List of heap snapshot IDs
+
+Clears the parsed data of corresponding heap snapshots.
+
+##### Query Overview of All Heap Snapshots
+
+```cpp
+std::vector<HeapSnapshot> QueryAllHeapSnapshot();
+```
+
+`QueryAllHeapSnapshot` returns overview information of all heap snapshots.
+
+##### Get Heap Snapshot ID
+
+```cpp
+uint64_t GetSnapshotIDByFilePath(std::string filePath);
+```
+
+`GetSnapshotIDByFilePath` accepts the following input parameters:
+
+- filePath: Heap snapshot file path
+
+Returns the corresponding ID.
+
+##### Get All Constructor Nodes of Heap Snapshot
+
+```cpp
+std::vector<ConstructorNode> GetConstructorNodesBySnapshotID(uint64_t id);
+```
+
+`GetConstructorNodesBySnapshotID` accepts the following input parameters:
+
+- id: Heap snapshot ID
+
+Returns all Constructor nodes.
+
+##### Get Root Nodes of Heap Snapshot
+
+```cpp
+std::vector<ConstructorNode> GetRootNodesBySnapshotID(uint64_t id, std::set<uint8_t> rootTypes);
+```
+
+`GetRootNodesBySnapshotID` accepts the following input parameters:
+
+- id: Heap snapshot ID
+- rootTypes: Collection of root node types
+
+Returns the corresponding list of Constructor node.
+
+`GetRootNodesBySnapshotID` supports the following root node types:
+
+- 0: Non-root node
+- 1: GLOBAL root node
+- 2: LOCAL root node
+- 3: UNKNOWN root node
+
+##### Get Diff Root Nodes of Two Heap Snapshots
+
+```cpp
+std::vector<ConstructorDiffNode> GetRootDiffNodesBySnapshotID(uint64_t baseSnapshotId, uint64_t targetSnapshotId, std::set<uint8_t> rootTypes);
+```
+
+`GetRootDiffNodesBySnapshotID` accepts the following input parameters:
+
+- baseSnapshotId: Base heap snapshot ID
+- targetSnapshotId: Target heap snapshot ID
+- rootTypes: Collection of root node types
+
+Returns the corresponding list of diff Constructor nodes.
+
+`GetRootDiffNodesBySnapshotID` supports the following root node types:
+
+- 0: Non-root node
+- 1: GLOBAL root node
+- 2: LOCAL root node
+- 3: UNKNOWN root node
+
+##### Expand Constructor Node
+
+```cpp
+ConstructorNode ExpandConstructorNode(uint64_t snapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandConstructorNode` accepts the following input parameters:
+
+- snapshotId: Heap snapshot ID
+- nodeId: ID of the Constructor node to be expanded
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded Constructor node.
+
+##### Expand Diff Constructor Node of Two Heap Snapshots
+
+```cpp
+ConstructorDiffNode ExpandConstructorDiffNode(uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandConstructorDiffNode` accepts the following input parameters:
+
+- baseSnapshotId: Base heap snapshot ID
+- targetSnapshotId: Target heap snapshot ID
+- nodeId: ID of the Constructor node to be expanded
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded diff Constructor node.
+
+##### Expand Instance Node
+
+```cpp
+InstanceNode ExpandInstanceNode(uint64_t snapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandInstanceNode` accepts the following input parameters:
+
+- snapshotId: Heap snapshot ID
+- nodeId: ID of Instance node to be expanded
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded Instance node.
+
+##### Expand Diff Instance Node of Two Heap Snapshots
+
+```cpp
+InstanceDiffNode ExpandInstanceDiffNode(uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandInstanceDiffNode` accepts the following input parameters:
+
+- baseSnapshotId: Base heap snapshot ID
+- targetSnapshotId: Target heap snapshot ID
+- nodeId: ID of the diff Instance node to be expanded
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded diff Instance node.
+
+##### Expand Attribute Nodes or Referenced Nodes of Instance Node
+
+```cpp
+InstanceNode ExpandDetailNode(uint64_t snapshotId, uint64_t nodeId, bool isReference, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandDetailNode` accepts the following input parameters:
+
+- snapshotId: Heap snapshot ID
+- nodeId: ID of the Instance node to be expanded
+- isReference: `true` for expanding attribute nodes, `false` for expanding referenced nodes
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded Instance node.
+
+##### Expand Attribute Nodes or Referenced Nodes of Diff Instance Node Between Two Heap Snapshots
+
+```cpp
+InstanceDiffNode ExpandDetailDiffNode(uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, bool isReference, uint32_t startIndex, uint32_t length);
+```
+
+`ExpandDetailDiffNode` accepts the following input parameters:
+
+- baseSnapshotId: Base heap snapshot ID
+- targetSnapshotId: Target heap snapshot ID
+- nodeId: ID of the Instance node to be expanded
+- isReference: `true` for expanding attribute nodes, `false` for expanding referenced nodes
+- startIndex: Pagination start position, counting from 0
+- length: Pagination length
+
+Returns the expanded diff Instance node.
+
+##### Query Diff Information Between Two Heap Snapshots
+
+```cpp
+std::vector<ConstructorDiffNode> QuerySnapshotComparison(uint64_t baseId, uint64_t targetId);
+```
+
+`QuerySnapshotComparison` accepts the following input parameters:
+
+- baseId: Base heap snapshot ID
+- targetId: Target heap snapshot ID
+
+Returns all diff Constructor nodes.
+
+##### Get Paths from An Instance Node to Root Node
+
+```cpp
+std::vector<std::vector<InstanceNode>> GetNodeRootpaths(uint64_t snapshotId, uint64_t nodeId, int32_t pathNum);
+```
+
+`GetNodeRootpaths` accepts the following input parameters:
+
+- snapshotId: Heap snapshot ID
+- nodeId: ID of the Instance node to query
+- pathNum: Number of paths to the root node, -1 means all paths
+
+Returns the list of paths from the Instance node to the root node.
+
+##### Get Thread Information
+
+```cpp
+std::vector<ThreadInfo> GetThreadInfos(uint64_t snapshotId);
+```
+
+`GetThreadInfos` accepts the following input parameters:
+
+- snapshotId: Heap snapshot ID
+
+Returns all thread information in the heap snapshot.
+
+##### Query Instance Node Count by Keyword
+
+```cpp
+uint32_t QuerySnapshotCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t snapshotId);
+```
+
+`QuerySnapshotCountOfResults` accepts the following input parameters:
+
+- keyword: Search keyword
+- isIgnoreCase: Whether to ignore case
+- snapshotId: Heap snapshot ID
+
+Returns the count of matched Instance nodes.
+
+##### Query Constructor Node of A Specific Instance Node Searched by Keyword
+
+```cpp
+ConstructorNode QuerySnapshotNodeByIndex(std::string keyword, bool isIgnoreCase, uint64_t snapshotId, uint32_t length, uint32_t index);
+```
+
+`QuerySnapshotNodeByIndex` accepts the following input parameters:
+
+- keyword: Search keyword
+- isIgnoreCase: Whether to ignore case
+- snapshotId: Heap snapshot ID
+- length: Maximum number of child nodes of the Constructor node
+- index: The Nth matched Instance node
+
+Returns the Constructor node that the matched Instance node belongs to.
+
+##### Query Diff Instance Node Count of Two Heap Snapshots by Keyword
+
+```cpp
+uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId);
+```
+
+`QueryComparisonCountOfResults` accepts the following input parameters:
+
+- keyword: Search keyword
+- isIgnoreCase: Whether to ignore case
+- baseId: Base heap snapshot ID
+- targetId: Target heap snapshot ID
+
+Returns the count of matched diff Instance nodes.
+
+##### Query Diff Constructor Node of A Specific Diff Instance Node Searched by Keyword
+
+```cpp
+ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId, uint32_t length, uint32_t index);
+```
+
+`QueryComparisonNodeByIndex` accepts the following input parameters:
+
+- keyword: Search keyword
+- isIgnoreCase: Whether to ignore case
+- baseId: Base heap snapshot ID
+- targetId: Target heap snapshot ID
+- length: Maximum number of child nodes of the Constructor node
+- index: The Nth matched diff Instance node
+
+Returns the diff Constructor node that the matched diff Instance node belongs to.
+
+##### class HeapSnapshot
+
+`HeapSnapshot` represents overview information of a heap snapshot, containing the following fields:
+
+- uint64_t id: Heap snapshot ID
+- uint64_t fileSize: Heap snapshot file size
+- std::string filePath: Heap snapshot file path
+
+##### class InstanceNode
+
+`InstanceNode` represents information of an Instance node, containing the following fields:
+
+- std::string className: Type name
+- uint32_t distance: Shortest distance to the root node
+- uint32_t retainedSize: Retained heap size
+- uint32_t shallowSize: Shallow heap size
+- double shallowSizePercent: Percentage of shallow heap size in total heap size
+- double retainedSizePercent: Percentage of retained heap size in total heap size
+- uint32_t totalSize: Total heap size
+- std::vector\<InstanceNode\> children: List of attribute nodes
+- std::vector\<InstanceNode\> retainerNodes: List of referenced nodes
+- uint64_t id: Node ID
+- uint32_t nodeIndex: Node index
+- std::string type: Node type
+- std::string rootType: Root node type
+- uint32_t childrenCount: Number of attribute nodes
+- uint32_t retainerCount: Number of referenced nodes
+- uint32_t startPosition: Pagination start position
+- uint32_t endPosition: Pagination end position
+- uint32_t arrayLength: Number of elements in the array
+
+##### class InstanceDiffNode
+
+`InstanceDiffNode` inherits from `InstanceNode` and represents information of a diff Instance node, with the following additional fields:
+
+- uint32_t addedCount: Number of objects added in the base heap snapshot
+- uint32_t removedCount: Number of objects removed in the base heap snapshot
+- int64_t countDelta: Difference between added object count and removed object count
+- uint32_t addedSize: Shallow heap size of objects added in the base heap snapshot
+- uint32_t removedSize: Shallow heap size of objects removed in the base heap snapshot
+- int64_t sizeDelta: Difference between shallow heap size of added objects and removed objects
+- bool added: Whether the Instance node is a newly added object
+
+##### class ConstructorNode
+
+`ConstructorNode` represents information of a Constructor node, containing the following fields:
+
+- std::string className: Type name
+- uint32_t totalSize: Total heap size
+- uint64_t id: Node ID
+- uint32_t childrenCount: Number of contained Instance nodes
+- uint32_t distance: Shortest distance to the root node among contained Instance nodes
+- uint32_t shallowSize: Shallow heap size
+- uint32_t retainedSize: Retained heap size
+- double shallowSizePercent: Percentage of shallow heap size in total heap size
+- double retainedSizePercent: Percentage of retained heap size in total heap size
+- double totalInstanceCountPercent: Percentage of contained Instance node count in total Instance node count
+- std::vector\<InstanceNode\> children: List of contained Instance nodes
+- uint32_t startPosition: Pagination start position
+- uint32_t endPosition: Pagination end position
+
+##### class ConstructorDiffNode
+
+`ConstructorDiffNode` inherits from `ConstructorNode` and represents information of a diff Constructor node, with the following additional fields:
+
+- uint32_t addedCount: Number of objects added in the base heap snapshot
+- uint32_t removedCount: Number of objects removed in the base heap snapshot
+- int64_t countDelta: Difference between added object count and removed object count
+- uint32_t addedSize: Shallow heap size of objects added in the base heap snapshot
+- uint32_t removedSize: Shallow heap size of objects removed in the base heap snapshot
+- int64_t sizeDelta: Difference between shallow heap size of added objects and removed objects
+- uint32_t baseTotalSize: Total heap size of base heap snapshot
+- uint32_t targetTotalSize: Total heap size of target heap snapshot
+
+##### class ThreadInfo
+
+`ThreadInfo` represents thread information, containing the following fields:
+
+- std::string name: Thread name
+- std::vector\<Frame\> frames: List of stack frames in the thread
+- uint64_t id: Thread ID
+
+`Frame` represents a stack frame information in the thread, containing the following fields:
+
+- std::string funcName: Function name corresponding to the stack frame
+- std::string fileName: Source file name corresponding to the stack frame
+- int line: Source code line number corresponding to the stack frame
+- std::vector\<InstanceNode\> locals: List of local objects in the stack frame
+- uint64_t id: Stack frame ID

@@ -2,7 +2,7 @@
 
 ## 功能简介
 
-`cjprof`（Cangjie Profile）是仓颉语言的性能分析工具，支持以下功能：
+`cjprof（Cangjie Profile）` 是仓颉语言的性能分析工具，支持以下功能：
 
 - 对仓颉语言程序进行 CPU 热点函数采样，导出采样数据。
 
@@ -10,7 +10,7 @@
 
 - 导出仓颉语言应用程序堆内存，并对其进行分析生成分析报告。
 
-目前 `cjprof` 仅支持 `Linux` 系统。
+目前 `cjprof` 在 `Linux` 系统上支持上述功能，在 `macOS` 系统和 `Windows` 系统上仅支持仓颉语言应用程序堆内存分析功能。
 
 ## 使用说明
 
@@ -25,12 +25,12 @@ The supported commands are:
   heap      Dump heap into a dump file or analyze the heap dump file
   record    Run a command and record its profile data into data file
   report    Read profile data file (created by cjprof record) and display the profile
-
 ```
 
 > **注意：**
 >
 > 由于 `cjprof record` 依赖系统的 `perf` 权限，因此使用需要满足以下两个条件之一：
+>
 > - 使用 `root` 用户或 `sudo` 权限执行。
 > - 系统的 `perf_event_paranoid` 参数（通过 `/proc/sys/kernel/perf_event_paranoid` 文件）配置为 -1 。
 >
@@ -147,7 +147,7 @@ cjprof heap [<options>]
 
 `-o, --output <file>` 指定导出的堆内存数据文件名，默认为 `cjprof.data` 。
 
-`--show-reference[=<objnames>]` 分析报告中展示对象的引用关系，`objnames` 为需要展示的对象名，多个对象使用 `;` 隔开，不指定时默认展示所有对象。
+`--show-reference[=<objnames>]` 分析报告中展示对象的引用关系，`objnames` 为需要展示的对象名，多个对象使用 `;` 隔开，不指定时默认展示所有对象。如果该对象是堆的根节点，还会显示对象所属堆的根节点类别。
 
 `--incoming-reference` 展示对象的被引用关系，而非引用关系，需要与 `--show-reference` 配合使用。
 
@@ -266,6 +266,7 @@ bool ParseHeapSnapshotFiles(std::vector<std::string>& filePaths);
 ```
 
 `ParseHeapSnapshotFiles` 接受以下入参：
+
 - filePaths：内存快照文件路径列表
 
 仅当所有内存快照均解析成功时，返回 `true`。
@@ -277,6 +278,7 @@ void CleanHeapSnapshotFiles(std::vector<uint64_t> ids);
 ```
 
 `CleanHeapSnapshotFiles` 接受以下入参：
+
 - ids：内存快照 ID 列表
 
 清除对应的内存快照的解析数据。
@@ -296,6 +298,7 @@ uint64_t GetSnapshotIDByFilePath(std::string filePath);
 ```
 
 `GetSnapshotIDByFilePath` 接受以下入参：
+
 - filePath：内存快照文件路径
 
 返回对应的 ID。
@@ -307,6 +310,7 @@ std::vector<ConstructorNode> GetConstructorNodesBySnapshotID(uint64_t id);
 ```
 
 `GetConstructorNodesBySnapshotID` 接受以下入参：
+
 - id：内存快照 ID
 
 返回所有的 Constructor 节点。
@@ -318,12 +322,14 @@ std::vector<ConstructorNode> GetRootNodesBySnapshotID(uint64_t id, std::set<uint
 ```
 
 `GetRootNodesBySnapshotID` 接受以下入参：
+
 - id：内存快照 ID
 - rootTypes：根节点类型集合
 
 返回对应的 Constructor 节点列表。
 
 `GetRootNodesBySnapshotID` 支持以下根节点类型：
+
 - 0：非根节点
 - 1：GLOBAL 根节点
 - 2：LOCAL 根节点
@@ -336,6 +342,7 @@ std::vector<ConstructorDiffNode> GetRootDiffNodesBySnapshotID(uint64_t baseSnaps
 ```
 
 `GetRootDiffNodesBySnapshotID` 接受以下入参：
+
 - baseSnapshotId：基准内存快照 ID
 - targetSnapshotId：目标内存快照 ID
 - rootTypes：根节点类型集合
@@ -343,6 +350,7 @@ std::vector<ConstructorDiffNode> GetRootDiffNodesBySnapshotID(uint64_t baseSnaps
 返回对应的差异 Constructor 节点列表。
 
 `GetRootDiffNodesBySnapshotID` 支持以下根节点类型：
+
 - 0：非根节点
 - 1：GLOBAL 根节点
 - 2：LOCAL 根节点
@@ -355,6 +363,7 @@ ConstructorNode ExpandConstructorNode(uint64_t snapshotId, uint64_t nodeId, uint
 ```
 
 `ExpandConstructorNode` 接受以下入参：
+
 - snapshotId：内存快照 ID
 - nodeId：待展开的 Constructor 节点 ID
 - startIndex：分页开始位置，从 0 开始计数
@@ -369,6 +378,7 @@ ConstructorDiffNode ExpandConstructorDiffNode(uint64_t baseSnapshotId, uint64_t 
 ```
 
 `ExpandConstructorDiffNode` 接受以下入参：
+
 - baseSnapshotId：基准内存快照 ID
 - targetSnapshotId：目标内存快照 ID
 - nodeId：待展开的 Constructor 节点 ID
@@ -384,6 +394,7 @@ InstanceNode ExpandInstanceNode(uint64_t snapshotId, uint64_t nodeId, uint32_t s
 ```
 
 `ExpandInstanceNode` 接受以下入参：
+
 - snapshotId：内存快照 ID
 - nodeId：待展开的 Instance 节点 ID
 - startIndex：分页开始位置，从 0 开始计数
@@ -398,6 +409,7 @@ InstanceDiffNode ExpandInstanceDiffNode(uint64_t baseSnapshotId, uint64_t target
 ```
 
 `ExpandInstanceDiffNode` 接受以下入参：
+
 - baseSnapshotId：基准内存快照 ID
 - targetSnapshotId：目标内存快照 ID
 - nodeId：待展开的 Instance 节点 ID
@@ -413,6 +425,7 @@ InstanceNode ExpandDetailNode(uint64_t snapshotId, uint64_t nodeId, bool isRefer
 ```
 
 `ExpandDetailNode` 接受以下入参：
+
 - snapshotId：内存快照 ID
 - nodeId：待展开的 Instance 节点 ID
 - isReference：`true` 表示展开属性节点，`false` 表示展开被引用节点
@@ -428,6 +441,7 @@ InstanceDiffNode ExpandDetailDiffNode(uint64_t baseSnapshotId, uint64_t targetSn
 ```
 
 `ExpandDetailDiffNode` 接受以下入参：
+
 - baseSnapshotId：基准内存快照 ID
 - targetSnapshotId：目标内存快照 ID
 - nodeId：待展开的 Instance 节点 ID
@@ -444,6 +458,7 @@ std::vector<ConstructorDiffNode> QuerySnapshotComparison(uint64_t baseId, uint64
 ```
 
 `QuerySnapshotComparison` 接受以下入参：
+
 - baseId：基准内存快照 ID
 - targetId：目标内存快照 ID
 
@@ -456,6 +471,7 @@ std::vector<std::vector<InstanceNode>> GetNodeRootpaths(uint64_t snapshotId, uin
 ```
 
 `GetNodeRootpaths` 接受以下入参：
+
 - snapshotId：内存快照 ID
 - nodeId：待查询的 Instance 节点 ID
 - pathNum：到根节点的路径数量，-1 表示全部数量
@@ -469,6 +485,7 @@ std::vector<ThreadInfo> GetThreadInfos(uint64_t snapshotId);
 ```
 
 `GetThreadInfos` 接受以下入参：
+
 - snapshotId：内存快照 ID
 
 返回内存快照中的所有线程信息。
@@ -480,6 +497,7 @@ uint32_t QuerySnapshotCountOfResults(std::string keyword, bool isIgnoreCase, uin
 ```
 
 `QuerySnapshotCountOfResults` 接受以下入参：
+
 - keyword：关键字
 - isIgnoreCase：是否忽略大小写
 - snapshotId：内存快照 ID
@@ -493,6 +511,7 @@ ConstructorNode QuerySnapshotNodeByIndex(std::string keyword, bool isIgnoreCase,
 ```
 
 `QuerySnapshotNodeByIndex` 接受以下入参：
+
 - keyword：关键字
 - isIgnoreCase：是否忽略大小写
 - snapshotId：内存快照 ID
@@ -508,6 +527,7 @@ uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, u
 ```
 
 `QueryComparisonCountOfResults` 接受以下入参：
+
 - keyword：关键字
 - isIgnoreCase：是否忽略大小写
 - baseId：基准内存快照 ID
@@ -522,6 +542,7 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 ```
 
 `QueryComparisonNodeByIndex` 接受以下入参：
+
 - keyword：关键字
 - isIgnoreCase：是否忽略大小写
 - baseId：基准内存快照 ID
@@ -550,8 +571,8 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 - double shallowSizePercent：浅堆大小占总堆大小的百分比
 - double retainedSizePercent：深堆大小占总堆大小的百分比
 - uint32_t totalSize：总堆大小
-- std::vector<InstanceNode> children：属性节点列表
-- std::vector<InstanceNode> retainerNodes：被引用节点列表
+- std::vector\<InstanceNode\> children：属性节点列表
+- std::vector\<InstanceNode\> retainerNodes：被引用节点列表
 - uint64_t id：节点 ID
 - uint32_t nodeIndex：节点索引
 - std::string type：节点类型
@@ -588,7 +609,7 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 - double shallowSizePercent：浅堆大小占总堆大小的百分比
 - double retainedSizePercent：深堆大小占总堆大小的百分比
 - double totalInstanceCountPercent：包含的 Instance 节点数量占总 Instance 节点数量的百分比
-- std::vector<InstanceNode> children：包含的 Instance 节点列表
+- std::vector\<InstanceNode\> children：包含的 Instance 节点列表
 - uint32_t startPosition：分页起始位置
 - uint32_t endPosition：分页结束位置
 
@@ -610,7 +631,7 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 `ThreadInfo` 表示一个线程中的信息，包含以下字段：
 
 - std::string name：线程名
-- std::vector<Frame> frames：线程中的栈帧列表
+- std::vector\<Frame\> frames：线程中的栈帧列表
 - uint64_t id：线程 ID
 
 其中 `Frame` 表示线程中一个栈帧信息，包含以下字段：
@@ -618,5 +639,5 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 - std::string funcName：栈帧对应的函数名
 - std::string fileName：栈帧对应的文件名
 - int line：栈帧对应的源码行号
-- std::vector<InstanceNode> locals：栈帧中的局部对象列表
+- std::vector\<InstanceNode\> locals：栈帧中的局部对象列表
 - uint64_t id：栈帧 ID

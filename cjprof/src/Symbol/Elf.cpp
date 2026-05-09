@@ -24,6 +24,10 @@ std::vector<Symbol> Elf::ParseSymbols(const std::string &name)
 
     ifs.seekg(0, ifs.end);
     auto size = ifs.tellg();
+    if (size <= 0) {
+        fprintf(stderr, "error: Cannot determine file size.\n");
+        return {};
+    }
     ifs.seekg(0, ifs.beg);
 
     size_t buf_size = static_cast<size_t>(size);
