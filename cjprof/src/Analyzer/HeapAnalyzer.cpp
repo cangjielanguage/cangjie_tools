@@ -21,10 +21,6 @@ bool HeapAnalyzer::SetData(const std::string &file)
 
     ifs.seekg(0, ifs.end);
     auto size = ifs.tellg();
-    if (size <= 0) {
-        fprintf(stderr, "error: Cannot determine file size.\n");
-        return false;
-    }
     ifs.seekg(0, ifs.beg);
 
     size_t buf_size = static_cast<size_t>(size);

@@ -204,7 +204,7 @@ void Hprof::ParseHeapDump(bool verbose)
             it->second(verbose);
         } else {
             fprintf(stderr, "error: Unknown sub-tag %u at offset 0x%zx\n", *tag, m_curPos);
-            m_curPos = 0;
+            return;
         }
     }
 }
