@@ -1747,6 +1747,38 @@ static bool ProcessFuncParamDeleteRange(const FuncParam* funcParam, Range& delet
     return true;
 }
 
+static void ComputeDeclDeleteRange(const Decl* decl,
+    const MacroExpandDecl* parentMacroExpandDecl, Range& deleteRange)
+{
+    deleteRange = {decl->begin, decl->end};
+    if (decl->curMacroCall && !decl->isInMacroCall) {
+        auto inv = decl->curMacroCall->GetConstInvocation();
+        if (inv && !inv->atPos.IsZero()) {
+            deleteRange.start = inv->atPos;
+            deleteRange.end = decl->end;
+        } else {
+            deleteRange = {decl->curMacroCall->begin, decl->curMacroCall->end};
+        }
+    } else if (!decl->annotations.empty()) {
+        auto& firstAnno = decl->annotations.front();
+        if (firstAnno && firstAnno->astKind == ASTKind::ANNOTATION) {
+            deleteRange.start = firstAnno->begin;
+        }
+    } else if (decl->outerDecl && decl->outerDecl->astKind == ASTKind::MACRO_EXPAND_DECL) {
+        auto outerInv = decl->outerDecl->GetConstInvocation();
+        if (outerInv && !outerInv->atPos.IsZero()) {
+            deleteRange.start = outerInv->atPos;
+        } else {
+            deleteRange.start = decl->outerDecl->begin;
+        }
+    } else if (parentMacroExpandDecl) {
+        auto& pInv = parentMacroExpandDecl->invocation;
+        if (!pInv.atPos.IsZero()) {
+            deleteRange.start = pInv.atPos;
+        }
+    }
+}
+
 static void AddRemoveUnusedCodeAction(DiagnosticToken &diagnostic,
     const RemoveUnusedContext &ctx, const Range &deleteRange,
     const std::string &symbolName, const std::string &symbolKindDesc)
@@ -1789,10 +1821,15 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     std::string symbolName;
     std::string symbolKindDesc;
     const FuncBody* currentFuncBody = nullptr;
+    Ptr<const MacroExpandDecl> parentMacroExpandDecl = nullptr;
 
     std::function<VisitAction(Ptr<const Node>)> finder = [&](Ptr<const Node> node) -> VisitAction {
         if (auto funcBody = DynamicCast<const FuncBody*>(node)) {
             currentFuncBody = funcBody;
+        }
+
+        if (auto macroExpand = DynamicCast<const MacroExpandDecl*>(node)) {
+            parentMacroExpandDecl = macroExpand;
         }
 
         auto decl = DynamicCast<const Decl*>(node);
@@ -1815,10 +1852,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
         }
 
         symbolKindDesc = GetSymbolKindDescription(decl->astKind);
-        deleteRange = {decl->begin, decl->end};
-        if (decl->curMacroCall && !decl->isInMacroCall) {
-            deleteRange = {decl->curMacroCall->begin, decl->curMacroCall->end};
-        }
+        ComputeDeclDeleteRange(decl, parentMacroExpandDecl, deleteRange);
         found = true;
         return VisitAction::STOP_NOW;
     };
