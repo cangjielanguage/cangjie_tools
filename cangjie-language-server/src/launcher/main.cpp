@@ -33,7 +33,7 @@ ark::Environment StringifyEnvironmentPointer(const char *envp[])
 #endif
 
 #ifdef __APPLE__
-    ldLibraryPath = "DYLD_LIBRARY_PATH";
+    ldLibraryPath = "DYLD_FALLBACK_LIBRARY_PATH";
 #endif
     for (int i = 0;; i++) {
         // the last element is a null pointer in the envp array
