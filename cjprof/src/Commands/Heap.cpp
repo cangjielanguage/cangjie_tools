@@ -226,12 +226,7 @@ bool Heap::DumpHeap()
         fprintf(stderr, "error: Invalid path of %s.\n", softLinkPath.c_str());
         return false;
     }
-    int timeout = 60;
     while (stat(data.c_str(), &sb) != 0) {
-        if (--timeout <= 0) {
-            fprintf(stderr, "error: Timeout waiting for heap dump file.\n");
-            return false;
-        }
         sleep(1);
     }
 
