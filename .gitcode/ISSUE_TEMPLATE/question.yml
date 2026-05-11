@@ -1,23 +1,23 @@
-name: 问题咨询|Question
-description: 如果您对Cangjie社区有疑问，欢迎反馈咨询。
-title: "[问题咨询]: "
+name: "问题咨询 | Question"
+description: "如果您对Cangjie社区有疑问，欢迎反馈咨询。 If you have any questions about the community, feel free to ask."
+title: "[Question]: "
 labels: ["question"]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢提出问题，我们将安排人答复！
+        感谢提出问题，我们将安排人答复！ | Thanks for asking, we will arrange for someone to reply!
   - type: textarea
     attributes:
-      label: 问题描述
-      description: 请描述下您的问题
+      label: "问题描述 | Question description"
+      description: "请描述下您的问题： | Please describe your question."
     validations:
       required: true
   - type: checkboxes
     id: version
     attributes:
-      label: 受影响的分支版本
-      description: 请选择您的问题涉及的分支版本：
+      label: "受影响的分支版本 | Affected branch versions"
+      description: "请选择您的问题涉及的分支版本： | Please select the branch versions involved in your question."
       options:
         - label: dev
           required: false

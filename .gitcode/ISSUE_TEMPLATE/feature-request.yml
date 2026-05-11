@@ -1,29 +1,29 @@
-name: 新需求|Feature
-description: 您需要反馈或实现一个新需求时，使用此模板。
-title: "[新需求]: "
+name: "新需求|Feature"
+description: "您需要反馈或实现一个新需求时，使用此模板。 Please use this template when you need to request or implement a new feature."
+title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢提出新需求。
+        感谢提出新需求。 | Thanks for proposing a new feature.
   - type: textarea
     attributes:
-      label: 新需求提供了什么功能？
-      description: 请描述下新需求的功能是什么，解决了什么问题：
+      label: "新需求提供了什么功能？ | What functionality does the new feature provide?"
+      description: "请描述下新需求的功能是什么，解决了什么问题： | Please describe the functionality of the new feature and what problem it solves."
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 该需求带来的价值、应用场景？
-      description: 请描述下该需求的价值，应用场景等：
+      label: "该需求带来的价值、应用场景？ | Value and application scenarios of the feature?"
+      description: "请描述下该需求的价值，应用场景等： | Please describe the value, application scenarios, etc., of the feature."
     validations:
       required: false
   - type: checkboxes
     id: version
     attributes:
-      label: 新需求涉及的分支版本
-      description: 请选择涉及的分支版本：
+      label: "新需求涉及的分支版本 | Branch versions involved in the new feature"
+      description: "请选择涉及的分支版本： | Please select the involved branch versions."
       options:
         - label: dev
           required: false
