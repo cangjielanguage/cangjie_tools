@@ -11,9 +11,12 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror>)
 add_subdirectory(Data)
 add_subdirectory(Analyzer)
 
+include_directories(${CMAKE_SOURCE_DIR}/third_party/sqlite3)
+
 set(CJPROF_SRC_OBJECTS
         $<TARGET_OBJECTS:Data>
-        $<TARGET_OBJECTS:Analyzer>)
+        $<TARGET_OBJECTS:Analyzer>
+        ${CMAKE_SOURCE_DIR}/third_party/sqlite3/sqlite3.c)
 
 if(CMAKE_BACKEND STREQUAL "cjnative")
     add_library(prof SHARED ${CJPROF_SRC_OBJECTS} Cjprof.cpp)
