@@ -13,5 +13,6 @@ add_library(Analyzer OBJECT
     Logger.cpp
     SqliteDb.cpp
     DatabaseSchema.cpp
+    DatabaseCache.cpp
 )
 set_target_properties(Analyzer PROPERTIES POSITION_INDEPENDENT_CODE ON)

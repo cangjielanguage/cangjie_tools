@@ -206,6 +206,7 @@ private:
     std::vector<std::shared_ptr<Object>> m_objects;
     std::vector<Thread> m_threads;
     uint32_t m_fileSize;
+    std::string m_filePath;
     std::unordered_map<Hprof::ID, std::shared_ptr<HeapAnalyzer::Object>> objects_cache;
 };
 

@@ -31,6 +31,7 @@ bool HeapAnalyzer::SetData(const std::string &file)
     m_data = std::string(buf, buf_size);
     delete [] buf;
     m_fileSize = buf_size;
+    m_filePath = file;
     return true;
 }
 
@@ -586,6 +587,7 @@ void RawHeapSnapshot::PrintSummary() {
 #include "Analyzer/HttpContext.h"
 #include "Analyzer/HttpServer.h"
 #include "Analyzer/Logger.h"
+#include "Analyzer/DatabaseCache.h"
 #include "Cjprof.h"
 #include <thread>
 #include <chrono>
@@ -691,83 +693,110 @@ bool HeapAnalyzer::StartReportServer(int port)
     using namespace cjprof;
     initLogger();
 
-    // Build HeapObject list
     std::vector<HeapObject> heapObjects;
-    heapObjects.reserve(m_objects.size());
-    for (auto& obj : m_objects) {
-        HeapObject ho;
-        ho.object_id = obj->id;
-        ho.class_id = 0;
-        ho.size = obj->size;
-        ho.retained_size = obj->retainedSize;
-        for (auto ref : obj->outRef) {
-            ho.refs.push_back(ref);
-        }
-        ho.category = static_cast<ObjectCategory>(obj->category);
-        heapObjects.push_back(ho);
-    }
-
-    // Build ClassInfo list
     std::vector<ClassInfo> classInfos;
-    auto hprofClasses = m_hprof.GetClasses();
-    auto hprofStrings = m_hprof.GetStrings();
-    for (auto& cls : hprofClasses) {
-        ClassInfo ci;
-        ci.class_id = cls.first;
-        ci.name_id = cls.second.name;
-        auto it = hprofStrings.find(cls.second.name);
-        if (it != hprofStrings.end()) {
-            ci.class_name = it->second;
-        }
-        ci.size = cls.second.size;
-        classInfos.push_back(ci);
-    }
-
-    // Build GcRoot list
     std::vector<GcRoot> gcRoots;
-    auto locals = m_hprof.GetLocalsRoots();
-    auto globals = m_hprof.GetGlobalsRoots();
-    auto unknown = m_hprof.GetUnknownRoots();
-    for (auto& local : locals) {
-        GcRoot root;
-        root.object_id = local.first;
-        root.type = RootType::LOCAL;
-        root.thread_idx = local.second.thread;
-        root.frame_idx = local.second.frame;
-        gcRoots.push_back(root);
-    }
-    for (auto& global : globals) {
-        GcRoot root;
-        root.object_id = global;
-        root.type = RootType::GLOBAL;
-        gcRoots.push_back(root);
-    }
-    for (auto& unk : unknown) {
-        GcRoot root;
-        root.object_id = unk;
-        root.type = RootType::UNKNOWN;
-        gcRoots.push_back(root);
-    }
-
-    // Build SnapshotInfo
+    std::vector<DominanceNode> dominanceNodes;
     SnapshotInfo snapshotInfo;
-    snapshotInfo.object_count = m_objects.size();
-    snapshotInfo.gc_root_count = gcRoots.size();
-    snapshotInfo.heap_total_size = 512ULL * 1024 * 1024;
-    uint64_t usedSize = 0;
-    for (auto& obj : m_objects) {
-        usedSize += obj->size;
-    }
-    snapshotInfo.used_size = usedSize;
-
-    // Build dominance tree using existing algorithm
-    RawHeapSnapshot rhs = GetRawHeapSnapshot();
-    auto dominanceNodes = BuildDominanceNodes(rhs);
-
-    // Build string table
     std::unordered_map<uint64_t, std::string> stringTable;
-    for (auto& s : hprofStrings) {
-        stringTable[s.first] = s.second;
+
+    // Check for cached database (Section 9.1: Persistent cache)
+    bool cacheLoaded = false;
+    if (DatabaseCache::isCacheValid(m_filePath)) {
+        LOG_INFO("Cache found: {}.cjprof.db, loading...", m_filePath);
+        if (DatabaseCache::load(m_filePath, snapshotInfo, classInfos, heapObjects, gcRoots, dominanceNodes, stringTable)) {
+            cacheLoaded = true;
+            LOG_INFO("Cache loaded successfully (objects={}, roots={}, dominance_nodes={})",
+                     heapObjects.size(), gcRoots.size(), dominanceNodes.size());
+        } else {
+            LOG_WARN("Cache load failed, falling back to full parse");
+        }
+    }
+
+    if (!cacheLoaded) {
+        LOG_INFO("No cache found, parsing heap file...");
+
+        // Build HeapObject list
+        heapObjects.reserve(m_objects.size());
+        for (auto& obj : m_objects) {
+            HeapObject ho;
+            ho.object_id = obj->id;
+            ho.class_id = 0;
+            ho.size = obj->size;
+            ho.retained_size = obj->retainedSize;
+            for (auto ref : obj->outRef) {
+                ho.refs.push_back(ref);
+            }
+            ho.category = static_cast<ObjectCategory>(obj->category);
+            heapObjects.push_back(ho);
+        }
+
+        // Build ClassInfo list
+        auto hprofClasses = m_hprof.GetClasses();
+        auto hprofStrings = m_hprof.GetStrings();
+        for (auto& cls : hprofClasses) {
+            ClassInfo ci;
+            ci.class_id = cls.first;
+            ci.name_id = cls.second.name;
+            auto it = hprofStrings.find(cls.second.name);
+            if (it != hprofStrings.end()) {
+                ci.class_name = it->second;
+            }
+            ci.size = cls.second.size;
+            classInfos.push_back(ci);
+        }
+
+        // Build GcRoot list
+        auto locals = m_hprof.GetLocalsRoots();
+        auto globals = m_hprof.GetGlobalsRoots();
+        auto unknown = m_hprof.GetUnknownRoots();
+        for (auto& local : locals) {
+            GcRoot root;
+            root.object_id = local.first;
+            root.type = RootType::LOCAL;
+            root.thread_idx = local.second.thread;
+            root.frame_idx = local.second.frame;
+            gcRoots.push_back(root);
+        }
+        for (auto& global : globals) {
+            GcRoot root;
+            root.object_id = global;
+            root.type = RootType::GLOBAL;
+            gcRoots.push_back(root);
+        }
+        for (auto& unk : unknown) {
+            GcRoot root;
+            root.object_id = unk;
+            root.type = RootType::UNKNOWN;
+            gcRoots.push_back(root);
+        }
+
+        // Build SnapshotInfo
+        snapshotInfo.object_count = m_objects.size();
+        snapshotInfo.gc_root_count = gcRoots.size();
+        snapshotInfo.heap_total_size = 512ULL * 1024 * 1024;
+        uint64_t usedSize = 0;
+        for (auto& obj : m_objects) {
+            usedSize += obj->size;
+        }
+        snapshotInfo.used_size = usedSize;
+
+        // Build dominance tree using existing algorithm
+        RawHeapSnapshot rhs = GetRawHeapSnapshot();
+        dominanceNodes = BuildDominanceNodes(rhs);
+
+        // Build string table
+        for (auto& s : hprofStrings) {
+            stringTable[s.first] = s.second;
+        }
+
+        // Save to database cache
+        LOG_INFO("Saving to database cache...");
+        if (DatabaseCache::save(m_filePath, snapshotInfo, classInfos, heapObjects, gcRoots, dominanceNodes)) {
+            LOG_INFO("Cache saved successfully");
+        } else {
+            LOG_WARN("Failed to save cache");
+        }
     }
 
     // Create HttpContext

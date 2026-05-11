@@ -18,6 +18,7 @@ public:
     bool execute(const std::string& sql);
     bool prepare(const std::string& sql);
     bool step();
+    bool stepDone();
     void finalize();
 
     // Bind parameters

@@ -59,7 +59,13 @@ bool SQLite::prepare(const std::string& sql) {
 bool SQLite::step() {
     if (!stmt_) return false;
     int rc = sqlite3_step(stmt_);
-    return rc == SQLITE_ROW || rc == SQLITE_DONE;
+    return rc == SQLITE_ROW;
+}
+
+bool SQLite::stepDone() {
+    if (!stmt_) return false;
+    int rc = sqlite3_step(stmt_);
+    return rc == SQLITE_DONE;
 }
 
 void SQLite::finalize() {
