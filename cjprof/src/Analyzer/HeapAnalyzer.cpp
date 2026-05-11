@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <functional>
 #include <set>
+#include <queue>
+#include <iostream>
 #include "Analyzer/HeapAnalyzer.h"
 
 bool HeapAnalyzer::SetData(const std::string &file)
@@ -277,12 +279,17 @@ void HeapAnalyzer::AnalyzeInstance()
 {
     auto strings = m_hprof.GetStrings();
     auto classes = m_hprof.GetClasses();
+    auto categories = m_hprof.GetObjectCategories();
     for (auto inst : m_hprof.GetInstances()) {
         auto obj = GetObject(inst.first);
         auto cls = classes[inst.second.cls];
         obj->id = inst.first;
         obj->name = ReplaceTypeName(strings[cls.name]);
         obj->size = Align(cls.size);
+        auto it = categories.find(inst.first);
+        if (it != categories.end()) {
+            obj->category = static_cast<uint8_t>(it->second);
+        }
         for (auto id : inst.second.fields) {
             if (id == 0) {
                 continue;
@@ -304,6 +311,7 @@ void HeapAnalyzer::AnalyzeArray()
     auto strings = m_hprof.GetStrings();
     auto classes = m_hprof.GetClasses();
     auto componentNums = m_hprof.GetComponentNums();
+    auto categories = m_hprof.GetObjectCategories();
     std::unordered_map<Hprof::BasicType, std::tuple<std::string, int>> typeInfo = {
         { Hprof::BasicType::BOOLEAN, { "RawArray<Byte>[]", 1 } },
         { Hprof::BasicType::SHORT, { "RawArray<Harf>[]", 2 } },
@@ -315,6 +323,10 @@ void HeapAnalyzer::AnalyzeArray()
         auto obj = GetObject(arr.first);
         obj->id = arr.first;
         obj->size = arr.second.GetFixedSize();
+        auto it = categories.find(arr.first);
+        if (it != categories.end()) {
+            obj->category = static_cast<uint8_t>(it->second);
+        }
 
         if (arr.second.type != Hprof::BasicType::OBJECT) {
             obj->name = std::get<0>(typeInfo[arr.second.type]);
@@ -568,4 +580,229 @@ void RawHeapSnapshot::PrintSummary() {
     }
     ss << "================================================================================\n";
     printf("%s\n", ss.str().c_str());
+}
+
+#include "Analyzer/Types.h"
+#include "Analyzer/HttpContext.h"
+#include "Analyzer/HttpServer.h"
+#include "Analyzer/Logger.h"
+#include "Cjprof.h"
+#include <thread>
+#include <chrono>
+
+static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnapshot& rhs)
+{
+    using namespace cjprof;
+    size_t n = rhs.nodes.size();
+    if (n == 0) {
+        return {};
+    }
+
+    // Build children (succs) and parents (preds) from edges
+    std::vector<std::vector<size_t>> succs(n);
+    std::vector<std::vector<size_t>> preds(n);
+    size_t edgeIndex = 0;
+    for (size_t i = 0; i < n; ++i) {
+        for (uint32_t j = 0; j < rhs.nodes[i].edgeCount && edgeIndex < rhs.edges.size(); ++j) {
+            size_t to = rhs.edges[edgeIndex++].toNode;
+            if (to < n) {
+                succs[i].push_back(to);
+                preds[to].push_back(i);
+            }
+        }
+    }
+
+    // Identify GC Roots
+    std::vector<size_t> gcRoots;
+    for (size_t i = 0; i < n; ++i) {
+        if (preds[i].empty() || rhs.nodes[i].IsRoot()) {
+            gcRoots.push_back(i);
+        }
+    }
+
+    if (gcRoots.empty()) {
+        return {};
+    }
+
+    // Reuse the project's Cooper algorithm via ComputeDominanceTree
+    auto result = Cjprof::ComputeDominanceTree(n, succs, preds, gcRoots);
+    const auto& dom = result.dom;
+    const auto& domTree = result.domTree;
+    size_t entry = 0;
+
+    // Compute retainedSize recursively
+    std::vector<uint64_t> retainedSizes(n, 0);
+    std::function<uint64_t(size_t)> computeRetainedSize = [&](size_t node) -> uint64_t {
+        size_t originalIdx = node - 1;
+        uint64_t size = rhs.nodes[originalIdx].selfSize;
+        for (size_t child : domTree[node]) {
+            size += computeRetainedSize(child);
+        }
+        retainedSizes[originalIdx] = size;
+        return size;
+    };
+    for (size_t v = 1; v <= n; ++v) {
+        if (dom[v] == entry) {
+            computeRetainedSize(v);
+        }
+    }
+
+    // Compute depth via BFS from roots
+    std::vector<uint32_t> depth(n, UINT32_MAX);
+    std::queue<size_t> bfs;
+    for (size_t i = 0; i < n; ++i) {
+        if (dom[i + 1] == entry) {
+            depth[i] = 0;
+            bfs.push(i);
+        }
+    }
+    while (!bfs.empty()) {
+        size_t idx = bfs.front();
+        bfs.pop();
+        for (size_t childOrdinal : domTree[idx + 1]) {
+            size_t childIdx = childOrdinal - 1;
+            if (depth[childIdx] == UINT32_MAX || depth[childIdx] > depth[idx] + 1) {
+                depth[childIdx] = depth[idx] + 1;
+                bfs.push(childIdx);
+            }
+        }
+    }
+
+    // Build DominanceNode array
+    std::vector<DominanceNode> nodes;
+    nodes.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        DominanceNode dn;
+        dn.object_id = rhs.nodes[i].id;
+        dn.shallow_size = rhs.nodes[i].selfSize;
+        dn.retained_size = retainedSizes[i];
+        dn.depth = depth[i] == UINT32_MAX ? 0 : depth[i];
+        size_t parentOrdinal = dom[i + 1];
+        dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? rhs.nodes[parentOrdinal - 1].id : 0;
+        dn.instance_count = 1;
+        dn.is_class_clustered = false;
+        nodes.push_back(dn);
+    }
+    return nodes;
+}
+
+bool HeapAnalyzer::StartReportServer(int port)
+{
+    using namespace cjprof;
+    initLogger();
+
+    // Build HeapObject list
+    std::vector<HeapObject> heapObjects;
+    heapObjects.reserve(m_objects.size());
+    for (auto& obj : m_objects) {
+        HeapObject ho;
+        ho.object_id = obj->id;
+        ho.class_id = 0;
+        ho.size = obj->size;
+        ho.retained_size = obj->retainedSize;
+        for (auto ref : obj->outRef) {
+            ho.refs.push_back(ref);
+        }
+        ho.category = static_cast<ObjectCategory>(obj->category);
+        heapObjects.push_back(ho);
+    }
+
+    // Build ClassInfo list
+    std::vector<ClassInfo> classInfos;
+    auto hprofClasses = m_hprof.GetClasses();
+    auto hprofStrings = m_hprof.GetStrings();
+    for (auto& cls : hprofClasses) {
+        ClassInfo ci;
+        ci.class_id = cls.first;
+        ci.name_id = cls.second.name;
+        auto it = hprofStrings.find(cls.second.name);
+        if (it != hprofStrings.end()) {
+            ci.class_name = it->second;
+        }
+        ci.size = cls.second.size;
+        classInfos.push_back(ci);
+    }
+
+    // Build GcRoot list
+    std::vector<GcRoot> gcRoots;
+    auto locals = m_hprof.GetLocalsRoots();
+    auto globals = m_hprof.GetGlobalsRoots();
+    auto unknown = m_hprof.GetUnknownRoots();
+    for (auto& local : locals) {
+        GcRoot root;
+        root.object_id = local.first;
+        root.type = RootType::LOCAL;
+        root.thread_idx = local.second.thread;
+        root.frame_idx = local.second.frame;
+        gcRoots.push_back(root);
+    }
+    for (auto& global : globals) {
+        GcRoot root;
+        root.object_id = global;
+        root.type = RootType::GLOBAL;
+        gcRoots.push_back(root);
+    }
+    for (auto& unk : unknown) {
+        GcRoot root;
+        root.object_id = unk;
+        root.type = RootType::UNKNOWN;
+        gcRoots.push_back(root);
+    }
+
+    // Build SnapshotInfo
+    SnapshotInfo snapshotInfo;
+    snapshotInfo.object_count = m_objects.size();
+    snapshotInfo.gc_root_count = gcRoots.size();
+    snapshotInfo.heap_total_size = 512ULL * 1024 * 1024;
+    uint64_t usedSize = 0;
+    for (auto& obj : m_objects) {
+        usedSize += obj->size;
+    }
+    snapshotInfo.used_size = usedSize;
+
+    // Build dominance tree using existing algorithm
+    RawHeapSnapshot rhs = GetRawHeapSnapshot();
+    auto dominanceNodes = BuildDominanceNodes(rhs);
+
+    // Build string table
+    std::unordered_map<uint64_t, std::string> stringTable;
+    for (auto& s : hprofStrings) {
+        stringTable[s.first] = s.second;
+    }
+
+    // Create HttpContext
+    auto context = std::make_shared<HttpContext>();
+    context->classes = &classInfos;
+    context->objects = &heapObjects;
+    context->gcRoots = &gcRoots;
+    context->dominanceNodes = &dominanceNodes;
+    context->snapshotInfo = &snapshotInfo;
+    context->stringTable = &stringTable;
+
+    // Find available port
+    int actualPort = port;
+    for (int attempt = 0; attempt < 100; attempt++) {
+        if (!HttpServer::isPortInUse(actualPort)) {
+            break;
+        }
+        actualPort++;
+    }
+
+    // Start server
+    HttpServer server(actualPort);
+    server.setContext(context);
+    server.start();
+
+    LOG_INFO("cjprof ready!");
+    std::cout << "\n========================================\n";
+    std::cout << "  Access URL: http://localhost:" << actualPort << "\n";
+    std::cout << "  Press Ctrl+C to stop\n";
+    std::cout << "========================================\n\n";
+
+    // Keep running until Ctrl+C
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    return true;
 }

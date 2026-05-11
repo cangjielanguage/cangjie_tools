@@ -32,6 +32,16 @@ struct HprofData {
         LONG = 11
     };
 
+    enum ObjectCategory : u1 {
+        INSTANCE_OBJECT = 0,
+        OBJECT_ARRAY = 1,
+        STRUCT_ARRAY = 2,
+        PRIMITIVE_ARRAY = 3,
+        PINNED_OBJECT = 4,
+        LARGE_OBJECT = 5,
+        UNMOVABLE_OBJECT = 6
+    };
+
     struct Class {
         ID name;
         u4 size;
@@ -106,6 +116,7 @@ struct HprofData {
     std::unordered_set<ID> unknown;
     std::map<u4, Sample> cpuSamples;
     std::unordered_map<ID, u4> componentNums;
+    std::unordered_map<ID, ObjectCategory> objectCategories;
 
     u8 fileTime = 0;
     u4 idSize = 0;
@@ -123,6 +134,7 @@ struct HprofData {
     static const std::unordered_set<ID> emptyUnknown;
     static const std::map<u4, Sample> emptyCpuSamples;
     static const std::unordered_map<ID, u4> emptyComponentNums;
+    static const std::unordered_map<ID, ObjectCategory> emptyObjectCategories;
 };
 
 #endif // HPROF_DATA_H

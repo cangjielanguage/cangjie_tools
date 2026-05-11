@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CJProf - Heap Analyzer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .header {
+            background: #16213e;
+            padding: 15px 30px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .header h1 {
+            color: #e94560;
+            font-size: 24px;
+        }
+        .tabs {
+            display: flex;
+            background: #16213e;
+            padding: 0 30px;
+        }
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #888;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            color: #eee;
+        }
+        .tab.active {
+            color: #e94560;
+            border-bottom-color: #e94560;
+        }
+        .content {
+            padding: 30px;
+        }
+        .card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .stat {
+            display: inline-block;
+            margin-right: 30px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+        .error {
+            color: #e94560;
+            padding: 20px;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #0f3460;
+        }
+        th {
+            color: #e94560;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* Sunburst chart */
+        #sunburst-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #sunburst {
+            width: 600px;
+            height: 600px;
+        }
+        #sunburst path {
+            stroke: #1a1a2e;
+            stroke-width: 1px;
+            cursor: pointer;
+        }
+        #sunburst text {
+            font-size: 10px;
+            fill: #eee;
+            pointer-events: none;
+        }
+        .sunburst-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* Fragment layout */
+        .fragment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .fragment-item {
+            background: #0f3460;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+        .fragment-item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+        .fragment-item .label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        .progress-bar {
+            background: #0f3460;
+            border-radius: 4px;
+            height: 24px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #00d9ff);
+            transition: width 0.5s ease;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: #16213e;
+            border: 1px solid #e94560;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .tooltip .tip-title {
+            font-weight: bold;
+            color: #e94560;
+            margin-bottom: 4px;
+        }
+        .tooltip .tip-value {
+            color: #00d9ff;
+        }
+
+        /* View toggle buttons */
+        .view-btn {
+            background: #0f3460;
+            color: #888;
+            border: 1px solid #0f3460;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .view-btn:hover {
+            color: #eee;
+        }
+        .view-btn.active {
+            background: #e94560;
+            color: #fff;
+            border-color: #e94560;
+        }
+
+        /* Treemap */
+        #treemap-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        #treemap {
+            width: 100%;
+            height: 500px;
+        }
+        #treemap rect {
+            stroke: #1a1a2e;
+            stroke-width: 1px;
+            cursor: pointer;
+        }
+        #treemap rect:hover {
+            stroke: #e94560;
+            stroke-width: 2px;
+        }
+        #treemap text {
+            font-size: 11px;
+            fill: #fff;
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Collapsible Tree View (Section 9.3: Incremental Loading) */
+        #tree-container {
+            width: 100%;
+            overflow: auto;
+            max-height: 600px;
+        }
+        #tree-view .node circle {
+            cursor: pointer;
+            stroke: #0f3460;
+            stroke-width: 2px;
+        }
+        #tree-view .node circle:hover {
+            stroke: #e94560;
+        }
+        #tree-view .node text {
+            font-size: 11px;
+            fill: #eee;
+        }
+        #tree-view .link {
+            fill: none;
+            stroke: #0f3460;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CJProf Heap Analyzer</h1>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="dominance">Dominance Tree</div>
+        <div class="tab" data-tab="fragment">Memory Fragment</div>
+    </div>
+
+    <div class="content">
+        <!-- Dominance Tree View -->
+        <div id="dominance-view" class="card">
+            <h2>Top Objects by Retained Size</h2>
+            <div style="margin-bottom:15px;">
+                <button class="view-btn active" data-view="sunburst">Sunburst</button>
+                <button class="view-btn" data-view="tree">Tree</button>
+            </div>
+            <div id="sunburst-container">
+                <div id="sunburst"></div>
+            </div>
+            <div id="tree-container" style="display:none;">
+                <div id="tree-view"></div>
+            </div>
+            <div class="sunburst-legend" id="sunburst-legend"></div>
+            <h3 style="margin-top:20px;color:#e94560;">Top Objects Table</h3>
+            <div id="top10-table"></div>
+        </div>
+
+        <!-- Memory Fragment View -->
+        <div id="fragment-view" class="card" style="display:none;">
+            <h2>Memory Overview</h2>
+            <div id="fragment-summary"></div>
+            <h3 style="margin-top:20px;color:#e94560;">Memory Layout</h3>
+            <div id="fragment-layout"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display:none;"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        const COLOR_PALETTE = ['#e94560', '#00d9ff', '#ff9f43', '#10ac84', '#5f27cd', '#ee5a24', '#0abde3', '#f368e0', '#00d2d3', '#ff6b6b'];
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const tabName = tab.dataset.tab;
+                document.getElementById('dominance-view').style.display = tabName === 'dominance' ? 'block' : 'none';
+                document.getElementById('fragment-view').style.display = tabName === 'fragment' ? 'block' : 'none';
+            });
+        });
+
+        // View switching (Sunburst/Treemap/Tree)
+        let currentView = 'sunburst';
+        let cachedRoot = null;
+        let loadedChildren = new Map(); // Section 9.3: Cache for incremental loading
+
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentView = btn.dataset.view;
+
+                document.getElementById('sunburst-container').style.display = currentView === 'sunburst' ? 'flex' : 'none';
+                document.getElementById('tree-container').style.display = currentView === 'tree' ? 'block' : 'none';
+
+                if (cachedRoot) {
+                    if (currentView === 'sunburst') {
+                        drawSunburst(cachedRoot);
+                    } else if (currentView === 'tree') {
+                        if (loadedChildren.size === 0) {
+                            initTreeView();
+                        }
+                    }
+                }
+            });
+        });
+
+        // Draw sunburst chart from dominance tree
+        async function loadDominanceTree() {
+            try {
+                const res = await fetch(`${API_BASE}/dominance/tree`);
+                const data = await res.json();
+
+                if (!data.nodes || data.nodes.length === 0) {
+                    document.getElementById('sunburst').innerHTML = '<div class="loading">No data</div>';
+                    return;
+                }
+
+                // Build hierarchy from flat nodes
+                const nodes = data.nodes;
+                const nodeMap = new Map();
+                nodes.forEach(n => nodeMap.set(n.id, { ...n, children: [] }));
+
+                let root = null;
+                let rootNodes = [];
+                nodes.forEach(n => {
+                    const node = nodeMap.get(n.id);
+                    if (n.parent_id && nodeMap.has(n.parent_id)) {
+                        nodeMap.get(n.parent_id).children.push(node);
+                    } else {
+                        rootNodes.push(node);
+                    }
+                });
+
+                // 如果有多个根节点，创建虚拟根
+                if (rootNodes.length > 1) {
+                    root = {
+                        id: 0,
+                        class_name: 'Root',
+                        retained_size: 0,
+                        shallow_size: 0,
+                        depth: -1,
+                        parent_id: 0,
+                        instance_count: rootNodes.length,
+                        is_clustered: false,
+                        is_cutoff: false,
+                        children: rootNodes
+                    };
+                } else if (rootNodes.length === 1) {
+                    root = rootNodes[0];
+                }
+
+                if (!root) root = nodeMap.get(nodes[0].id);
+
+                cachedRoot = root;
+                drawSunburst(root);
+                loadTop10();
+            } catch (e) {
+                document.getElementById('sunburst').innerHTML = '<div class="error">Failed to load dominance tree</div>';
+            }
+        }
+
+        function drawSunburst(root) {
+            const container = document.getElementById('sunburst-container');
+            const width = 600;
+            const height = 600;
+            const radius = Math.min(width, height) / 2;
+
+            // Clear previous
+            d3.select('#sunburst').selectAll('*').remove();
+
+            const svg = d3.select('#sunburst')
+                .append('svg')
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .append('g')
+                .attr('transform', `translate(${width / 2}, ${height / 2})`);
+
+            const partition = d3.partition().size([2 * Math.PI, radius]);
+            const rootHierarchy = d3.hierarchy(root)
+                .sum(d => d.children && d.children.length === 0 ? d.retained_size : 0)
+                .sort((a, b) => b.value - a.value);
+
+            partition(rootHierarchy);
+
+            const arc = d3.arc()
+                .startAngle(d => d.x0)
+                .endAngle(d => d.x1)
+                .innerRadius(d => d.y0)
+                .outerRadius(d => d.y1 - 1);
+
+            const color = d3.scaleOrdinal().range(COLOR_PALETTE);
+            let colorIndex = 0;
+            const classColors = new Map();
+
+            function getColor(d) {
+                const key = d.data.class_name || `obj${d.data.id}`;
+                if (!classColors.has(key)) {
+                    classColors.set(key, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
+                }
+                return classColors.get(key);
+            }
+
+            const paths = svg.selectAll('path')
+                .data(rootHierarchy.descendants())
+                .enter()
+                .append('path')
+                .attr('d', arc)
+                .attr('fill', d => d.depth === 0 ? '#e94560' : getColor(d))
+                .attr('fill-opacity', d => d.depth === 0 ? 1 : 0.85)
+                .on('mouseover', function(event, d) {
+                    showTooltip(event, d);
+                    d3.select(this).attr('fill-opacity', 1);
+                })
+                .on('mouseout', function(event, d) {
+                    hideTooltip();
+                    d3.select(this).attr('fill-opacity', d.depth === 0 ? 1 : 0.85);
+                });
+
+            // Draw labels for top segments
+            svg.selectAll('text')
+                .data(rootHierarchy.descendants().filter(d => d.y1 - d.y0 > 50 && d.depth <= 2))
+                .enter()
+                .append('text')
+                .attr('transform', d => {
+                    const angle = (d.x0 + d.x1) / 2;
+                    const r = (d.y0 + d.y1) / 2;
+                    return `rotate(${angle * 180 / Math.PI - 90}) translate(${r},0) rotate(${angle > Math.PI ? 180 : 0})`;
+                })
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'middle')
+                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 10));
+
+            // Legend
+            const legend = document.getElementById('sunburst-legend');
+            legend.innerHTML = '';
+            classColors.forEach((color, name) => {
+                legend.innerHTML += `<div class="legend-item"><div class="legend-color" style="background:${color}"></div>${name}</div>`;
+            });
+        }
+
+        function drawTreemap(root) {
+            const container = document.getElementById('treemap');
+            const width = container.clientWidth || 800;
+            const height = 500;
+
+            // Clear previous
+            d3.select('#treemap').selectAll('*').remove();
+
+            const svg = d3.select('#treemap')
+                .append('svg')
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('preserveAspectRatio', 'xMidYMid meet');
+
+            const hierarchy = d3.hierarchy(root)
+                .sum(d => d.children && d.children.length === 0 ? d.retained_size : 0)
+                .sort((a, b) => b.value - a.value);
+
+            const treemapLayout = d3.treemap()
+                .size([width, height])
+                .padding(2)
+                .round(true);
+
+            treemapLayout(hierarchy);
+
+            const color = d3.scaleOrdinal().range(COLOR_PALETTE);
+            let colorIndex = 0;
+            const classColors = new Map();
+
+            function getColor(d) {
+                const key = d.data.class_name || `obj${d.data.id}`;
+                if (!classColors.has(key)) {
+                    classColors.set(key, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
+                }
+                return classColors.get(key);
+            }
+
+            const nodes = hierarchy.descendants().filter(d => d.depth > 0);
+
+            svg.selectAll('rect')
+                .data(nodes)
+                .enter()
+                .append('rect')
+                .attr('x', d => d.x0)
+                .attr('y', d => d.y0)
+                .attr('width', d => Math.max(0, d.x1 - d.x0))
+                .attr('height', d => Math.max(0, d.y1 - d.y0))
+                .attr('fill', d => getColor(d))
+                .attr('fill-opacity', 0.85)
+                .on('mouseover', function(event, d) {
+                    showTooltip(event, d);
+                    d3.select(this).attr('fill-opacity', 1);
+                })
+                .on('mouseout', function(event, d) {
+                    hideTooltip();
+                    d3.select(this).attr('fill-opacity', 0.85);
+                });
+
+            // Draw labels (only for large enough cells)
+            svg.selectAll('text')
+                .data(nodes.filter(d => d.x1 - d.x0 > 50 && d.y1 - d.y0 > 20))
+                .enter()
+                .append('text')
+                .attr('x', d => d.x0 + 4)
+                .attr('y', d => d.y0 + 14)
+                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 12));
+
+            // Update legend
+            const legend = document.getElementById('sunburst-legend');
+            legend.innerHTML = '';
+            classColors.forEach((color, name) => {
+                legend.innerHTML += `<div class="legend-item"><div class="legend-color" style="background:${color}"></div>${name}</div>`;
+            });
+        }
+
+        // Section 9.3: Incremental Loading - Collapsible Tree View
+        let treeSvg = null;
+        let treeWidth = 1000;
+        let treeNodeMap = new Map();
+
+        async function initTreeView() {
+            // Only load root nodes initially (parent_id = 0 or depth = 0)
+            try {
+                const res = await fetch(`${API_BASE}/dominance/tree`);
+                const data = await res.json();
+
+                if (!data.nodes || data.nodes.length === 0) return;
+
+                // Build node map
+                treeNodeMap.clear();
+                data.nodes.forEach(n => {
+                    treeNodeMap.set(n.id, { ...n, _children: null, _loaded: false });
+                });
+
+                // Find root nodes (parent_id = 0 or depth = 0)
+                const rootNodes = data.nodes.filter(n => n.parent_id === 0 || n.depth === 0);
+
+                // Create tree structure
+                const treeData = {
+                    id: 0,
+                    class_name: 'Root',
+                    retained_size: 0,
+                    shallow_size: 0,
+                    depth: -1,
+                    parent_id: 0,
+                    children: rootNodes.map(n => ({ ...n, _children: null, _loaded: false }))
+                };
+
+                drawTree(treeData);
+            } catch (e) {
+                document.getElementById('tree-view').innerHTML = '<div class="error">Failed to load tree</div>';
+            }
+        }
+
+        function drawTree(root) {
+            d3.select('#tree-view').selectAll('*').remove();
+
+            treeSvg = d3.select('#tree-view')
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', 600);
+
+            const g = treeSvg.append('g')
+                .attr('transform', 'translate(40, 30)');
+
+            const tree = d3.tree()
+                .nodeSize([20, 200]);
+
+            const hierarchy = d3.hierarchy(root, d => d.children);
+            const treeRoot = tree(hierarchy);
+
+            // Draw links
+            g.selectAll('.link')
+                .data(treeRoot.links())
+                .enter()
+                .append('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x));
+
+            // Draw nodes
+            const nodes = g.selectAll('.node')
+                .data(treeRoot.descendants())
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.y}, ${d.x})`);
+
+            // Node circles
+            nodes.append('circle')
+                .attr('r', 6)
+                .attr('fill', d => d.data.depth === 0 ? '#e94560' : '#00d9ff')
+                .attr('fill-opacity', 0.85)
+                .on('click', async function(event, d) {
+                    await toggleChildren(d);
+                });
+
+            // Expand indicator (+/-)
+            nodes.append('text')
+                .attr('dy', 4)
+                .attr('dx', -10)
+                .text(d => {
+                    // Check if this node has children in the nodeMap
+                    const hasChildren = Array.from(treeNodeMap.values()).some(n => n.parent_id === d.data.id);
+                    return hasChildren && !d.data._loaded ? '+' : '';
+                })
+                .attr('class', 'expand-indicator');
+
+            // Labels
+            nodes.append('text')
+                .attr('dy', 4)
+                .attr('dx', 10)
+                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 15) + ' (' + formatBytes(d.data.retained_size || 0) + ')');
+        }
+
+        async function toggleChildren(d) {
+            if (d.data._loaded) {
+                // Collapse - just re-draw without children
+                d.data._children = null;
+                drawTree({
+                    ...cachedRoot,
+                    children: buildVisibleTree()
+                });
+                return;
+            }
+
+            // Load children via API (Section 9.3: Incremental Loading)
+            const parentId = d.data.id;
+
+            try {
+                const res = await fetch(`${API_BASE}/dominance/children?parent_id=${parentId}`);
+                const data = await res.json();
+
+                if (data.nodes && data.nodes.length > 0) {
+                    // Cache loaded children
+                    loadedChildren.set(parentId, data.nodes);
+
+                    // Mark as loaded
+                    const node = treeNodeMap.get(parentId);
+                    if (node) node._loaded = true;
+
+                    // Re-draw tree with expanded children
+                    drawTree({
+                        ...cachedRoot,
+                        children: buildVisibleTree()
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load children:', e);
+            }
+        }
+
+        function buildVisibleTree() {
+            // Build tree structure with loaded children expanded
+            const rootNodes = Array.from(treeNodeMap.values()).filter(n => n.parent_id === 0 || n.depth === 0);
+
+            function buildNode(nodeData) {
+                const children = loadedChildren.get(nodeData.id);
+                if (children && children.length > 0) {
+                    return {
+                        ...nodeData,
+                        _loaded: true,
+                        children: children.map(c => ({
+                            ...c,
+                            _children: null,
+                            _loaded: loadedChildren.has(c.id)
+                        }))
+                    };
+                }
+                return { ...nodeData, _loaded: false };
+            }
+
+            return rootNodes.map(buildNode);
+        }
+
+        function truncate(str, len) {
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <div class="tip-title">${d.data.class_name || 'Object'}</div>
+                <div>Retained: <span class="tip-value">${formatBytes(d.data.retained_size || 0)}</span></div>
+                <div>Shallow: <span class="tip-value">${formatBytes(d.data.shallow_size || 0)}</span></div>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY + 10) + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // Load top 10 objects
+        async function loadTop10() {
+            try {
+                const res = await fetch(`${API_BASE}/dominance/top10`);
+                const data = await res.json();
+
+                if (data.items.length === 0) {
+                    document.getElementById('top10-table').innerHTML = '<div class="loading">No data</div>';
+                    return;
+                }
+
+                let html = '<table><tr><th>Rank</th><th>Type</th><th>Retained Size</th><th>Percentage</th></tr>';
+                for (const item of data.items) {
+                    html += `<tr>
+                        <td>${item.rank}</td>
+                        <td>${item.type}</td>
+                        <td>${formatBytes(item.retained_size)}</td>
+                        <td>${item.percentage.toFixed(2)}%</td>
+                    </tr>`;
+                }
+                html += '</table>';
+                document.getElementById('top10-table').innerHTML = html;
+            } catch (e) {
+                document.getElementById('top10-table').innerHTML = '<div class="error">Failed to load top 10 data</div>';
+            }
+        }
+
+        // Load fragment overview
+        async function loadFragmentOverview() {
+            try {
+                const [overviewRes, layoutRes] = await Promise.all([
+                    fetch(`${API_BASE}/fragment/overview`),
+                    fetch(`${API_BASE}/fragment/layout`)
+                ]);
+                const overview = await overviewRes.json();
+                const layout = await layoutRes.json();
+
+                // Overview section
+                document.getElementById('fragment-summary').innerHTML = `
+                    <div class="stat">
+                        <div class="stat-value">${formatBytes(overview.used_size)}</div>
+                        <div class="stat-label">Used</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${formatBytes(overview.heap_limit)}</div>
+                        <div class="stat-label">Heap Limit</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${overview.utilization.toFixed(1)}%</div>
+                        <div class="stat-label">Utilization</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:${Math.min(overview.utilization, 100)}%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>0</span>
+                        <span>${formatBytes(overview.heap_limit)}</span>
+                    </div>
+                `;
+
+                // Layout section
+                if (layout.regions) {
+                    let layoutHtml = '<div class="fragment-grid">';
+                    layout.regions.forEach(r => {
+                        layoutHtml += `
+                            <div class="fragment-item">
+                                <div class="value">${formatBytes(r.size)}</div>
+                                <div class="label">${r.type}</div>
+                            </div>
+                        `;
+                    });
+                    layoutHtml += '</div>';
+                    document.getElementById('fragment-layout').innerHTML = layoutHtml;
+                }
+            } catch (e) {
+                document.getElementById('fragment-summary').innerHTML = '<div class="error">Failed to load fragment data</div>';
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Initial load
+        loadDominanceTree();
+        loadFragmentOverview();
+    </script>
+</body>
+</html>

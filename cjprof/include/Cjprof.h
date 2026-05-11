@@ -355,5 +355,30 @@ uint32_t QueryComparisonCountOfResults(
 ConstructorDiffNode QueryComparisonNodeByIndex(
     std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId, uint32_t length, uint32_t index);
 
+/**
+ * Result of computing a dominance tree over a directed graph.
+ */
+struct DominanceTreeResult {
+    // dom[nodeOrdinal] = parentOrdinal. nodeOrdinal ranges in [0..n] where 0 is the virtual entry node.
+    std::vector<size_t> dom;
+    // domTree[parent].push_back(child)
+    std::vector<std::vector<size_t>> domTree;
+};
+
+/**
+ * Compute the dominance tree using Cooper's algorithm.
+ *
+ * @param n       Number of original nodes (excluding the virtual entry).
+ * @param succs   succs[i] = list of nodes reachable from node i via outgoing edges.
+ * @param preds   preds[i] = list of nodes that have an edge to node i.
+ * @param gcRoots List of root node indices (will be connected to the virtual entry node 0).
+ * @return DominanceTreeResult containing dom and domTree.
+ */
+DominanceTreeResult ComputeDominanceTree(
+    size_t n,
+    const std::vector<std::vector<size_t>>& succs,
+    const std::vector<std::vector<size_t>>& preds,
+    const std::vector<size_t>& gcRoots);
+
 } // namespace Cjprof
 #endif // CANGJIE__CJPROF_H

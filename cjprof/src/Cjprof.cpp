@@ -21,6 +21,129 @@ namespace fs = std::experimental::filesystem;
 
 namespace Cjprof {
 
+static size_t intersect(const std::vector<size_t>& idom, size_t p1, size_t p2) {
+    while (p2 != p1) {
+        while (p2 < p1) {
+            p2 = idom[p2];
+        }
+        while (p1 < p2) {
+            p1 = idom[p1];
+        }
+    }
+    return p1;
+}
+
+static void dfs(size_t node,
+                const std::vector<std::vector<size_t>>& graph,
+                std::vector<size_t>& visited,
+                std::vector<size_t>& reversePostOrder) {
+    visited[node] = 1;
+    for (size_t succ : graph[node]) {
+        if (!visited[succ]) {
+            dfs(succ, graph, visited, reversePostOrder);
+        }
+    }
+    reversePostOrder.push_back(node);
+}
+
+DominanceTreeResult ComputeDominanceTree(
+    size_t n,
+    const std::vector<std::vector<size_t>>& succs,
+    const std::vector<std::vector<size_t>>& preds,
+    const std::vector<size_t>& gcRoots)
+{
+    size_t entry = 0;
+    size_t totalNodes = n + 1;
+    std::vector<std::vector<size_t>> graph(totalNodes);
+    std::vector<std::vector<size_t>> predList(totalNodes);
+
+    for (size_t i = 0; i < n; ++i) {
+        size_t src = i + 1;
+        for (size_t succ : succs[i]) {
+            size_t dst = succ + 1;
+            graph[src].push_back(dst);
+            predList[dst].push_back(src);
+        }
+    }
+
+    for (size_t root : gcRoots) {
+        size_t rootIdx = root + 1;
+        graph[entry].push_back(rootIdx);
+        predList[rootIdx].push_back(entry);
+    }
+
+    std::vector<size_t> visited(totalNodes, 0);
+    std::vector<size_t> postOrder;
+    dfs(entry, graph, visited, postOrder);
+
+    std::unordered_map<size_t, size_t> postOrderIndex2Index;
+    std::unordered_map<size_t, size_t> index2PostOrderIndex;
+    for (size_t i = 0; i < postOrder.size(); ++i) {
+        auto idx = postOrder[i];
+        postOrderIndex2Index[i] = idx;
+        index2PostOrderIndex[idx] = i;
+    }
+
+    // Cooper et al. Algorithm
+    auto entryPostOrderedIndex = totalNodes - 1;
+    auto noEntry = totalNodes;
+    std::vector<size_t> idom(totalNodes, noEntry);
+    idom[entryPostOrderedIndex] = entryPostOrderedIndex;
+
+    std::vector<bool> affected(totalNodes, false);
+    for (auto succ : graph[entry]) {
+        affected[index2PostOrderIndex[succ]] = true;
+    }
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (auto postOrderIndex = entryPostOrderedIndex; postOrderIndex-- > 0;) {
+            if (affected[postOrderIndex] == false) {
+                continue;
+            }
+            affected[postOrderIndex] = false;
+            if (idom[postOrderIndex] == entryPostOrderedIndex) {
+                continue;
+            }
+            auto newDom = noEntry;
+            for (auto p : predList[postOrderIndex2Index[postOrderIndex]]) {
+                auto retainerPostOrderIndex = index2PostOrderIndex[p];
+                if (idom[retainerPostOrderIndex] != noEntry) {
+                    if (newDom == noEntry) {
+                        newDom = retainerPostOrderIndex;
+                    } else {
+                        newDom = intersect(idom, newDom, retainerPostOrderIndex);
+                    }
+                    if (newDom == entryPostOrderedIndex) {
+                        break;
+                    }
+                }
+            }
+            if (newDom != noEntry && idom[postOrderIndex] != newDom) {
+                idom[postOrderIndex] = newDom;
+                changed = true;
+                for (auto succ : graph[postOrderIndex2Index[postOrderIndex]]) {
+                    affected[index2PostOrderIndex[succ]] = true;
+                }
+            }
+        }
+    }
+
+    std::vector<size_t> dom(totalNodes, noEntry);
+    for (size_t postOrderIndex = 0; postOrderIndex < totalNodes; ++postOrderIndex) {
+        auto idx = postOrderIndex2Index[postOrderIndex];
+        dom[idx] = postOrderIndex2Index[idom[postOrderIndex]];
+    }
+
+    std::vector<std::vector<size_t>> domTree(totalNodes);
+    for (size_t v = 1; v <= n; ++v) {
+        domTree[dom[v]].push_back(v);
+    }
+
+    return {dom, domTree};
+}
+
 class RawHeapSnapshotData {
 public:
     struct InsNode {
@@ -76,100 +199,12 @@ public:
             return;
         }
 
-        size_t entry = 0;
-
-        size_t totalNodes = n + 1;
-        std::vector<std::vector<size_t>> graph(totalNodes);
-        std::vector<std::vector<size_t>> predList(totalNodes);
-
-        for (size_t i = 0; i < n; ++i) {
-            size_t src = i + 1;
-            for (size_t succ : succs[i]) {
-                size_t dst = succ + 1;
-                graph[src].push_back(dst);
-                predList[dst].push_back(src);
-            }
-        }
-
-        for (size_t root : gcRoots) {
-            size_t rootIdx = root + 1;
-            graph[entry].push_back(rootIdx);
-            predList[rootIdx].push_back(entry);
-        }
-
-        std::vector<size_t> visited(totalNodes, 0);
-        std::vector<size_t> postOrder;
-        dfs(entry, graph, visited, postOrder);
-
-        std::vector<size_t> reversePostOrder;
-        std::unordered_map<size_t, size_t> postOrderIndex2Index;
-        std::unordered_map<size_t, size_t> index2PostOrderIndex;
-        for (size_t i = 0; i < postOrder.size(); ++i) {
- 	        auto idx = postOrder[i];
- 	        reversePostOrder.push_back(idx);
- 	        postOrderIndex2Index[i] = idx;
- 	        index2PostOrderIndex[idx] = i;
- 	    }
-
-        // Cooper et al. Algorithm
-        auto entryPostOrderedIndex = totalNodes - 1;
- 	    auto noEntry = totalNodes;
- 	    std::vector<size_t> idom(totalNodes, noEntry);
- 	    idom[entryPostOrderedIndex] = entryPostOrderedIndex;
- 	 
- 	    std::vector<bool> affected(totalNodes, false);
- 	    for (auto succ : graph[entry]) {
- 	        affected[index2PostOrderIndex[succ]] = true;
-        }
-
-        bool changed = true;
-        while (changed) {
-            changed = false;
-            for (auto postOrderIndex = entryPostOrderedIndex; postOrderIndex-- > 0;) {
-                if (affected[postOrderIndex] == false) {
-                    continue;
-                }
-                affected[postOrderIndex] = false;
-                if (idom[postOrderIndex] == entryPostOrderedIndex) {
-                    continue;
-                }
-                auto newDom = noEntry;
-                for (auto p : predList[postOrderIndex2Index[postOrderIndex]]) {
-                    auto retainerPostOrderIndex = index2PostOrderIndex[p];
-                    if (idom[retainerPostOrderIndex] != noEntry) {
-                        if (newDom == noEntry) {
-                            newDom = retainerPostOrderIndex;
-                        } else {
-                            newDom = intersect(idom, newDom, retainerPostOrderIndex);
-                        }
-                        if (newDom == entryPostOrderedIndex) {
-                            break;
-                        }
-                    }
-                }
-                if (newDom != noEntry && idom[postOrderIndex] != newDom) {
-                    idom[postOrderIndex] = newDom;
-                    changed = true;
-                    for (auto succ : graph[postOrderIndex2Index[postOrderIndex]]) {
-                        affected[index2PostOrderIndex[succ]] = true;
-                    }
-                }
-            }
-        }
-
-        std::vector<size_t> dom(totalNodes, noEntry);
-        for (size_t postOrderIndex = 0; postOrderIndex < totalNodes; ++postOrderIndex) {
-            auto idx = postOrderIndex2Index[postOrderIndex];
-            dom[idx] = postOrderIndex2Index[idom[postOrderIndex]];
-        }
-
-        std::vector<std::vector<size_t>> domTree(totalNodes);
-        for (size_t v = 1; v <= n; ++v) {
-            domTree[dom[v]].push_back(v);
-        }
+        auto result = ComputeDominanceTree(n, succs, preds, gcRoots);
+        const auto& dom = result.dom;
+        const auto& domTree = result.domTree;
 
         for (size_t v = 1; v <= n; ++v) {
-            if (dom[v] == entry) {
+            if (dom[v] == 0) {
                 computeRetainedSize(v, insNodes, domTree);
             }
         }
@@ -186,18 +221,6 @@ public:
             conNodes[i].shallowSize = totalShallowSize;
             conNodes[i].retainedSize = totalRetainedSize;
         }
-    }
-
-    static size_t intersect(const std::vector<size_t>& idom, size_t p1, size_t p2) {
-        while (p2 != p1) {
-            while (p2 < p1) {
-                p2 = idom[p2];
-            }
-            while (p1 < p2) {
-                p1 = idom[p1];
-            }
-        }
-        return p1;
     }
 
     static void dfs(size_t node,

@@ -184,7 +184,7 @@ void HprofParserV2::ParseHeapDumpClassDump(bool verbose)
 }
 
 // V2 INSTANCE_DUMP Format: ID id, u4 cls, u4 num, ID values[]
-void HprofParserV2::ParseHeapDumpInstanceDump(bool verbose)
+void HprofParserV2::ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     ID id = ReadId();
@@ -194,6 +194,7 @@ void HprofParserV2::ParseHeapDumpInstanceDump(bool verbose)
     // V2: values are dynamic ID
     ReadIdVector(m_dataRef.instances[id].fields, num);
     m_dataRef.instances[id].cls = cls;
+    m_dataRef.objectCategories[id] = category;
 
     if (verbose) {
         printf("[INSTANCE DUMP@0x%zx] id = 0x%" PRIx64 ", class = 0x%x, value = [", startPos, id, cls);
@@ -208,7 +209,7 @@ void HprofParserV2::ParseHeapDumpInstanceDump(bool verbose)
 }
 
 // V2 OBJECT_ARRAY_DUMP Format: ID id, u4 num, u4 cls, ID elements[]
-void HprofParserV2::ParseHeapDumpObjectArrayDump(bool verbose)
+void HprofParserV2::ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     ID id = ReadId();
@@ -218,6 +219,7 @@ void HprofParserV2::ParseHeapDumpObjectArrayDump(bool verbose)
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
+    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? OBJECT_ARRAY : category;
     ReadIdVector(m_dataRef.arrays[id].elements, num);
 
     if (verbose) {
@@ -233,7 +235,7 @@ void HprofParserV2::ParseHeapDumpObjectArrayDump(bool verbose)
 }
 
 // V2 STRUCT_ARRAY_DUMP Format: ID id, u4 compNum, u4 num, u4 cls, ID elements[]
-void HprofParserV2::ParseHeapDumpStructArrayDump(bool verbose)
+void HprofParserV2::ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     ID id = ReadId();
@@ -244,6 +246,7 @@ void HprofParserV2::ParseHeapDumpStructArrayDump(bool verbose)
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
+    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? STRUCT_ARRAY : category;
     ReadIdVector(m_dataRef.arrays[id].elements, num);
 
     if (verbose) {
@@ -388,7 +391,7 @@ void HprofParserV1::ParseHeapDumpClassDump(bool verbose)
 }
 
 // V1 INSTANCE_DUMP Format: ID(u8) id, ID(u8) cls, u4 num, ID(u8) values[]
-void HprofParserV1::ParseHeapDumpInstanceDump(bool verbose)
+void HprofParserV1::ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     u8 id = ReadAndSwap<u8>();
@@ -400,6 +403,7 @@ void HprofParserV1::ParseHeapDumpInstanceDump(bool verbose)
         m_dataRef.instances[id].fields.push_back(ReadAndSwap<u8>());
     }
     m_dataRef.instances[id].cls = cls;
+    m_dataRef.objectCategories[id] = category;
 
     if (verbose) {
         printf("[INSTANCE DUMP@0x%zx] id = 0x%" PRIx64 ", class = 0x%" PRIx64 ", value = [", startPos, id, cls);
@@ -414,7 +418,7 @@ void HprofParserV1::ParseHeapDumpInstanceDump(bool verbose)
 }
 
 // V1 OBJECT_ARRAY_DUMP Format: ID(u8) id, u4 num, ID(u8) cls, ID(u8) elements[]
-void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose)
+void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     u8 id = ReadAndSwap<u8>();
@@ -424,6 +428,7 @@ void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose)
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
+    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? OBJECT_ARRAY : category;
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }
@@ -441,7 +446,7 @@ void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose)
 }
 
 // V1 STRUCT_ARRAY_DUMP Format: ID(u8) id, u4 compNum, u4 num, ID(u8) cls, ID(u8) elements[]
-void HprofParserV1::ParseHeapDumpStructArrayDump(bool verbose)
+void HprofParserV1::ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category)
 {
     size_t startPos = m_curPos;
     u8 id = ReadAndSwap<u8>();
@@ -452,6 +457,7 @@ void HprofParserV1::ParseHeapDumpStructArrayDump(bool verbose)
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
+    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? STRUCT_ARRAY : category;
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }

@@ -158,6 +158,7 @@ public:
     void ShowObject();
     void ShowReference(const std::string &objNameList, int maxDepth, bool incoming = false);
     RawHeapSnapshot GetRawHeapSnapshot();
+    bool StartReportServer(int port = 8080);
 
 private:
     struct Object {
@@ -167,6 +168,7 @@ private:
         uint64_t retainedSize = 0;
         std::unordered_set<Hprof::ID> outRef;
         std::unordered_set<Hprof::ID> inRef;
+        uint8_t category = 0;
 
         Object(Hprof::ID id)
         {
