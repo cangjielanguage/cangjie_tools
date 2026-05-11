@@ -7,17 +7,10 @@
 #include <fstream>
 #include <memory>
 #include "Symbol/Elf.h"
-#ifdef USE_CXX17_FEATURES
-#include <filesystem>
-namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 std::vector<Symbol> Elf::ParseSymbols(const std::string &name)
 {
-    std::ifstream ifs(fs::canonical(name).generic_string(), std::ifstream::binary);
+    std::ifstream ifs(name, std::ifstream::binary);
     if (ifs.fail()) {
         return {};
     }
@@ -65,7 +58,7 @@ std::vector<Symbol> Elf::ParseSymbols(const std::string &name)
 
 Elf::Type Elf::GetType(const std::string &name)
 {
-    std::ifstream ifs(fs::canonical(name).generic_string(), std::ifstream::binary);
+    std::ifstream ifs(name, std::ifstream::binary);
     if (ifs.fail()) {
         return Type::NONE;
     }

@@ -26,13 +26,6 @@
 #include "Demangler/CangjieDemangle.h"
 #include "Symbol/Elf.h"
 #include "Recorder/LinuxRecorder.h"
-#ifdef USE_CXX17_FEATURES
-#include <filesystem>
-namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 0x1000
@@ -159,7 +152,7 @@ void LinuxRecorder::SampleThreadEntry(pid_t pid)
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
-    std::ofstream ofs(fs::canonical(TMP_SAMPLE_DATA_FILE_PREFIX + std::to_string(pid)).generic_string());
+    std::ofstream ofs(TMP_SAMPLE_DATA_FILE_PREFIX + std::to_string(pid));
     if (!ofs.fail()) {
         auto rinfo = (const perf_event_mmap_page *)addr;
         std::string_view rbuf((const char *)addr + PAGE_SIZE, RBUF_SIZE);
@@ -364,7 +357,7 @@ void LinuxRecorder::Stop(pid_t pid)
 
 void LinuxRecorder::HandleProcessMaps(pid_t pid)
 {
-    std::ifstream ifs(fs::canonical("/proc/" + std::to_string(pid) + "/maps").generic_string());
+    std::ifstream ifs("/proc/" + std::to_string(pid) + "/maps");
     if (ifs.fail()) {
         return;
     }
