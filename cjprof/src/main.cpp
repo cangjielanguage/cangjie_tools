@@ -37,7 +37,11 @@ static void PrintHelp()
 
 static void PrintVersion()
 {
-    std::cout << "Cangjie Profile: 0.65.2" << std::endl;
+#ifndef CJPROF_VERSION
+    Errorln("Can not obtain cjprof version");
+#else
+    std::cout << std::string("Cangjie Profile: ") + std::string(CJPROF_VERSION) << std::endl;
+#endif
     return;
 }
 
