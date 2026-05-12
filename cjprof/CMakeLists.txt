@@ -9,6 +9,7 @@ cmake_minimum_required(VERSION 3.10)
 project("cjprof")
 
 set(CMAKE_CXX_STANDARD 17)
+set(CJPROF_VERSION_STR "1.2.0-alpha.10")
 set(CMAKE_CXX_FLAGS_RELEASE "-D_FORTIFY_SOURCE=2 -O2")
 set(STRIP_FLAG "-s")
 
@@ -45,6 +46,8 @@ set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_SKIP_BUILD_RPATH TRUE)
 
 add_compile_definitions(CJNATIVE=1)
+add_compile_definitions(CJPROF_VERSION="${CJPROF_VERSION_STR}")
+message(STATUS "Cangjie Profile: ${CJPROF_VERSION_STR}")
 
 if(NOT CMAKE_BACKEND)
     set(CMAKE_BACKEND cjnative)
