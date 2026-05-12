@@ -14,5 +14,8 @@ add_library(Analyzer OBJECT
     SqliteDb.cpp
     DatabaseSchema.cpp
     DatabaseCache.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/jsoncpp/src/lib_json/json_reader.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/jsoncpp/src/lib_json/json_value.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/jsoncpp/src/lib_json/json_writer.cpp
 )
 set_target_properties(Analyzer PROPERTIES POSITION_INDEPENDENT_CODE ON)

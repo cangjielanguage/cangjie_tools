@@ -1,4 +1,7 @@
 output
 third_party
 !third_party/sqlite3
+!third_party/cpp-httplib
+!third_party/jsoncpp
+!third_party/spdlog
 test/LLT/cost_time.csv
