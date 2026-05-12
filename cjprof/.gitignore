@@ -2,6 +2,5 @@ output
 third_party
 !third_party/sqlite3
 !third_party/cpp-httplib
-!third_party/jsoncpp
-!third_party/spdlog
+!third_party/nlohmann
 test/LLT/cost_time.csv

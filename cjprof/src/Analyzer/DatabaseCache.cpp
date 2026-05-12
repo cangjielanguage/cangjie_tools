@@ -171,7 +171,7 @@ bool DatabaseCache::save(const std::string& heapFilePath,
         return false;
     }
 
-    LOG_INFO("Database cache saved: {}", dbPath);
+    LOG_DEBUG("Database cache saved: {}", dbPath);
     return true;
 }
 
@@ -317,7 +317,7 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         snapshot.used_size += obj.size;
     }
 
-    LOG_INFO("Database cache loaded: {} (objects={}, roots={})", dbPath, objects.size(), gcRoots.size());
+    LOG_DEBUG("Database cache loaded: {} (objects={}, roots={})", dbPath, objects.size(), gcRoots.size());
     return true;
 }
 

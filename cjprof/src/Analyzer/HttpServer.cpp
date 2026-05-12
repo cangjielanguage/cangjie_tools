@@ -98,7 +98,7 @@ void HttpServer::start() {
     });
 
     serverThread_ = std::thread([this, svr = std::move(svr)]() mutable {
-        LOG_INFO("HTTP server starting on port {}", port_);
+        LOG_DEBUG("HTTP server starting on port {}", port_);
         if (!svr->listen("127.0.0.1", port_)) {
             LOG_ERROR("Failed to start HTTP server on port {}", port_);
         }

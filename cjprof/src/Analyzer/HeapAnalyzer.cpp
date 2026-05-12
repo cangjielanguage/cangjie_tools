@@ -703,10 +703,10 @@ bool HeapAnalyzer::StartReportServer(int port)
     // Check for cached database (Section 9.1: Persistent cache)
     bool cacheLoaded = false;
     if (DatabaseCache::isCacheValid(m_filePath)) {
-        LOG_INFO("Cache found: {}.cjprof.db, loading...", m_filePath);
+        LOG_DEBUG("Cache found: {}.cjprof.db, loading...", m_filePath);
         if (DatabaseCache::load(m_filePath, snapshotInfo, classInfos, heapObjects, gcRoots, dominanceNodes, stringTable)) {
             cacheLoaded = true;
-            LOG_INFO("Cache loaded successfully (objects={}, roots={}, dominance_nodes={})",
+            LOG_DEBUG("Cache loaded successfully (objects={}, roots={}, dominance_nodes={})",
                      heapObjects.size(), gcRoots.size(), dominanceNodes.size());
         } else {
             LOG_WARN("Cache load failed, falling back to full parse");
@@ -714,7 +714,7 @@ bool HeapAnalyzer::StartReportServer(int port)
     }
 
     if (!cacheLoaded) {
-        LOG_INFO("No cache found, parsing heap file...");
+        LOG_DEBUG("No cache found, parsing heap file...");
 
         // Build HeapObject list
         heapObjects.reserve(m_objects.size());
@@ -791,9 +791,9 @@ bool HeapAnalyzer::StartReportServer(int port)
         }
 
         // Save to database cache
-        LOG_INFO("Saving to database cache...");
+        LOG_DEBUG("Saving to database cache...");
         if (DatabaseCache::save(m_filePath, snapshotInfo, classInfos, heapObjects, gcRoots, dominanceNodes)) {
-            LOG_INFO("Cache saved successfully");
+            LOG_DEBUG("Cache saved successfully");
         } else {
             LOG_WARN("Failed to save cache");
         }
@@ -823,10 +823,8 @@ bool HeapAnalyzer::StartReportServer(int port)
     server.start();
 
     LOG_INFO("cjprof ready!");
-    std::cout << "\n========================================\n";
-    std::cout << "  Access URL: http://localhost:" << actualPort << "\n";
-    std::cout << "  Press Ctrl+C to stop\n";
-    std::cout << "========================================\n\n";
+    LOG_INFO("Access URL: http://localhost:{}", actualPort);
+    LOG_INFO("Press Ctrl+C to stop");
 
     // Keep running until Ctrl+C
     while (true) {
