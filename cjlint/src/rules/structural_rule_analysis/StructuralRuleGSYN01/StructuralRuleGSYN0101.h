@@ -43,7 +43,7 @@ private:
         {AST::TypeKind::TYPE_RUNE, "Rune"}, {AST::TypeKind::TYPE_NOTHING, "Nothing"},
         {AST::TypeKind::TYPE_BOOLEAN, "Bool"}};
     NodeHandler handlePrimitiveType = [this](const AST::Node& node) {
-        auto nodeTy = node.ty;
+        auto nodeTy = node.GetTy();
         if (!nodeTy) {
             return;
         }

@@ -33,7 +33,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncParamListTest002)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
@@ -50,7 +50,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncParamListTest003)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->ty = nullptr;
+    param->SetTy(nullptr);
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
@@ -82,7 +82,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncRetTypeTest003)
     auto funcDecl = new FuncDecl();
     auto funcBody = new FuncBody();
     auto retType = new Type();
-    retType->ty = nullptr;
+    retType->SetTy(nullptr);
     funcBody->retType = OwnedPtr<Type>(retType);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
     const auto result = ResolveFuncRetType(funcDecl);
@@ -353,11 +353,11 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncDetailTest001)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    param->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     auto retType = new Type();
-    retType->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    retType->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
     funcBody->retType = OwnedPtr<Type>(retType);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
 
@@ -378,7 +378,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolvePropDetailTest001)
     propDecl->identifier = "myProp";
     propDecl->EnableAttr(Attribute::PUBLIC);
     propDecl->EnableAttr(Attribute::STATIC);
-    propDecl->ty = new PrimitiveTy(TypeKind::TYPE_INT32);
+    propDecl->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
 
     auto detail = ResolvePropDetail(propDecl);
     EXPECT_EQ(detail.identifier, "myProp");

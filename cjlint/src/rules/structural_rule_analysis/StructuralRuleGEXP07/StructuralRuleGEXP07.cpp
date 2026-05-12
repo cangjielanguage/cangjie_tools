@@ -95,7 +95,7 @@ void StructuralRuleGEXP07::BinaryNotDesugar(const BinaryExpr& binaryExpr)
     if (binaryExpr.leftExpr == nullptr || binaryExpr.rightExpr == nullptr) {
         return;
     }
-    if (binaryExpr.leftExpr->ty == nullptr || binaryExpr.rightExpr->ty == nullptr) {
+    if (binaryExpr.leftExpr->GetTy() == nullptr || binaryExpr.rightExpr->GetTy() == nullptr) {
         return;
     }
     if ((!binaryExpr.leftExpr->IsReferenceExpr() && binaryExpr.leftExpr->astKind != ASTKind::LIT_CONST_EXPR) ||

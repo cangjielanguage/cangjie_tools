@@ -66,7 +66,7 @@ void StructuralRuleGSER01::SerializeHandler(const FuncDecl& funcDecl)
                     return VisitAction::SKIP_CHILDREN;
                 }
 
-                if (baseFunc->field != "add" || baseFunc->baseExpr->ty->name != "DataModelStruct") {
+                if (baseFunc->field != "add" || baseFunc->baseExpr->GetTy()->name != "DataModelStruct") {
                     return VisitAction::SKIP_CHILDREN;
                 }
 

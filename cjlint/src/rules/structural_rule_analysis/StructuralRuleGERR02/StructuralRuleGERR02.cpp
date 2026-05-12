@@ -153,7 +153,7 @@ void StructuralRuleGERR02::CheckResult(Ptr<Node> node)
         return match(*node)(
             [this](const ThrowExpr& throwExpr) {
                 if (auto throwCallExpr = DynamicCast<CallExpr*>(throwExpr.expr.get()); throwCallExpr) {
-                    auto exceptionType = throwCallExpr->ty->name;
+                    auto exceptionType = throwCallExpr->GetTy()->name;
                     if (IsSensitiveException(exceptionType)) {
                         exceptionTypeDiag.emplace_back(
                             std::make_pair(throwCallExpr->begin, throwCallExpr->end), exceptionType);

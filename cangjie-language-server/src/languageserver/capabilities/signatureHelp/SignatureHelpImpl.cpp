@@ -311,8 +311,8 @@ void SignatureHelpImpl::ResolveParameter(std::string &detail, bool &firstParams,
         }
         parameter += ": ";
     }
-    if (paramPtr->ty != nullptr) {
-        parameter += GetString(*paramPtr->ty);
+    if (paramPtr->GetTy() != nullptr) {
+        parameter += GetString(*paramPtr->GetTy());
         auto assignExpr = paramPtr->assignment.get();
         if (assignExpr && assignExpr->desugarExpr) {
             assignExpr = assignExpr->desugarExpr;
@@ -351,8 +351,8 @@ void SignatureHelpImpl::ResolveFuncDecl(Cangjie::AST::Decl &decl)
     if (!funcDecl->TestAttr(Cangjie::AST::Attribute::ENUM_CONSTRUCTOR) &&
         funcDecl->identifier != "init" &&
         funcDecl->funcBody->retType != nullptr &&
-        funcDecl->funcBody->retType->ty != nullptr) {
-        detail += " -> " + GetString(*funcDecl->funcBody->retType->ty);
+        funcDecl->funcBody->retType->GetTy() != nullptr) {
+        detail += " -> " + GetString(*funcDecl->funcBody->retType->GetTy());
     }
     signatures.label = detail;
     if (signatureLabel.find(detail) == signatureLabel.end()) {
@@ -462,8 +462,8 @@ void SignatureHelpImpl::FindSuperClassInit(const std::vector<Symbol*>& symbols)
             auto decl = dynamic_cast<ClassLikeDecl*>(symbol->node.get());
             for (auto &type : decl->inheritedTypes) {
                 if (type != nullptr) {
-                    fatherCLassName = type.get()->ty->name;
-                    FindFunDeclByType(*type->ty, "init");
+                    fatherCLassName = type.get()->GetTy()->name;
+                    FindFunDeclByType(*type->GetTy(), "init");
                     break;
                 }
             }
@@ -628,8 +628,8 @@ void SignatureHelpImpl::FindFunDeclByType(Cangjie::AST::Ty &nodeTy, const std::s
             }
         });
     for (; begin != end; ++begin) {
-        if (begin->get() && begin->get()->ty) {
-            FindFunDeclByType(*begin->get()->ty, funcName);
+        if (begin->get() && begin->get()->GetTy()) {
+            FindFunDeclByType(*begin->get()->GetTy(), funcName);
         }
     }
 }
@@ -731,7 +731,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
         if (node == nullptr) {
             return false;
         }
-        auto nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->ty : node->ty;
+        auto nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->GetTy() : node->GetTy();
         Logger &logger = Logger::Instance();
         if (!Ty::IsTyCorrect(nodeTy)) {
             auto realPos = node->GetMacroCallNewPos(posOfMember);
@@ -754,7 +754,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
             if (node == nullptr) {
                 return false;
             }
-            nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->ty : node->ty;
+            nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->GetTy() : node->GetTy();
         }
         bool check = nodeTy != nullptr && (Is<ClassTy>(nodeTy.get()) || Is<EnumTy>(nodeTy.get()) ||
                                            Is<InterfaceTy>(nodeTy.get()) || Is<StructTy>(nodeTy.get()) ||

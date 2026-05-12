@@ -65,12 +65,12 @@ bool CheckParamListEqual(const FuncParamList& srcList, const FuncParamList& targ
     for (size_t i = 0; i < srcList.params.size(); ++i) {
         auto& src = srcList.params[i];
         auto& target = targetList.params[i];
-        bool invalid = !src || !src->ty || !target || !target->ty;
+        bool invalid = !src || !src->GetTy() || !target || !target->GetTy();
         if (invalid) {
             return false;
         }
         // Since type nodes in imported decls are wrapped refType, we can only compare sema type here.
-        if (src->ty == nullptr || target->ty == nullptr || !CheckTypeEqual(*src->ty, *target->ty)) {
+        if (src->GetTy() == nullptr || target->GetTy() == nullptr || !CheckTypeEqual(*src->GetTy(), *target->GetTy())) {
             return false;
         }
     }
@@ -124,12 +124,12 @@ bool CheckDeclEqual(const Decl& source, const Decl& target)
     if (srcDecl->astKind == ASTKind::EXTEND_DECL) {
         auto srcEd = dynamic_cast<const ExtendDecl*>(srcDecl.get());
         auto targetEd = dynamic_cast<const ExtendDecl*>(targetDecl.get());
-        bool invalid = !srcEd || !srcEd->extendedType || !srcEd->extendedType->ty ||
-                        !targetEd || !targetEd->extendedType || !targetEd->extendedType->ty;
+        bool invalid = !srcEd || !srcEd->extendedType || !srcEd->extendedType->GetTy() ||
+                        !targetEd || !targetEd->extendedType || !targetEd->extendedType->GetTy();
         if (invalid) {
             return false;
         }
-        return CheckTypeEqual(*srcEd->extendedType->ty, *targetEd->extendedType->ty);
+        return CheckTypeEqual(*srcEd->extendedType->GetTy(), *targetEd->extendedType->GetTy());
     }
     // 'source' and 'target' must both have 'outerDecl' or both without 'outerDecl'.
     bool invalidContext = (srcDecl->outerDecl && !targetDecl->outerDecl) ||
@@ -172,8 +172,8 @@ bool checkMacroFunc(const Decl &decl, Ptr<const Decl> target)
 {
     return target &&
             decl.isInMacroCall &&
-            decl.ty == target->ty &&
-            decl.ty->kind == TypeKind::TYPE_FUNC &&
+            decl.GetTy() == target->GetTy() &&
+            decl.GetTy()->kind == TypeKind::TYPE_FUNC &&
             decl.identifier.Val() == target->identifier.Val();
 }
 

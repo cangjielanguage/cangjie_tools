@@ -171,7 +171,7 @@ TEST(UtilsTest, UtilsTest097)
 }
 
 //------------------------------------------------------------------------------
-// Test 098: cover the `p->ty && !p->ty->typeArgs.empty()` branch (line 469–470)
+// Test 098: cover the `p->GetTy() && !p->GetTy()->typeArgs.empty()` branch (line 469–470)
 //------------------------------------------------------------------------------
 TEST(UtilsTest, UtilsTest098)
 {
@@ -442,7 +442,7 @@ TEST(UtilsTest, GetVarDeclType001) {
     std::vector<Ptr<Ty>> v;
     v.emplace_back(nullptr);
     Ptr<FuncTy> funcTy(new FuncTy(v, rType));
-    decl->ty = std::move(funcTy);
+    decl->SetTy(std::move(funcTy));
     GetVarDeclType(decl);
 }
 
@@ -509,7 +509,7 @@ TEST(UtilsTest, InImportSpec001) {
 class FakeVarDecl : public VarDecl {
 public:
     FakeVarDecl() : VarDecl(ASTKind::VAR_DECL) {
-        ty = nullptr;
+        SetTy(nullptr);
         type = nullptr;
     }
 };
@@ -523,10 +523,10 @@ public:
 
 // --- GetVarDeclType Unit Tests ---
 
-// Test 086: When both decl->ty and decl->type are null, return empty string
+// Test 086: When both decl->GetTy() and decl->type are null, return empty string
 TEST(UtilsTest, GetVarDeclType_086) {
     Ptr<FakeVarDecl> decl(new FakeVarDecl());
-    decl->ty = nullptr;
+    decl->SetTy(nullptr);
     decl->type = nullptr;
 
     std::string result = GetVarDeclType(decl, nullptr);
@@ -546,7 +546,7 @@ struct MockNamedType : public Type {
 // Test 087: When ty is UnknownType, fetch from SourceManager and apply ReplaceTuple
 TEST(UtilsTest, GetVarDeclType_087) {
     Ptr<FakeVarDecl> decl(new FakeVarDecl());
-    decl->ty = Ptr<Ty>(new UnknownTypeStub());
+    decl->SetTy(Ptr<Ty>(new UnknownTypeStub()));
 
     MockNamedType* typeNode = new MockNamedType();
     typeNode->begin = {1, 10, 100}; // line 1, col 10
@@ -568,7 +568,7 @@ TEST(UtilsTest, GetVarDeclType_088) {
 
     // Create a function type
     std::vector<Ptr<Ty>> params;
-    decl->ty = Ptr<Ty>(new FuncTy(params, nullptr));
+    decl->SetTy(Ptr<Ty>(new FuncTy(params, nullptr)));
 
     // Logic: TYPE_FUNC triggers GetDetailByTy and ReplaceTuple
     std::string result = GetVarDeclType(decl, nullptr);
@@ -587,7 +587,7 @@ TEST(UtilsTest, GetVarDeclType_089) {
         std::string String() const override { return "Tuple<Float64>"; }
     };
 
-    decl->ty = Ptr<Ty>(new NormalType());
+    decl->SetTy(Ptr<Ty>(new NormalType()));
 
     // Directly returns the string representation via GetString()
     std::string result = GetVarDeclType(decl, nullptr);

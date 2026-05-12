@@ -278,10 +278,10 @@ std::string HoverImpl::GetHoverMessageByOuterDecl(const Decl &node)
             return detail;
         },
         [&detail](const Cangjie::AST::ExtendDecl &decl) {
-            if (decl.ty == nullptr) {
+            if (decl.GetTy() == nullptr) {
                 return detail;
             }
-            Ptr<Decl> realDecl = ItemResolverUtil::GetDeclByTy(decl.ty);
+            Ptr<Decl> realDecl = ItemResolverUtil::GetDeclByTy(decl.GetTy());
             if (realDecl == nullptr) {
                 return detail;
             }
@@ -392,7 +392,7 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
             if (!firstTy) {
                 signature += ", ";
             }
-            signature += GetString(*param->ty);
+            signature += GetString(*param->GetTy());
             firstTy = false;
         }
         signature += ')';

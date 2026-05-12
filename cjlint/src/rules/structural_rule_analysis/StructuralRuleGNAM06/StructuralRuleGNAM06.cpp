@@ -40,7 +40,7 @@ void StructuralRuleGNAM06::CheckCamelCaseFormat(Ptr<Node> node)
             },
             [this](const VarDecl& varDecl) {
                 // Exception Scenario: Numeric Constants Used Within the Function
-                if (!varDecl.isVar && (varDecl.ty->IsFloating() || varDecl.ty->IsInteger())) {
+                if (!varDecl.isVar && (varDecl.GetTy()->IsFloating() || varDecl.GetTy()->IsInteger())) {
                     return;
                 }
                 auto identifier = varDecl.identifier;

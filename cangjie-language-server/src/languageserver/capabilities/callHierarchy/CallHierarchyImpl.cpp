@@ -45,8 +45,8 @@ CallHierarchyItem DeclToCallHierarchyItem(Ptr<const Decl> decl)
             result.name += funcParamsTypeName[i];
         }
         result.name += ")";
-        bool hasRetType = funcDecl->funcBody && funcDecl->funcBody->retType && funcDecl->funcBody->retType->ty;
-        result.name += hasRetType ? " : " + GetString(*funcDecl->funcBody->retType->ty) : "";
+        bool hasRetType = funcDecl->funcBody && funcDecl->funcBody->retType && funcDecl->funcBody->retType->GetTy();
+        result.name += hasRetType ? " : " + GetString(*funcDecl->funcBody->retType->GetTy()) : "";
     }
     if (varDecl) {
         result.name += GetVarDeclType(varDecl);

@@ -162,7 +162,7 @@ void StructuralRuleGEXP04::CheckSideEffect(Ptr<Cangjie::AST::Node> node)
                     continue;
                 }
                 auto funcArg = StaticCast<AST::FuncArg*>(arg.get());
-                if (funcArg->ty->IsNothing()) {
+                if (funcArg->GetTy()->IsNothing()) {
                     isNothingInArgs = true;
                 }
                 if (!isNothingInArgs && !isNotSameOrder) {

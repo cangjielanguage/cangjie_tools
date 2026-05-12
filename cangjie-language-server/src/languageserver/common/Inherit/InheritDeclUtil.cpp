@@ -145,12 +145,12 @@ void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
     if (inDecl->outerDecl->astKind == Cangjie::AST::ASTKind::EXTEND_DECL) {
         for (auto &item: classLikeOrStructDecl->inheritedTypes) {
             // LCOV_EXCL_START
-            if (item->ty->kind == TypeKind::TYPE_CLASS) {
-                auto superDecl = dynamic_cast<ClassTy *>(item->ty.get())->decl;
+            if (item->GetTy()->kind == TypeKind::TYPE_CLASS) {
+                auto superDecl = dynamic_cast<ClassTy *>(item->GetTy().get())->decl;
                 auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
                 HandleRelatedFuncDeclsFromTopLevel(realDecl, !isDocumentHighlight);
-            } else if (item->ty->kind == TypeKind::TYPE_INTERFACE) {
-                auto superDecl = dynamic_cast<InterfaceTy *>(item->ty.get())->decl;
+            } else if (item->GetTy()->kind == TypeKind::TYPE_INTERFACE) {
+                auto superDecl = dynamic_cast<InterfaceTy *>(item->GetTy().get())->decl;
                 auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
                 HandleRelatedFuncDeclsFromTopLevel(realDecl, !isDocumentHighlight);
             }
