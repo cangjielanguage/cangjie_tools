@@ -1,0 +1,1 @@
+{"id":239,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_local_var.cj\r\nPackage info: testUnusedSymbol\r\n\r\nvar unusedLocal: Int64 = 10\r\n"},"range":{"end":{"character":19,"line":10},"start":{"character":8,"line":10}}}}

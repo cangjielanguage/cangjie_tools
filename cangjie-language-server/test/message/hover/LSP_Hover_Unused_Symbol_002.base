@@ -1,0 +1,1 @@
+{"id":227,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_param.cj\r\nPackage info: testUnusedSymbol\r\n\r\nlet c: Int64\r\n"},"range":{"end":{"character":51,"line":13},"start":{"character":50,"line":13}}}}

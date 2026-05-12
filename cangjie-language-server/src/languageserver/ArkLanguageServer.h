@@ -178,6 +178,8 @@ private:
     void RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst,
         const std::string &uri);
 
+    void RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri);
+
     void HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
         const lsp::Symbol &sym, Range textEditRange, const std::string &uri);
 
