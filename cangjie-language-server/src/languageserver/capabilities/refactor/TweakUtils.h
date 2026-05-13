@@ -25,6 +25,14 @@ public:
 
     static bool CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode);
 
+    static Range GetCompleteExprRange(const SelectionTree &selectionTree);
+
+    static Ptr<FuncDecl> FindEnclosingFunc(const ArkAST &arkAst, const Range &range);
+
+    static Ptr<FuncDecl> GetTargetFunc(const SelectionTree &selectionTree, const ArkAST *arkAst, const Range &range);
+
+    static std::string GetSelectedExprTypeName(const SelectionTree &selectionTree, const Range &range);
+
     static Range FindGlobalInsertPos(const File &file, Range &range);
 
     static size_t FindTokenBoundaryPos(const std::string &text, const std::string &token);

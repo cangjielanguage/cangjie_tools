@@ -27,6 +27,8 @@ public:
 
 private:
     static std::unordered_map<std::string, Creator>& GetRegistry();
+
+    static std::vector<std::string>& GetRegisteredIds();
 };
 } // namespace ark
 

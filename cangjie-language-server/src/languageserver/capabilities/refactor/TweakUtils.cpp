@@ -7,6 +7,7 @@
 #include "TweakUtils.h"
 #include <algorithm>
 #include <cctype>
+#include <cangjie/AST/Walker.h>
 // LCOV_EXCL_START
 namespace ark {
 namespace {
@@ -332,6 +333,84 @@ bool TweakUtils::CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode
             return SelectionTree::WalkAction::WALK_CHILDREN;
         });
     return isValid;
+}
+
+Range TweakUtils::GetCompleteExprRange(const SelectionTree &selectionTree)
+{
+    Range range;
+    auto root = selectionTree.root();
+    if (!root || !root->node || root->selected != SelectionTree::Selection::Complete) {
+        return range;
+    }
+    range.start = root->node->begin;
+    range.end = root->node->end;
+    return range;
+}
+
+Ptr<FuncDecl> TweakUtils::FindEnclosingFunc(const ArkAST &arkAst, const Range &range)
+{
+    if (!arkAst.file || range.start == Position{0, 0, 0} || range.start == range.end) {
+        return nullptr;
+    }
+
+    Ptr<FuncDecl> result = nullptr;
+    for (auto &decl : arkAst.file->decls) {
+        if (!decl || decl->begin > range.start || decl->end < range.end) {
+            continue;
+        }
+        Walker(decl.get(), [&range, &result](auto node) {
+            if (!node || node->begin > range.start || node->end < range.end) {
+                return VisitAction::SKIP_CHILDREN;
+            }
+            auto funcDecl = DynamicCast<FuncDecl *>(node.get());
+            if (funcDecl && funcDecl->funcBody && funcDecl->funcBody->body
+                && funcDecl->funcBody->body->begin <= range.start && funcDecl->funcBody->body->end >= range.end) {
+                result = funcDecl;
+            }
+            return VisitAction::WALK_CHILDREN;
+        }).Walk();
+        if (result) {
+            break;
+        }
+    }
+    return result;
+}
+
+Ptr<FuncDecl> TweakUtils::GetTargetFunc(const SelectionTree &selectionTree, const ArkAST *arkAst, const Range &range)
+{
+    auto targetDecl = selectionTree.TargetDecl();
+    auto funcDecl = DynamicCast<FuncDecl *>(targetDecl.get());
+    if (!funcDecl && arkAst) {
+        funcDecl = FindEnclosingFunc(*arkAst, range);
+    }
+    if (!funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->body) {
+        return nullptr;
+    }
+    return funcDecl;
+}
+
+std::string TweakUtils::GetSelectedExprTypeName(const SelectionTree &selectionTree, const Range &range)
+{
+    std::string typeName;
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return typeName;
+    }
+    SelectionTree::Walk(root, [&range, &typeName](const SelectionTree::SelectionTreeNode *treeNode) {
+        if (!treeNode || !treeNode->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr() &&
+            treeNode->node->begin == range.start && treeNode->node->end == range.end) {
+            auto expr = DynamicCast<Expr *>(treeNode->node.get());
+            if (expr && expr->GetTy() && GetString(*expr->GetTy()) != "UnknownType") {
+                typeName = GetString(*expr->GetTy());
+            }
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return typeName;
 }
 
 Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)

@@ -39,7 +39,6 @@ namespace TestLspApplyEditTest {
 
         /* Check the test case result. */
         nlohmann::json expLines = ReadExpectedResult(param.baseFile);
-        ChangeApplyEditUrlForBaseFile(testFile, expLines, rootUri, isMultiModule);
         nlohmann::json result = ReadFileByMethod(p->pathOut, param.method);
 
         /* if case is diff show info */
@@ -49,7 +48,7 @@ namespace TestLspApplyEditTest {
             std::cout << "the false reason is : " << info << std::endl;
             ShowDiff(expLines, result, param, p->messagePath);
         }
-        return true;
+        return showErr;
     }
 
     class ApplyEditTest : public testing::TestWithParam<struct TestParam> {
