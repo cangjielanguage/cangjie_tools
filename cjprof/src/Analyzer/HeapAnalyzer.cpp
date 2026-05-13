@@ -724,6 +724,7 @@ bool HeapAnalyzer::StartReportServer(int port)
             ho.class_id = 0;
             ho.size = obj->size;
             ho.retained_size = obj->retainedSize;
+            ho.name = obj->name;
             for (auto ref : obj->outRef) {
                 ho.refs.push_back(ref);
             }

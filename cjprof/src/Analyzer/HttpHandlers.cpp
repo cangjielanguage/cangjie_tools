@@ -9,12 +9,15 @@ using json = nlohmann::json;
 namespace cjprof {
 
 static std::string getClassName(const HttpContext& ctx, uint64_t objectId) {
-    if (!ctx.objects || !ctx.classes) {
+    if (!ctx.objects) {
         return "unknown";
     }
 
     for (const auto& obj : *ctx.objects) {
         if (obj.object_id == objectId) {
+            if (!obj.name.empty()) {
+                return obj.name;
+            }
             if (obj.class_id == 0) {
                 switch (obj.category) {
                     case ObjectCategory::PRIMITIVE_ARRAY: return "PRIMITIVE_ARRAY";

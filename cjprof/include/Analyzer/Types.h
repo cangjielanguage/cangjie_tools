@@ -84,6 +84,7 @@ struct HeapObject {
     uint64_t retained_size = 0;
     std::vector<uint64_t> refs;
     ObjectCategory category = ObjectCategory::INSTANCE_OBJECT;
+    std::string name;
     bool is_pinned = false;
     bool is_large = false;
     bool is_unmovable = false;

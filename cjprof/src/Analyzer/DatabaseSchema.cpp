@@ -30,6 +30,7 @@ const char* DatabaseSchema::getCreateTablesSQL() {
             size INTEGER NOT NULL,
             address INTEGER NOT NULL,
             category INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
             is_pinned INTEGER NOT NULL DEFAULT 0,
             is_large INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (snapshot_id) REFERENCES snapshots(id),

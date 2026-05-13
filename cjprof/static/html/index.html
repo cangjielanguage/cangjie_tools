@@ -140,6 +140,25 @@
             border-radius: 2px;
         }
 
+        /* Dominance table */
+        .dominance-table {
+            width: 520px;
+            flex-shrink: 0;
+        }
+        .dominance-table table {
+            width: 100%;
+            font-size: 14px;
+        }
+        .dominance-table th,
+        .dominance-table td {
+            padding: 8px 10px;
+        }
+        .dominance-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Fragment layout */
         .fragment-grid {
             display: grid;
@@ -258,6 +277,19 @@
             overflow: auto;
             max-height: 600px;
         }
+        #tree-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        #tree-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #tree-container::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 2px;
+        }
+        #tree-container::-webkit-scrollbar-thumb:hover {
+            background: #e94560;
+        }
         #tree-view .node circle {
             cursor: pointer;
             stroke: #0f3460;
@@ -289,21 +321,25 @@
 
     <div class="content">
         <!-- Dominance Tree View -->
-        <div id="dominance-view" class="card">
-            <h2>Top Objects by Retained Size</h2>
-            <div style="margin-bottom:15px;">
-                <button class="view-btn active" data-view="sunburst">Sunburst</button>
-                <button class="view-btn" data-view="tree">Tree</button>
+        <div id="dominance-view" class="card" style="display: grid; grid-template-columns: 1fr 520px; gap: 15px 20px;">
+            <h2 style="margin:0; align-self: center;">Top Objects by Retained Size</h2>
+            <h2 style="margin:0; color:#e94560; font-size:1.17em; align-self: center;">Top 10 Objects</h2>
+            <div style="align-self: start; min-width: 0;">
+                <div style="margin-bottom:15px;">
+                    <button class="view-btn active" data-view="sunburst">Sunburst</button>
+                    <button class="view-btn" data-view="tree">Tree</button>
+                </div>
+                <div id="sunburst-container">
+                    <div id="sunburst"></div>
+                </div>
+                <div id="tree-container" style="display:none;">
+                    <div id="tree-view"></div>
+                </div>
+                <div class="sunburst-legend" id="sunburst-legend"></div>
             </div>
-            <div id="sunburst-container">
-                <div id="sunburst"></div>
+            <div class="dominance-table" style="align-self: start;">
+                <div id="top10-table"></div>
             </div>
-            <div id="tree-container" style="display:none;">
-                <div id="tree-view"></div>
-            </div>
-            <div class="sunburst-legend" id="sunburst-legend"></div>
-            <h3 style="margin-top:20px;color:#e94560;">Top Objects Table</h3>
-            <div id="top10-table"></div>
         </div>
 
         <!-- Memory Fragment View -->
@@ -318,7 +354,7 @@
     <div class="tooltip" id="tooltip" style="display:none;"></div>
 
     <script>
-        const API_BASE = 'http://localhost:8080/api';
+        const API_BASE = '/api';
         const COLOR_PALETTE = ['#e94560', '#00d9ff', '#ff9f43', '#10ac84', '#5f27cd', '#ee5a24', '#0abde3', '#f368e0', '#00d2d3', '#ff6b6b'];
 
         // Tab switching
@@ -747,6 +783,10 @@
             document.getElementById('tooltip').style.display = 'none';
         }
 
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         // Load top 10 objects
         async function loadTop10() {
             try {
@@ -758,11 +798,12 @@
                     return;
                 }
 
-                let html = '<table><tr><th>Rank</th><th>Type</th><th>Retained Size</th><th>Percentage</th></tr>';
+                let html = '<table style="table-layout:fixed;width:100%;"><colgroup><col style="width:45px;"><col><col style="width:130px;"><col style="width:110px;"><col style="width:70px;"></colgroup><tr><th>Rank</th><th>Type</th><th>Object ID</th><th>Retained Size</th><th>Percentage</th></tr>';
                 for (const item of data.items) {
                     html += `<tr>
                         <td>${item.rank}</td>
-                        <td>${item.type}</td>
+                        <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(item.type)}">${escapeHtml(item.type)}</td>
+                        <td>0x${item.object_id.toString(16)}</td>
                         <td>${formatBytes(item.retained_size)}</td>
                         <td>${item.percentage.toFixed(2)}%</td>
                     </tr>`;

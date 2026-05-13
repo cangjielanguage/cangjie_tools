@@ -91,7 +91,7 @@ bool DatabaseCache::save(const std::string& heapFilePath,
 
     // Insert objects
     {
-        if (!db.prepare("INSERT INTO objects (id, snapshot_id, class_id, size, address, category, is_pinned, is_large) VALUES (?, 1, ?, ?, ?, ?, ?, ?);")) {
+        if (!db.prepare("INSERT INTO objects (id, snapshot_id, class_id, size, address, category, name, is_pinned, is_large) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?);")) {
             db.execute("ROLLBACK;");
             return false;
         }
@@ -101,8 +101,9 @@ bool DatabaseCache::save(const std::string& heapFilePath,
             db.bindInt64(3, static_cast<int64_t>(obj.size));
             db.bindInt64(4, static_cast<int64_t>(obj.address));
             db.bindInt(5, static_cast<int>(obj.category));
-            db.bindInt(6, obj.is_pinned ? 1 : 0);
-            db.bindInt(7, obj.is_large ? 1 : 0);
+            db.bindText(6, obj.name);
+            db.bindInt(7, obj.is_pinned ? 1 : 0);
+            db.bindInt(8, obj.is_large ? 1 : 0);
             db.stepDone();
             db.reset();
         }
@@ -224,7 +225,7 @@ bool DatabaseCache::load(const std::string& heapFilePath,
 
     // Load objects
     {
-        if (!db.prepare("SELECT id, class_id, size, address, category, is_pinned, is_large FROM objects WHERE snapshot_id = 1;")) {
+        if (!db.prepare("SELECT id, class_id, size, address, category, name, is_pinned, is_large FROM objects WHERE snapshot_id = 1;")) {
             return false;
         }
         while (db.step()) {
@@ -234,8 +235,9 @@ bool DatabaseCache::load(const std::string& heapFilePath,
             obj.size = static_cast<uint64_t>(db.getColumnInt64(2));
             obj.address = static_cast<uint64_t>(db.getColumnInt64(3));
             obj.category = static_cast<ObjectCategory>(db.getColumnInt(4));
-            obj.is_pinned = db.getColumnInt(5) != 0;
-            obj.is_large = db.getColumnInt(6) != 0;
+            obj.name = db.getColumnText(5);
+            obj.is_pinned = db.getColumnInt(6) != 0;
+            obj.is_large = db.getColumnInt(7) != 0;
             objects.push_back(obj);
         }
         db.finalize();
