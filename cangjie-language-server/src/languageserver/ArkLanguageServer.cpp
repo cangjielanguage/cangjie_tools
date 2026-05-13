@@ -9,6 +9,7 @@
 #include <set>
 #include <mutex>
 #include <utility>
+#include <cctype>
 
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
@@ -1277,9 +1278,7 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
     }
     notification.uri.file = URI::URIFromAbsolutePath(file).ToString();
     ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(file);
-    if (MessageHeaderEndOfLine::GetIsDeveco()) {
-        AddDiagnosticQuickFix(diagnostics, arkAst, file);
-    }
+    AddDiagnosticQuickFix(diagnostics, arkAst, file);
     for (auto &diagnostic: diagnostics) {
         diagnostic.range = TransformFromIDE2Char(diagnostic.range);
         if (arkAst != nullptr) {
@@ -1310,6 +1309,9 @@ void ArkLanguageServer::AddDiagnosticQuickFix(std::vector<DiagnosticToken> &diag
         }
         if (diagnostic.diaFix->removeImport) {
             RemoveImportQuickFix(diagnostic, arkAst, uri);
+        }
+        if (diagnostic.diaFix->removeUnusedSymbol) {
+            RemoveUnusedSymbolQuickFix(diagnostic, arkAst, uri);
         }
     }
     ImportAllSymsCodeAction(diagnostics, uri);
@@ -1639,6 +1641,188 @@ void ArkLanguageServer::HandleExternalImportSym(std::vector<CodeAction> &actions
         actions.push_back(codeAction);
         return;
     }
+}
+
+struct RemoveUnusedContext {
+    const std::vector<Cangjie::Token> &tokens;
+    const Cangjie::AST::Node &node;
+    const std::string &uri;
+};
+
+static std::string GetSymbolKindDescription(ASTKind kind)
+{
+    switch (kind) {
+        case ASTKind::FUNC_DECL:
+            return "Function";
+        case ASTKind::VAR_DECL:
+            return "Variable";
+        case ASTKind::CLASS_DECL:
+            return "Class";
+        case ASTKind::STRUCT_DECL:
+            return "Struct";
+        case ASTKind::ENUM_DECL:
+            return "Enum";
+        case ASTKind::INTERFACE_DECL:
+            return "Interface";
+        case ASTKind::TYPE_ALIAS_DECL:
+            return "Type alias";
+        default:
+            return "Symbol";
+    }
+}
+
+static bool ProcessFuncParamDeleteRange(const FuncParam* funcParam, Range& deleteRange,
+    std::string& symbolKindDesc, const FuncBody* funcBody)
+{
+    symbolKindDesc = "Parameter";
+    deleteRange = {funcParam->begin, funcParam->end};
+
+    if (!funcBody || funcBody->paramLists.empty() || !funcBody->paramLists[0]) {
+        return true;
+    }
+
+    auto& params = funcBody->paramLists[0]->params;
+    size_t paramIndex = 0;
+    bool foundIndex = false;
+    for (size_t i = 0; i < params.size(); i++) {
+        if (params[i].get() == funcParam) {
+            paramIndex = i;
+            foundIndex = true;
+            break;
+        }
+    }
+
+    if (!foundIndex || params.size() <= 1) {
+        return true;
+    }
+
+    if (paramIndex < params.size() - 1) {
+        deleteRange = {funcParam->begin, params[paramIndex + 1]->begin};
+    } else {
+        deleteRange = {params[paramIndex - 1]->commaPos, funcParam->end};
+    }
+    return true;
+}
+
+static void ComputeDeclDeleteRange(const Decl* decl,
+    const MacroExpandDecl* parentMacroExpandDecl, Range& deleteRange)
+{
+    deleteRange = {decl->begin, decl->end};
+    if (decl->curMacroCall && !decl->isInMacroCall) {
+        auto inv = decl->curMacroCall->GetConstInvocation();
+        if (inv && !inv->atPos.IsZero()) {
+            deleteRange.start = inv->atPos;
+            deleteRange.end = decl->end;
+        } else {
+            deleteRange = {decl->curMacroCall->begin, decl->curMacroCall->end};
+        }
+    } else if (!decl->annotations.empty()) {
+        auto& firstAnno = decl->annotations.front();
+        if (firstAnno && firstAnno->astKind == ASTKind::ANNOTATION) {
+            deleteRange.start = firstAnno->begin;
+        }
+    } else if (decl->outerDecl && decl->outerDecl->astKind == ASTKind::MACRO_EXPAND_DECL) {
+        auto outerInv = decl->outerDecl->GetConstInvocation();
+        if (outerInv && !outerInv->atPos.IsZero()) {
+            deleteRange.start = outerInv->atPos;
+        } else {
+            deleteRange.start = decl->outerDecl->begin;
+        }
+    } else if (parentMacroExpandDecl) {
+        auto& pInv = parentMacroExpandDecl->invocation;
+        if (!pInv.atPos.IsZero()) {
+            deleteRange.start = pInv.atPos;
+        }
+    }
+}
+
+static void AddRemoveUnusedCodeAction(DiagnosticToken &diagnostic,
+    const RemoveUnusedContext &ctx, const Range &deleteRange,
+    const std::string &symbolName, const std::string &symbolKindDesc)
+{
+    std::string lowerKindDesc = symbolKindDesc;
+    if (!lowerKindDesc.empty()) {
+        lowerKindDesc[0] = std::tolower(static_cast<unsigned char>(lowerKindDesc[0]));
+    }
+
+    CodeAction codeAction;
+    codeAction.kind = CodeAction::QUICKFIX_REMOVE_UNUSED_SYMBOL;
+    codeAction.title = "Remove unused " + lowerKindDesc + " '" + symbolName + "'";
+
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    Range ideRange = deleteRange;
+    PositionUTF8ToIDE(ctx.tokens, ideRange.start, ctx.node);
+    PositionUTF8ToIDE(ctx.tokens, ideRange.end, ctx.node);
+    textEdit.range = TransformFromChar2IDE(ideRange);
+    textEdit.newText = "";
+    edit.changes[ctx.uri].push_back(textEdit);
+    codeAction.edit = edit;
+
+    if (diagnostic.codeActions.has_value()) {
+        diagnostic.codeActions.value().push_back(codeAction);
+    } else {
+        diagnostic.codeActions = {codeAction};
+    }
+}
+
+void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri)
+{
+    if (!arkAst || !arkAst->file) {
+        return;
+    }
+    
+    Range diagRange = TransformFromIDE2Char(diagnostic.range);
+    Range deleteRange = diagRange;
+    bool found = false;
+    std::string symbolName;
+    std::string symbolKindDesc;
+    const FuncBody* currentFuncBody = nullptr;
+
+    Ptr<const MacroExpandDecl> parentMacroExpandDecl = nullptr;
+
+    std::function<VisitAction(Ptr<const Node>)> finder = [&](Ptr<const Node> node) -> VisitAction {
+        if (auto funcBody = DynamicCast<const FuncBody*>(node)) {
+            currentFuncBody = funcBody;
+        }
+
+        if (auto macroExpand = DynamicCast<const MacroExpandDecl*>(node)) {
+            parentMacroExpandDecl = macroExpand;
+        }
+
+        auto decl = DynamicCast<const Decl*>(node);
+        if (!decl) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        
+        auto identifierPos = decl->GetIdentifierPos();
+        if (identifierPos.line != diagRange.start.line ||
+            identifierPos.column != diagRange.start.column) {
+            return VisitAction::WALK_CHILDREN;
+        }
+
+        symbolName = std::string(decl->identifier);
+
+        if (auto funcParam = DynamicCast<const FuncParam*>(node)) {
+            ProcessFuncParamDeleteRange(funcParam, deleteRange, symbolKindDesc, currentFuncBody);
+            found = true;
+            return VisitAction::STOP_NOW;
+        }
+
+        symbolKindDesc = GetSymbolKindDescription(decl->astKind);
+        ComputeDeclDeleteRange(decl, parentMacroExpandDecl, deleteRange);
+        found = true;
+        return VisitAction::STOP_NOW;
+    };
+    
+    ConstWalker(arkAst->file, finder).Walk();
+    
+    if (!found) {
+        return;
+    }
+
+    RemoveUnusedContext ctx{arkAst->tokens, *arkAst->file, uri};
+    AddRemoveUnusedCodeAction(diagnostic, ctx, deleteRange, symbolName, symbolKindDesc);
 }
 
 void ArkLanguageServer::OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id)
