@@ -1,49 +1,49 @@
-name: 缺陷反馈|Bug
-description: 当您发现了一个缺陷，需要向社区反馈时，请使用此模板。
+name: "缺陷反馈|Bug"
+description: "当您发现了一个缺陷，需要向社区反馈时，请使用此模板。 Please use this template when you find a bug and want to report it to the community."
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢对仓颉社区的支持与关注，欢迎反馈缺陷。
+        感谢对仓颉社区的支持与关注，欢迎反馈缺陷。 | Thanks for your support and attention to the community. We welcome feedback on any issues.
   - type: textarea
     attributes:
-      label: 发生了什么问题？
-      description: 提供尽可能多的信息描述产生了什么问题：
+      label: "发生了什么问题？ | Describe the issue that occurred."
+      description: "提供尽可能多的信息描述产生了什么问题： | Provide as much information as possible describing what issue occurred."
       placeholder: ""
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 期望行为是什么？
-      description: 描述期望行为或效果应如何：
+      label: "期望行为是什么？ | What is the expected behavior?"
+      description: "描述期望行为或效果应如何： | Describe what the expected behavior or effect should be."
       placeholder: ""
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 如何复现该缺陷
-      description: 提供尽可能多的信息描述如何复现该缺陷：
+      label: "如何复现该缺陷？ | How to reproduce the bug?"
+      description: "提供尽可能多的信息描述如何复现该缺陷： | Provide as much information as possible on how to reproduce the bug."
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 其他补充信息
-      description: 补充下其他您认为需要提供的信息：
+      label: "其他补充信息 | Additional information"
+      description: "补充下其他您认为需要提供的信息： | Add any other information you think is necessary to provide."
     validations:
       required: false
   - type: textarea
     attributes:
-      label: cjc版本信息
-      description: 请将cjc -v的输出结果以图片或者文字的形式填写在下方：
+      label: "cjc版本信息 | cjc version information"
+      description: "请将cjc -v的输出结果以图片或者文字的形式填写在下方： | Please provide the output of 'cjc -v' as text or an image below."
       placeholder: ""
     validations:
       required: true
   - type: checkboxes
     attributes:
-      label: 分支版本信息
-      description: 在哪些分支版本存在该缺陷？
+      label: "分支版本信息 | Branch version information"
+      description: "在哪些分支版本存在该缺陷？ | In which branch versions does this bug exist?"
       options:
         - label: dev
           required: false
