@@ -193,11 +193,21 @@ private:
     void NestedMacroComplete(const ArkAST &input, const Position &pos, const std::string &prefix,
                               CompletionEnv &env, Ptr<Expr> expr);
 
+    void CompleteByExpandDecl(const ArkAST &input, const Position &pos, const std::string &prefix,
+        CompletionEnv &env, Ptr<Expr> expr);
+
+    std::pair<Ptr<Node>, Ptr<NameReferenceExpr>> FindParseNameRefExpr(Ptr<Expr> expr,
+        std::vector<OwnedPtr<AST::Decl>> &decls);
+
+    std::pair<Ptr<Decl>, Ptr<NameReferenceExpr>> FindExpandedNameRefExpr(std::unique_ptr<LSPCompilerInstance> &ci,
+        Ptr<Node> originalMacroNode, Ptr<NameReferenceExpr> curParseExpr, std::string &content,
+        std::vector<OwnedPtr<AST::Decl>> &decls);
+
     void GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst,
         Ptr<Ty> &ty, Ptr<NameReferenceExpr> &resExpr);
 
     void CompleteByReferenceTarget(const Position &pos, const std::string &prefix, CompletionEnv &env,
-        const Ptr<Expr> &expr, const Ptr<NameReferenceExpr> &resExpr);
+        const Ptr<Expr> &expr, std::string &scopeName);
 
     Ptr<Ty> GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst);
 

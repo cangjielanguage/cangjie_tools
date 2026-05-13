@@ -180,71 +180,134 @@ void DotCompleterByParse::NestedMacroComplete(const ArkAST &input, const Positio
         // notify client need wait macro expand
         callback->PublishCompletionTip(tipItem);
     }
+    CompleteByExpandDecl(input, pos, prefix, env, expr.get());
+}
 
+void DotCompleterByParse::CompleteByExpandDecl(const ArkAST &input, const Position &pos, const std::string &prefix,
+    CompletionEnv &env, Ptr<Expr> expr)
+{
+    std::string filePath = Normalize(input.semaCache->file->filePath);
     std::string content = CompilerCangjieProject::GetInstance()->GetContentByFile(input.semaCache->file->filePath);
     if (content.empty()) {
         return;
     }
-    std::unique_ptr<ArkAST> newSemaCache = nullptr;
 
     // Compile the file that use before file content of enter "."
     auto ci = CompilerCangjieProject::GetInstance()->GetCIForDotComplete(filePath, pos, content);
-    if (!ci) {
-        return;
-    }
-    if (ci->GetSourcePackages().empty()) {
-        return;
-    }
-    auto pkg = ci->GetSourcePackages().front();
-    if (!pkg) {
-        return;
-    }
-    auto pkgInstance = std::make_unique<PackageInstance>(ci->diag, *ci->importManager);
-    if (!pkgInstance) {
-        return;
-    }
-    pkgInstance->package = pkg;
-    pkgInstance->ctx = nullptr;
-
-    for (auto &file : pkg->files) {
-        if (!file || file->filePath != input.semaCache->file->filePath) {
+    OwnedPtr<Decl> targetDecl{};
+    for (auto &file : ci->GetSourcePackages()[0]->files) {
+        if (file->filePath != filePath) {
             continue;
         }
-        std::pair<std::string, std::string> paths = { file->filePath, content };
-        auto arkAST = std::make_unique<ArkAST>(paths, file.get(), ci->diag,
-            pkgInstance.get(), &ci->GetSourceManager());
-        std::string absName = FileStore::NormalizePath(file->filePath);
-        auto fileId = ci->GetSourceManager().TryGetFileID(absName);
-        if (fileId) {
-            arkAST->fileID = fileId.value_or(0);
+        for (auto &decl : file->decls) {
+            if (decl->begin <= pos && decl->end >= pos) {
+                targetDecl = std::move(decl);
+                break;
+            }
         }
-        newSemaCache = std::move(arkAST);
         break;
     }
 
-    if (!newSemaCache || !newSemaCache->file || newSemaCache->file->originalMacroCallNodes.empty()) {
+    auto &semaCI = CompilerCangjieProject::GetInstance()->pLRUCache->Get(input.file->curPackage->fullPackageName);
+    auto decls = semaCI->ExpandDecl(std::move(targetDecl));
+    // macro expand failed
+    if (decls.empty()) {
         return;
     }
-    Ptr<Ty> ty;
-    Ptr<NameReferenceExpr> resExpr;
-    GetTyFromMacroCallNodes(expr, std::move(newSemaCache), ty, resExpr);
-    if (!ty) {
+
+    auto [originalMacroNode, curParseExpr] = FindParseNameRefExpr(expr, decls);
+    if (!originalMacroNode || !curParseExpr) {
         return;
     }
-    if (Ty::IsTyCorrect(ty)) {
-        std::unordered_set<Ptr<AST::Ty>> tys = {ty};
-        Candidate candidate(tys);
-        CompleteCandidate(pos, prefix, env, candidate);
+
+    auto [includeDecl, expandedExpr] = FindExpandedNameRefExpr(ci, originalMacroNode, curParseExpr, content, decls);
+
+    if (!includeDecl || !expandedExpr) {
         return;
     }
-    if (!resExpr) {
-        return;
+    std::string scopeName = "a";
+    bool isInclude = true;
+    DeepFind(includeDecl, expandedExpr->begin, scopeName, isInclude);
+
+    CompleteByReferenceTarget(pos, prefix, env, expr, scopeName);
+}
+
+std::pair<Ptr<Node>, Ptr<NameReferenceExpr>> DotCompleterByParse::FindParseNameRefExpr(Ptr<Expr> expr,
+    std::vector<OwnedPtr<AST::Decl>> &decls)
+{
+    Ptr<Node> originalMacroNode{};
+    for (auto &decl : decls) {
+        if (decl && decl->curMacroCall &&
+            decl->curMacroCall->begin <= expr->begin &&
+            decl->curMacroCall->end >= expr->end) {
+            originalMacroNode = decl->curMacroCall;
+            break;
+        }
     }
-    CompleteByReferenceTarget(pos, prefix, env, expr, resExpr);
+
+    // node not in macro expand
+    if (!originalMacroNode) {
+        return {};
+    }
+
+    Ptr<NameReferenceExpr> curParseExpr{};
+    auto findParseExpr = [&expr, &curParseExpr](Ptr<Node> node) {
+        if (auto nre = DynamicCast<NameReferenceExpr>(node)) {
+            if (nre->begin == expr->begin && nre->end == expr->end) {
+                curParseExpr = nre;
+                return VisitAction::STOP_NOW;
+            }
+        }
+        return VisitAction::WALK_CHILDREN;
+    };
+
+    Walker(originalMacroNode, findParseExpr).Walk();
+    return {originalMacroNode, curParseExpr};
+}
+
+std::pair<Ptr<Decl>, Ptr<NameReferenceExpr>> DotCompleterByParse::FindExpandedNameRefExpr(
+    std::unique_ptr<LSPCompilerInstance> &ci, Ptr<Node> originalMacroNode, Ptr<NameReferenceExpr> curParseExpr,
+    std::string &content, std::vector<OwnedPtr<AST::Decl>>& decls)
+{
+    std::pair<std::string, std::string> paths = {curParseExpr->curFile->filePath, content};
+    auto dummyAST = std::make_unique<ArkAST>(paths, nullptr, ci->diag, nullptr, &ci->GetSourceManager());
+    dummyAST->fileID = curParseExpr->begin.fileID;
+
+    auto nextTokenPos = GetMacroNodeNextPosition(dummyAST, curParseExpr);
+    auto nrecroBeginPos = originalMacroNode->GetMacroCallNewPos(curParseExpr->begin);
+    auto nreNextTokenPos = originalMacroNode->GetMacroCallNewPos(nextTokenPos);
+
+    Ptr<NameReferenceExpr> expandedExpr;
+    auto searchExpandedExpr = [&nrecroBeginPos, &nreNextTokenPos, &expandedExpr](auto node) {
+        if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
+            if (ma->begin == nrecroBeginPos && (nreNextTokenPos.IsZero() || ma->end <= nreNextTokenPos)) {
+                expandedExpr = ma;
+                return VisitAction::STOP_NOW;
+            }
+        }
+        return VisitAction::WALK_CHILDREN;
+    };
+
+    Ptr<Decl> includeDecl{};
+    for (auto &decl : decls) {
+        if (decl) {
+            Walker(decl, searchExpandedExpr).Walk();
+        }
+        if (expandedExpr) {
+            includeDecl = decl.get();
+            break;
+        }
+    }
+
+    if (!expandedExpr) {
+        return {};
+    }
+
+    return {includeDecl, expandedExpr};
 }
 
 void DotCompleterByParse::CompleteByReferenceTarget(const Position &pos, const std::string &prefix, CompletionEnv &env,
-    const Ptr<Expr> &expr, const Ptr<NameReferenceExpr> &resExpr)
+    const Ptr<Expr> &expr, std::string &scopeName)
 {
     std::string comPrefix = prefix;
     if (comPrefix.empty()) {
@@ -252,16 +315,16 @@ void DotCompleterByParse::CompleteByReferenceTarget(const Position &pos, const s
             if (auto re = DynamicCast<RefExpr *>(tc->expr.get())) {
                 comPrefix = re->ref.identifier;
             }
-            bool hasLocalDecl = CheckHasLocalDecl(comPrefix, resExpr->scopeName, tc, pos);
+            bool hasLocalDecl = CheckHasLocalDecl(comPrefix, scopeName, tc, pos);
             Candidate declOrTy = CompilerCangjieProject::GetInstance()->GetGivenReferenceTarget(
-                *context, resExpr->scopeName, *tc, hasLocalDecl, packageNameForPath);
+                *context, scopeName, *tc, hasLocalDecl, packageNameForPath);
             CompleteCandidate(pos, prefix, env, declOrTy);
             return;
         }
     }
-    bool hasLocalDecl = CheckHasLocalDecl(comPrefix, resExpr->scopeName, expr.get(), pos);
+    bool hasLocalDecl = CheckHasLocalDecl(comPrefix, scopeName, expr.get(), pos);
     Candidate declOrTy = CompilerCangjieProject::GetInstance()->GetGivenReferenceTarget(
-        *context, resExpr->scopeName, *expr, hasLocalDecl, packageNameForPath);
+        *context, scopeName, *expr, hasLocalDecl, packageNameForPath);
     CompleteCandidate(pos, prefix, env, declOrTy);
 }
 
