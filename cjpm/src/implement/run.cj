@@ -137,7 +137,17 @@ func getCmdStr(envMap: HashMap<String, String>, exeTool: String, args: ArrayList
     }
     res += "${exeTool}"
     if (!args.isEmpty()) {
-        res += " ${String.join(args.toArray(), delimiter: " ")}"
+        let formattedArgs = ArrayList<String>()
+        for (arg in args) {
+            if (arg.isEmpty()) {
+                formattedArgs.add("\"\"")
+            } else if (arg.contains(",") || arg.contains(" ")) {
+                formattedArgs.add("\"${arg}\"")
+            } else {
+                formattedArgs.add(arg)
+            }
+        }
+        res += " ${String.join(formattedArgs.toArray(), delimiter: " ")}"
     }
     res += envPatch
 

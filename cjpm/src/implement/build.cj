@@ -40,6 +40,7 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
     (buildConfig.globalConfig.targetDir, buildConfig.globalConfig.nativeDir) = setFinalTargetDirectory(
         buildConfig.globalConfig, buildConfig.isCrossCompile, buildConfig.isDebug, buildConfig.mockSupported)
     prepareBuild(buildConfig, curResolveData)
+    keepPkgVisibilityPkgCheck(buildConfig)
     appendNativeData(buildConfig, curResolveData)
 
     if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
@@ -271,12 +272,35 @@ func handleCombineAllDeps(buildConfig: BuildConfig, tomlInfo: TomlInfo): Bool {
         return false
     }
 
-    if (!tomlInfo.profile.build.ltoValue.isEmpty()) {
+    if (tomlInfo.profile.build.ltoValue.isEmpty() && tomlInfo.profile.build.lto.level.isEmpty() &&
+        tomlInfo.profile.build.lto.keepPkgVisibility.isSome()) {
+        eprintln("Error: field 'keep-pkg-visibility' of '[profile.build.lto]' is not supported when lto is disabled")
+        return false
+    }
+
+    if (!tomlInfo.profile.build.ltoValue.isEmpty() || !tomlInfo.profile.build.lto.level.isEmpty()) {
         buildConfig.isLto = supportLto()
         if (!buildConfig.isLto) {
-            println("Warning: configuration failed, field 'profile.build.lto' settings only support compilation for Linux/OHOS")
+            println("Warning: configuration failed, field 'profile.build.lto' " +
+                "settings only support compilation for Linux/OHOS")
         }
-        buildConfig.ltoValue = tomlInfo.profile.build.ltoValue
+        if (!tomlInfo.profile.build.ltoValue.isEmpty()) {
+            println("Warning: The string-type 'lto' under 'profile.build' will be deprecated. " +
+                "Please use the struct-type 'lto' to enable LTO functionality. For details, refer to the user guide.")
+        }
+        buildConfig.ltoValue = if (!tomlInfo.profile.build.lto.level.isEmpty()) { 
+            tomlInfo.profile.build.lto.level 
+        } else { 
+            tomlInfo.profile.build.ltoValue 
+        }
+        buildConfig.keepPkgVisibility = tomlInfo.profile.build.lto.keepPkgVisibility ?? None
+        if (let Some(keepPkgs) <- buildConfig.keepPkgVisibility) {
+            for (fullName in keepPkgs) {
+                if (!keepPkgVisibilityNameCheck(fullName)) {
+                    return false
+                }
+            }
+        }
     }
 
     if (supportLto() && buildConfig.globalConfig.isProjectCombine && buildConfig.ltoValue.isEmpty()) {
@@ -942,8 +966,11 @@ func getTypeCommand(compileTask: CompileTask): ArrayList<String> {
 
 
     if (compileTask.isLto) {
-        assertion { compileTask.outputType == Static || compileTask.outputType == Exe }
         res.add("--lto=${compileTask.ltoValue}")
+        if (compileTask.outputType == Dynamic && compileTask.keepPkgVisibility.isSome()) {
+            let keepPkgVisibilityStr = String.join(compileTask.keepPkgVisibility.getOrThrow(), delimiter: ",")
+            res.add(all: extractOptionByString("--lto-keep-pkg-visibility=\"${keepPkgVisibilityStr}\""))
+        }
     }
 
     res.add("--output-type=${compileTask.outputType.asCompilerArg}")
@@ -1104,20 +1131,10 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
     let compileTarget = compileTask.target
     addForcedLibArgs(res, otherBinOptions, compileTarget)
 
-    // forced-add std dynamic libs
-    if (let Some(stdLinks) <- addStdLibsLink(compileTarget)) {
-        res.add(all: stdLinks)
-    } else {
-        println("Warning: cannot find std dynamic libraries for target '${compileTarget}' " +
-            "from $CANGJIE_HOME/runtime/lib while compiling combine package ${compileTask.fullName}, " +
-            "output may be invalid if sub packages import std libraries")
-    }
-
     let cLibLinkMap = if (compileTask.isCrossCompile) {
         buildConfig.globalConfig.crossCLibLinkMap
     } else { buildConfig.globalConfig.cLibLinkMap }
     res.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
-    res.add("--lto=${buildConfig.ltoValue}")
 
     return res
 }
@@ -1251,8 +1268,23 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     return res
 }
 
-@When[os == "Linux" || os == "Windows"]
-func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
+func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
+    cLibNameList: ArrayList<String>): ArrayList<String> {
+    let compileTarget = if (crossCompileTarget.isEmpty()) {
+        targetConfigName
+    } else {
+        crossCompileTarget
+    }
+
+    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
+        return getForcedBinDepForMac(compileTask, buildConfig, binDepSet, cLibNameList)
+    } else {
+        return getForcedBinDepForLinuxOrWin(compileTask, buildConfig, binDepSet, cLibNameList)
+    }
+}
+
+func getForcedBinDepForLinuxOrWin(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
+    cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
     binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask.isLto), at: 0)
     binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask.isLto), at: 0)
@@ -1263,8 +1295,8 @@ func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepS
     return binOptions
 }
 
-@When[os == "macOS"]
-func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
+
+func getForcedBinDepForMac(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
 
     let cLibLinkMap = if (compileTask.isCrossCompile) {
@@ -1300,7 +1332,6 @@ func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepS
     return binOptions
 }
 
-@When[os == "macOS"]
 func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet<String>, isLto: Bool): ArrayList<String> {
     let libPathSet = ArrayList<String>()
     for ((_, eachModuleDepMap) in binDepMap) {

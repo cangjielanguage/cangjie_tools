@@ -487,6 +487,7 @@ public open class CommandConfig {
     public var customizedOption: HashSet<String> = HashSet<String>()
     public var isLto: Bool = false
     public var ltoValue: String = ""
+    public var keepPkgVisibility: Option<Array<String>> = None
     public var isDebug: Bool = false
     public var memberModule: String = ""
 }
@@ -1038,6 +1039,7 @@ public struct CompileTask {
         // A value of `--lto` flag to be passed to a compiler
         public let isLto!: Bool = false,
         public let ltoValue!: String = "",
+        public let keepPkgVisibility!: Option<Array<String>> = None,
         // Locations of `*.chir` and `*.cjo` of each source set, the current one depends on
         // 0 - CHIR file with declarations to be merged for multiplatform build
         // 1 - The value of `--common-part-cjo` for multiplatform build
@@ -1081,13 +1083,25 @@ public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayLis
     return res
 }
 
-@When[os == "Linux" || os == "Windows"]
 public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+    
+    let compileTarget = if (crossCompileTarget.isEmpty()) {
+        targetConfigName
+    } else {
+        crossCompileTarget
+    }
+    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
+        return forcedLinkPackageForMac(libName, libPath, isLto)
+    } else {
+        return forcedLinkPackageForLinuxOrWin(libName, libPath, isLto)
+    }
+}
+
+public func forcedLinkPackageForLinuxOrWin(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
     return linkPackage(libName, libPath, isLto)
 }
 
-@When[os == "macOS"]
-public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+public func forcedLinkPackageForMac(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
     var res = ArrayList<String>()
     let staticLibPath = Path(libPath).join(makeCangjieStaticlibName(libName)).toString()
     let dyLibPath = Path(libPath).join("lib${libName}.dylib").toString()
