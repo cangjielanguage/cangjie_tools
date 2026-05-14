@@ -19,6 +19,7 @@
 - 仓颉静态检查工具（简称 `cjlint`）：基于仓颉语言编程规范开发的静态检查工具，通过它可以识别代码中不符合编程规范的问题，帮助开发者发现代码中的漏洞，写出满足要求的仓颉代码。
 - 仓颉覆盖率工具（简称 `cjcov`）：基于仓颉语言编程规范开发的代码覆盖率工具。
 - 仓颉异常堆栈信息还原工具（简称 `cjtrace-recover`）：帮助开发者还原混淆过的异常堆栈信息，从而更好地定位和排查问题原因。
+- 仓颉性能分析工具（简称 `cjprof`）：帮助开发者进行代码性能分析。
 
 仓颉语言命令行工具链当前支持在如下平台运行：Windows x86-64、Linux x86-64/AArch64、Mac x86/arm64，鸿蒙平台正在开发中。
 
@@ -53,6 +54,10 @@
 │   ├── build                 # 构建脚本
 │   ├── doc                   # 构建指南和使用指南
 │   └── src                   # 源码
+├── cjprof
+│   ├── build                 # 构建脚本
+│   ├── doc                   # 构建指南和使用指南
+│   └── src                   # 源码
 └── hyperlangExtension
     ├── build            # 构建脚本
     ├── doc              # 构建指南和使用指南
@@ -70,6 +75,7 @@
 - [`cjcov` 系统架构图](./cjcov/doc/developer_guide_zh.md#开源项目介绍)
 - [`cjlint` 系统架构图](./cjlint/doc/developer_guide_zh.md#开源项目介绍)
 - [`cjtrace-recover` 系统架构图](./cjtrace-recover/doc/developer_guide_zh.md#开源项目介绍)
+- [`cjprof` 系统架构图](./cjprof/doc/developer_guide_zh.md#开源项目介绍)
 
 ## 构建依赖
 
