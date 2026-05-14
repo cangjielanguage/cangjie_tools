@@ -74,9 +74,6 @@ namespace test::common {
     void ChangeMessageUrlForBaseFile(const std::string &testFilePath, nlohmann::json &resultBase, std::string &rootUri,
                                      bool &isMultiModule);
 
-    void ChangeApplyEditUrlForBaseFile(const std::string &testFilePath, nlohmann::json &resultBase, std::string &rootUri,
-        bool &isMultiModule);
-
     void HandleCjdExpLines(nlohmann::json &expLines);
 
     std::string GetRealPath(const std::string &fileName);

@@ -977,43 +977,6 @@ namespace test::common {
         }
     }
 
-    void ChangeApplyEditUrlForBaseFile(const std::string &testFilePath, nlohmann::json &resultBase, std::string &rootUri,
-        bool &isMultiModule)
-    {
-        std::ifstream infile;
-        std::string message;
-        std::string caseFolder;
-        infile.open(testFilePath);
-        if (infile.is_open() && infile.good() && !infile.eof()) {
-            char buf[MAX_LEN] = {0};
-            infile.getline(buf, MAX_LEN);
-            message = std::string(buf);
-            if (message.length() == 0) {
-                return;
-            }
-            std::pair<std::string, std::string> caseAndBinaryFolder = GetCaseAndBinaryFolder(message);
-            caseFolder = caseAndBinaryFolder.first;
-            infile.close();
-        }
-        std::string projectPath = SingleInstance::GetInstance()->workPath + "/test/testChr/" + caseFolder;
-        if (resultBase.empty() || !resultBase.contains("params") || !resultBase["params"].contains("edit")) {
-            return;
-        }
-        if (resultBase["params"]["edit"]["changes"].empty()) {
-            return;
-        }
-        if (resultBase["params"]["edit"]["changes"].is_object()) {
-            nlohmann::json newJson;
-            std::map<std::string, nlohmann::json> newMap;
-            for (const auto &[key, value] : resultBase["params"]["edit"]["changes"].items()) {
-                std::string newKey = ChangeMessageUrlOfString(projectPath, key, rootUri, isMultiModule);
-                newMap[newKey] = value;
-            }
-            newJson["params"]["edit"]["changes"] = newMap;
-            resultBase = newJson;
-        }
-    }
-
     void HandleCjdExpLines(nlohmann::json &expLines) {
         if (expLines.contains("result") && expLines["result"].contains("uri") && !expLines["result"]["uri"].empty()) {
             auto rawUri = expLines["result"].value("uri", "");

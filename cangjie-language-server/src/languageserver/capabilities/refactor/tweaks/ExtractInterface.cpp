@@ -15,6 +15,7 @@
 #include "cangjie/Utils/FileUtil.h"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <sstream>
@@ -29,6 +30,7 @@ constexpr size_t JSON_ESCAPE_RESERVE_EXTRA = 4;
 constexpr const char *INTERFACE_MEMBER_INDENT = "    ";
 constexpr const char *INHERITED_MEMBER_PREFIX = "<:";
 constexpr const char *FILE_URI_PREFIX = "file:/";
+constexpr const char *DOC_COMMENT_PREFIX = "/**";
 
 enum class TargetKind {
     CLASS,
@@ -59,7 +61,6 @@ struct InterfaceInfo {
     };
 
     std::string name;
-    std::string typeComment;
     std::string genericParams;
     std::string genericWhereClause;
     std::vector<std::string> inheritedTypes;
@@ -99,7 +100,6 @@ struct ApplyContext {
     bool renameOriginalClass = false;
     bool hasExplicitInterfaceName = false;
     bool withImplementation = true;
-    bool useInterfaceWherePossible = true;
 };
 
 struct TextMutation {
@@ -109,8 +109,6 @@ struct TextMutation {
 };
 
 void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context);
-std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindLeadingCommentsRange(
-    const Cangjie::AST::Decl &decl);
 
 std::string GetVisibility(const Cangjie::AST::Decl &decl)
 {
@@ -187,6 +185,11 @@ void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup>
             if (text.empty()) {
                 continue;
             }
+            auto first = text.find_first_not_of(" \t\r\n");
+            if (first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
+                DOC_COMMENT_PREFIX) == 0) {
+                continue;
+            }
             if (!result.empty() && result.back() != '\n') {
                 result.push_back('\n');
             }
@@ -227,89 +230,6 @@ void AppendMemberJson(std::string &membersJson,
     first = false;
     membersJson += "{\"signature\":\"" + EscapeJsonString(signature) + "\",\"isStatic\":" +
         std::string(isStatic ? "true" : "false") + ",\"visibility\":\"" + EscapeJsonString(visibility) + "\"}";
-}
-
-void AddLeadingCommentRemoval(const Cangjie::AST::Decl &containerDecl,
-                              const Cangjie::AST::Decl &commentedDecl,
-                              SourceManager *sm,
-                              const std::string &classText,
-                              std::vector<TextMutation> &mutations)
-{
-    auto commentRange = FindLeadingCommentsRange(commentedDecl);
-    if (!commentRange.has_value()) {
-        return;
-    }
-
-    std::string prefixText = sm->GetContentBetween(containerDecl.GetBegin(), commentRange->first);
-    std::string commentText = sm->GetContentBetween(commentRange->first, commentRange->second);
-    if (commentText.empty()) {
-        return;
-    }
-
-    size_t start = prefixText.size();
-    size_t end = start + commentText.size();
-    std::string gapText = sm->GetContentBetween(commentRange->second, commentedDecl.GetBegin());
-    bool whitespaceOnly = std::all_of(gapText.begin(), gapText.end(), [](unsigned char ch) {
-        return std::isspace(ch) != 0;
-    });
-    if (whitespaceOnly) {
-        end += gapText.size();
-    }
-    if (start < end && end <= classText.size()) {
-        mutations.push_back({start, end, ""});
-    }
-}
-
-std::optional<TextEdit> BuildRemoveLeadingCommentsEdit(const Cangjie::AST::Decl &decl)
-{
-    if (decl.comments.leadingComments.empty()) {
-        return std::nullopt;
-    }
-    Cangjie::Position begin = Cangjie::INVALID_POSITION;
-    Cangjie::Position end = Cangjie::INVALID_POSITION;
-    for (const auto &group : decl.comments.leadingComments) {
-        for (const auto &comment : group.cms) {
-            const auto &cBegin = comment.info.Begin();
-            const auto &cEnd = comment.info.End();
-            if (begin.IsZero() || cBegin < begin) {
-                begin = cBegin;
-            }
-            if (end.IsZero() || end < cEnd) {
-                end = cEnd;
-            }
-        }
-    }
-    if (begin.IsZero() || end.IsZero()) {
-        return std::nullopt;
-    }
-    Range removeRange{begin, end};
-    removeRange = TransformFromChar2IDE(removeRange);
-    return TextEdit{removeRange, ""};
-}
-
-std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindLeadingCommentsRange(const Cangjie::AST::Decl &decl)
-{
-    if (decl.comments.leadingComments.empty()) {
-        return std::nullopt;
-    }
-    Cangjie::Position begin = Cangjie::INVALID_POSITION;
-    Cangjie::Position end = Cangjie::INVALID_POSITION;
-    for (const auto &group : decl.comments.leadingComments) {
-        for (const auto &comment : group.cms) {
-            const auto &cBegin = comment.info.Begin();
-            const auto &cEnd = comment.info.End();
-            if (begin.IsZero() || cBegin < begin) {
-                begin = cBegin;
-            }
-            if (end.IsZero() || end < cEnd) {
-                end = cEnd;
-            }
-        }
-    }
-    if (begin.IsZero() || end.IsZero()) {
-        return std::nullopt;
-    }
-    return std::make_pair(begin, end);
 }
 
 std::optional<TargetDecl> BuildClassTargetDecl(Cangjie::AST::ClassDecl *decl)
@@ -718,7 +638,7 @@ std::optional<std::string> ParseInheritedMemberSignature(const std::string &sign
     if (text.rfind(INHERITED_MEMBER_PREFIX, 0) != 0) {
         return std::nullopt;
     }
-    std::string typeName = Trim(text.substr(2));
+    std::string typeName = Trim(text.substr(std::strlen(INHERITED_MEMBER_PREFIX)));
     if (typeName.empty()) {
         return std::nullopt;
     }
@@ -740,16 +660,6 @@ std::string NormalizeTypeNameForCompare(std::string name)
         name = name.substr(dotPos + 1);
     }
     return Trim(name);
-}
-
-bool IsSameTypeName(const std::string &lhs, const std::string &rhs)
-{
-    std::string lhsTrim = Trim(lhs);
-    std::string rhsTrim = Trim(rhs);
-    if (lhsTrim == rhsTrim) {
-        return true;
-    }
-    return NormalizeTypeNameForCompare(lhsTrim) == NormalizeTypeNameForCompare(rhsTrim);
 }
 
 std::string ResolveInheritedTypeText(const Ptr<Type> &inherited, SourceManager *sm)
@@ -874,6 +784,81 @@ std::string NormalizeTargetPath(const std::map<std::string, std::string> &option
     return FileStore::NormalizePath(targetPath);
 }
 
+std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableLeadingCommentsRange(
+    const Cangjie::AST::Decl &decl)
+{
+    if (decl.comments.leadingComments.empty()) {
+        return std::nullopt;
+    }
+
+    Cangjie::Position begin = Cangjie::INVALID_POSITION;
+    Cangjie::Position end = Cangjie::INVALID_POSITION;
+    for (const auto &group : decl.comments.leadingComments) {
+        for (const auto &comment : group.cms) {
+            std::string text = comment.info.Value();
+            auto first = text.find_first_not_of(" \t\r\n");
+            if (first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
+                DOC_COMMENT_PREFIX) == 0) {
+                continue;
+            }
+
+            const auto &cBegin = comment.info.Begin();
+            const auto &cEnd = comment.info.End();
+            if (begin.IsZero() || cBegin < begin) {
+                begin = cBegin;
+            }
+            if (end.IsZero() || end < cEnd) {
+                end = cEnd;
+            }
+        }
+    }
+    if (begin.IsZero() || end.IsZero()) {
+        return std::nullopt;
+    }
+    return std::make_pair(begin, end);
+}
+
+std::string ToLowerAscii(std::string text)
+{
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return text;
+}
+
+std::string ToSnakeCaseFileName(const std::string &name)
+{
+    std::string result;
+    result.reserve(name.size());
+    bool previousIsUnderscore = false;
+    bool previousIsLowerOrDigit = false;
+    for (size_t i = 0; i < name.size(); ++i) {
+        unsigned char ch = static_cast<unsigned char>(name[i]);
+        if (std::isalnum(ch) == 0) {
+            if (!result.empty() && !previousIsUnderscore) {
+                result.push_back('_');
+                previousIsUnderscore = true;
+            }
+            previousIsLowerOrDigit = false;
+            continue;
+        }
+        bool isUpper = std::isupper(ch) != 0;
+        bool isLower = std::islower(ch) != 0;
+        bool isDigit = std::isdigit(ch) != 0;
+        bool nextIsLower = i + 1 < name.size() && std::islower(static_cast<unsigned char>(name[i + 1])) != 0;
+        if (isUpper && !result.empty() && !previousIsUnderscore && (previousIsLowerOrDigit || nextIsLower)) {
+            result.push_back('_');
+        }
+        result.push_back(static_cast<char>(std::tolower(ch)));
+        previousIsUnderscore = false;
+        previousIsLowerOrDigit = isLower || isDigit;
+    }
+    while (!result.empty() && result.back() == '_') {
+        result.pop_back();
+    }
+    return result.empty() ? ToLowerAscii(name) : result;
+}
+
 std::string ResolveTargetFilePath(const std::string &targetPath, const std::string &interfaceName)
 {
     if (targetPath.empty()) {
@@ -883,7 +868,7 @@ std::string ResolveTargetFilePath(const std::string &targetPath, const std::stri
         return targetPath;
     }
     return FileStore::NormalizePath(
-        Cangjie::FileUtil::JoinPath(targetPath, interfaceName + ".cj"));
+        Cangjie::FileUtil::JoinPath(targetPath, ToSnakeCaseFileName(interfaceName) + ".cj"));
 }
 
 bool IsValidPackageName(const std::string &packageName)
@@ -919,14 +904,6 @@ std::string ResolveTargetPackageName(const std::string &targetPath)
     return IsValidPackageName(packageName) ? packageName : "";
 }
 
-std::string ToLowerAscii(std::string text)
-{
-    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return text;
-}
-
 std::string ResolveRenameImplementationTargetPath(const Tweak::Selection &sel,
                                                   const std::string &targetPath,
                                                   const std::string &implementationClassName)
@@ -942,7 +919,7 @@ std::string ResolveRenameImplementationTargetPath(const Tweak::Selection &sel,
         return "";
     }
     return FileStore::NormalizePath(
-        Cangjie::FileUtil::JoinPath(baseDir, ToLowerAscii(implementationClassName) + ".cj"));
+        Cangjie::FileUtil::JoinPath(baseDir, ToSnakeCaseFileName(implementationClassName) + ".cj"));
 }
 
 void CollectClassInterfaceInheritedTypesForRename(const Cangjie::AST::ClassDecl &decl,
@@ -964,6 +941,35 @@ void CollectClassInterfaceInheritedTypesForRename(const Cangjie::AST::ClassDecl 
             continue;
         }
         if (seen.insert(typeName).second) {
+            inheritedTypes.push_back(std::move(typeName));
+        }
+    }
+}
+
+void CollectInterfaceInheritedTypesForExtract(const Cangjie::AST::InheritableDecl &decl,
+                                              const Tweak::Selection &sel,
+                                              const std::unordered_set<std::string> &selectedInheritedTypes,
+                                              std::vector<std::string> &inheritedTypes)
+{
+    SourceManager *sm = sel.arkAst ? sel.arkAst->sourceManager : nullptr;
+    if (!sm) {
+        return;
+    }
+
+    std::unordered_set<std::string> seen;
+    for (const auto &inherited : decl.inheritedTypes) {
+        if (!IsInterfaceInheritedType(inherited)) {
+            continue;
+        }
+        std::string typeName = ResolveInheritedTypeText(inherited, sm);
+        if (typeName.empty()) {
+            continue;
+        }
+        std::string normalized = NormalizeTypeNameForCompare(typeName);
+        if (!selectedInheritedTypes.count(normalized)) {
+            continue;
+        }
+        if (seen.insert(normalized).second) {
             inheritedTypes.push_back(std::move(typeName));
         }
     }
@@ -1451,6 +1457,27 @@ std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceM
     return TextEdit{range, "public"};
 }
 
+std::optional<TextEdit> BuildInternalToPublicEdit(const FuncDecl &func, SourceManager *sm)
+{
+    if (!sm || !func.TestAttr(Cangjie::AST::Attribute::INTERNAL)) {
+        return std::nullopt;
+    }
+
+    Cangjie::Position headerBegin = func.GetBegin();
+    Cangjie::Position nameBegin = func.identifier.Begin();
+    std::string header = sm->GetContentBetween(headerBegin, nameBegin);
+    size_t pos = TweakUtils::FindTokenBoundaryPos(header, "internal");
+    if (pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    Cangjie::Position start = TweakUtils::PositionAtOffset(headerBegin, header, pos);
+    Cangjie::Position end = TweakUtils::PositionAtOffset(headerBegin, header, pos + std::string("internal").size());
+    Range range{start, end};
+    range = TransformFromChar2IDE(range);
+    return TextEdit{range, "public"};
+}
+
 std::optional<TextEdit> BuildDefaultVisibilityToPublicEdit(const FuncDecl &func, SourceManager *sm)
 {
     if (!sm) {
@@ -1786,9 +1813,20 @@ public:
     }
 };
 
-void AddPrivateMemberRemovalEdit(const FuncDecl &func, std::vector<TextEdit> &edits)
+void AddPrivateMemberRemovalEdit(const FuncDecl &func, SourceManager *sm, std::vector<TextEdit> &edits)
 {
-    Range removeRange = {func.GetBegin(), func.GetEnd()};
+    Cangjie::Position begin = func.GetBegin();
+    auto commentRange = FindTransferableLeadingCommentsRange(func);
+    if (commentRange.has_value()) {
+        std::string gapText = sm ? sm->GetContentBetween(commentRange->second, func.GetBegin()) : "";
+        bool whitespaceOnly = std::all_of(gapText.begin(), gapText.end(), [](unsigned char ch) {
+            return std::isspace(ch) != 0;
+        });
+        if (whitespaceOnly) {
+            begin = commentRange->first;
+        }
+    }
+    Range removeRange = {begin, func.GetEnd()};
     removeRange = TransformFromChar2IDE(removeRange);
     edits.push_back({removeRange, ""});
 }
@@ -1815,6 +1853,12 @@ bool AddConcreteVisibilityEdits(const FuncDecl &func,
     auto protectedEdit = BuildProtectedToPublicEdit(func, sm);
     if (protectedEdit.has_value()) {
         request.edits.push_back(std::move(*protectedEdit));
+        return false;
+    }
+
+    auto internalEdit = BuildInternalToPublicEdit(func, sm);
+    if (internalEdit.has_value()) {
+        request.edits.push_back(std::move(*internalEdit));
         return false;
     }
 
@@ -1879,14 +1923,9 @@ void CollectSelectedMemberEdits(FuncDecl &func,
                                 bool fromInterface,
                                 bool allowRedef)
 {
-    auto removeLeadingComments = BuildRemoveLeadingCommentsEdit(func);
-    if (removeLeadingComments.has_value()) {
-        request.edits.push_back(std::move(*removeLeadingComments));
-    }
-
     bool isStatic = func.TestAttr(Cangjie::AST::Attribute::STATIC);
     if (func.TestAttr(Cangjie::AST::Attribute::PRIVATE)) {
-        AddPrivateMemberRemovalEdit(func, request.edits);
+        AddPrivateMemberRemovalEdit(func, sm, request.edits);
         return;
     }
 
@@ -1895,6 +1934,9 @@ void CollectSelectedMemberEdits(FuncDecl &func,
     }
 
     bool handledDefaultVisibility = AddVisibilityEdits(func, sm, request, fromInterface, isStatic);
+    if (func.TestAttr(Cangjie::AST::Attribute::INTERNAL)) {
+        handledDefaultVisibility = false;
+    }
     AddOverrideOrRedefEdit(func, sm, request, allowRedef, handledDefaultVisibility);
 }
 
@@ -2000,12 +2042,6 @@ std::string BuildInterfaceHeaderText(const InterfaceInfo &info, const std::strin
     if (!packageName.empty()) {
         text += "package " + packageName + "\n\n";
     }
-    if (!info.typeComment.empty()) {
-        text += info.typeComment;
-        if (text.back() != '\n') {
-            text += "\n";
-        }
-    }
     text += "public interface " + info.name + info.genericParams;
     if (!info.inheritedTypes.empty()) {
         text += " <: ";
@@ -2083,7 +2119,6 @@ void AddImplementationMemberMutations(const ApplyContext &context,
         if (!extractedMembers.count(signature) && !extractedMembers.count(TweakUtils::NormalizeSignature(signature))) {
             continue;
         }
-        AddLeadingCommentRemoval(decl, *func, sm, classText, mutations);
         if (!func->TestAttr(Cangjie::AST::Attribute::STATIC)) {
             continue;
         }
@@ -2178,7 +2213,7 @@ bool ExtractInterface::Prepare(const Tweak::Selection &sel)
     std::string membersJson = "[";
     bool first = true;
     for (const auto &typeName : inheritedTypeMembers) {
-        AppendMemberJson(membersJson, first, "<: " + typeName, false, "public");
+        AppendMemberJson(membersJson, first, std::string(INHERITED_MEMBER_PREFIX) + " " + typeName, false, "public");
     }
     for (const auto &meta : info.metas) {
         AppendMemberJson(membersJson, first, meta.signature, meta.isStatic, meta.visibility);
@@ -2192,10 +2227,18 @@ std::string BuildInterfaceDeclText(const InterfaceInfo &info,
                                    const std::string &packageName,
                                    bool withMethodBodies)
 {
+    const size_t doubleNewLineLength = std::string("\n\n").size();
     std::string text = BuildInterfaceHeaderText(info, packageName);
     auto metaMap = BuildMemberMetaMap(info);
 
+    bool firstMember = true;
     for (const auto &member : info.members) {
+        if (!firstMember &&
+            (text.size() < doubleNewLineLength ||
+             text.substr(text.size() - doubleNewLineLength) != "\n\n")) {
+            text += "\n";
+        }
+        firstMember = false;
         const InterfaceInfo::MemberMeta *meta = nullptr;
         auto it = metaMap.find(member);
         if (it != metaMap.end()) {
@@ -2222,7 +2265,6 @@ std::string BuildImplementationClassText(const ApplyContext &context)
     }
 
     std::vector<TextMutation> mutations;
-    AddLeadingCommentRemoval(decl, decl, sm, classText, mutations);
     AddImplementationMemberMutations(context, classText, mutations);
     ApplyTextMutations(classText, mutations);
     RenameImplementationClass(classText, decl, context.implementationClassName);
@@ -2258,7 +2300,9 @@ struct ClassInheritUpdate {
     std::unordered_set<std::string> keptNormalized;
 };
 
-ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl, SourceManager *sm)
+ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl,
+                                             SourceManager *sm,
+                                             const std::unordered_set<std::string> &absorbedInterfaces)
 {
     ClassInheritUpdate update;
     for (auto &ty : decl.inheritedTypes) {
@@ -2272,7 +2316,10 @@ ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl
         update.last = ty->GetEnd();
 
         if (IsInterfaceInheritedType(ty)) {
-            continue;
+            std::string name = ResolveInheritedTypeText(ty, sm);
+            if (!name.empty() && absorbedInterfaces.count(NormalizeTypeNameForCompare(name)) != 0) {
+                continue;
+            }
         }
         std::string name = ResolveInheritedTypeText(ty, sm);
         if (name.empty()) {
@@ -2286,13 +2333,20 @@ ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl
     return update;
 }
 
-TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
-                                        SourceManager *sm,
-                                        const InterfaceInfo &info)
+std::unordered_set<std::string> BuildAbsorbedInterfaceSet(const InterfaceInfo &info)
 {
-    TextEdit edit;
-    auto update = CollectClassInheritUpdate(decl, sm);
-    std::string interfaceTypeName = info.name + info.genericParams;
+    std::unordered_set<std::string> absorbedInterfaces;
+    for (const auto &inheritedType : info.inheritedTypes) {
+        std::string normalized = NormalizeTypeNameForCompare(inheritedType);
+        if (!normalized.empty()) {
+            absorbedInterfaces.insert(std::move(normalized));
+        }
+    }
+    return absorbedInterfaces;
+}
+
+void AddInterfaceTypeIfNeeded(ClassInheritUpdate &update, const std::string &interfaceTypeName)
+{
     std::string newNameNorm = NormalizeTypeNameForCompare(interfaceTypeName);
     if (!newNameNorm.empty() && update.keptNormalized.insert(newNameNorm).second) {
         update.keptTypes.push_back(interfaceTypeName);
@@ -2300,6 +2354,17 @@ TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
     if (update.keptTypes.empty()) {
         update.keptTypes.push_back(interfaceTypeName);
     }
+}
+
+TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
+                                        SourceManager *sm,
+                                        const InterfaceInfo &info)
+{
+    TextEdit edit;
+    auto absorbedInterfaces = BuildAbsorbedInterfaceSet(info);
+    auto update = CollectClassInheritUpdate(decl, sm, absorbedInterfaces);
+    std::string interfaceTypeName = info.name + info.genericParams;
+    AddInterfaceTypeIfNeeded(update, interfaceTypeName);
 
     if (!update.hasRealInherited || update.first.IsZero() || update.last.IsZero()) {
         return BuildInsertAtDeclTail(decl, sm, " <: " + interfaceTypeName);
@@ -2311,6 +2376,16 @@ TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
     edit.range = where;
     edit.newText = std::move(replacedText);
     return edit;
+}
+
+bool IsSameTypeName(const std::string &lhs, const std::string &rhs)
+{
+    std::string lhsTrim = Trim(lhs);
+    std::string rhsTrim = Trim(rhs);
+    if (lhsTrim == rhsTrim) {
+        return true;
+    }
+    return NormalizeTypeNameForCompare(lhsTrim) == NormalizeTypeNameForCompare(rhsTrim);
 }
 
 bool AlreadyInheritsInterface(Cangjie::AST::InheritableDecl &decl,
@@ -2371,10 +2446,7 @@ TextEdit InsertImplementsClause(Cangjie::AST::InheritableDecl &decl,
     }
     auto *sm = sel.arkAst->sourceManager;
 
-    if (dynamic_cast<Cangjie::AST::ClassDecl *>(&decl) != nullptr) {
-        return BuildClassImplementsClauseEdit(decl, sm, info);
-    }
-    return BuildGeneralImplementsClauseEdit(decl, sm, info);
+    return BuildClassImplementsClauseEdit(decl, sm, info);
 }
 
 TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
@@ -2385,35 +2457,20 @@ TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
         return TextEdit{};
     }
     auto *sm = sel.arkAst->sourceManager;
+
     std::string interfaceTypeName = info.name + info.genericParams;
-    for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
-            continue;
-        }
-        if (IsSameTypeName(ResolveInheritedTypeText(ty, sm), interfaceTypeName)) {
-            return TextEdit{};
-        }
-    }
+    auto update = CollectClassInheritUpdate(decl, sm, BuildAbsorbedInterfaceSet(info));
+    AddInterfaceTypeIfNeeded(update, interfaceTypeName);
 
-    bool hasRealInherited = false;
-    Cangjie::Position tail = Cangjie::INVALID_POSITION;
-    for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
-            continue;
-        }
-        hasRealInherited = true;
-        tail = ty->GetEnd();
-    }
-
-    if (!hasRealInherited || tail.IsZero()) {
+    if (!update.hasRealInherited || update.first.IsZero() || update.last.IsZero()) {
         return BuildInsertAtDeclTail(decl, sm, " <: " + interfaceTypeName);
     }
 
-    Range where = {tail, tail};
+    Range where = {update.first, update.last};
     where = TransformFromChar2IDE(where);
     TextEdit edit;
     edit.range = where;
-    edit.newText = " & " + interfaceTypeName;
+    edit.newText = JoinTypes(update.keptTypes);
     return edit;
 }
 
@@ -2509,7 +2566,6 @@ void InitializeApplyContext(ApplyContext &context)
     context.chosen = ParseSelectedMembers(context.sel.extraOptions);
     context.selectedInheritedTypes = ParseSelectedInheritedMemberTypes(context.chosen);
     context.withImplementation = ParseBoolOption(context.sel.extraOptions, "withImplementation", true);
-    context.useInterfaceWherePossible = ParseBoolOption(context.sel.extraOptions, "useInterfaceWherePossible", true);
     if (context.renameOriginalClass) {
         context.withImplementation = true;
     }
@@ -2520,11 +2576,22 @@ void CollectApplyInterfaceInfo(ApplyContext &context)
     CollectMembersFromTarget(context.target, context.sel, context.info);
 
     if (context.renameOriginalClass && context.target.classDecl) {
-        context.info.typeComment = ExtractDeclCommentText(*context.target.classDecl);
         CollectClassInterfaceInheritedTypesForRename(
             *context.target.classDecl, context.sel, context.info.inheritedTypes);
+    } else if (context.target.classDecl) {
+        CollectInterfaceInheritedTypesForExtract(
+            *context.target.classDecl, context.sel, context.selectedInheritedTypes, context.info.inheritedTypes);
+    } else if (context.target.interfaceDecl) {
+        CollectInterfaceInheritedTypesForExtract(
+            *context.target.interfaceDecl, context.sel, context.selectedInheritedTypes, context.info.inheritedTypes);
     } else if (context.target.kind != TargetKind::CLASS) {
-        CollectInheritedTypesFromTarget(context.target, context.sel, context.info.inheritedTypes);
+        std::vector<std::string> inheritedTypes;
+        CollectInheritedTypesFromTarget(context.target, context.sel, inheritedTypes);
+        for (auto &typeName : inheritedTypes) {
+            if (context.selectedInheritedTypes.count(NormalizeTypeNameForCompare(typeName))) {
+                context.info.inheritedTypes.push_back(std::move(typeName));
+            }
+        }
     }
 }
 
@@ -2593,35 +2660,6 @@ void AddImplementationImportsAndInheritance(ApplyContext &context)
     }
 }
 
-void AddInheritedInterfaceEdits(ApplyContext &context)
-{
-    if (context.target.kind != TargetKind::CLASS) {
-        return;
-    }
-
-    auto inheritedInterfaces = CollectDirectInheritedInterfaceDecls(*context.target.classDecl);
-    for (auto *inheritedInterface : inheritedInterfaces) {
-        if (!inheritedInterface || inheritedInterface->identifier.Val() == context.info.name) {
-            continue;
-        }
-        if (!context.selectedInheritedTypes.empty()) {
-            std::string inheritedName = NormalizeTypeNameForCompare(inheritedInterface->identifier.Val());
-            if (!context.selectedInheritedTypes.count(inheritedName)) {
-                continue;
-            }
-        }
-        if (!inheritedInterface->curFile || inheritedInterface->curFile->filePath.empty()) {
-            continue;
-        }
-        auto interfaceEdit = InsertImplementsClause(*inheritedInterface, context.sel, context.info);
-        if (interfaceEdit.newText.empty()) {
-            continue;
-        }
-        std::string inheritedUri = URI::URIFromAbsolutePath(inheritedInterface->curFile->filePath).ToString();
-        context.effect.applyEdits[inheritedUri].push_back(std::move(interfaceEdit));
-    }
-}
-
 void AddSelectedMemberEdits(ApplyContext &context)
 {
     if (context.chosen.empty()) {
@@ -2637,16 +2675,37 @@ void AddSelectedMemberEdits(ApplyContext &context)
     CollectSelectedEditsFromTarget(context.target, request);
 }
 
+Cangjie::AST::Decl *ResolveTypeReplacementTargetDecl(const TargetDecl &target)
+{
+    switch (target.kind) {
+        case TargetKind::CLASS:
+            return target.classDecl;
+        case TargetKind::STRUCT:
+            return target.structDecl;
+        case TargetKind::INTERFACE:
+            return target.interfaceDecl;
+        case TargetKind::ENUM:
+            return target.enumDecl;
+        case TargetKind::EXTEND:
+            if (!target.extendDecl || !target.extendDecl->extendedType) {
+                return nullptr;
+            }
+            return target.extendDecl->extendedType->GetTarget();
+        default:
+            return nullptr;
+    }
+}
+
 void AddTypeReferenceReplacementEdits(ApplyContext &context)
 {
-    if (context.target.kind != TargetKind::CLASS || !context.target.classDecl ||
-        context.info.name.empty() || !context.useInterfaceWherePossible) {
+    auto *replacementTarget = ResolveTypeReplacementTargetDecl(context.target);
+    if (!replacementTarget || context.info.name.empty()) {
         return;
     }
 
     TypeReplacementContext replacementContext{
         context.sel,
-        *context.target.classDecl,
+        *replacementTarget,
         context.info.name,
         context.targetPath.empty() ? context.sel.arkAst->file->filePath : context.targetPath,
         BuildAllowedMemberNames(context.info.members),
@@ -2679,7 +2738,6 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
         {},
         false,
         false,
-        true,
         true
     };
     context.sourceUri = URI::URIFromAbsolutePath(sel.arkAst->file->filePath).ToString();
@@ -2689,6 +2747,7 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
     FilterSelectedMembers(context);
 
     if (ApplyRenameOriginalClassEdits(context)) {
+        AddTypeReferenceReplacementEdits(context);
         return context.effect;
     }
 
@@ -2698,7 +2757,6 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
     }
 
     AddImplementationImportsAndInheritance(context);
-    AddInheritedInterfaceEdits(context);
     AddSelectedMemberEdits(context);
     AddTypeReferenceReplacementEdits(context);
     return context.effect;

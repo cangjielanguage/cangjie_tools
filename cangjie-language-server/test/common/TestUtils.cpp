@@ -8,53 +8,79 @@
 #include "SingleInstance.h"
 
 namespace {
-bool CheckCommandArguments(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                            std::string &reason, int i)
+std::string NormalizeTestFileUri(const std::string &uri)
 {
-    if (!exp[i].command->arguments.begin()->extraOptions.empty() && !act[i].command->arguments.begin()->extraOptions.empty()) {
-        const auto& expMap = exp[i].command->arguments.begin()->extraOptions;
-        const auto& actMap = act[i].command->arguments.begin()->extraOptions;
+    auto loc = uri.find("test/testChr");
+    if (loc == std::string::npos) {
+        return uri;
+    }
+    return uri.substr(loc);
+}
+
+bool CheckCommandArguments(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
+                           std::string &reason, int expIndex, int actIndex)
+{
+    if (!exp[expIndex].command->arguments.begin()->extraOptions.empty() &&
+        !act[actIndex].command->arguments.begin()->extraOptions.empty()) {
+        const auto& expMap = exp[expIndex].command->arguments.begin()->extraOptions;
+        const auto& actMap = act[actIndex].command->arguments.begin()->extraOptions;
         auto expIt = expMap.find("ErrorCode");
         auto actIt = actMap.find("ErrorCode");
         if (expIt == expMap.end() && actIt == actMap.end()) {
             return true;
         } else if (expIt == expMap.end() || actIt == actMap.end()) {
-            reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
+            reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+                " command.arguments.extraOptions is different";
             return false;
         } else if (expIt->second != actIt->second) {
-            reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
+            reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+                " command.arguments.extraOptions is different";
             return false;
         }
     }
     return true;
-}                           
+}
 
 bool CheckCodeActionCommand(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                            std::string &reason, int i)
+                            std::string &reason, int expIndex, int actIndex)
 {
-    if (exp[i].command->command != act[i].command->command) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.command is different";
+    if (exp[expIndex].command->command != act[actIndex].command->command) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " command.command is different";
         return false;
     }
-    if (exp[i].command->title != act[i].command->title) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.title is different";
+    if (exp[expIndex].command->title != act[actIndex].command->title) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " command.title is different";
         return false;
     }
-    if (exp[i].command->arguments.size() != act[i].command->arguments.size()) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments count is different";
+    if (exp[expIndex].command->arguments.size() != act[actIndex].command->arguments.size()) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+            " command.arguments count is different";
         return false;
     }
-    if (exp[i].command->arguments.begin()->range != act[i].command->arguments.begin()->range) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.range count is different";
+    if (exp[expIndex].command->arguments.begin()->range != act[actIndex].command->arguments.begin()->range) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+            " command.arguments.range count is different";
         return false;
     }
-    bool extraCheck = (!exp[i].command->arguments.begin()->extraOptions.empty() && act[i].command->arguments.begin()->extraOptions.empty())
-                        || (exp[i].command->arguments.begin()->extraOptions.empty() && !act[i].command->arguments.begin()->extraOptions.empty());
+    if (exp[expIndex].command->arguments.begin()->uri != act[actIndex].command->arguments.begin()->uri) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " command.arguments.uri is different";
+        return false;
+    }
+    if (exp[expIndex].command->arguments.begin()->tweakId != act[actIndex].command->arguments.begin()->tweakId) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+            " command.arguments.tweakID is different";
+        return false;
+    }
+    bool extraCheck = (!exp[expIndex].command->arguments.begin()->extraOptions.empty() &&
+                       act[actIndex].command->arguments.begin()->extraOptions.empty()) ||
+        (exp[expIndex].command->arguments.begin()->extraOptions.empty() &&
+         !act[actIndex].command->arguments.begin()->extraOptions.empty());
     if (extraCheck) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command.arguments.extraOptions is different";
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) +
+            " command.arguments.extraOptions is different";
         return false;
     }
-    if (!CheckCommandArguments(exp, act, reason, i)) {
+    if (!CheckCommandArguments(exp, act, reason, expIndex, actIndex)) {
         return false;
     }
     return true;
@@ -177,23 +203,23 @@ std::vector<ark::CodeAction> CreateCodeActionStruct(const nlohmann::json& exp)
 }
 
 bool CompareCodeAction(std::vector<ark::CodeAction> &exp, std::vector<ark::CodeAction>& act,
-                        std::string &reason, int i)
+                       std::string &reason, int expIndex, int actIndex)
 {
-    if (exp[i].kind != act[i].kind) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " kind is different";
+    if (exp[expIndex].kind != act[actIndex].kind) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " kind is different";
         return false;
     }
-    if (exp[i].title != act[i].title) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " title is different";
+    if (exp[expIndex].title != act[actIndex].title) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " title is different";
         return false;
     }
 
-    if (exp[i].command.has_value() && act[i].command.has_value()) {
-        if (!CheckCodeActionCommand(exp, act, reason, i)) {
+    if (exp[expIndex].command.has_value() && act[actIndex].command.has_value()) {
+        if (!CheckCodeActionCommand(exp, act, reason, expIndex, actIndex)) {
             return false;
         }
-    } else if (!exp[i].command.has_value() || !act[i].command.has_value()) {
-        reason = "the expect and actual CodeAction " + std::to_string(i) + " command is different";
+    } else if (!exp[expIndex].command.has_value() || !act[actIndex].command.has_value()) {
+        reason = "the expect and actual CodeAction " + std::to_string(expIndex) + " command is different";
         return false;
     }
     return true;
@@ -209,20 +235,29 @@ bool CheckCodeActionResult(const nlohmann::json& expect, const nlohmann::json& a
     std::vector<ark::CodeAction> exp = CreateCodeActionStruct(expect);
     std::vector<ark::CodeAction> act = CreateCodeActionStruct(actual);
 
-    std::sort(exp.begin(), exp.end(), [](const ark::CodeAction &a, const ark::CodeAction &b) {
-        return a.title < b.title;
-    });
-    std::sort(act.begin(), act.end(), [](const ark::CodeAction &a, const ark::CodeAction &b) {
-        return a.title < b.title;
-    });
-
     if (!CheckResultCount(exp, act, false)) {
         reason = "expect and actual CodeAction number is different";
         return false;
     }
 
+    std::vector<bool> matched(act.size(), false);
     for (int i = 0; i < exp.size(); i++) {
-        if (!CompareCodeAction(exp, act, reason, i)) {
+        bool found = false;
+        std::string lastReason;
+        for (int j = 0; j < act.size(); j++) {
+            if (matched[j]) {
+                continue;
+            }
+            std::string currentReason;
+            if (CompareCodeAction(exp, act, currentReason, i, j)) {
+                matched[j] = true;
+                found = true;
+                break;
+            }
+            lastReason = std::move(currentReason);
+        }
+        if (!found) {
+            reason = lastReason.empty() ? "expect CodeAction " + std::to_string(i) + " has no match" : lastReason;
             return false;
         }
     }
@@ -248,7 +283,7 @@ ark::ApplyWorkspaceEditParams CreateApplyEditStruct(const nlohmann::json& exp)
             textEdit.newText = item["newText"];
             textEdits.push_back(std::move(textEdit));
         }
-        result.edit.changes[key] = textEdits;
+        result.edit.changes[NormalizeTestFileUri(key)] = textEdits;
     }
     return result;
 }
@@ -318,7 +353,7 @@ ark::Range CreateRangeStruct(const nlohmann::json &exp) {
 std::set<ark::ExecutableRange> CreateExecutableRangeStruct(const nlohmann::json &exp) {
     std::set<ark::ExecutableRange> result;
     ark::ExecutableRange executableRange;
-    executableRange.uri = GetFileUrl(exp.value("uri", ""));
+    executableRange.uri = NormalizeTestFileUri(GetFileUrl(exp.value("uri", exp.value("file", ""))));
     executableRange.projectName = exp.value("projectName", "");
     executableRange.packageName = exp.value("packageName", "");
     executableRange.className = exp.value("className", "");
