@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CJProf - Heap Analyzer</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -111,16 +111,6 @@
             width: 600px;
             height: 600px;
         }
-        #sunburst path {
-            stroke: #1a1a2e;
-            stroke-width: 1px;
-            cursor: pointer;
-        }
-        #sunburst text {
-            font-size: 10px;
-            fill: #eee;
-            pointer-events: none;
-        }
         .sunburst-legend {
             display: flex;
             flex-wrap: wrap;
@@ -203,27 +193,6 @@
             color: #888;
         }
 
-        /* Tooltip */
-        .tooltip {
-            position: absolute;
-            background: #16213e;
-            border: 1px solid #e94560;
-            border-radius: 6px;
-            padding: 10px 14px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .tooltip .tip-title {
-            font-weight: bold;
-            color: #e94560;
-            margin-bottom: 4px;
-        }
-        .tooltip .tip-value {
-            color: #00d9ff;
-        }
-
         /* View toggle buttons */
         .view-btn {
             background: #0f3460;
@@ -245,33 +214,7 @@
             border-color: #e94560;
         }
 
-        /* Treemap */
-        #treemap-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-        #treemap {
-            width: 100%;
-            height: 500px;
-        }
-        #treemap rect {
-            stroke: #1a1a2e;
-            stroke-width: 1px;
-            cursor: pointer;
-        }
-        #treemap rect:hover {
-            stroke: #e94560;
-            stroke-width: 2px;
-        }
-        #treemap text {
-            font-size: 11px;
-            fill: #fff;
-            pointer-events: none;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-        }
-
-        /* Collapsible Tree View (Section 9.3: Incremental Loading) */
+        /* Tree View */
         #tree-container {
             width: 100%;
             overflow: auto;
@@ -290,22 +233,9 @@
         #tree-container::-webkit-scrollbar-thumb:hover {
             background: #e94560;
         }
-        #tree-view .node circle {
-            cursor: pointer;
-            stroke: #0f3460;
-            stroke-width: 2px;
-        }
-        #tree-view .node circle:hover {
-            stroke: #e94560;
-        }
-        #tree-view .node text {
-            font-size: 11px;
-            fill: #eee;
-        }
-        #tree-view .link {
-            fill: none;
-            stroke: #0f3460;
-            stroke-width: 1.5px;
+        #tree-view {
+            width: 100%;
+            height: 600px;
         }
     </style>
 </head>
@@ -351,11 +281,17 @@
         </div>
     </div>
 
-    <div class="tooltip" id="tooltip" style="display:none;"></div>
-
     <script>
         const API_BASE = '/api';
         const COLOR_PALETTE = ['#e94560', '#00d9ff', '#ff9f43', '#10ac84', '#5f27cd', '#ee5a24', '#0abde3', '#f368e0', '#00d2d3', '#ff6b6b'];
+
+        let currentView = 'sunburst';
+        let cachedRoot = null;
+        let loadedChildren = new Map();
+        let treeNodeMap = new Map();
+        let sunburstChart = null;
+        let treeChart = null;
+        let treeRootData = null;
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -364,16 +300,12 @@
                 tab.classList.add('active');
 
                 const tabName = tab.dataset.tab;
-                document.getElementById('dominance-view').style.display = tabName === 'dominance' ? 'block' : 'none';
+                document.getElementById('dominance-view').style.display = tabName === 'dominance' ? 'grid' : 'none';
                 document.getElementById('fragment-view').style.display = tabName === 'fragment' ? 'block' : 'none';
             });
         });
 
-        // View switching (Sunburst/Treemap/Tree)
-        let currentView = 'sunburst';
-        let cachedRoot = null;
-        let loadedChildren = new Map(); // Section 9.3: Cache for incremental loading
-
+        // View switching (Sunburst/Tree)
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -383,11 +315,17 @@
                 document.getElementById('sunburst-container').style.display = currentView === 'sunburst' ? 'flex' : 'none';
                 document.getElementById('tree-container').style.display = currentView === 'tree' ? 'block' : 'none';
 
+                if (currentView === 'sunburst' && sunburstChart) {
+                    sunburstChart.resize();
+                } else if (currentView === 'tree' && treeChart) {
+                    treeChart.resize();
+                }
+
                 if (cachedRoot) {
                     if (currentView === 'sunburst') {
                         drawSunburst(cachedRoot);
                     } else if (currentView === 'tree') {
-                        if (loadedChildren.size === 0) {
+                        if (!treeChart) {
                             initTreeView();
                         }
                     }
@@ -451,336 +389,274 @@
         }
 
         function drawSunburst(root) {
-            const container = document.getElementById('sunburst-container');
-            const width = 600;
-            const height = 600;
-            const radius = Math.min(width, height) / 2;
-
-            // Clear previous
-            d3.select('#sunburst').selectAll('*').remove();
-
-            const svg = d3.select('#sunburst')
-                .append('svg')
-                .attr('viewBox', `0 0 ${width} ${height}`)
-                .append('g')
-                .attr('transform', `translate(${width / 2}, ${height / 2})`);
-
-            const partition = d3.partition().size([2 * Math.PI, radius]);
-            const rootHierarchy = d3.hierarchy(root)
-                .sum(d => d.children && d.children.length === 0 ? d.retained_size : 0)
-                .sort((a, b) => b.value - a.value);
-
-            partition(rootHierarchy);
-
-            const arc = d3.arc()
-                .startAngle(d => d.x0)
-                .endAngle(d => d.x1)
-                .innerRadius(d => d.y0)
-                .outerRadius(d => d.y1 - 1);
-
-            const color = d3.scaleOrdinal().range(COLOR_PALETTE);
-            let colorIndex = 0;
-            const classColors = new Map();
-
-            function getColor(d) {
-                const key = d.data.class_name || `obj${d.data.id}`;
-                if (!classColors.has(key)) {
-                    classColors.set(key, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
-                }
-                return classColors.get(key);
+            if (!sunburstChart) {
+                sunburstChart = echarts.init(document.getElementById('sunburst'));
             }
 
-            const paths = svg.selectAll('path')
-                .data(rootHierarchy.descendants())
-                .enter()
-                .append('path')
-                .attr('d', arc)
-                .attr('fill', d => d.depth === 0 ? '#e94560' : getColor(d))
-                .attr('fill-opacity', d => d.depth === 0 ? 1 : 0.85)
-                .on('mouseover', function(event, d) {
-                    showTooltip(event, d);
-                    d3.select(this).attr('fill-opacity', 1);
-                })
-                .on('mouseout', function(event, d) {
-                    hideTooltip();
-                    d3.select(this).attr('fill-opacity', d.depth === 0 ? 1 : 0.85);
-                });
+            let colorIndex = 0;
+            const classColors = new Map();
+            function getColor(name) {
+                if (!classColors.has(name)) {
+                    classColors.set(name, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
+                }
+                return classColors.get(name);
+            }
 
-            // Draw labels for top segments
-            svg.selectAll('text')
-                .data(rootHierarchy.descendants().filter(d => d.y1 - d.y0 > 50 && d.depth <= 2))
-                .enter()
-                .append('text')
-                .attr('transform', d => {
-                    const angle = (d.x0 + d.x1) / 2;
-                    const r = (d.y0 + d.y1) / 2;
-                    return `rotate(${angle * 180 / Math.PI - 90}) translate(${r},0) rotate(${angle > Math.PI ? 180 : 0})`;
-                })
-                .attr('dy', '0.35em')
-                .attr('text-anchor', 'middle')
-                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 10));
+            function convertNode(node, depth) {
+                depth = depth || 0;
+                const isLeaf = !node.children || node.children.length === 0;
+                const name = node.class_name || `obj${node.id}`;
+                const color = depth === 0 ? '#e94560' : getColor(name);
 
-            // Legend
-            const legend = document.getElementById('sunburst-legend');
+                var result = {
+                    name: name,
+                    class_name: node.class_name,
+                    retained_size: node.retained_size,
+                    shallow_size: node.shallow_size,
+                    depth: depth,
+                    itemStyle: {
+                        color: color,
+                        opacity: depth === 0 ? 1 : 0.85,
+                        borderColor: '#1a1a2e',
+                        borderWidth: 1
+                    }
+                };
+
+                if (isLeaf) {
+                    result.value = node.retained_size || 0;
+                } else {
+                    result.children = node.children.map(function(c) {
+                        return convertNode(c, depth + 1);
+                    });
+                }
+
+                return result;
+            }
+
+            var data = convertNode(root);
+
+            sunburstChart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#16213e',
+                    borderColor: '#e94560',
+                    borderWidth: 1,
+                    textStyle: { color: '#eee', fontSize: 12 },
+                    padding: [10, 14],
+                    formatter: function(params) {
+                        var d = params.data;
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.class_name || 'Object') + '</div>' +
+                               '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
+                               '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
+                    }
+                },
+                series: [{
+                    type: 'sunburst',
+                    radius: [0, '95%'],
+                    data: [data],
+                    sort: 'desc',
+                    emphasis: {
+                        focus: 'ancestor',
+                        itemStyle: { opacity: 1 }
+                    },
+                    label: {
+                        color: '#eee',
+                        fontSize: 10,
+                        rotate: 'radial',
+                        formatter: function(params) {
+                            return truncate(params.name, 10);
+                        }
+                    },
+                    levels: [
+                        {},
+                        { label: { rotate: 'tangential' } },
+                        { label: { rotate: 'radial' } }
+                    ]
+                }]
+            }, true);
+
+            var legend = document.getElementById('sunburst-legend');
             legend.innerHTML = '';
-            classColors.forEach((color, name) => {
-                legend.innerHTML += `<div class="legend-item"><div class="legend-color" style="background:${color}"></div>${name}</div>`;
+            classColors.forEach(function(color, name) {
+                legend.innerHTML += '<div class="legend-item"><div class="legend-color" style="background:' + color + '"></div>' + name + '</div>';
             });
         }
 
-        function drawTreemap(root) {
-            const container = document.getElementById('treemap');
-            const width = container.clientWidth || 800;
-            const height = 500;
-
-            // Clear previous
-            d3.select('#treemap').selectAll('*').remove();
-
-            const svg = d3.select('#treemap')
-                .append('svg')
-                .attr('viewBox', `0 0 ${width} ${height}`)
-                .attr('preserveAspectRatio', 'xMidYMid meet');
-
-            const hierarchy = d3.hierarchy(root)
-                .sum(d => d.children && d.children.length === 0 ? d.retained_size : 0)
-                .sort((a, b) => b.value - a.value);
-
-            const treemapLayout = d3.treemap()
-                .size([width, height])
-                .padding(2)
-                .round(true);
-
-            treemapLayout(hierarchy);
-
-            const color = d3.scaleOrdinal().range(COLOR_PALETTE);
-            let colorIndex = 0;
-            const classColors = new Map();
-
-            function getColor(d) {
-                const key = d.data.class_name || `obj${d.data.id}`;
-                if (!classColors.has(key)) {
-                    classColors.set(key, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
-                }
-                return classColors.get(key);
-            }
-
-            const nodes = hierarchy.descendants().filter(d => d.depth > 0);
-
-            svg.selectAll('rect')
-                .data(nodes)
-                .enter()
-                .append('rect')
-                .attr('x', d => d.x0)
-                .attr('y', d => d.y0)
-                .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', d => Math.max(0, d.y1 - d.y0))
-                .attr('fill', d => getColor(d))
-                .attr('fill-opacity', 0.85)
-                .on('mouseover', function(event, d) {
-                    showTooltip(event, d);
-                    d3.select(this).attr('fill-opacity', 1);
-                })
-                .on('mouseout', function(event, d) {
-                    hideTooltip();
-                    d3.select(this).attr('fill-opacity', 0.85);
-                });
-
-            // Draw labels (only for large enough cells)
-            svg.selectAll('text')
-                .data(nodes.filter(d => d.x1 - d.x0 > 50 && d.y1 - d.y0 > 20))
-                .enter()
-                .append('text')
-                .attr('x', d => d.x0 + 4)
-                .attr('y', d => d.y0 + 14)
-                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 12));
-
-            // Update legend
-            const legend = document.getElementById('sunburst-legend');
-            legend.innerHTML = '';
-            classColors.forEach((color, name) => {
-                legend.innerHTML += `<div class="legend-item"><div class="legend-color" style="background:${color}"></div>${name}</div>`;
-            });
-        }
-
-        // Section 9.3: Incremental Loading - Collapsible Tree View
-        let treeSvg = null;
-        let treeWidth = 1000;
-        let treeNodeMap = new Map();
-
+        // Collapsible Tree View with incremental loading
         async function initTreeView() {
-            // Only load root nodes initially (parent_id = 0 or depth = 0)
+            treeNodeMap.clear();
+            loadedChildren.clear();
+
             try {
-                const res = await fetch(`${API_BASE}/dominance/tree`);
-                const data = await res.json();
+                var res = await fetch(API_BASE + '/dominance/tree');
+                var data = await res.json();
 
                 if (!data.nodes || data.nodes.length === 0) return;
 
-                // Build node map
-                treeNodeMap.clear();
-                data.nodes.forEach(n => {
-                    treeNodeMap.set(n.id, { ...n, _children: null, _loaded: false });
+                data.nodes.forEach(function(n) {
+                    treeNodeMap.set(n.id, Object.assign({}, n));
                 });
 
-                // Find root nodes (parent_id = 0 or depth = 0)
-                const rootNodes = data.nodes.filter(n => n.parent_id === 0 || n.depth === 0);
+                var rootNodes = data.nodes.filter(function(n) {
+                    return n.parent_id === 0 || n.depth === 0;
+                });
 
-                // Create tree structure
-                const treeData = {
+                treeRootData = {
                     id: 0,
                     class_name: 'Root',
                     retained_size: 0,
                     shallow_size: 0,
                     depth: -1,
                     parent_id: 0,
-                    children: rootNodes.map(n => ({ ...n, _children: null, _loaded: false }))
+                    children: rootNodes.map(function(n) {
+                        return {
+                            id: n.id,
+                            class_name: n.class_name,
+                            retained_size: n.retained_size,
+                            shallow_size: n.shallow_size,
+                            depth: n.depth,
+                            parent_id: n.parent_id,
+                            instance_count: n.instance_count,
+                            is_clustered: n.is_clustered,
+                            is_cutoff: n.is_cutoff,
+                            children: null,
+                            _loaded: false,
+                            _hasChildren: Array.from(treeNodeMap.values()).some(function(x) {
+                                return x.parent_id === n.id;
+                            })
+                        };
+                    }),
+                    _loaded: true
                 };
 
-                drawTree(treeData);
+                drawTree();
             } catch (e) {
                 document.getElementById('tree-view').innerHTML = '<div class="error">Failed to load tree</div>';
             }
         }
 
-        function drawTree(root) {
-            d3.select('#tree-view').selectAll('*').remove();
+        function drawTree() {
+            if (!treeChart) {
+                treeChart = echarts.init(document.getElementById('tree-view'));
 
-            treeSvg = d3.select('#tree-view')
-                .append('svg')
-                .attr('width', '100%')
-                .attr('height', 600);
+                treeChart.on('click', async function(params) {
+                    var d = params.data;
+                    if (!d._hasChildren) return;
 
-            const g = treeSvg.append('g')
-                .attr('transform', 'translate(40, 30)');
+                    if (d._loaded) {
+                        d._children = d.children;
+                        d.children = null;
+                        d._loaded = false;
+                        treeChart.setOption({ series: [{ data: [treeRootData] }] });
+                    } else if (d._children) {
+                        d.children = d._children;
+                        d._children = null;
+                        d._loaded = true;
+                        treeChart.setOption({ series: [{ data: [treeRootData] }] });
+                    } else {
+                        try {
+                            var res = await fetch(API_BASE + '/dominance/children?parent_id=' + d.id);
+                            var data = await res.json();
 
-            const tree = d3.tree()
-                .nodeSize([20, 200]);
+                            if (data.nodes && data.nodes.length > 0) {
+                                loadedChildren.set(d.id, data.nodes);
 
-            const hierarchy = d3.hierarchy(root, d => d.children);
-            const treeRoot = tree(hierarchy);
-
-            // Draw links
-            g.selectAll('.link')
-                .data(treeRoot.links())
-                .enter()
-                .append('path')
-                .attr('class', 'link')
-                .attr('d', d3.linkHorizontal()
-                    .x(d => d.y)
-                    .y(d => d.x));
-
-            // Draw nodes
-            const nodes = g.selectAll('.node')
-                .data(treeRoot.descendants())
-                .enter()
-                .append('g')
-                .attr('class', 'node')
-                .attr('transform', d => `translate(${d.y}, ${d.x})`);
-
-            // Node circles
-            nodes.append('circle')
-                .attr('r', 6)
-                .attr('fill', d => d.data.depth === 0 ? '#e94560' : '#00d9ff')
-                .attr('fill-opacity', 0.85)
-                .on('click', async function(event, d) {
-                    await toggleChildren(d);
+                                d.children = data.nodes.map(function(n) {
+                                    return {
+                                        id: n.id,
+                                        class_name: n.class_name,
+                                        retained_size: n.retained_size,
+                                        shallow_size: n.shallow_size,
+                                        depth: n.depth,
+                                        parent_id: n.parent_id,
+                                        instance_count: n.instance_count,
+                                        is_clustered: n.is_clustered,
+                                        is_cutoff: n.is_cutoff,
+                                        children: null,
+                                        _children: null,
+                                        _loaded: false,
+                                        _hasChildren: Array.from(treeNodeMap.values()).some(function(x) {
+                                            return x.parent_id === n.id;
+                                        })
+                                    };
+                                });
+                                d._loaded = true;
+                                treeChart.setOption({ series: [{ data: [treeRootData] }] });
+                            }
+                        } catch (e) {
+                            console.error('Failed to load children:', e);
+                        }
+                    }
                 });
-
-            // Expand indicator (+/-)
-            nodes.append('text')
-                .attr('dy', 4)
-                .attr('dx', -10)
-                .text(d => {
-                    // Check if this node has children in the nodeMap
-                    const hasChildren = Array.from(treeNodeMap.values()).some(n => n.parent_id === d.data.id);
-                    return hasChildren && !d.data._loaded ? '+' : '';
-                })
-                .attr('class', 'expand-indicator');
-
-            // Labels
-            nodes.append('text')
-                .attr('dy', 4)
-                .attr('dx', 10)
-                .text(d => truncate(d.data.class_name || `obj${d.data.id}`, 15) + ' (' + formatBytes(d.data.retained_size || 0) + ')');
-        }
-
-        async function toggleChildren(d) {
-            if (d.data._loaded) {
-                // Collapse - just re-draw without children
-                d.data._children = null;
-                drawTree({
-                    ...cachedRoot,
-                    children: buildVisibleTree()
-                });
-                return;
             }
 
-            // Load children via API (Section 9.3: Incremental Loading)
-            const parentId = d.data.id;
-
-            try {
-                const res = await fetch(`${API_BASE}/dominance/children?parent_id=${parentId}`);
-                const data = await res.json();
-
-                if (data.nodes && data.nodes.length > 0) {
-                    // Cache loaded children
-                    loadedChildren.set(parentId, data.nodes);
-
-                    // Mark as loaded
-                    const node = treeNodeMap.get(parentId);
-                    if (node) node._loaded = true;
-
-                    // Re-draw tree with expanded children
-                    drawTree({
-                        ...cachedRoot,
-                        children: buildVisibleTree()
-                    });
-                }
-            } catch (e) {
-                console.error('Failed to load children:', e);
-            }
-        }
-
-        function buildVisibleTree() {
-            // Build tree structure with loaded children expanded
-            const rootNodes = Array.from(treeNodeMap.values()).filter(n => n.parent_id === 0 || n.depth === 0);
-
-            function buildNode(nodeData) {
-                const children = loadedChildren.get(nodeData.id);
-                if (children && children.length > 0) {
-                    return {
-                        ...nodeData,
-                        _loaded: true,
-                        children: children.map(c => ({
-                            ...c,
-                            _children: null,
-                            _loaded: loadedChildren.has(c.id)
-                        }))
-                    };
-                }
-                return { ...nodeData, _loaded: false };
-            }
-
-            return rootNodes.map(buildNode);
+            treeChart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#16213e',
+                    borderColor: '#e94560',
+                    borderWidth: 1,
+                    textStyle: { color: '#eee', fontSize: 12 },
+                    padding: [10, 14],
+                    formatter: function(params) {
+                        var d = params.data;
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.class_name || 'Object') + '</div>' +
+                               '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
+                               '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
+                    }
+                },
+                series: [{
+                    type: 'tree',
+                    data: [treeRootData],
+                    top: '5%',
+                    left: '5%',
+                    bottom: '5%',
+                    right: '20%',
+                    layout: 'orthogonal',
+                    orient: 'LR',
+                    symbol: 'circle',
+                    symbolSize: 12,
+                    roam: false,
+                    expandAndCollapse: false,
+                    animationDuration: 300,
+                    animationDurationUpdate: 300,
+                    label: {
+                        color: '#eee',
+                        fontSize: 11,
+                        position: 'right',
+                        verticalAlign: 'middle',
+                        align: 'left',
+                        formatter: function(params) {
+                            var d = params.data;
+                            var prefix = (d._hasChildren && !d._loaded) ? '+ ' : '';
+                            return prefix + truncate(d.class_name || ('obj' + d.id), 15) + ' (' + formatBytes(d.retained_size || 0) + ')';
+                        }
+                    },
+                    lineStyle: {
+                        color: '#0f3460',
+                        width: 1.5,
+                        curveness: 0.5
+                    },
+                    itemStyle: {
+                        color: function(params) {
+                            return params.data.depth === 0 ? '#e94560' : '#00d9ff';
+                        },
+                        borderColor: '#0f3460',
+                        borderWidth: 2
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            borderColor: '#e94560'
+                        }
+                    }
+                }]
+            });
         }
 
         function truncate(str, len) {
             return str.length > len ? str.substring(0, len) + '...' : str;
-        }
-
-        function showTooltip(event, d) {
-            const tooltip = document.getElementById('tooltip');
-            tooltip.innerHTML = `
-                <div class="tip-title">${d.data.class_name || 'Object'}</div>
-                <div>Retained: <span class="tip-value">${formatBytes(d.data.retained_size || 0)}</span></div>
-                <div>Shallow: <span class="tip-value">${formatBytes(d.data.shallow_size || 0)}</span></div>
-            `;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (event.pageX + 10) + 'px';
-            tooltip.style.top = (event.pageY + 10) + 'px';
-        }
-
-        function hideTooltip() {
-            document.getElementById('tooltip').style.display = 'none';
         }
 
         function escapeHtml(str) {
@@ -874,6 +750,11 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
+
+        window.addEventListener('resize', () => {
+            if (sunburstChart) sunburstChart.resize();
+            if (treeChart) treeChart.resize();
+        });
 
         // Initial load
         loadDominanceTree();
