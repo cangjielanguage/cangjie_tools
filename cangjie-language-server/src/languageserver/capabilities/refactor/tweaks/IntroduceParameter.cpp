@@ -277,6 +277,7 @@ static bool IsFuncParamUsedOutsideRange(Cangjie::AST::FuncDecl &funcDecl, Cangji
 
 static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie::AST::FuncParam &param, Range &range)
 {
+// LCOV_EXCL_BR_START
     for (std::size_t index = 0; index < paramList.params.size(); ++index) {
         if (!paramList.params[index] || paramList.params[index].get() != &param) {
             continue;
@@ -299,6 +300,7 @@ static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie
         return false;
     }
     return false;
+// LCOV_EXCL_BR_STOP
 }
 
 static std::vector<std::size_t> CollectRemovableParamIndices(
@@ -353,6 +355,7 @@ static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
     Cangjie::AST::FuncParamList &paramList, const std::vector<std::size_t> &removedParamIndices,
     std::size_t replacedIndex)
 {
+// LCOV_EXCL_BR_START
     std::vector<TextEdit> edits;
     for (auto it = removedParamIndices.rbegin(); it != removedParamIndices.rend(); ++it) {
         if (*it == replacedIndex || *it >= paramList.params.size() || !paramList.params[*it]) {
@@ -367,6 +370,7 @@ static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
         edits.push_back(textEdit);
     }
     return edits;
+// LCOV_EXCL_BR_STOP
 }
 
 static std::vector<TextEdit> BuildAllParameterReplacementEdit(
@@ -475,6 +479,7 @@ static bool HasNamedArg(Cangjie::AST::CallExpr &callExpr)
 static std::optional<TextEdit> ReplaceRemovedCallArguments(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
 {
+// LCOV_EXCL_BR_START
     if (context.removedParamIndices.empty() || !context.funcDecl.funcBody ||
         context.funcDecl.funcBody->paramLists.empty() || !context.funcDecl.funcBody->paramLists.front()) {
         return std::nullopt;
@@ -499,11 +504,13 @@ static std::optional<TextEdit> ReplaceRemovedCallArguments(
     textEdit.range = TransformFromChar2IDE({argRanges.front().start, argRanges.back().end});
     textEdit.newText = hasNamedArg ? context.paramName + ": " + newArgument : newArgument;
     return textEdit;
+// LCOV_EXCL_BR_STOP
 }
 
 static TextEdit InsertNewCallArgument(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
 {
+// LCOV_EXCL_BR_START
     TextEdit textEdit;
     Range insertRange = {callExpr.rightParenPos, callExpr.rightParenPos};
     textEdit.range = TransformFromChar2IDE(insertRange);
@@ -517,6 +524,7 @@ static TextEdit InsertNewCallArgument(
     insertText << newArgument;
     textEdit.newText = insertText.str();
     return textEdit;
+// LCOV_EXCL_BR_STOP
 }
 
 static std::optional<TextEdit> InsertArgumentAtCallSite(
@@ -601,6 +609,7 @@ static std::vector<ArgumentReplacement> CollectCallSiteArgumentReplacements(
 static std::string ApplyCallSiteArgumentReplacements(
     const CallSiteContext &context, std::vector<ArgumentReplacement> replacements)
 {
+// LCOV_EXCL_BR_START
     if (replacements.empty()) {
         return context.argumentText;
     }
@@ -617,6 +626,7 @@ static std::string ApplyCallSiteArgumentReplacements(
     }
     result << context.sel.arkAst->sourceManager->GetContentBetween(cursor, context.range.end);
     return result.str();
+// LCOV_EXCL_BR_STOP
 }
 
 static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)

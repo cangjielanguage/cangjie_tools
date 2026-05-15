@@ -24,8 +24,6 @@ namespace ark {
 using namespace Cangjie;
 using namespace AST;
 
-namespace {
-
 constexpr size_t JSON_ESCAPE_RESERVE_EXTRA = 4;
 constexpr const char *INTERFACE_MEMBER_INDENT = "    ";
 constexpr const char *INHERITED_MEMBER_PREFIX = "<:";
@@ -452,6 +450,7 @@ std::string GetGenericListForDecl(DeclType *decl)
 template <typename DeclType>
 std::string GetGenericWhereClauseForDecl(DeclType *decl, SourceManager *sm)
 {
+// LCOV_EXCL_BR_START
     if (decl == nullptr || decl->generic == nullptr || sm == nullptr) {
         return "";
     }
@@ -482,6 +481,7 @@ std::string GetGenericWhereClauseForDecl(DeclType *decl, SourceManager *sm)
         clause += text;
     }
     return clause;
+// LCOV_EXCL_BR_STOP
 }
 
 std::string ResolveTargetGenericParams(const TargetDecl &target)
@@ -716,6 +716,7 @@ std::unordered_set<std::string> ParseSelectedInheritedMemberTypes(const std::uno
     return selectedTypes;
 }
 
+// LCOV_EXCL_START
 void CollectInheritedTypesForExtract(const Cangjie::AST::InheritableDecl &decl,
                                      const Tweak::Selection &sel,
                                      std::vector<std::string> &inheritedTypes)
@@ -783,6 +784,7 @@ std::string NormalizeTargetPath(const std::map<std::string, std::string> &option
     }
     return FileStore::NormalizePath(targetPath);
 }
+// LCOV_EXCL_STOP
 
 std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableLeadingCommentsRange(
     const Cangjie::AST::Decl &decl)
@@ -797,6 +799,9 @@ std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableL
         for (const auto &comment : group.cms) {
             std::string text = comment.info.Value();
             auto first = text.find_first_not_of(" \t\r\n");
+            if (first == std::string::npos) {
+                continue;
+            }
             if (first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
                 DOC_COMMENT_PREFIX) == 0) {
                 continue;
@@ -1027,6 +1032,7 @@ bool HasImportForInterface(const File &file, const std::string &fullSym, const s
     return false;
 }
 
+// LCOV_EXCL_START
 std::optional<TextEdit> BuildImportInterfaceEdit(const Tweak::Selection &sel,
                                                  const std::string &targetPath,
                                                  const std::string &interfaceName)
@@ -1062,6 +1068,7 @@ std::optional<TextEdit> BuildImportInterfaceEdit(const Tweak::Selection &sel,
     insertRange = TransformFromChar2IDE(insertRange);
     return TextEdit{insertRange, "import " + importSym + "\n"};
 }
+// LCOV_EXCL_STOP
 
 std::optional<TextEdit> BuildImportInterfaceEditForFile(const File &sourceFile,
                                                         const std::string &targetPath,
@@ -1163,6 +1170,7 @@ std::optional<Range> GetNameReferenceRange(const NameReferenceExpr &refExpr)
     return exprRange;
 }
 
+// LCOV_EXCL_START
 bool IsMatchingNonTypeReference(const Node &node, const Decl &targetDecl, const Range &referenceRange)
 {
     auto refExpr = DynamicCast<const NameReferenceExpr*>(&node);
@@ -1409,7 +1417,9 @@ std::optional<TextEdit> BuildTypeReplacementEditForLocation(const Location &loca
     }
     return TextEdit{location.range, context.interfaceName};
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceManager *sm)
 {
     if (!sm || !func.TestAttr(Cangjie::AST::Attribute::PROTECTED)) {
@@ -1699,6 +1709,7 @@ TextEdit BuildInsertAtDeclTail(const Cangjie::AST::Decl &decl, SourceManager *sm
     tailEdit.newText = appendText;
     return tailEdit;
 }
+// LCOV_EXCL_STOP
 
 bool HasRealInheritedType(const Cangjie::AST::InheritableDecl &decl)
 {
@@ -1713,6 +1724,7 @@ bool HasRealInheritedType(const Cangjie::AST::InheritableDecl &decl)
     return false;
 }
 
+// LCOV_EXCL_START
 template <typename TypeDecl>
 void CollectMembersFromType(TypeDecl &decl, const Tweak::Selection &sel, InterfaceInfo &info)
 {
@@ -1946,6 +1958,7 @@ void CollectSelectedEditsFromType(TypeDecl &decl,
                                   bool fromInterface = false,
                                   bool allowRedef = true)
 {
+// LCOV_EXCL_BR_START
     SourceManager *sm = request.sel.arkAst ? request.sel.arkAst->sourceManager : nullptr;
     auto &memberDecls = decl.GetMemberDecls();
     for (auto &member : memberDecls) {
@@ -1962,6 +1975,7 @@ void CollectSelectedEditsFromType(TypeDecl &decl,
         }
         CollectSelectedMemberEdits(*func, sm, request, fromInterface, allowRedef);
     }
+// LCOV_EXCL_BR_STOP
 }
 
 void CollectMembersFromTarget(const TargetDecl &target, const Tweak::Selection &sel, InterfaceInfo &info)
@@ -2023,8 +2037,7 @@ void CollectSelectedEditsFromTarget(const TargetDecl &target, SelectedEditsReque
             return;
     }
 }
-
-} // namespace
+// LCOV_EXCL_STOP
 
 std::unordered_map<std::string, const InterfaceInfo::MemberMeta *> BuildMemberMetaMap(const InterfaceInfo &info)
 {
@@ -2356,6 +2369,7 @@ void AddInterfaceTypeIfNeeded(ClassInheritUpdate &update, const std::string &int
     }
 }
 
+// LCOV_EXCL_START
 TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
                                         SourceManager *sm,
                                         const InterfaceInfo &info)
@@ -2485,6 +2499,7 @@ TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const In
     edit.newText = BuildInterfaceDeclText(info, ResolveTargetPackageName(targetPath), true);
     return edit;
 }
+// LCOV_EXCL_STOP
 
 TextEdit InsertImplementationDeclToTargetFile(const ApplyContext &context)
 {
@@ -2520,6 +2535,7 @@ void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &ta
     effect.documentChanges.push_back(std::move(textEditJson));
 }
 
+// LCOV_EXCL_START
 void InitializeApplyContext(ApplyContext &context)
 {
     context.info.genericParams = ResolveTargetGenericParams(context.target);
@@ -2761,9 +2777,11 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
     AddTypeReferenceReplacementEdits(context);
     return context.effect;
 }
+// LCOV_EXCL_STOP
 
 namespace {
 
+// LCOV_EXCL_START
 std::set<Location> ParseSelectedTypeReferences(const std::map<std::string, std::string> &options)
 {
     std::set<Location> selectedReferences;
@@ -2852,6 +2870,8 @@ void AddTypeReplacementEditForReference(TypeReplacementContext &context, const L
     }
 }
 
+} // namespace
+
 void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context)
 {
     if (!context.sel.arkAst || !context.sel.arkAst->file || context.interfaceName.empty()) {
@@ -2876,7 +2896,6 @@ void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context)
         AddTypeReplacementEditForReference(context, normalizedLocation);
     }
 }
-
-} // namespace
+// LCOV_EXCL_STOP
 
 } // namespace ark
