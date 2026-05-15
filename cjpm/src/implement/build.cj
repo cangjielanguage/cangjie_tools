@@ -802,7 +802,9 @@ func constructCjcInvocation(compileTask: CompileTask, buildConfig: BuildConfig):
 
     res.add(all: appendImportPaths(compileTask, buildConfig))
     res.add(all: appendCommandOptions(compileTask))
-    res.add(all: getDepLinkCommand(compileTask, buildConfig))
+    if (compileTask.outputType != Obj) {
+        res.add(all: getDepLinkCommand(compileTask, buildConfig))
+    }
 
     for (option in compileTask.customizedOption) {
         res.add(all: extractOptionByString(option))
