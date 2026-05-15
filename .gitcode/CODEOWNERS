@@ -1,11 +1,11 @@
 /.gitcode/ @jyf219
 /cangjie-language-server/ @TimZhou
 /cjcov/ @jyf219
-/cjfmt/ @jyf219
+/cjfmt/ @zxudong
 /cjhead/ @huster_zwy
-/cjlint/ @jyf219
+/cjlint/ @zxudong
 /cjpm/ @jyf219
-/cjtrace-recover/ zixuanzixuan
-/gifures/ @jyf219
+/cjtrace-recover/ @zixuanzixuan
+/figures/ @jyf219
 /hyperlangExtension/ @gaoxiang999
 /third_party/ @jyf219
