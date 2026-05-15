@@ -465,6 +465,7 @@ struct DiagFix {
     bool addImport{false};
     bool removeImport{false};
     bool removeUnusedSymbol{false};
+    bool implementMembers{false};
 };
 
 struct DiagnosticToken {
@@ -486,7 +487,7 @@ struct DiagnosticToken {
 
     std::optional<std::vector<CodeAction>> codeActions{};
 
-    std::optional<DiagFix> diaFix = DiagFix{false, false};
+    std::optional<DiagFix> diagFix = DiagFix{false, false};
 
     DiagnosticToken()
         : range(), severity(0), code(0), source(""), message(""), relatedInformation() {};
@@ -541,6 +542,8 @@ struct CodeAction {
     const static std::string QUICKFIX_REMOVE_IMPORT;
 
     const static std::string QUICKFIX_REMOVE_UNUSED_SYMBOL;
+
+    const static std::string QUICKFIX_IMPLEMENT_MEMBERS;
 
     const static std::string REFACTOR_KIND;
 

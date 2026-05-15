@@ -14,6 +14,11 @@ namespace ark {
 using namespace Cangjie;
 using namespace Cangjie::AST;
 
+extern const std::string FUNC_NOT_IMPLEMENTED_EXCEPTION;
+extern const std::string PROP_NOT_IMPLEMENTED_EXCEPTION;
+
+void FilterModifiers(Ptr<Decl> decl, std::vector<std::string>& modifiers);
+
 template<typename T>
 std::string Join(const std::vector<T>& items, const std::string& insert)
 {
@@ -346,6 +351,7 @@ struct FuncDetail {
     std::string identifier;
     FuncParamDetailList params;
     std::unique_ptr<TypeDetail> retType;
+    bool isOperand{false};
 
     void SetGenericType(const std::string& oldTy, const std::string& newTy)
     {
@@ -360,6 +366,9 @@ struct FuncDetail {
         std::string detail = Cangjie::Utils::JoinStrings(modifiers, " ");
         if (!detail.empty()) {
             detail += " ";
+        }
+        if (isOperand) {
+            detail += "operator ";
         }
         detail += "func ";
         detail += identifier;
@@ -445,6 +454,11 @@ FuncParamDetailList ResolveFuncParamList(const Ptr<FuncDecl>& funcDecl);
 std::unique_ptr<TypeDetail> ResolveFuncRetType(const Ptr<FuncDecl>& funcDecl);
 
 std::unique_ptr<TypeDetail> ResolveType(const Ptr<Ty>& type);
+
+std::vector<Ptr<ClassLikeDecl>> GetCanSuperCallDecls(const Ptr<Decl>& decl);
+
+std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, FuncDecl* funcDecl,
+                             const std::vector<Ptr<ClassLikeDecl>>& canSuperCall);
 }
 
 #endif // LSPSERVER_FINDOVERRIDEMETHODSUTILS_H

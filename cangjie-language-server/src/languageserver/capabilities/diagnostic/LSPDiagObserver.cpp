@@ -6,6 +6,11 @@
 
 #include "LSPDiagObserver.h"
 #include "../../CompilerCangjieProject.h"
+#include "cangjie/AST/Node.h"
+#include "cangjie/Basic/DiagnosticEngine.h"
+#include "../overrideMethods/FindOverrideMethodsUtils.h"
+#include "cangjie/Basic/Position.h"
+#include "cangjie/Utils/CastingTemplate.h"
 
 namespace ark {
 using namespace Cangjie;
@@ -128,6 +133,115 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
     DealMacroDiags(diagnostic, diagToken);
 }
 
+Position GetImplementMembersInsertPosition(Ptr<const Decl> decl)
+{
+    if (auto cd = DynamicCast<ClassDecl>(decl)) {
+        if (cd->body && !cd->body->decls.empty()) {
+            auto it = std::find_if(cd->body->decls.rbegin(), cd->body->decls.rend(), [](auto &node) {
+                return !node->TestAttr(Attribute::COMPILER_ADD);
+            });
+            return it != cd->body->decls.rend() ? it->get()->GetEnd() : cd->body->rightCurlPos;
+        } else if (cd->body) {
+            return cd->body->rightCurlPos;
+        }
+    }
+
+    if (auto sd = DynamicCast<StructDecl>(decl)) {
+        if (sd->body && !sd->body->decls.empty()) {
+            auto it = std::find_if(sd->body->decls.rbegin(), sd->body->decls.rend(), [](auto &node) {
+                return !node->TestAttr(Attribute::COMPILER_ADD);
+            });
+            return it != sd->body->decls.rend() ? it->get()->GetEnd() : sd->body->rightCurlPos;
+        } else if (sd->body) {
+            return sd->body->rightCurlPos;
+        }
+    }
+
+    if (auto ed = DynamicCast<EnumDecl>(decl)) {
+        if (ed->members.empty()) {
+            if (!ed->constructors.empty()) {
+                auto it = std::find_if(ed->constructors.rbegin(), ed->constructors.rend(), [](auto &node) {
+                    return !node->TestAttr(Attribute::COMPILER_ADD);
+                });
+                return it != ed->constructors.rend() ? it->get()->GetEnd() : Position();
+            }
+        } else {
+            auto it = std::find_if(ed->members.rbegin(), ed->members.rend(), [](auto &node) {
+                return !node->TestAttr(Attribute::COMPILER_ADD);
+            });
+            return it != ed->members.rend() ? it->get()->GetEnd() : Position();
+        }
+    }
+
+    if (auto extd = DynamicCast<ExtendDecl>(decl)) {
+        if (extd->members.empty()) {
+            return extd->rightCurlPos;
+        } else {
+            auto it = std::find_if(extd->members.rbegin(), extd->members.rend(), [](auto &node) {
+                return !node->TestAttr(Attribute::COMPILER_ADD);
+            });
+            return it != extd->members.rend() ? it->get()->GetEnd() : Position();
+        }
+    }
+    return Position();
+}
+
+void LSPDiagObserver::CollectImplementMembersQuickInfo(Diagnostic &diagnostic, DiagnosticToken &diagToken)
+{
+    if (!diagToken.diagFix->implementMembers || diagnostic.subDiags.empty() || !diagnostic.node) {
+        return;
+    }
+    auto curDecl = DynamicCast<Decl>(diagnostic.node);
+    if (!curDecl) {
+        return;
+    }
+    auto insertPos = GetImplementMembersInsertPosition(curDecl);
+    if (insertPos.IsZero()) {
+        return;
+    }
+    std::string totalInsertText;
+    for (auto &diag: diagnostic.subDiags) {
+        totalInsertText += "\n";
+        if (auto fd = DynamicCast<FuncDecl>(diag.GetNodeSubDiagAt())) {
+            auto detail = ResolveFuncDetail(const_cast<FuncDecl*>(fd));
+            FilterModifiers(const_cast<Decl*>(curDecl), detail.modifiers);
+            auto signature = detail.ToString();
+            auto insertText = signature + " {\n\t" + FUNC_NOT_IMPLEMENTED_EXCEPTION + "\n" + "}";
+            totalInsertText += insertText + "\n";
+        }
+
+        if (auto pd = DynamicCast<PropDecl>(diag.GetNodeSubDiagAt())) {
+            auto detail = ResolvePropDetail(const_cast<PropDecl*>(pd));
+            FilterModifiers(const_cast<Decl*>(curDecl), detail.modifiers);
+            auto signature = detail.ToString();
+            std::string getter = "get() {\n\t\t" + PROP_NOT_IMPLEMENTED_EXCEPTION + "\n\t}";
+            std::string setter;
+            if (std::find(detail.modifiers.begin(), detail.modifiers.end(), "mut") !=
+                    detail.modifiers.end()) {
+                setter = "set(v) {\n\t\n}";
+            }
+            auto insertText = signature + "{\n\t" + getter;
+            if (!setter.empty()) {
+                insertText += "\n\t" + setter;
+            }
+            insertText += "\n}";
+            totalInsertText += insertText + "\n";
+        }
+    }
+    auto file = URI::URIFromAbsolutePath(
+        diag.GetSourceManager().GetSource(diagnostic.mainHint.range.begin.fileID).path).ToString();
+    CodeAction codeAction;
+    codeAction.kind = CodeAction::QUICKFIX_IMPLEMENT_MEMBERS;
+    codeAction.title = "Implement Members";
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    textEdit.range = TransformFromChar2IDE({insertPos, insertPos});
+    textEdit.newText = totalInsertText;
+    edit.changes[file].push_back(textEdit);
+    codeAction.edit = edit;
+    diagToken.codeActions = {codeAction};
+}
+
 void LSPDiagObserver::AddNoteInfo(Cangjie::Diagnostic &diagnostic,
     std::vector<DiagnosticRelatedInformation> &relatedInformation)
 {
@@ -201,11 +315,22 @@ void LSPDiagObserver::CollectQuickFix(Cangjie::Diagnostic &diagnostic, Diagnosti
     bool isRefactor = (!diagnostic.isRefactor && IMPORT_FIX_KIND.count(diagnostic.kind))
         || (diagnostic.isRefactor && IMPORT_FIX_RKIND.count(diagnostic.rKind));
     if (isRefactor) {
-        diagToken.diaFix->addImport = true;
+        diagToken.diagFix->addImport = true;
     }
     // provide remove unused import quick fix
     if (diagnostic.isRefactor && diagnostic.rKind == DiagKindRefactor::sema_unused_import) {
-        diagToken.diaFix->removeImport = true;
+        diagToken.diagFix->removeImport = true;
+    }
+
+    if (!ark::Options::GetInstance().IsOptionSet("test") && !MessageHeaderEndOfLine::GetIsDeveco()) {
+        return;
+    }
+
+    if (diagnostic.isRefactor &&
+        (diagnostic.rKind == DiagKindRefactor::sema_class_need_abstract_modifier_or_func_need_impl ||
+         diagnostic.rKind == DiagKindRefactor::sema_need_member_implementation)) {
+            diagToken.diagFix->implementMembers = true;
+            CollectImplementMembersQuickInfo(diagnostic, diagToken);
     }
 }
 } // namespace ark

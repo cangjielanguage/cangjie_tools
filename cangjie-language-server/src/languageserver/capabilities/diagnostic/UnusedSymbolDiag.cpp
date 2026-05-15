@@ -258,7 +258,7 @@ DiagnosticToken UnusedSymbolDiag::CreateUnusedDiag(
     diagToken.source = "Cangjie";
     diagToken.message = symbolKindDesc + " '" + name + "' is declared but never used";
     diagToken.code = 0;
-    diagToken.diaFix = DiagFix{false, false, true};  // Enable removeUnusedSymbol QuickFix
+    diagToken.diagFix = DiagFix{false, false, true};  // Enable removeUnusedSymbol QuickFix
     return diagToken;
 }
 

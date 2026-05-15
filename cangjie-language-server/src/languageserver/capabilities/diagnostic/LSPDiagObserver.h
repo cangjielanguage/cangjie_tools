@@ -39,6 +39,7 @@ private:
     void AddNoteInfo(Cangjie::Diagnostic &diagnostic, std::vector<DiagnosticRelatedInformation> &relatedInformation);
     void DealMacroDiags(Cangjie::Diagnostic &diagnostic, const DiagnosticToken &token);
     void CollectQuickFix(Cangjie::Diagnostic &diagnostic, DiagnosticToken &diagToken);
+    void CollectImplementMembersQuickInfo(Cangjie::Diagnostic &diagnostic, DiagnosticToken &diagToken);
 };
 } // namespace ark
 
