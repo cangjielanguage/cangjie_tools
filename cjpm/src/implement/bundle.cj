@@ -354,7 +354,7 @@ func isPathIncluded(path: String, rule: String): Bool {
     } else if (processedpattern.startsWith("./")) {
         regexRule = "^"
         while (processedpattern.startsWith("./")) {
-            processedpattern.removePrefix("./")
+            processedpattern = processedpattern.removePrefix("./")
         }
     } else {
         regexRule = "^(.*/)?"
