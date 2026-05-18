@@ -355,7 +355,7 @@ private func createCompileTasksFromResolves(
     // The `--output-type` for `exe` files is set to `staticlib` when compiling it via `cjpm test`
     // So the output type has to be a part of task identifier
     let productOutputTypes = HashMap<String, OutputType>()
-    module.resolves.fold((ArrayList<CompileTask>(), HashSet<TaskId>())) { acc, r: ResolveItem =>
+    module.resolves.iterator().fold((ArrayList<CompileTask>(), HashSet<TaskId>())) { acc, r: ResolveItem =>
         if (!r.hasProdFiles) {
             return acc
         }

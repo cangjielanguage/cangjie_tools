@@ -465,7 +465,7 @@ func uncompressCjp(org: String, name: String, version: String, buffer: Array<UIn
         let finalRepositoryPath = Path(localRepo).join("source").
             join(if (org.isEmpty()) { "default" } else { org }).
             join(finalDirName)
-        if (dirList.any({f: FileInfo => f.name == "${finalDirName}"})) {
+        if (dirList.iterator().any({f: FileInfo => f.name == "${finalDirName}"})) {
             rename(Path(repositoryTempPath).join(finalDirName), to: finalRepositoryPath, overwrite: true)
         } else {
             return (false, "${finalDirName} load failed with incorrect content in cjp package")
