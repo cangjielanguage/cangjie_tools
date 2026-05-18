@@ -9,6 +9,13 @@ set(UNIT_TESTS_SRC
         languageserver/capabilities/fileRefactor/FileMoveTest.cpp
         languageserver/capabilities/fileRefactor/FileRefactorTest.cpp
         languageserver/capabilities/overrideMethods/FindOverrideMethodsUtilsTest.cpp
+        languageserver/capabilities/refactor/ExtractFunctionTest.cpp
+        languageserver/capabilities/refactor/ExtractInterfaceTest.cpp
+        languageserver/capabilities/refactor/ExtractVariableTest.cpp
+        languageserver/capabilities/refactor/IntroduceConstantTest.cpp
+        languageserver/capabilities/refactor/IntroduceFieldTest.cpp
+        languageserver/capabilities/refactor/IntroduceParameterTest.cpp
+        languageserver/capabilities/refactor/RefactorTweakMetadataTest.cpp
         languageserver/capabilities/semanticHighlight/SemanticHighlightImplTest.cpp
         languageserver/common/BasicHelperTest.cpp
         languageserver/common/FindDeclUsageTest.cpp
@@ -42,6 +49,7 @@ include_directories(
         ../../src/json-rpc
         ../../src/languageserver/capabilities/fileRefactor
         ../../src/languageserver/capabilities/overrideMethods
+        ../../src/languageserver/capabilities/refactor
         ../../src/languageserver/capabilities/semanticHighlight
         ../../src/languageserver/common
         ../../src/languageserver/index

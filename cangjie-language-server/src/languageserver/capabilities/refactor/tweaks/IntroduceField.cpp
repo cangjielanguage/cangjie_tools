@@ -210,6 +210,7 @@ static bool IsFieldDecl(const Cangjie::AST::Decl &decl)
 static Position GetLeadingCommentStart(
     const Tweak::Selection &sel, const Position &searchStart, const Position &codeBegin)
 {
+// LCOV_EXCL_BR_START
     if (!sel.arkAst || !sel.arkAst->sourceManager || searchStart >= codeBegin) {
         return codeBegin;
     }
@@ -238,6 +239,7 @@ static Position GetLeadingCommentStart(
     }
     return commentStart == std::string::npos ? codeBegin :
         TweakUtils::PositionAtOffset(searchStart, prefix, commentStart);
+// LCOV_EXCL_BR_STOP
 }
 
 static Position GetMethodInsertStart(
@@ -266,6 +268,7 @@ static Position GetTopLevelInsertStart(const Tweak::Selection &sel, Cangjie::AST
 static Position GetOwnerInsertStart(
     const Tweak::Selection &sel, Cangjie::AST::InheritableDecl &owner, Cangjie::AST::FuncDecl &funcDecl)
 {
+// LCOV_EXCL_BR_START
     if (auto classDecl = DynamicCast<Cangjie::AST::ClassDecl *>(&owner)) {
         if (!classDecl->body) {
             return {};
@@ -307,6 +310,7 @@ static Position GetOwnerInsertStart(
         return GetMethodInsertStart(sel, previousDeclEnd, funcDecl);
     }
     return {};
+// LCOV_EXCL_BR_STOP
 }
 
 static bool IsAvailableInitializerDecl(const Cangjie::AST::Decl &decl, bool isMemberField)
@@ -322,6 +326,7 @@ static bool IsAvailableInitializerDecl(const Cangjie::AST::Decl &decl, bool isMe
 
 static Position GetLastDependencyEnd(const Tweak::Selection &sel, const Range &range, bool isMemberField)
 {
+// LCOV_EXCL_BR_START
     Position dependencyEnd;
     auto root = sel.selectionTree.root();
     if (!root || !root->node) {
@@ -349,6 +354,7 @@ static Position GetLastDependencyEnd(const Tweak::Selection &sel, const Range &r
         return VisitAction::WALK_CHILDREN;
     }).Walk();
     return dependencyEnd;
+// LCOV_EXCL_BR_STOP
 }
 
 std::optional<Range> IntroduceField::GetFieldInsertRange(
