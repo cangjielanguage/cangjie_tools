@@ -238,9 +238,9 @@ void LinuxRecorder::MergeSampleData()
 
         ifs.seekg(0, ifs.end);
         auto pos = ifs.tellg();
-        if (pos <= 0) {
-            fprintf(stderr, "error: Cannot determine file size.\n");
-            return;
+        if (pos < 0) {
+            fprintf(stderr, "error: Cannot determine '%s' file size.\n", file.c_str());
+            continue;
         }
         uint64_t size = static_cast<uint64_t>(pos);
         auto data = std::make_unique<char[]>(size);

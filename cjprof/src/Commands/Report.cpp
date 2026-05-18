@@ -30,8 +30,8 @@ int Report::Execute(int argc, char **argv)
 
     ifs.seekg(0, ifs.end);
     auto size = ifs.tellg();
-    if (size <= 0) {
-        fprintf(stderr, "error: Cannot determine file size.\n");
+    if (size < 0) {
+        fprintf(stderr, "error: Cannot determine '%s' file size.\n", cfg.input.c_str());
         return false;
     }
     ifs.seekg(0, ifs.beg);
