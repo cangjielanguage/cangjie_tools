@@ -60,6 +60,25 @@ void HttpServer::start() {
         res.set_content(HttpHandlers::handleDominanceTop10(*ctx), "application/json");
     });
 
+    svr->Get("/api/dominance/cluster-expand", [ctx](const httplib::Request& req, httplib::Response& res) {
+        std::vector<uint64_t> instanceIds;
+        auto it = req.params.find("instance_ids");
+        if (it != req.params.end()) {
+            // Parse comma-separated instance IDs
+            std::string idsStr = it->second;
+            std::stringstream ss(idsStr);
+            std::string idStr;
+            while (std::getline(ss, idStr, ',')) {
+                try {
+                    instanceIds.push_back(std::stoull(idStr));
+                } catch (...) {
+                    // Skip invalid IDs
+                }
+            }
+        }
+        res.set_content(HttpHandlers::handleDominanceClusterExpand(*ctx, instanceIds), "application/json");
+    });
+
     svr->Get("/api/fragment/overview", [ctx](const httplib::Request&, httplib::Response& res) {
         res.set_content(HttpHandlers::handleFragmentOverview(*ctx), "application/json");
     });

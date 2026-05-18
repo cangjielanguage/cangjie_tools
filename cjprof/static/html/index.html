@@ -287,7 +287,6 @@
 
         let currentView = 'sunburst';
         let cachedRoot = null;
-        let loadedChildren = new Map();
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
@@ -362,10 +361,14 @@
 
                 // 如果有多个根节点，创建虚拟根
                 if (rootNodes.length > 1) {
+                    // Calculate total retained_size for virtual root
+                    var totalRetained = rootNodes.reduce(function(sum, n) {
+                        return sum + (n.retained_size || 0);
+                    }, 0);
                     root = {
                         id: 0,
                         class_name: 'Root',
-                        retained_size: 0,
+                        retained_size: totalRetained,
                         shallow_size: 0,
                         depth: -1,
                         parent_id: 0,
@@ -386,6 +389,14 @@
             } catch (e) {
                 document.getElementById('sunburst').innerHTML = '<div class="error">Failed to load dominance tree</div>';
             }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function truncate(str, len) {
+            return str.length > len ? str.substring(0, len) + '...' : str;
         }
 
         function drawSunburst(root) {
@@ -483,10 +494,37 @@
             });
         }
 
-        // Collapsible Tree View with incremental loading
+        // Tree View - lazy load one level at a time
+        function buildTreeNodeLazy(n, allNodes) {
+            // Check if this node has children:
+            // 1. Check if children exist in allNodes
+            // 2. For non-clustered nodes: if retained_size > shallow_size (implies dominated children)
+            // 3. For clustered nodes: can expand via instance_ids API
+            var hasChildrenInData = allNodes.some(function(x) {
+                return x.parent_id === n.id;
+            });
+            var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
+            var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
+
+            return {
+                id: n.id,
+                class_name: n.class_name,
+                retained_size: n.retained_size,
+                shallow_size: n.shallow_size,
+                depth: n.depth,
+                parent_id: n.parent_id,
+                instance_count: n.instance_count,
+                instance_ids: n.instance_ids,  // Store for cluster expansion
+                is_clustered: n.is_clustered,
+                is_cutoff: n.is_cutoff,
+                children: null,  // Not loaded yet
+                _hasChildren: hasChildrenInData || hasDominatedChildren || canExpandCluster,
+                _loaded: false
+            };
+        }
+
         async function initTreeView() {
             treeNodeMap.clear();
-            loadedChildren.clear();
 
             try {
                 var res = await fetch(API_BASE + '/dominance/tree');
@@ -494,6 +532,7 @@
 
                 if (!data.nodes || data.nodes.length === 0) return;
 
+                // Store all nodes in map
                 data.nodes.forEach(function(n) {
                     treeNodeMap.set(n.id, Object.assign({}, n));
                 });
@@ -502,6 +541,12 @@
                     return n.parent_id === 0 || n.depth === 0;
                 });
 
+                // Sort by retained_size descending
+                rootNodes.sort(function(a, b) {
+                    return (b.retained_size || 0) - (a.retained_size || 0);
+                });
+
+                // Build root with first level children, first level nodes are collapsed
                 treeRootData = {
                     id: 0,
                     class_name: 'Root',
@@ -510,6 +555,16 @@
                     depth: -1,
                     parent_id: 0,
                     children: rootNodes.map(function(n) {
+                        // Check if this first-level node has children:
+                        // 1. Check if children exist in data.nodes
+                        // 2. For non-clustered nodes: if retained_size > shallow_size (implies dominated children)
+                        // 3. For clustered nodes: can expand via instance_ids API
+                        var hasChildrenInData = data.nodes.some(function(x) {
+                            return x.parent_id === n.id;
+                        });
+                        var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
+                        var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
+
                         return {
                             id: n.id,
                             class_name: n.class_name,
@@ -518,13 +573,12 @@
                             depth: n.depth,
                             parent_id: n.parent_id,
                             instance_count: n.instance_count,
+                            instance_ids: n.instance_ids,  // Store for cluster expansion
                             is_clustered: n.is_clustered,
                             is_cutoff: n.is_cutoff,
-                            children: null,
-                            _loaded: false,
-                            _hasChildren: Array.from(treeNodeMap.values()).some(function(x) {
-                                return x.parent_id === n.id;
-                            })
+                            children: null,  // First level nodes are collapsed
+                            _hasChildren: hasChildrenInData || hasDominatedChildren || canExpandCluster,
+                            _loaded: false
                         };
                     }),
                     _loaded: true
@@ -540,56 +594,132 @@
             if (!treeChart) {
                 treeChart = echarts.init(document.getElementById('tree-view'));
 
+                // Handle click for expand/collapse with lazy loading
                 treeChart.on('click', async function(params) {
-                    var d = params.data;
-                    if (!d._hasChildren) return;
+                    var clickedId = params.data.id;
+                    if (!clickedId) return;
 
-                    if (d._loaded) {
-                        d._children = d.children;
+                    // Find the node in treeRootData (not params.data, which is a copy)
+                    function findNode(node) {
+                        if (node.id === clickedId) return node;
+                        if (node.children) {
+                            for (var i = 0; i < node.children.length; i++) {
+                                var found = findNode(node.children[i]);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    }
+
+                    var d = findNode(treeRootData);
+                    if (!d) return;
+
+                    // Toggle expand/collapse
+                    if (d._loaded && d.children && d.children.length > 0) {
+                        // Collapse
+                        d._childrenBackup = d.children;
                         d.children = null;
                         d._loaded = false;
-                        treeChart.setOption({ series: [{ data: [treeRootData] }] });
-                    } else if (d._children) {
-                        d.children = d._children;
-                        d._children = null;
+                    } else if (d._childrenBackup && d._childrenBackup.length > 0) {
+                        // Expand from backup
+                        d.children = d._childrenBackup;
+                        d._childrenBackup = null;
                         d._loaded = true;
-                        treeChart.setOption({ series: [{ data: [treeRootData] }] });
-                    } else {
-                        try {
-                            var res = await fetch(API_BASE + '/dominance/children?parent_id=' + d.id);
-                            var data = await res.json();
+                    } else if (d._hasChildren && !d._loaded) {
+                        // Check if this is a clustered node that can be expanded
+                        if (d.is_clustered && d.instance_ids && d.instance_ids.length > 0) {
+                            // Expand clustered node via instance_ids API
+                            try {
+                                var idsParam = d.instance_ids.join(',');
+                                var res = await fetch(API_BASE + '/dominance/cluster-expand?instance_ids=' + idsParam);
+                                var data = await res.json();
 
-                            if (data.nodes && data.nodes.length > 0) {
-                                loadedChildren.set(d.id, data.nodes);
+                                if (data.nodes && data.nodes.length > 0) {
+                                    d.children = data.nodes.map(function(c) {
+                                        var hasDominatedChildren = !c.is_clustered && (c.retained_size || 0) > (c.shallow_size || 0);
+                                        return {
+                                            id: c.id,
+                                            class_name: c.class_name,
+                                            retained_size: c.retained_size,
+                                            shallow_size: c.shallow_size,
+                                            depth: c.depth,
+                                            parent_id: c.parent_id,
+                                            instance_count: c.instance_count || 1,
+                                            instance_ids: c.instance_ids,
+                                            is_clustered: c.is_clustered || false,
+                                            is_cutoff: c.is_cutoff || false,
+                                            children: null,
+                                            _hasChildren: !c.is_cutoff && c.id !== 0 && (hasDominatedChildren || c.has_children),
+                                            _loaded: false
+                                        };
+                                    });
+                                    d._loaded = true;
+                                }
+                            } catch (e) {
+                                console.error('Failed to expand cluster:', e);
+                            }
+                        } else {
+                            // Lazy load: first try local treeNodeMap
+                            var childNodes = Array.from(treeNodeMap.values()).filter(function(x) {
+                                return x.parent_id === d.id;
+                            }).sort(function(a, b) {
+                                return (b.retained_size || 0) - (a.retained_size || 0);
+                            });
 
-                                d.children = data.nodes.map(function(n) {
-                                    return {
-                                        id: n.id,
-                                        class_name: n.class_name,
-                                        retained_size: n.retained_size,
-                                        shallow_size: n.shallow_size,
-                                        depth: n.depth,
-                                        parent_id: n.parent_id,
-                                        instance_count: n.instance_count,
-                                        is_clustered: n.is_clustered,
-                                        is_cutoff: n.is_cutoff,
-                                        children: null,
-                                        _children: null,
-                                        _loaded: false,
-                                        _hasChildren: Array.from(treeNodeMap.values()).some(function(x) {
-                                            return x.parent_id === n.id;
-                                        })
-                                    };
+                            if (childNodes.length > 0) {
+                                // Found in local map
+                                d.children = childNodes.map(function(c) {
+                                    return buildTreeNodeLazy(c, Array.from(treeNodeMap.values()));
                                 });
                                 d._loaded = true;
-                                treeChart.setOption({ series: [{ data: [treeRootData] }] });
+                            } else {
+                                // Not in local map, load from API
+                                try {
+                                    var res = await fetch(API_BASE + '/dominance/children?parent_id=' + d.id);
+                                    var data = await res.json();
+
+                                    if (data.nodes && data.nodes.length > 0) {
+                                        d.children = data.nodes.map(function(c) {
+                                            var canExpandCluster = c.is_clustered && c.instance_count > 1 && c.instance_ids && c.instance_ids.length > 0;
+                                            var hasDominatedChildren = !c.is_clustered && (c.retained_size || 0) > (c.shallow_size || 0);
+                                            return {
+                                                id: c.id,
+                                                class_name: c.class_name,
+                                                retained_size: c.retained_size,
+                                                shallow_size: c.shallow_size,
+                                                depth: c.depth,
+                                                parent_id: c.parent_id,
+                                                instance_count: c.instance_count,
+                                                instance_ids: c.instance_ids,
+                                                is_clustered: c.is_clustered,
+                                                is_cutoff: c.is_cutoff,
+                                                children: null,
+                                                _hasChildren: !c.is_cutoff && c.id !== 0 && (hasDominatedChildren || canExpandCluster),
+                                                _loaded: false
+                                            };
+                                        });
+                                        d._loaded = true;
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to load children:', e);
+                                }
                             }
-                        } catch (e) {
-                            console.error('Failed to load children:', e);
                         }
                     }
+
+                    treeChart.setOption({
+                        series: [{
+                            data: [treeRootData]
+                        }]
+                    });
                 });
             }
+
+            // Dynamic gap based on container width
+            var container = document.getElementById('tree-view');
+            var containerWidth = container.clientWidth || 800;
+            var layerGap = Math.max(30, Math.min(80, containerWidth / 15));
+            var nodeGap = 15;
 
             treeChart.setOption({
                 backgroundColor: 'transparent',
@@ -600,11 +730,19 @@
                     borderWidth: 1,
                     textStyle: { color: '#eee', fontSize: 12 },
                     padding: [10, 14],
+                    extraCssText: 'max-width: 400px; white-space: normal; word-break: break-all;',
                     formatter: function(params) {
                         var d = params.data;
-                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.class_name || 'Object') + '</div>' +
+                        var name = d.class_name || 'Object';
+                        name = escapeHtml(name);
+                        var extra = '';
+                        if (d.is_clustered && d.instance_count > 1) {
+                            extra = '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>';
+                        }
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + name + '</div>' +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
-                               '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
+                               '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>' +
+                               extra;
                     }
                 },
                 series: [{
@@ -618,8 +756,11 @@
                     orient: 'LR',
                     symbol: 'circle',
                     symbolSize: 12,
-                    roam: false,
+                    roam: true,
                     expandAndCollapse: false,
+                    initialTreeDepth: -1,
+                    layerGap: layerGap,
+                    nodeGap: nodeGap,
                     animationDuration: 300,
                     animationDurationUpdate: 300,
                     label: {
@@ -630,18 +771,43 @@
                         align: 'left',
                         formatter: function(params) {
                             var d = params.data;
-                            var prefix = (d._hasChildren && !d._loaded) ? '+ ' : '';
-                            return prefix + truncate(d.class_name || ('obj' + d.id), 15) + ' (' + formatBytes(d.retained_size || 0) + ')';
+                            var name = d.class_name || ('obj' + d.id);
+                            // Show instance count for clustered nodes
+                            if (d.is_clustered && d.instance_count > 1) {
+                                name = name + ' (' + d.instance_count + ')';
+                            }
+                            // Show expand indicator
+                            var indicator = '';
+                            var isExpanded = d._hasChildren && d._loaded && d.children;
+                            if (d._hasChildren) {
+                                if (isExpanded) {
+                                    indicator = '- ';
+                                } else {
+                                    indicator = '+ ';
+                                }
+                            }
+                            // Truncate name when expanded (has visible children) to avoid overlap
+                            // Max length based on layerGap (fontSize=11, ~7px per char)
+                            if (isExpanded) {
+                                var maxChars = Math.floor(layerGap / 2);
+                                if (name.length > maxChars) {
+                                    name = name.substring(0, maxChars) + '...';
+                                }
+                            }
+                            return indicator + name + ' - ' + formatBytes(d.retained_size || 0);
                         }
                     },
                     lineStyle: {
                         color: '#0f3460',
                         width: 1.5,
-                        curveness: 0.5
+                        curveness: 0.3
                     },
                     itemStyle: {
                         color: function(params) {
-                            return params.data.depth === 0 ? '#e94560' : '#00d9ff';
+                            var d = params.data;
+                            if (d.depth < 0) return '#e94560';  // Root: red
+                            if (d.is_clustered) return '#ff9f43';  // Clustered: orange
+                            return '#00d9ff';  // Single instance: cyan
                         },
                         borderColor: '#0f3460',
                         borderWidth: 2
@@ -653,14 +819,6 @@
                     }
                 }]
             });
-        }
-
-        function truncate(str, len) {
-            return str.length > len ? str.substring(0, len) + '...' : str;
-        }
-
-        function escapeHtml(str) {
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
         // Load top 10 objects

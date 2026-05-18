@@ -43,6 +43,76 @@ static std::string getClassName(const HttpContext& ctx, uint64_t objectId) {
     return "unknown";
 }
 
+/**
+ * Cluster result containing the node, its class name, and original instance IDs.
+ */
+struct ClusterResult {
+    DominanceNode node;
+    std::string class_name;
+    std::vector<uint64_t> instance_ids;  // Original object IDs for clustered nodes
+};
+
+/**
+ * Cluster children by class name.
+ * Multiple instances of the same class under the same parent are merged into one cluster node.
+ * Returns clustered nodes sorted by total retained_size descending.
+ */
+static std::vector<ClusterResult> clusterByClassName(
+    const HttpContext& ctx,
+    const std::vector<const DominanceNode*>& children,
+    uint64_t parentId)
+{
+    // Group children by class name
+    std::unordered_map<std::string, std::vector<const DominanceNode*>> classGroups;
+    for (const auto* node : children) {
+        std::string className = getClassName(ctx, node->object_id);
+        classGroups[className].push_back(node);
+    }
+
+    // Build clustered nodes
+    std::vector<ClusterResult> clusteredNodes;
+    for (auto& [className, nodes] : classGroups) {
+        DominanceNode clusterNode;
+        clusterNode.is_class_clustered = (nodes.size() > 1);  // Only mark as clustered if multiple instances
+        clusterNode.instance_count = static_cast<uint32_t>(nodes.size());
+        clusterNode.parent_id = parentId;
+        clusterNode.depth = nodes.front()->depth;
+
+        // For clustered nodes, use hash of class name as object_id
+        // For single nodes, keep original object_id
+        if (nodes.size() > 1) {
+            clusterNode.object_id = std::hash<std::string>{}(className + std::to_string(parentId));
+            // Sum sizes for clustered nodes
+            clusterNode.retained_size = 0;
+            clusterNode.shallow_size = 0;
+            for (const auto* n : nodes) {
+                clusterNode.retained_size += n->retained_size;
+                clusterNode.shallow_size += n->shallow_size;
+            }
+        } else {
+            clusterNode.object_id = nodes.front()->object_id;
+            clusterNode.retained_size = nodes.front()->retained_size;
+            clusterNode.shallow_size = nodes.front()->shallow_size;
+        }
+
+        ClusterResult result;
+        result.node = clusterNode;
+        result.class_name = className;
+        // Store original instance IDs
+        for (const auto* n : nodes) {
+            result.instance_ids.push_back(n->object_id);
+        }
+        clusteredNodes.push_back(result);
+    }
+
+    // Sort by retained_size descending
+    std::sort(clusteredNodes.begin(), clusteredNodes.end(), [](const ClusterResult& a, const ClusterResult& b) {
+        return a.node.retained_size > b.node.retained_size;
+    });
+
+    return clusteredNodes;
+}
+
 std::string HttpHandlers::handleSnapshot(const HttpContext& ctx) {
     LOG_DEBUG("Handling /api/snapshot");
 
@@ -84,46 +154,108 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     int totalSkipped = 0;
     std::unordered_map<uint64_t, int> parentCutoffCount;
 
+    // Collect root nodes (parent_id == 0 or depth == 0)
+    std::vector<const DominanceNode*> rootNodes;
     for (const auto& node : *ctx.dominanceNodes) {
-        if (node.depth > ctx.maxDepthLimit) {
+        if (node.parent_id == 0 || node.depth == 0) {
+            if (node.depth > ctx.maxDepthLimit || node.retained_size < threshold01) {
+                totalSkipped++;
+                continue;
+            }
+            rootNodes.push_back(&node);
+        }
+    }
+
+    // Cluster root nodes by class name
+    auto clusteredRoots = clusterByClassName(ctx, rootNodes, 0);
+
+    // Add clustered root nodes
+    for (const auto& cluster : clusteredRoots) {
+        std::string className = cluster.class_name;
+        if (cluster.node.is_class_clustered) {
+            className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
+        }
+        json nodeJson = {
+            {"id", cluster.node.object_id},
+            {"class_name", className},
+            {"retained_size", cluster.node.retained_size},
+            {"shallow_size", cluster.node.shallow_size},
+            {"depth", 0},
+            {"parent_id", 0},
+            {"instance_count", cluster.node.instance_count},
+            {"is_clustered", cluster.node.is_class_clustered},
+            {"is_cutoff", false}
+        };
+        // Add instance_ids for clustered nodes
+        if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
+            nodeJson["instance_ids"] = cluster.instance_ids;
+        }
+        result["nodes"].push_back(nodeJson);
+    }
+
+    // Group non-root nodes by parent_id for clustering
+    std::unordered_map<uint64_t, std::vector<const DominanceNode*>> childrenByParent;
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.parent_id == 0 || node.depth == 0) {
+            continue;  // Already handled as root nodes
+        }
+        if (node.depth > ctx.maxDepthLimit || node.retained_size < threshold01) {
             totalSkipped++;
             continue;
         }
+        childrenByParent[node.parent_id].push_back(&node);
+    }
 
-        if (node.retained_size < threshold01) {
-            totalSkipped++;
-            continue;
+    // Cluster and add non-root nodes for each parent
+    for (const auto& [parentId, children] : childrenByParent) {
+        // Get parent retained size for cutoff calculation
+        uint64_t parentRetained = 0;
+        auto it = parentRetainedSize.find(parentId);
+        if (it != parentRetainedSize.end()) {
+            parentRetained = it->second;
         }
 
-        bool isCutoff = false;
-        if (node.parent_id != 0) {
-            auto it = parentRetainedSize.find(node.parent_id);
-            if (it != parentRetainedSize.end() && it->second > 0) {
-                uint64_t cutoffThreshold = static_cast<uint64_t>(it->second * ctx.cutoff05Percent);
-                if (node.retained_size < cutoffThreshold) {
+        // Cluster children by class name
+        auto clusteredChildren = clusterByClassName(ctx, children, parentId);
+
+        // Add clustered children with cutoff filtering
+        for (const auto& cluster : clusteredChildren) {
+            // Check cutoff
+            bool isCutoff = false;
+            if (parentRetained > 0) {
+                uint64_t cutoffThreshold = static_cast<uint64_t>(parentRetained * ctx.cutoff05Percent);
+                if (cluster.node.retained_size < cutoffThreshold) {
                     isCutoff = true;
                     cutoffCount++;
-                    parentCutoffCount[node.parent_id]++;
+                    parentCutoffCount[parentId]++;
                 }
             }
-        }
 
-        if (isCutoff) {
-            continue;
-        }
+            if (isCutoff) {
+                continue;
+            }
 
-        std::string className = getClassName(ctx, node.object_id);
-        result["nodes"].push_back({
-            {"id", node.object_id},
-            {"class_name", className},
-            {"retained_size", node.retained_size},
-            {"shallow_size", node.shallow_size},
-            {"depth", node.depth},
-            {"parent_id", node.parent_id},
-            {"instance_count", node.instance_count},
-            {"is_clustered", node.is_class_clustered},
-            {"is_cutoff", false}
-        });
+            std::string className = cluster.class_name;
+            if (cluster.node.is_class_clustered) {
+                className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
+            }
+            json nodeJson = {
+                {"id", cluster.node.object_id},
+                {"class_name", className},
+                {"retained_size", cluster.node.retained_size},
+                {"shallow_size", cluster.node.shallow_size},
+                {"depth", cluster.node.depth},
+                {"parent_id", parentId},
+                {"instance_count", cluster.node.instance_count},
+                {"is_clustered", cluster.node.is_class_clustered},
+                {"is_cutoff", false}
+            };
+            // Add instance_ids for clustered nodes
+            if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
+                nodeJson["instance_ids"] = cluster.instance_ids;
+            }
+            result["nodes"].push_back(nodeJson);
+        }
     }
 
     for (const auto& entry : parentCutoffCount) {
@@ -155,6 +287,7 @@ std::string HttpHandlers::handleDominanceChildren(const HttpContext& ctx, uint64
         return result.dump();
     }
 
+    // Find parent's retained size
     uint64_t parentRetained = 0;
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.object_id == parentId) {
@@ -163,50 +296,85 @@ std::string HttpHandlers::handleDominanceChildren(const HttpContext& ctx, uint64
         }
     }
 
-    int cutoffCount = 0;
-
+    // Collect and sort children
+    std::vector<const DominanceNode*> children;
     for (const auto& node : *ctx.dominanceNodes) {
-        if (node.parent_id != parentId) continue;
-
-        bool isCutoff = false;
-        if (parentRetained > 0) {
-            uint64_t cutoffThreshold = static_cast<uint64_t>(parentRetained * ctx.cutoff05Percent);
-            if (node.retained_size < cutoffThreshold) {
-                isCutoff = true;
-                cutoffCount++;
-            }
+        if (node.parent_id == parentId) {
+            children.push_back(&node);
         }
-
-        if (isCutoff) {
-            continue;
-        }
-
-        std::string className = getClassName(ctx, node.object_id);
-        result["nodes"].push_back({
-            {"id", node.object_id},
-            {"class_name", className},
-            {"retained_size", node.retained_size},
-            {"shallow_size", node.shallow_size},
-            {"depth", node.depth},
-            {"parent_id", node.parent_id},
-            {"instance_count", node.instance_count},
-            {"is_clustered", node.is_class_clustered},
-            {"is_cutoff", false}
-        });
     }
 
-    if (cutoffCount > 0) {
-        result["nodes"].push_back({
-            {"id", 0},
-            {"class_name", "... (" + std::to_string(cutoffCount) + " children)"},
-            {"retained_size", 0},
-            {"shallow_size", 0},
-            {"depth", 0},
-            {"parent_id", parentId},
-            {"instance_count", cutoffCount},
-            {"is_clustered", false},
-            {"is_cutoff", true}
-        });
+    // Cluster children by class name
+    auto clusteredNodes = clusterByClassName(ctx, children, parentId);
+
+    // Add clustered children to result
+    int cutoffCount = 0;
+    for (const auto& cluster : clusteredNodes) {
+        std::string className = cluster.class_name;
+        // For clustered nodes, modify class_name to show count
+        if (cluster.node.is_class_clustered) {
+            className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
+        }
+        json nodeJson = {
+            {"id", cluster.node.object_id},
+            {"class_name", className},
+            {"retained_size", cluster.node.retained_size},
+            {"shallow_size", cluster.node.shallow_size},
+            {"depth", cluster.node.depth},
+            {"parent_id", cluster.node.parent_id},
+            {"instance_count", cluster.node.instance_count},
+            {"is_clustered", cluster.node.is_class_clustered},
+            {"is_cutoff", false}
+        };
+        // Add instance_ids for clustered nodes
+        if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
+            nodeJson["instance_ids"] = cluster.instance_ids;
+        }
+        result["nodes"].push_back(nodeJson);
+    }
+
+    return result.dump();
+}
+
+std::string HttpHandlers::handleDominanceClusterExpand(const HttpContext& ctx, const std::vector<uint64_t>& instanceIds) {
+    LOG_DEBUG("Handling /api/dominance/cluster-expand with {} instance IDs", instanceIds.size());
+
+    json result;
+    result["nodes"] = json::array();
+
+    if (!ctx.dominanceNodes) {
+        return result.dump();
+    }
+
+    // Find each instance by its object_id and return as individual nodes
+    for (const auto& instanceId : instanceIds) {
+        for (const auto& node : *ctx.dominanceNodes) {
+            if (node.object_id == instanceId) {
+                std::string className = getClassName(ctx, node.object_id);
+                // Check if this instance has children
+                bool hasChildren = false;
+                for (const auto& child : *ctx.dominanceNodes) {
+                    if (child.parent_id == instanceId) {
+                        hasChildren = true;
+                        break;
+                    }
+                }
+                json nodeJson = {
+                    {"id", node.object_id},
+                    {"class_name", className},
+                    {"retained_size", node.retained_size},
+                    {"shallow_size", node.shallow_size},
+                    {"depth", node.depth},
+                    {"parent_id", node.parent_id},
+                    {"instance_count", 1},
+                    {"is_clustered", false},
+                    {"is_cutoff", false},
+                    {"has_children", hasChildren}
+                };
+                result["nodes"].push_back(nodeJson);
+                break;
+            }
+        }
     }
 
     return result.dump();
@@ -301,11 +469,13 @@ std::string HttpHandlers::handleFragmentLayout(const HttpContext& ctx) {
     json result;
     result["categories"] = json::array();
     result["fragments"] = json::array();
+    result["regions"] = json::array();  // Add regions for frontend compatibility
 
     auto addCategory = [&](const char* type, uint64_t size) {
         if (size > 0) {
             result["categories"].push_back({{"type", type}, {"size", size}});
             result["fragments"].push_back({{"size", size}, {"type", type}});
+            result["regions"].push_back({{"type", type}, {"size", size}});
         }
     };
 

@@ -12,6 +12,7 @@ public:
     static std::string handleSnapshot(const HttpContext& ctx);
     static std::string handleDominanceTree(const HttpContext& ctx);
     static std::string handleDominanceChildren(const HttpContext& ctx, uint64_t parentId);
+    static std::string handleDominanceClusterExpand(const HttpContext& ctx, const std::vector<uint64_t>& instanceIds);
     static std::string handleDominanceTop10(const HttpContext& ctx);
     static std::string handleFragmentOverview(const HttpContext& ctx);
     static std::string handleFragmentLayout(const HttpContext& ctx);
