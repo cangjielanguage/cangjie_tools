@@ -61,8 +61,8 @@ struct Node<K> {
 
     func filterEdges(cond: (K) -> Bool): Node<K> {
         Node(
-            this.indeg.filter(cond) |> collectArray,
-            this.outdeg.filter(cond) |> collectArray
+            this.indeg.iterator().filter(cond) |> collectArray,
+            this.outdeg.iterator().filter(cond) |> collectArray
         )
     }
 }
@@ -106,7 +106,7 @@ public class DAG<K, V> where K <: Hashable & Equatable<K> {
             return (id, state.filterEdges { it => cond(it, this._data[it] )} )
         } |> collectHashMap
 
-        let toposort = toposort.filter { it => cond(it, this._data[it]) } |> collectArray
+        let toposort = toposort.iterator().filter { it => cond(it, this._data[it]) } |> collectArray
 
         DAG<K, V>(graph, _roots, toposort, _data)
     }

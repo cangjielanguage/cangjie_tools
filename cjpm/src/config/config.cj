@@ -567,7 +567,7 @@ public struct PackageList {
     }
 
     public func bestFitFeatures(features: HashSet<Feature>): HashMap<String, String> {
-        packages.filterMap { it: ResolveItem => 
+        packages.iterator().filterMap { it: ResolveItem => 
             if (!it.isMultiplatform) {
                 return None<(String, String)>
             } else {
