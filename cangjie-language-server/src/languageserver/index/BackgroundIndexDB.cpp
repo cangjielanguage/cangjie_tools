@@ -9,8 +9,8 @@
 #include <iostream>
 #include <optional>
 #include "../CompilerCangjieProject.h"
-#include "BackgroundIndexDB.h"
 #include "MemIndex.h"
+#include "BackgroundIndexDB.h"
 
 namespace ark {
 namespace lsp {

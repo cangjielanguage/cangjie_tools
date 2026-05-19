@@ -6,14 +6,14 @@
 
 #include "IntroduceParameter.h"
 #include "../../../common/Utils.h"
-#include "../TweakRule.h"
-#include "../TweakUtils.h"
 #include <algorithm>
 #include <cstddef>
 #include <sstream>
 #include <unordered_set>
 #include <vector>
-#include <cangjie/AST/Walker.h>
+#include "../TweakRule.h"
+#include "../TweakUtils.h"
+#include "cangjie/AST/Walker.h"
 
 namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_PARAMETER_EXPR = {
