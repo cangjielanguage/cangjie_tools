@@ -5,11 +5,99 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "TweakUtils.h"
-
+#include <algorithm>
+#include <cctype>
+#include <cangjie/AST/Walker.h>
+// LCOV_EXCL_START
 namespace ark {
+namespace {
+constexpr size_t INDENT_RESERVE_EXTRA_LINES = 2;
+}
+
 bool TweakUtils::Contain(Node &node, Range &range)
 {
     return node.begin <= range.start && node.end >= range.end;
+}
+
+size_t TweakUtils::FindTokenBoundaryPos(const std::string &text, const std::string &token)
+{
+    size_t searchPos = 0;
+    while (searchPos < text.size()) {
+        size_t pos = text.find(token, searchPos);
+        if (pos == std::string::npos) {
+            return std::string::npos;
+        }
+        bool leftBoundary = (pos == 0) || (!std::isalnum(static_cast<unsigned char>(text[pos - 1])) &&
+            text[pos - 1] != '_');
+        size_t endPos = pos + token.size();
+        bool rightBoundary = endPos >= text.size() || (!std::isalnum(static_cast<unsigned char>(text[endPos])) &&
+            text[endPos] != '_');
+        if (leftBoundary && rightBoundary) {
+            return pos;
+        }
+        searchPos = endPos;
+    }
+    return std::string::npos;
+}
+
+void TweakUtils::AdvancePosition(Cangjie::Position &pos, const std::string &text, size_t from, size_t to)
+{
+    size_t offset = from;
+    while (offset < to) {
+        size_t newline = text.find('\n', offset);
+        if (newline == std::string::npos || newline >= to) {
+            pos.column += static_cast<int>(CountUnicodeCharacters(text.substr(offset, to - offset)));
+            break;
+        }
+        pos.column += static_cast<int>(CountUnicodeCharacters(text.substr(offset, newline - offset)));
+        pos.line += 1;
+        pos.column = 1;
+        offset = newline + 1;
+    }
+}
+
+Cangjie::Position TweakUtils::PositionAtOffset(Cangjie::Position start, const std::string &text, size_t offset)
+{
+    AdvancePosition(start, text, 0, offset);
+    return start;
+}
+
+std::string TweakUtils::NormalizeSignature(const std::string &signature)
+{
+    std::string normalized;
+    normalized.reserve(signature.size());
+    for (char ch : signature) {
+        if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+            continue;
+        }
+        normalized.push_back(ch);
+    }
+    return normalized;
+}
+
+std::string TweakUtils::IndentTextBlock(const std::string &text, const std::string &indent)
+{
+    if (text.empty()) {
+        return "";
+    }
+    std::string normalized = text;
+    normalized.erase(std::remove(normalized.begin(), normalized.end(), '\r'), normalized.end());
+    std::string indented;
+    indented.reserve(normalized.size() + indent.size() * INDENT_RESERVE_EXTRA_LINES);
+    size_t start = 0;
+    while (start <= normalized.size()) {
+        size_t end = normalized.find('\n', start);
+        std::string line = end == std::string::npos
+            ? normalized.substr(start)
+            : normalized.substr(start, end - start);
+        indented += indent + line;
+        if (end == std::string::npos) {
+            break;
+        }
+        indented.push_back('\n');
+        start = end + 1;
+    }
+    return indented;
 }
 
 Ptr<Block> TweakUtils::FindOuterScopeNode(const ASTContext &ctx, const Expr &expr, bool &isGlobal, Range &range)
@@ -245,6 +333,84 @@ bool TweakUtils::CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode
             return SelectionTree::WalkAction::WALK_CHILDREN;
         });
     return isValid;
+}
+
+Range TweakUtils::GetCompleteExprRange(const SelectionTree &selectionTree)
+{
+    Range range;
+    auto root = selectionTree.root();
+    if (!root || !root->node || root->selected != SelectionTree::Selection::Complete) {
+        return range;
+    }
+    range.start = root->node->begin;
+    range.end = root->node->end;
+    return range;
+}
+
+Ptr<FuncDecl> TweakUtils::FindEnclosingFunc(const ArkAST &arkAst, const Range &range)
+{
+    if (!arkAst.file || range.start == Position{0, 0, 0} || range.start == range.end) {
+        return nullptr;
+    }
+
+    Ptr<FuncDecl> result = nullptr;
+    for (auto &decl : arkAst.file->decls) {
+        if (!decl || decl->begin > range.start || decl->end < range.end) {
+            continue;
+        }
+        Walker(decl.get(), [&range, &result](auto node) {
+            if (!node || node->begin > range.start || node->end < range.end) {
+                return VisitAction::SKIP_CHILDREN;
+            }
+            auto funcDecl = DynamicCast<FuncDecl *>(node.get());
+            if (funcDecl && funcDecl->funcBody && funcDecl->funcBody->body
+                && funcDecl->funcBody->body->begin <= range.start && funcDecl->funcBody->body->end >= range.end) {
+                result = funcDecl;
+            }
+            return VisitAction::WALK_CHILDREN;
+        }).Walk();
+        if (result) {
+            break;
+        }
+    }
+    return result;
+}
+
+Ptr<FuncDecl> TweakUtils::GetTargetFunc(const SelectionTree &selectionTree, const ArkAST *arkAst, const Range &range)
+{
+    auto targetDecl = selectionTree.TargetDecl();
+    auto funcDecl = DynamicCast<FuncDecl *>(targetDecl.get());
+    if (!funcDecl && arkAst) {
+        funcDecl = FindEnclosingFunc(*arkAst, range);
+    }
+    if (!funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->body) {
+        return nullptr;
+    }
+    return funcDecl;
+}
+
+std::string TweakUtils::GetSelectedExprTypeName(const SelectionTree &selectionTree, const Range &range)
+{
+    std::string typeName;
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return typeName;
+    }
+    SelectionTree::Walk(root, [&range, &typeName](const SelectionTree::SelectionTreeNode *treeNode) {
+        if (!treeNode || !treeNode->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr() &&
+            treeNode->node->begin == range.start && treeNode->node->end == range.end) {
+            auto expr = DynamicCast<Expr *>(treeNode->node.get());
+            if (expr && expr->ty && GetString(*expr->ty) != "UnknownType") {
+                typeName = GetString(*expr->ty);
+            }
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return typeName;
 }
 
 Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)

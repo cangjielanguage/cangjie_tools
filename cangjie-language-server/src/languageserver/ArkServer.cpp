@@ -1017,8 +1017,9 @@ static std::vector<std::unique_ptr<Tweak::Selection>> CreateTweakSelection(const
     SelectionTree::CreateEach(*inputAST.ast, file, range.start,
         range.end, [&](SelectionTree selectionTree) {
             // cannot tweak:
-            // if selected range is not GLOBAL_VAR/MEMBER_VAR/GLOBAL_FUNC_BODY/MEMBER_FUNC_BODY/EXTEND_FUNC_BODY
-            if (!selectionTree.root() || selectionTree.SelectedScope() == SelectionTree::Scope::UNKNOWN) {
+            // if selected range is not GLOBAL_VAR/MEMBER_VAR/FUNC_BODY/TYPE_DECL
+            if (!selectionTree.root() ||
+                selectionTree.SelectedScope() == SelectionTree::Scope::UNKNOWN) {
                 return false;
             }
             auto tweakSelection =
