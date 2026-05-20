@@ -136,35 +136,29 @@ void LSPDiagObserver::HandleDiagnose(Cangjie::Diagnostic &diagnostic)
 Position GetImplementMembersInsertPosition(Ptr<const Decl> decl)
 {
     if (auto cd = DynamicCast<ClassDecl>(decl)) {
-        if (cd->body && !cd->body->decls.empty()) {
+        if (cd->body) {
             auto it = std::find_if(cd->body->decls.rbegin(), cd->body->decls.rend(), [](auto &node) {
                 return !node->TestAttr(Attribute::COMPILER_ADD);
             });
             return it != cd->body->decls.rend() ? it->get()->GetEnd() : cd->body->rightCurlPos;
-        } else if (cd->body) {
-            return cd->body->rightCurlPos;
         }
     }
 
     if (auto sd = DynamicCast<StructDecl>(decl)) {
-        if (sd->body && !sd->body->decls.empty()) {
+        if (sd->body) {
             auto it = std::find_if(sd->body->decls.rbegin(), sd->body->decls.rend(), [](auto &node) {
                 return !node->TestAttr(Attribute::COMPILER_ADD);
             });
             return it != sd->body->decls.rend() ? it->get()->GetEnd() : sd->body->rightCurlPos;
-        } else if (sd->body) {
-            return sd->body->rightCurlPos;
         }
     }
 
     if (auto ed = DynamicCast<EnumDecl>(decl)) {
         if (ed->members.empty()) {
-            if (!ed->constructors.empty()) {
-                auto it = std::find_if(ed->constructors.rbegin(), ed->constructors.rend(), [](auto &node) {
-                    return !node->TestAttr(Attribute::COMPILER_ADD);
-                });
-                return it != ed->constructors.rend() ? it->get()->GetEnd() : Position();
-            }
+            auto it = std::find_if(ed->constructors.rbegin(), ed->constructors.rend(), [](auto &node) {
+                return !node->TestAttr(Attribute::COMPILER_ADD);
+            });
+            return it != ed->constructors.rend() ? it->get()->GetEnd() : Position();
         } else {
             auto it = std::find_if(ed->members.rbegin(), ed->members.rend(), [](auto &node) {
                 return !node->TestAttr(Attribute::COMPILER_ADD);

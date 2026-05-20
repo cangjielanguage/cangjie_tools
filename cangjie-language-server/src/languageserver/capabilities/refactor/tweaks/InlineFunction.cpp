@@ -4,13 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "InlineFunction.h"
+#include <sstream>
+#include <regex>
 #include "../../../CompilerCangjieProject.h"
 #include "../TweakRule.h"
 #include "../TweakUtils.h"
 #include "../../../common/PositionResolver.h"
-#include <sstream>
-#include <regex>
+#include "InlineFunction.h"
 
 // LCOV_EXCL_START
 namespace ark {

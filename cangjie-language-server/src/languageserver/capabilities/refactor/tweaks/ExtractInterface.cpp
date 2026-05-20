@@ -4,7 +4,12 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "ExtractInterface.h"
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <sstream>
 #include "../../../CompilerCangjieProject.h"
 #include "../../../capabilities/reference/FindReferencesImpl.h"
 #include "../../../common/FindDeclUsage.h"
@@ -12,13 +17,8 @@
 #include "../../../common/Utils.h"
 #include "../TweakUtils.h"
 #include "../TweakRule.h"
+#include "ExtractInterface.h"
 #include "cangjie/Utils/FileUtil.h"
-#include <algorithm>
-#include <cctype>
-#include <cstring>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <sstream>
 
 namespace ark {
 using namespace Cangjie;

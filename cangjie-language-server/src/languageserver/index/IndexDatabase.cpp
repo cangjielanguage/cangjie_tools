@@ -9,8 +9,8 @@
 #include "../sql/wrapper/Connection.h"
 #include "../sql/wrapper/Memory.h"
 #include "../common/Utils.h"
-#include "IndexDatabase.h"
 #include "Symbol.h"
+#include "IndexDatabase.h"
 
 namespace ark {
 namespace lsp {
@@ -1472,9 +1472,9 @@ dberr_no IndexDatabase::DBUpdate::InsertExtends(
         for (const auto &extend : extends) {
             const auto &curPkgName = extend.first.first;
             const auto &extendId = extend.first.second;
-            for (const auto &extenItem : extend.second) {
-                stmt.execute(sqldb::with(GetArrayFromID(extendId), GetArrayFromID(extenItem.id),
-                    extenItem.modifier, extenItem.interfaceName, curPkgName));
+            for (const auto &extendItem : extend.second) {
+                stmt.execute(sqldb::with(GetArrayFromID(extendId), GetArrayFromID(extendItem.id),
+                    extendItem.modifier, extendItem.isStatic, extendItem.interfaceName, curPkgName));
             }
         }
 #ifndef NO_EXCEPTIONS
