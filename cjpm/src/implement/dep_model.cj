@@ -883,13 +883,16 @@ class DepModel {
         }
 
         let target = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+        let triple = Triple.fromString(target).getOrThrow { err =>
+            CliFailError("Error: invalid target '${target}': ${err}")
+        }
         for (name in this.depAnalysisEngine.finalDepMap.keys()) {
             let alwaysEnabledFeatures = verifiedModuleMap[name].alwaysEnabledFeatures
             let mapping = verifiedModuleMap[name].mapping
             let features = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
                 .addFeature(this.globalConfig.verifiedEnabledFeatures)
                 .addFeature(alwaysEnabledFeatures)
-                .deduceTargetFeatures(Triple.fromString(target).getOrThrow())
+                .deduceTargetFeatures(triple)
                 .setFeatureMapping(mapping)
                 .collect()
 

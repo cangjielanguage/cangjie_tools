@@ -151,6 +151,11 @@ func crossCompileCheck(target: String): (Bool, Bool) {
                 eprintln("Warning: the current platform is '${target}', the '--target' option will be ignored")
                 return (true, false)
             }
+            if (normalizeTarget(target) == normalizeTarget(targetConfigName)) {
+                eprintln("Warning: target '${target}' is equivalent to the local target " +
+                    "'${targetConfigName}', cjpm will perform native-compilation instead of cross-compilation")
+                return (true, false)
+            }
             crossCompileTarget = target
             return (true, true)
         case None => eprintln("Error: the cross-compile target '${target}' is wrong, the example is 'aarch64-hm-gnu'")
