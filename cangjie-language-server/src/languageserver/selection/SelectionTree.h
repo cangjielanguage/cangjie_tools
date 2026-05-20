@@ -26,12 +26,13 @@ public:
         Complete,
     };
 
-    // can only be refact within scope: GLOBAL_VAR/MEMBER_VAR/FUNC_BODY
+    // can only be refact within scope: GLOBAL_VAR/MEMBER_VAR/FUNC_BODY/TYPE_DECL
     enum class Scope {
         UNKNOWN,
         GLOBAL_VAR,
         MEMBER_VAR,
-        FUNC_BODY
+        FUNC_BODY,
+        TYPE_DECL
     };
 
     struct SelectionTreeNode {
