@@ -518,7 +518,7 @@ public:
     bool IsCommonSpecificPkg(const std::string &realPkgName);
 
     std::vector<std::string> GetCommonSpecificSourceSetGraph(const std::string &pkgName);
-    
+
     PkgType GetPkgType(const std::string &modulePath, const std::string &path);
 
     std::string GetSourceSetNameByPath(const std::string &path);
@@ -530,6 +530,11 @@ public:
     std::string GetFinalDownStreamFullPkgName(const std::string &pkgName);
 
     std::string GetRealPackageName(const std::string& fullPackageName);
+
+    std::unordered_map<std::string, Modifier> GetPkgToModifierMap()
+    {
+        return pkgToModMap;
+    }
 
 private:
     CompilerCangjieProject(Callbacks *cb, lsp::IndexDatabase *arkIndexDB);
@@ -555,7 +560,7 @@ private:
 
     void InitPkgInfoBuffer(const std::string &fullPkgName, const std::string &absName, const std::string &contents,
  	                            bool isDefaultPkg);
- 	 
+
     void UpdatePkgMaps(const std::string &fullPkgName, const std::string &dirPath);
 
     void IncrementCompile(const std::string &filePath, const std::string &contents = "", bool isDelete = false);

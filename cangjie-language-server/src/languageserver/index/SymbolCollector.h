@@ -56,6 +56,11 @@ public:
         return &crsSymsMap;
     }
 
+    const ReExportSymbolSlab* GetReExportSymbolMap() const
+    {
+        return &reExportSymsMap;
+    }
+
     const std::vector<Relation>* GetRelations() const
     {
         return &relations;
@@ -64,6 +69,24 @@ public:
     void SetArkAstMap(std::map<std::string, std::unique_ptr<ArkAST>> arkAstMap)
     {
         astMap = std::move(arkAstMap);
+    }
+
+    SymbolID GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+    {
+        if (!ty || !ty->IsPrimitive()) {
+            return INVALID_SYMBOL_ID;
+        }
+
+        auto found = TyToSymIdMap.find(ty);
+        if (found != TyToSymIdMap.end()) {
+            return found->second;
+        }
+
+        std::string exportId = PRIMARY_TYPE_EXPORTID_PREFIX + '$' + Ty::KindName(ty->kind);
+        size_t id = 0;
+        id = hash_combine<std::string>(id, exportId);
+        (void)TyToSymIdMap.emplace(ty, id);
+        return id;
     }
 
 private:
@@ -143,6 +166,25 @@ private:
 
     void CreateImportRef(const File &fileNode);
 
+    void CollectReExportSymbol(const File &file);
+
+    void CollectReExportCompletionItem(const Decl &decl, ReExportSymbol &symbol);
+
+    void CreateReExportSymbolFromSingleImport(const File &file,
+         const Ptr<ImportSpec> importSpec,
+        std::set<std::pair<std::string, SymbolID>> &addedReExportSymbols,
+        std::unordered_map<std::string, std::map<std::string, AST::OrderedDeclSet>> &pkgMembersMap);
+
+    void CreateReExportSymbolFromAliasImport(const File &file,
+        const Ptr<ImportSpec> importSpec,
+        std::set<std::pair<std::string, SymbolID>> &addedReExportSymbols,
+        std::unordered_map<std::string, std::map<std::string, AST::OrderedDeclSet>> &pkgMembersMap);
+
+    void CreateReExportSymbolFromAllImport(const File &file,
+        const Ptr<ImportSpec> importSpec,
+        std::set<std::pair<std::string, SymbolID>> &addedReExportSymbols,
+        std::unordered_map<std::string, std::map<std::string, AST::OrderedDeclSet>> &pkgMembersMap);
+
     void CreateExtend(const Decl& decl, const std::string& filePath);
 
     void CreateCrossSymbolByInterop(const Decl &decl);
@@ -155,7 +197,7 @@ private:
 
     void DealRegisterFunc(const FuncArg &registerIdentify, const FuncArg &registerTarget);
 
-    void  ResloveBlock(const Block &block, const std::string &registerIdentify);
+    void ResloveBlock(const Block &block, const std::string &registerIdentify);
 
     void DealCrossSymbol(const NameReferenceExpr &ref, const Decl &target, const SrcIdentifier &identifier);
 
@@ -249,6 +291,8 @@ private:
     // Only toplevel and member decls (except extend decl).
     std::unordered_map<Ptr<const Decl>, SymbolID> declToSymIdMap;
 
+    std::unordered_map<Ptr<Ty>, SymbolID> TyToSymIdMap;
+
     std::vector<std::pair<Ptr<const Node>, std::string>> scopes;
 
     std::vector<std::pair<Ptr<const Node>, std::pair<CrossRegisterType, std::string>>> crossRegisterScopes;
@@ -279,6 +323,8 @@ private:
     std::map<SymbolID, std::vector<ExtendItem>> symbolExtendMap;
 
     std::vector<CrossSymbol> crsSymsMap;
+
+    ReExportSymbolSlab reExportSymsMap;
 
     bool isCjoPkg;
 
@@ -313,6 +359,8 @@ private:
     const std::string CLASS_REGISTER_TY = "(Class-JSContext) -> Class-JSClass";
 
     const std::string MODULE_REGISTER_TY = "(Class-JSContext, Class-JSObject) -> Unit";
+
+    const std::string PRIMARY_TYPE_EXPORTID_PREFIX = "CANGJIE_PRIMARY_TYPE";
 };
 } // namespace lsp
 } // namespace ark
