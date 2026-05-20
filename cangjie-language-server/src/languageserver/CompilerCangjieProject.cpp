@@ -975,8 +975,6 @@ std::unique_ptr<LSPCompilerInstance> CompilerCangjieProject::GetCIForDotComplete
     }
     SetCommonPartCjo(newCI, fullPkgName);
     newCI->CompilePassForComplete(cjoManager, graph, pos);
-    newCI->CompileAfterParse(cjoManager, graph);
-
     return newCI;
 }
 
