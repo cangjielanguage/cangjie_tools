@@ -27,7 +27,7 @@ int Heap::Execute(int argc, char **argv)
         return OK;
     }
 
-    auto analyzer = HeapAnalyzer::GetInstance();
+    auto &analyzer = HeapAnalyzer::GetInstance();
     if (!analyzer.SetData(m_cfg.input)) {
         return ERR;
     }

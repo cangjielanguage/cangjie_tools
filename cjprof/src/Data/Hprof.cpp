@@ -1,5 +1,5 @@
 // Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
-// This source file is part of the Cangjie project, licensed under Apache-2.0 
+// This source file is part of the Cangjie project, licensed under Apache-2.0
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
@@ -11,60 +11,112 @@
 #include <sys/time.h>
 #include "Data/Hprof.h"
 
+// Static empty containers for HprofData
+const std::map<HprofData::ID, std::string> HprofData::emptyStrings;
+const std::map<HprofData::ID, HprofData::Frame> HprofData::emptyFrames;
+const std::map<HprofData::u4, HprofData::StackTrace> HprofData::emptyStackTraces;
+const std::map<HprofData::ID, HprofData::Thread> HprofData::emptyThreads;
+const std::map<HprofData::ID, HprofData::Class> HprofData::emptyClasses;
+const std::map<HprofData::ID, HprofData::Instance> HprofData::emptyInstances;
+const std::unordered_map<HprofData::ID, HprofData::Array> HprofData::emptyArrays;
+const std::unordered_map<HprofData::ID, HprofData::Local> HprofData::emptyLocals;
+const std::unordered_set<HprofData::ID> HprofData::emptyGlobals;
+const std::unordered_set<HprofData::ID> HprofData::emptyUnknown;
+const std::map<HprofData::u4, HprofData::Sample> HprofData::emptyCpuSamples;
+const std::unordered_map<HprofData::ID, HprofData::u4> HprofData::emptyComponentNums;
+
 #pragma pack(push, 1)
 
 bool Hprof::Parse(const std::string &data, bool verbose)
 {
-    m_data = data;
-    m_curPos = 0;
-
-    auto header = ReadAs<FileHeader>();
-    if (!header || (std::string(header->ident) != m_headerFlag)) {
+    // Read file header to determine format version
+    if (data.size() < sizeof(FileHeader)) {
         fprintf(stderr, "error: Invalid file contents or file format.\n");
         return false;
     }
 
-    m_fileTime = header->timeHigh;
-    m_fileTime = (m_fileTime << 32) + header->timeLow;
+    auto header = (FileHeader *)(data.data());
+    std::string ident(header->ident);
 
-    m_curPos += sizeof(FileHeader);
+    // Create data storage first
+    m_data = std::make_unique<HprofData>();
 
+    // Strategy pattern: create appropriate parser based on format version
+    if (ident == m_headerFlagV2) {
+        m_parser = std::make_unique<HprofParserV2>(*m_data);
+        // V2 format: ID size is dynamic, read from file header (4 or 8)
+        m_data->idSize = HprofParserBase::SwapEndian(header->idSize);
+    } else if (ident == m_headerFlagV1) {
+        m_parser = std::make_unique<HprofParserV1>(*m_data);
+        // V1 format: ID size is fixed to 8 bytes (set in HprofParserV1 constructor)
+    } else {
+        fprintf(stderr, "error: Invalid file contents or file format.\n");
+        return false;
+    }
+
+    // Initialize parser with data
+    m_parser->SetData(data);
+    m_data->fileTime = header->timeHigh;
+    m_data->fileTime = (m_data->fileTime << 32) + header->timeLow;
+    m_parser->SetCurPos(sizeof(FileHeader));
+
+    // Main parsing loop using strategy pattern - delegate to parser
     std::map<Tag, std::function<void(bool)>> recordParsers = {
-        { STRING, std::bind(&Hprof::ParseString, this, std::placeholders::_1) },
-        { CLASS, std::bind(&Hprof::ParseClass, this, std::placeholders::_1) },
-        { STACK_FRAME, std::bind(&Hprof::ParseStackFrame, this, std::placeholders::_1) },
-        { STACK_TRACE, std::bind(&Hprof::ParseStackTrace, this, std::placeholders::_1) },
-        { START_THREAD, std::bind(&Hprof::ParseStartThread, this, std::placeholders::_1) },
+        { STACK_FRAME, std::bind(&HprofParserBase::ParseStackFrame, m_parser.get(), std::placeholders::_1) },
+        { STACK_TRACE, std::bind(&HprofParserBase::ParseStackTrace, m_parser.get(), std::placeholders::_1) },
+        { START_THREAD, std::bind(&HprofParserBase::ParseStartThread, m_parser.get(), std::placeholders::_1) },
         { HEAP_DUMP, std::bind(&Hprof::ParseHeapDump, this, std::placeholders::_1) },
         { CPU_SAMPLES, std::bind(&Hprof::ParseCpuSamples, this, std::placeholders::_1) }
     };
-    while (m_curPos < m_data.size()) {
-        auto record = ReadAs<RecordHeader>();
-        if (!record) {
-            fprintf(stderr, "error: Record was truncated at offset 0x%zx\n", m_curPos);
+
+    while (m_parser->GetCurPos() < data.size()) {
+        auto tag = m_parser->ReadAs<Tag>();
+        if (!tag) {
+            fprintf(stderr, "error: Record was truncated at offset 0x%zx\n", m_parser->GetCurPos());
             return false;
         }
+        m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(Tag));
 
-        auto size = SwapEndian(record->length);
-        if (m_curPos + size > m_data.size()) {
-            fprintf(stderr, "error: Record length is too long at offset 0x%zx\n", m_curPos);
-            return false;
+        // CLASS record has no length field, delegate to parser
+        if (*tag == CLASS) {
+            m_parser->ParseClass(verbose);
+            continue;
         }
 
-        auto it = recordParsers.find(record->tag);
+        // STRING record has u4/u8 length, delegate to parser
+        if (*tag == STRING) {
+            m_parser->ParseString(verbose);
+            continue;
+        }
+
+        // For other records, check if there's a parser
+        auto it = recordParsers.find(*tag);
         if (it != recordParsers.end()) {
             it->second(verbose);
             continue;
         }
 
-        if (verbose) {
-            printf("[SKIPED@0x%zx] tag = %u\n", m_curPos, record->tag);
+        // Unknown tag: read length (u8) and skip
+        auto lengthRec = m_parser->ReadAs<u8>();
+        if (!lengthRec) {
+            fprintf(stderr, "error: Record length truncated at offset 0x%zx\n", m_parser->GetCurPos());
+            return false;
+        }
+        m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u8));
+        auto size = HprofParserBase::SwapEndian(*lengthRec);
+        if (m_parser->GetCurPos() + size > data.size()) {
+            fprintf(stderr, "error: Record length is too long at offset 0x%zx\n", m_parser->GetCurPos());
+            return false;
         }
 
-        m_curPos += sizeof(RecordHeader) + size;
+        if (verbose) {
+            printf("[SKIPED@0x%zx] tag = %u\n", m_parser->GetCurPos() - sizeof(Tag) - sizeof(u8), *tag);
+        }
+
+        m_parser->SetCurPos(m_parser->GetCurPos() + size);
     }
 
-    if (m_curPos != m_data.size()) {
+    if (m_parser->GetCurPos() != data.size()) {
         fprintf(stderr, "error: Unknown record or the length of the last record is too long.\n");
         return false;
     }
@@ -72,103 +124,16 @@ bool Hprof::Parse(const std::string &data, bool verbose)
     return true;
 }
 
-void Hprof::ParseString(bool verbose)
-{
-    auto rec = ReadAs<StringRecord>();
-    if (rec == nullptr) {
-        return;
-    }
-    ID id = SwapEndian(rec->id);
-    auto length = SwapEndian(rec->length);
-    if (length < sizeof(rec->id)) {
-        fprintf(stderr, "error: StringRecord length too small at offset 0x%zx\n", m_curPos);
-        return;
-    }
-    m_strings[id] = std::string(rec->str, length - sizeof(rec->id));
-    if (verbose) {
-        printf("[STRING@0x%zx] id = 0x%" PRIx64 ", str = \"%s\"\n", m_curPos, id, m_strings[id].c_str());
-    }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
-}
-
-void Hprof::ParseClass(bool verbose)
-{
-    auto rec = ReadAs<LoadClassRecord>();
-    if (rec == nullptr) {
-        return;
-    }
-    ID id = SwapEndian(rec->id);
-    m_classes[id].name = SwapEndian(rec->name);
-    if (verbose) {
-        printf("[LOAD CLASS@0x%zx] id = 0x%" PRIx64 ", name id = 0x%" PRIx64 "\n", m_curPos, id, m_classes[id].name);
-    }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
-}
-
-void Hprof::ParseStackFrame(bool verbose)
-{
-    auto rec = ReadAs<StackFrameRecord>();
-    if (rec == nullptr) {
-        return;
-    }
-    ID id = SwapEndian(rec->id);
-    m_frames[id] = { SwapEndian(rec->name), SwapEndian(rec->fileName), SwapEndian(rec->line) };
-    if (verbose) {
-        printf("[STACK FRAME@0x%zx] id = 0x%" PRIx64 ", method name id = 0x%" PRIx64 ", file name id = 0x%" PRIx64 ", line = %u\n",
-            m_curPos, id, m_frames[id].name, m_frames[id].fileName, m_frames[id].line);
-    }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
-}
-
-void Hprof::ParseStackTrace(bool verbose)
-{
-    auto rec = ReadAs<StackTraceRecord>();
-    if (rec == nullptr) {
-        return;
-    }
-    u4 idx = SwapEndian(rec->idx);
-    m_stackTraces[idx].thread = SwapEndian(rec->thread);
-    for (size_t i = 0; i < SwapEndian(rec->frameNum); i++) {
-        m_stackTraces[idx].frames.push_back(SwapEndian(rec->frames[i]));
-    }
-
-    if (verbose) {
-        printf("[STACK TRACE@0x%zx] idx = %u, thread idx = %u, frames = [", m_curPos, idx, m_stackTraces[idx].thread);
-
-        auto frames = m_stackTraces[idx].frames;
-        for (size_t i = 0; i < frames.size(); i++) {
-            printf("0x%" PRIx64 "%s", frames[i], i < frames.size() - 1 ? ", " : "");
-        }
-
-        printf("]\n");
-    }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
-}
-
-void Hprof::ParseStartThread(bool verbose)
-{
-    auto rec = ReadAs<StartThreadRecord>();
-    if (rec == nullptr) {
-        return;
-    }
-    ID id = SwapEndian(rec->id);
-    m_threads[id].idx = SwapEndian(rec->idx);
-    m_threads[id].stackTraceIdx = SwapEndian(rec->stackTraceIdx);
-    m_threads[id].name = SwapEndian(rec->name);
-    if (verbose) {
-        printf("[START THREAD@0x%zx] id = 0x%" PRIx64 ", thread idx = %u, stack trace idx = %u, name id = 0x%" PRIx64 "\n",
-            m_curPos, id, m_threads[id].idx, m_threads[id].stackTraceIdx, m_threads[id].name);
-    }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
-}
-
 void Hprof::ParseHeapDump(bool verbose)
 {
+    auto lengthRec = m_parser->ReadAs<u8>();
+    if (lengthRec == nullptr) {
+        return;
+    }
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u8));
+    auto length = HprofParserBase::SwapEndian(*lengthRec);
+    auto endPos = m_parser->GetCurPos() + length;
+
     std::unordered_map<HeapDumpSubTag, std::function<void(bool)>> subRecordParsers = {
         { ROOT_GLOBAL, std::bind(&Hprof::ParseHeapDumpRootGlobal, this, std::placeholders::_1) },
         { ROOT_LOCAL, std::bind(&Hprof::ParseHeapDumpRootLocal, this, std::placeholders::_1) },
@@ -188,22 +153,19 @@ void Hprof::ParseHeapDump(bool verbose)
         { UNMOVABLE_STRUCT_ARRAY_DUMP, std::bind(&Hprof::ParseHeapDumpStructArrayDump, this, std::placeholders::_1) },
         { ROOT_UNKNOWN, std::bind(&Hprof::ParseHeapDumpRootUnknown, this, std::placeholders::_1) }
     };
-    auto header = ReadAs<RecordHeader>();
-    if (header == nullptr) {
-        return;
-    }
-    m_curPos += sizeof(RecordHeader);
-    auto endPos = m_curPos + SwapEndian(header->length);
-    while (m_curPos < endPos) {
-        auto tag = ReadAs<HeapDumpSubTag>();
+
+    while (m_parser->GetCurPos() < endPos) {
+        auto tag = m_parser->ReadAs<HeapDumpSubTag>();
         if (tag == nullptr) {
             return;
         }
+        m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(HeapDumpSubTag));
         auto it = subRecordParsers.find(*tag);
         if (it != subRecordParsers.end()) {
             it->second(verbose);
         } else {
-            fprintf(stderr, "error: Unknown sub-tag %u at offset 0x%zx\n", *tag, m_curPos);
+            fprintf(stderr, "error: Unknown sub-tag %u at offset 0x%zx\n",
+                    *tag, m_parser->GetCurPos() - sizeof(HeapDumpSubTag));
             return;
         }
     }
@@ -211,286 +173,168 @@ void Hprof::ParseHeapDump(bool verbose)
 
 void Hprof::ParseHeapDumpRootGlobal(bool verbose)
 {
-    struct RootGlobal {
-        u1 tag;
-        ID objId;   // object ID
-    } *rec = ReadAs<RootGlobal>();
-    if (!rec) {
-        m_curPos += sizeof(RootGlobal);
-        return;
-    }
-
-    ID id = SwapEndian(rec->objId);
-    m_globals.insert(id);
+    size_t startPos = m_parser->GetCurPos() - sizeof(u1);
+    ID id = m_parser->ReadId();
+    m_data->globals.insert(id);
 
     if (verbose) {
-        printf("[ROOT GLOBAL@0x%zx] id = 0x%" PRIx64 "\n", m_curPos, id);
+        printf("[ROOT GLOBAL@0x%zx] id = 0x%" PRIx64 "\n", startPos, id);
     }
-
-    m_curPos += sizeof(RootGlobal);
 }
 
 void Hprof::ParseHeapDumpRootLocal(bool verbose)
 {
-    struct RootLocal {
-        u1 tag;
-        ID id;      // object ID
-        u4 thread;  // thread serial number
-        u4 frame;   // frame number in stack trace (-1 for empty)
-    } *rec = ReadAs<RootLocal>();
-    if (!rec) {
-        m_curPos += sizeof(RootLocal);
+    size_t startPos = m_parser->GetCurPos() - sizeof(u1);
+    ID id = m_parser->ReadId();
+
+    auto threadRec = m_parser->ReadAs<u4>();
+    if (threadRec == nullptr) {
         return;
     }
+    u4 thread = HprofParserBase::SwapEndian(*threadRec);
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
 
-    ID id = SwapEndian(rec->id);
-    m_locals[id] = { SwapEndian(rec->thread), SwapEndian(rec->frame) };
+    auto frameRec = m_parser->ReadAs<u4>();
+    if (frameRec == nullptr) {
+        return;
+    }
+    u4 frame = HprofParserBase::SwapEndian(*frameRec);
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
+
+    m_data->locals[id] = { thread, frame };
+
     if (verbose) {
         printf("[ROOT LOCAL@0x%zx] id = 0x%" PRIx64 ", thread idx = %u, frame = %u\n",
-            m_curPos, id, m_locals[id].thread, m_locals[id].frame);
+            startPos, id, m_data->locals[id].thread, m_data->locals[id].frame);
     }
-
-    m_curPos += sizeof(RootLocal);
 }
 
 void Hprof::ParseHeapDumpClassDump(bool verbose)
 {
-    struct ClassDump {
-        u1 tag;
-        ID id;              // class object ID
-        u4 size;            // instance size (in bytes)
-    } *rec = ReadAs<ClassDump>();
-    if (!rec) {
-        m_curPos += sizeof(ClassDump);
-        return;
-    }
-
-    auto size = sizeof(ClassDump);
-    if (m_curPos + size > m_data.size()) {
-        m_curPos += size;
-        return;
-    }
-
-    ID id = SwapEndian(rec->id);
-    m_classes[id].size = SwapEndian(rec->size);
-    if (verbose) {
-        printf("[CLASS DUMP@0x%zx] id = 0x%" PRIx64 ", inst size = %u\n", m_curPos, id, m_classes[id].size);
-    }
-
-    m_curPos += sizeof(ClassDump);
+    // Delegate to parser strategy
+    m_parser->ParseHeapDumpClassDump(verbose);
 }
 
 void Hprof::ParseHeapDumpInstanceDump(bool verbose)
 {
-    struct InstanceDump {
-        u1 tag;
-        ID id;          // object ID
-        ID cls;         // class object ID
-        u4 num;         // number of bytes that follow
-        u8 values[];    // instance field values
-    } *rec = ReadAs<InstanceDump>();
-    if (!rec) {
-        m_curPos += sizeof(InstanceDump);
-        return;
-    }
-
-    auto num = SwapEndian(rec->num);
-    auto size = sizeof(InstanceDump) + sizeof(u8) * num;
-    if (m_curPos + size > m_data.size()) {
-        m_curPos += size;
-        return;
-    }
-
-    ID id = SwapEndian(rec->id);
-    m_instances[id].cls = SwapEndian(rec->cls);
-    for (size_t i = 0; i < num; i++) {
-        m_instances[id].fields.push_back(SwapEndian(rec->values[i]));
-    }
-
-    if (verbose) {
-        printf("[INSTANCE DUMP@0x%zx] id = 0x%" PRIx64 ", class = 0x%" PRIx64 ", value = [", m_curPos, id, m_instances[id].cls);
-
-        auto fields = m_instances[id].fields;
-        for (size_t i = 0; i < fields.size(); i++) {
-            printf("0x%" PRIx64 "%s", fields[i], i < fields.size() - 1 ? ", " : "");
-        }
-
-        printf("]\n");
-    }
-
-    m_curPos += size;
+    // Delegate to parser strategy
+    m_parser->ParseHeapDumpInstanceDump(verbose);
 }
 
 void Hprof::ParseHeapDumpObjectArrayDump(bool verbose)
 {
-    struct ObjectArrayDump {
-        u1 tag;
-        ID id;          // array object ID
-        u4 num;         // number of elements
-        ID cls;         // array class object ID
-        ID elements[];  // elements
-    } *rec = ReadAs<ObjectArrayDump>();
-    if (!rec) {
-        m_curPos += sizeof(ObjectArrayDump);
-        return;
-    }
-
-    auto num = SwapEndian(rec->num);
-    auto size = sizeof(ObjectArrayDump) + sizeof(ID) * num;
-    if (m_curPos + size > m_data.size()) {
-        m_curPos += size;
-        return;
-    }
-
-    ID id = SwapEndian(rec->id);
-    m_arrays[id].type = OBJECT;
-    m_arrays[id].cls = SwapEndian(rec->cls);
-    m_arrays[id].num = num;
-    for (size_t i = 0; i < num; i++) {
-        m_arrays[id].elements.push_back(SwapEndian(rec->elements[i]));
-    }
-
-    if (verbose) {
-        printf("[OBJECT ARRAY DUMP@0x%zx] id = 0x%" PRIx64 ", class = 0x%" PRIx64 ", elements = [", m_curPos, id, m_arrays[id].cls);
-
-        auto elements = m_arrays[id].elements;
-        for (size_t i = 0; i < m_arrays[id].num; i++) {
-            printf("0x%" PRIx64 "%s", elements[i], i < elements.size() - 1 ? ", " : "");
-        }
-
-        printf("]\n");
-    }
-
-    m_curPos += size;
+    // Delegate to parser strategy
+    m_parser->ParseHeapDumpObjectArrayDump(verbose);
 }
 
 void Hprof::ParseHeapDumpStructArrayDump(bool verbose)
 {
-    struct StructArrayDump {
-        u1 tag;
-        ID id;          // array object ID
-        u4 componentNum; // number of components, which is less than or equal to num
-        u4 num;         // number of ref fields
-        ID cls;         // array class object ID
-        ID elements[];  // elements
-    } *rec = ReadAs<StructArrayDump>();
-    if (!rec) {
-        m_curPos += sizeof(StructArrayDump);
-        return;
-    }
-
-    auto num = SwapEndian(rec->num);
-    auto size = sizeof(StructArrayDump) + sizeof(ID) * num;
-    if (m_curPos + size > m_data.size()) {
-        m_curPos += size;
-        return;
-    }
-
-    ID id = SwapEndian(rec->id);
-    m_arrays[id].type = OBJECT;
-    m_arrays[id].cls = SwapEndian(rec->cls);
-    m_arrays[id].num = num;
-    m_componentNums[id] = SwapEndian(rec->componentNum);
-    for (size_t i = 0; i < num; i++) {
-        m_arrays[id].elements.push_back(SwapEndian(rec->elements[i]));
-    }
-
-    if (verbose) {
-        printf("[STRUCT ARRAY DUMP@0x%zx] id = 0x%" PRIx64 ", class = 0x%" PRIx64 ", elements = [", m_curPos, id, m_arrays[id].cls);
-
-        auto elements = m_arrays[id].elements;
-        for (size_t i = 0; i < m_arrays[id].num; i++) {
-            printf("0x%" PRIx64 "%s", elements[i], i < elements.size() - 1 ? ", " : "");
-        }
-
-        printf("]\n");
-    }
-
-    m_curPos += size;
+    // Delegate to parser strategy
+    m_parser->ParseHeapDumpStructArrayDump(verbose);
 }
 
 void Hprof::ParseHeapDumpPrimitiveArrayDump(bool verbose)
 {
-    struct PrimitiveArrayDump {
-        u1 tag;
-        ID id;          // array object ID
-        u4 num;         // number of elements
-        u1 type;        // element type
-        u8 elements[];  // elements
-    } *rec = ReadAs<PrimitiveArrayDump>();
-    if (!rec) {
-        m_curPos += sizeof(PrimitiveArrayDump);
+    size_t startPos = m_parser->GetCurPos() - sizeof(u1);
+    ID id = m_parser->ReadId();
+
+    auto numRec = m_parser->ReadAs<u4>();
+    if (numRec == nullptr) {
         return;
     }
+    m_data->arrays[id].num = HprofParserBase::SwapEndian(*numRec);
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
 
-    ID id = SwapEndian(rec->id);
-    m_arrays[id].type = BasicType(rec->type);
-    m_arrays[id].cls = 0;
-    m_arrays[id].num = SwapEndian(rec->num);
+    auto typeRec = m_parser->ReadAs<u1>();
+    if (typeRec == nullptr) {
+        return;
+    }
+    m_data->arrays[id].type = BasicType(*typeRec);
+    m_data->arrays[id].cls = 0;
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u1));
+
     if (verbose) {
         printf("[PRIMITIVE ARRAY DUMP@0x%zx] id = 0x%" PRIx64 ", num = %u, type = %u\n",
-            m_curPos, id, m_arrays[id].num, m_arrays[id].type);
+            startPos, id, m_data->arrays[id].num, m_data->arrays[id].type);
     }
-
-    m_curPos += sizeof(PrimitiveArrayDump);
 }
 
 void Hprof::ParseHeapDumpRootUnknown(bool verbose)
 {
-    struct RootUnknown {
-        u1 tag;
-        ID objId;   // object ID
-    } *rec = ReadAs<RootUnknown>();
-    if (!rec) {
-        m_curPos += sizeof(RootUnknown);
-        return;
-    }
-
-    ID id = SwapEndian(rec->objId);
-    m_unknown.insert(id);
+    size_t startPos = m_parser->GetCurPos() - sizeof(u1);
+    ID id = m_parser->ReadId();
+    m_data->unknown.insert(id);
 
     if (verbose) {
-        printf("[ROOT UNKNOWN@0x%zx] id = 0x%" PRIx64 "\n", m_curPos, id);
+        printf("[ROOT UNKNOWN@0x%zx] id = 0x%" PRIx64 "\n", startPos, id);
     }
-
-    m_curPos += sizeof(RootUnknown);
 }
 
 void Hprof::ParseCpuSamples(bool verbose)
 {
-    auto rec = ReadAs<CpuSamplesRecord>();
-    if (rec == nullptr) {
+    size_t startPos = m_parser->GetCurPos() - sizeof(Tag);
+    auto lengthRec = m_parser->ReadAs<u8>();
+    if (lengthRec == nullptr) {
         return;
     }
-    auto period = SwapEndian(rec->period);
-    auto num = SwapEndian(rec->num);
-    auto &stackTraces = m_cpuSamples[period].stackTraces;
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u8));
+    auto length = HprofParserBase::SwapEndian(*lengthRec);
+
+    auto periodRec = m_parser->ReadAs<u4>();
+    if (periodRec == nullptr) {
+        return;
+    }
+    auto period = HprofParserBase::SwapEndian(*periodRec);
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
+
+    auto numRec = m_parser->ReadAs<u4>();
+    if (numRec == nullptr) {
+        return;
+    }
+    auto num = HprofParserBase::SwapEndian(*numRec);
+    m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
+
+    auto &stackTraces = m_data->cpuSamples[period].stackTraces;
 
     for (u4 i = 0; i < num; i++) {
-        stackTraces[SwapEndian(rec->samples[i].stackTraceIdx)] = SwapEndian(rec->samples[i].num);
+        auto sampleNumRec = m_parser->ReadAs<u4>();
+        if (sampleNumRec == nullptr) {
+            return;
+        }
+        auto sampleNum = HprofParserBase::SwapEndian(*sampleNumRec);
+        m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
+
+        auto stackTraceIdxRec = m_parser->ReadAs<u4>();
+        if (stackTraceIdxRec == nullptr) {
+            return;
+        }
+        auto stackTraceIdx = HprofParserBase::SwapEndian(*stackTraceIdxRec);
+        m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u4));
+
+        stackTraces[stackTraceIdx] = sampleNum;
     }
 
     if (verbose) {
-        printf("[CPU SAMPLES@0x%zx] period = %u, samples = [", m_curPos, period);
-        for (u4 i = 0; i < num; i++) {
-            printf("[%u, %u]%s", SwapEndian(rec->samples[i].stackTraceIdx),
-                SwapEndian(rec->samples[i].num), i < num - 1 ? ", " : "");
+        printf("[CPU SAMPLES@0x%zx] period = %u, samples = [", startPos, period);
+        for (auto it : stackTraces) {
+            printf("[%u, %u]", it.first, it.second);
         }
         printf("]\n");
     }
-
-    m_curPos += sizeof(RecordHeader) + SwapEndian(rec->length);
 }
 
 const std::string &Hprof::GenData()
 {
-    m_data = std::string(m_headerFlag, sizeof(m_headerFlag));
-    WriteAs(SwapEndian((u4)sizeof(ID)));
+    // Generate V2 format by default
+    m_outputData = std::string(m_headerFlagV2, sizeof(m_headerFlagV2));
+    u4 idSize = HprofParserBase::SwapEndian(static_cast<u4>(sizeof(u4)));
+    m_outputData.append(std::string((const char *)&idSize, sizeof(u4)));
 
     timeval time = {0};
     gettimeofday(&time, nullptr);
     u8 us = static_cast<u8>(time.tv_sec * 1000000 + time.tv_usec);
-    WriteAs(SwapEndian(us));
+    u8 swappedUs = HprofParserBase::SwapEndian(us);
+    m_outputData.append(std::string((const char *)&swappedUs, sizeof(u8)));
 
     for (auto string : m_stringsMap) {
         GenString(string.second, string.first);
@@ -504,11 +348,13 @@ const std::string &Hprof::GenData()
         GenStackTrace(trace.second, trace.first);
     }
 
-    for (auto sample : m_cpuSamples) {
-        GenCpuSample(sample.first, sample.second);
+    if (m_data) {
+        for (auto sample : m_data->cpuSamples) {
+            GenCpuSample(sample.first, sample.second);
+        }
     }
 
-    return m_data;
+    return m_outputData;
 }
 
 void Hprof::PutCpuSample(const std::vector<std::string> &callChain, u4 period)
@@ -521,58 +367,80 @@ void Hprof::PutCpuSample(const std::vector<std::string> &callChain, u4 period)
         stackTrace.frames.push_back(frameId);
     }
 
-    m_cpuSamples[period].stackTraces[GetMapValue(m_stackTracesMap, stackTrace)]++;
+    if (!m_data) {
+        m_data = std::make_unique<HprofData>();
+    }
+    m_data->cpuSamples[period].stackTraces[GetMapValue(m_stackTracesMap, stackTrace)]++;
 }
 
 void Hprof::GenString(ID id, const std::string &str)
 {
-    StringRecord rec;
-    rec.tag = STRING;
-    rec.length = SwapEndian((u8)(sizeof(StringRecord) + str.size() - sizeof(RecordHeader)));
-    rec.id = SwapEndian(id);
-    WriteAs(rec);
-    m_data.append(str);
+    m_outputData.push_back(STRING);
+    u4 length = sizeof(u4) + str.size();
+    u4 swappedLength = HprofParserBase::SwapEndian(length);
+    m_outputData.append(std::string((const char *)&swappedLength, sizeof(u4)));
+    u4 swappedId = HprofParserBase::SwapEndian(static_cast<u4>(id));
+    m_outputData.append(std::string((const char *)&swappedId, sizeof(u4)));
+    m_outputData.append(str);
 }
 
 void Hprof::GenStackFrame(ID id, const Frame &frame)
 {
-    StackFrameRecord rec;
-    rec.tag = STACK_FRAME;
-    rec.length = SwapEndian((u8)(sizeof(StackFrameRecord)) - sizeof(RecordHeader));
-    rec.id = SwapEndian(id);
-    rec.name = SwapEndian(frame.name);
-    rec.fileName = SwapEndian(frame.fileName);
-    rec.line = SwapEndian(frame.line);
-    WriteAs(rec);
+    m_outputData.push_back(STACK_FRAME);
+    u8 length = sizeof(u4) * 4;  // id + name + fileName + line (V2 format uses u4)
+    u8 swappedLength = HprofParserBase::SwapEndian(length);
+    m_outputData.append(std::string((const char *)&swappedLength, sizeof(u8)));
+
+    u4 swappedId = HprofParserBase::SwapEndian(static_cast<u4>(id));
+    u4 swappedName = HprofParserBase::SwapEndian(static_cast<u4>(frame.name));
+    u4 swappedFileName = HprofParserBase::SwapEndian(static_cast<u4>(frame.fileName));
+    u4 swappedLine = HprofParserBase::SwapEndian(frame.line);
+
+    m_outputData.append(std::string((const char *)&swappedId, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedName, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedFileName, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedLine, sizeof(u4)));
 }
 
 void Hprof::GenStackTrace(u4 idx, const StackTrace &stackTrace)
 {
-    StackTraceRecord rec;
-    rec.tag = STACK_TRACE;
-    rec.length = SwapEndian(
-        (u8)(sizeof(StackTraceRecord) + sizeof(ID) * stackTrace.frames.size()) - sizeof(RecordHeader));
-    rec.idx = SwapEndian(idx);
-    rec.thread = SwapEndian(stackTrace.thread);
-    rec.frameNum = SwapEndian((u4)stackTrace.frames.size());
-    WriteAs(rec);
-    for (auto id : stackTrace.frames) {
-        WriteAs(SwapEndian(id));
+    m_outputData.push_back(STACK_TRACE);
+    u8 length = sizeof(u4) * 3 + sizeof(u4) * stackTrace.frames.size();
+    u8 swappedLength = HprofParserBase::SwapEndian(length);
+    m_outputData.append(std::string((const char *)&swappedLength, sizeof(u8)));
+
+    u4 swappedIdx = HprofParserBase::SwapEndian(idx);
+    u4 swappedThread = HprofParserBase::SwapEndian(stackTrace.thread);
+    u4 swappedFrameNum = HprofParserBase::SwapEndian(static_cast<u4>(stackTrace.frames.size()));
+
+    m_outputData.append(std::string((const char *)&swappedIdx, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedThread, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedFrameNum, sizeof(u4)));
+
+    for (auto frameId : stackTrace.frames) {
+        u4 swappedFrameId = HprofParserBase::SwapEndian(static_cast<u4>(frameId));
+        m_outputData.append(std::string((const char *)&swappedFrameId, sizeof(u4)));
     }
 }
 
 void Hprof::GenCpuSample(u4 period, const Sample &sample)
 {
-    CpuSamplesRecord rec;
-    rec.tag = CPU_SAMPLES;
-    rec.length = SwapEndian(
-        (u8)(sizeof(CpuSamplesRecord) + sizeof(rec.samples[0]) * sample.stackTraces.size()) - sizeof(RecordHeader));
-    rec.period = SwapEndian(period);
-    rec.num = SwapEndian((u4)sample.stackTraces.size());
-    WriteAs(rec);
+    m_outputData.push_back(CPU_SAMPLES);
+    u8 length = sizeof(u4) * 2 + sizeof(u4) * 2 * sample.stackTraces.size();
+    u8 swappedLength = HprofParserBase::SwapEndian(length);
+    m_outputData.append(std::string((const char *)&swappedLength, sizeof(u8)));
+
+    u4 swappedPeriod = HprofParserBase::SwapEndian(period);
+    u4 swappedNum = HprofParserBase::SwapEndian(static_cast<u4>(sample.stackTraces.size()));
+
+    m_outputData.append(std::string((const char *)&swappedPeriod, sizeof(u4)));
+    m_outputData.append(std::string((const char *)&swappedNum, sizeof(u4)));
+
     for (auto it : sample.stackTraces) {
-        WriteAs(SwapEndian(it.second));
-        WriteAs(SwapEndian(it.first));
+        u4 swappedSampleNum = HprofParserBase::SwapEndian(it.second);
+        u4 swappedStackTraceIdx = HprofParserBase::SwapEndian(it.first);
+        m_outputData.append(std::string((const char *)&swappedSampleNum, sizeof(u4)));
+        m_outputData.append(std::string((const char *)&swappedStackTraceIdx, sizeof(u4)));
     }
 }
 
