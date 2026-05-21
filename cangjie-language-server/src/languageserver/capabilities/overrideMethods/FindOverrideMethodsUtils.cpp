@@ -9,6 +9,21 @@
 #include "../../common/Utils.h"
 
 namespace ark {
+const std::unordered_set<TokenKind> OPERATOR_TO_OVERLOAD = {
+    TokenKind::LSQUARE, TokenKind::RSQUARE, TokenKind::NOT,
+    TokenKind::EXP, TokenKind::MUL, TokenKind::MOD,
+    TokenKind::DIV, TokenKind::ADD, TokenKind::SUB,
+    TokenKind::LSHIFT, TokenKind::RSHIFT, TokenKind::LT,
+    TokenKind::LE, TokenKind::GT, TokenKind::GE,
+    TokenKind::EQUAL, TokenKind::NOTEQ, TokenKind::BITAND,
+    TokenKind::BITXOR, TokenKind::BITOR};
+
+const std::string TAB = "    ";
+const std::string NEWLINE = "\n";
+const std::string SPACE = " ";
+
+const std::string FUNC_NOT_IMPLEMENTED_EXCEPTION = "throw Exception(\"Function not implemented.\")";
+const std::string PROP_NOT_IMPLEMENTED_EXCEPTION = "throw Exception(\"Prop not implemented.\")";
 
 std::unordered_set<std::string> InitKeyWords()
 {
@@ -21,7 +36,90 @@ std::unordered_set<std::string> InitKeyWords()
     return keyWords;
 }
 
+const std::unordered_map<std::string, int> keyMap = InitKeyMap();
+
 const std::unordered_set<std::string> KeyWords = InitKeyWords();
+
+void FilterModifiers(Ptr<Decl> decl, std::vector<std::string>& modifiers)
+{
+    std::unordered_set<std::string> filterItems = {"abstract"};
+    if (!decl->TestAnyAttr(Attribute::OPEN, Attribute::SEALED)) {
+        filterItems.insert("open");
+    }
+
+    if (decl->astKind == ASTKind::INTERFACE_DECL) {
+        filterItems.insert("public");
+    }
+
+    if (decl->astKind == ASTKind::EXTEND_DECL) {
+        filterItems.insert("open");
+        filterItems.insert("override");
+        filterItems.insert("redef");
+    }
+
+    for (auto it = modifiers.begin(); it != modifiers.end();) {
+        if (filterItems.count(*it)) {
+            it = modifiers.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+std::vector<Ptr<ClassLikeDecl>> GetCanSuperCallDecls(const Ptr<Decl>& decl)
+{
+    if (auto classDecl = DynamicCast<ClassDecl*>(decl)) {
+        if (auto superClass = classDecl->GetSuperClassDecl()) {
+            return superClass->GetAllSuperDecls();
+        }
+    }
+    return {};
+}
+
+std::string GetSuperFuncCall(const Ptr<InheritableDecl>& owner, FuncDecl* funcDecl,
+                             const std::vector<Ptr<ClassLikeDecl>>& canSuperCall)
+{
+    // if lack of function body, don't add super call
+    bool isCanSuperCall =
+        std::any_of(canSuperCall.begin(), canSuperCall.end(), [&owner](const Ptr<ClassLikeDecl>& decl) {
+            return owner->curFile == decl->curFile && owner->begin == decl->begin && owner->end == decl->end;
+        });
+    if (funcDecl->TestAttr(Attribute::ABSTRACT) || (!funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) ||
+        IsHiddenDecl(funcDecl) || IsHiddenDecl(owner)) {
+        return TAB + FUNC_NOT_IMPLEMENTED_EXCEPTION + NEWLINE;
+    }
+
+    std::string superPrefix = "super.";
+    if (funcDecl->TestAttr(Attribute::STATIC) && !isCanSuperCall) {
+        superPrefix = owner->identifier.Val() + ".";
+    }
+
+    bool paramFirst = true;
+    std::string paramsText;
+    for (auto& paramList: funcDecl->funcBody->paramLists) {
+        for (auto& param: paramList->params) {
+            std::string paramName = param->identifier.GetRawText();
+            if (keyMap.find(paramName) != keyMap.end()) {
+                paramName = "`" + paramName + "`";
+            }
+            if (param == nullptr ||
+                (param->TestAttr(Cangjie::AST::Attribute::COMPILER_ADD) &&
+                 paramName == "macroCallPtr")) { continue; }
+            if (paramName.empty()) {
+                continue;
+            }
+            if (!paramFirst) {
+                paramsText += ", ";
+            }
+            if (param->isNamedParam) {
+                paramsText += paramName + ": ";
+            }
+            paramsText += paramName;
+            paramFirst = false;
+        }
+    }
+    return TAB + superPrefix + funcDecl->identifier + "(" + paramsText + ")" + NEWLINE;
+}
 
 template <typename T>
 std::unique_ptr<ClassLikeTypeDetail> ResolveGenericType(const T &t)
@@ -180,6 +278,7 @@ FuncDetail ResolveFuncDetail(const Ptr<FuncDecl>& funcDecl)
     detail.identifier = ResolveDeclIdentifier(funcDecl);
     detail.params = ResolveFuncParamList(funcDecl);
     detail.retType = ResolveFuncRetType(funcDecl);
+    detail.isOperand = OPERATOR_TO_OVERLOAD.count(funcDecl->op);
     return detail;
 }
 
