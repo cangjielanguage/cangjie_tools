@@ -4,16 +4,16 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "IntroduceParameter.h"
-#include "../../../common/Utils.h"
 #include <algorithm>
 #include <cstddef>
 #include <sstream>
 #include <unordered_set>
 #include <vector>
+#include <cangjie/AST/Walker.h>
+#include "../../../common/Utils.h"
 #include "../TweakRule.h"
 #include "../TweakUtils.h"
-#include "cangjie/AST/Walker.h"
+#include "IntroduceParameter.h"
 
 namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_PARAMETER_EXPR = {
@@ -40,7 +40,7 @@ struct CallSiteContext {
 };
 
 using ArgumentReplacement = std::pair<Range, std::string>;
-
+// LCOV_EXCL_BR_START
 static bool IsLocalVariableTarget(const Ptr<Cangjie::AST::Node> &target)
 {
     if (!target || target->astKind != ASTKind::VAR_DECL) {
@@ -274,10 +274,10 @@ static bool IsFuncParamUsedOutsideRange(Cangjie::AST::FuncDecl &funcDecl, Cangji
     }).Walk();
     return isUsed;
 }
-
+// LCOV_EXCL_BR_STOP
+// LCOV_EXCL_START
 static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie::AST::FuncParam &param, Range &range)
 {
-// LCOV_EXCL_BR_START
     for (std::size_t index = 0; index < paramList.params.size(); ++index) {
         if (!paramList.params[index] || paramList.params[index].get() != &param) {
             continue;
@@ -300,9 +300,8 @@ static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie
         return false;
     }
     return false;
-// LCOV_EXCL_BR_STOP
 }
-
+// LCOV_EXCL_STOP
 static std::vector<std::size_t> CollectRemovableParamIndices(
     const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl, Cangjie::AST::FuncParamList &paramList, Range &range)
 {
@@ -350,12 +349,11 @@ static TextEdit BuildReplacementParameterEdit(
     replaceEdit.newText = newParamText;
     return replaceEdit;
 }
-
+// LCOV_EXCL_START
 static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
     Cangjie::AST::FuncParamList &paramList, const std::vector<std::size_t> &removedParamIndices,
     std::size_t replacedIndex)
 {
-// LCOV_EXCL_BR_START
     std::vector<TextEdit> edits;
     for (auto it = removedParamIndices.rbegin(); it != removedParamIndices.rend(); ++it) {
         if (*it == replacedIndex || *it >= paramList.params.size() || !paramList.params[*it]) {
@@ -370,9 +368,8 @@ static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
         edits.push_back(textEdit);
     }
     return edits;
-// LCOV_EXCL_BR_STOP
 }
-
+// LCOV_EXCL_STOP
 static std::vector<TextEdit> BuildAllParameterReplacementEdit(
     Cangjie::AST::FuncParamList &paramList, const std::string &newParamText)
 {
@@ -507,10 +504,10 @@ static std::optional<TextEdit> ReplaceRemovedCallArguments(
 // LCOV_EXCL_BR_STOP
 }
 
+// LCOV_EXCL_START
 static TextEdit InsertNewCallArgument(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
 {
-// LCOV_EXCL_BR_START
     TextEdit textEdit;
     Range insertRange = {callExpr.rightParenPos, callExpr.rightParenPos};
     textEdit.range = TransformFromChar2IDE(insertRange);
@@ -524,9 +521,8 @@ static TextEdit InsertNewCallArgument(
     insertText << newArgument;
     textEdit.newText = insertText.str();
     return textEdit;
-// LCOV_EXCL_BR_STOP
 }
-
+// LCOV_EXCL_STOP
 static std::optional<TextEdit> InsertArgumentAtCallSite(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
 {

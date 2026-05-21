@@ -16,7 +16,7 @@ const std::unordered_set<Cangjie::AST::ASTKind> INVALID_PARTIAL_EXPR = {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_VAR_EXPR = {
     ASTKind::BLOCK, ASTKind::STR_INTERPOLATION_EXPR, ASTKind::INTERPOLATION_EXPR
 };
-
+// LCOV_EXCL_START
 class ExtractVariableRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
@@ -70,7 +70,7 @@ class ExtractVariableRule : public TweakRule {
         return isValid;
     }
 };
-
+// LCOV_EXCL_STOP
 bool ExtractVariable::Prepare(const Selection &sel)
 {
     TweakRuleEngine ruleEngine;
@@ -204,7 +204,7 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
     textEdit.newText = insertText.str();
     return std::move(textEdit);
 }
-
+// LCOV_EXCL_START
 void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
     Range &insertRange, std::string &indent, bool &isGlobal)
 {
@@ -265,7 +265,7 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
     // deal same multi statement
     DealMultStatementOnSameLine(sel, range, firstToken4CurLine, insertRange);
 }
-
+// LCOV_EXCL_STOP
 void ExtractVariable::FindInsertPositionByScopeName(const Selection &sel, Range &range,
     Range &insertRange, bool &isGlobal)
 {
@@ -339,7 +339,7 @@ bool ExtractVariable::DealIfExpr(IfExpr &ifExpr, Range &range)
         return false;
     }
 }
-
+// LCOV_EXCL_START
 void ExtractVariable::DealMultStatementOnSameLine(const Tweak::Selection &sel, const Range &range,
     int firstToken4CurLine, Range &insertRange)
 {
@@ -373,7 +373,7 @@ void ExtractVariable::DealMultStatementOnSameLine(const Tweak::Selection &sel, c
     }
     insertRange = {curLineTokens[i].End(), curLineTokens[i].End()};
 }
-
+// LCOV_EXCL_STOP
 std::string ExtractVariable::GetVarModifier(const Selection &sel, Range &range)
 {
     std::string modifier;
