@@ -340,9 +340,14 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
     auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
     auto textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
     SyscapCheck syscap(curModule);
+    std::unordered_map<lsp::SymbolID, std::vector<size_t>> AddedOhosSymIdToIndexsMap;
+    std::unordered_set<lsp::SymbolID> AddedKitSymIds;
+    const std::string ohosPrefix = "ohos.";
+    const std::string kitPrefix = "kit.";
+    // LCOV_EXCL_START
     index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
         pkgName, curModule, prefix,
-        [&result, &textEditRange, &syscap](const std::string &pkg,
+        [&result, &textEditRange, &syscap, &AddedOhosSymIdToIndexsMap, &ohosPrefix](const std::string &pkg,
             const lsp::Symbol &sym, const lsp::CompletionItem &completionItem) {
             if (!sym.syscap.empty() && !syscap.CheckSysCap(sym.syscap)) {
                 return;
@@ -366,7 +371,49 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
             completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
             completion.sortType = SortType::AUTO_IMPORT_SYM;
             result.completions.push_back(completion);
+            if (pkg.rfind(ohosPrefix, 0) == 0) {
+                AddedOhosSymIdToIndexsMap[sym.id].emplace_back(result.completions.size() - 1);
+            }
         });
+
+    index->FindImportReExportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
+        pkgName, curModule, prefix, [&result, &textEditRange, &AddedOhosSymIdToIndexsMap, &AddedKitSymIds,
+        &ohosPrefix, &kitPrefix](const std::string &pkg, const lsp::ReExportSymbol &sym,
+        const lsp::CompletionItem &completionItem) {
+            const std::string kitPrefix = "kit";
+            bool isKitPkg = pkg.rfind(kitPrefix, 0) == 0;
+            if (isKitPkg) {
+                AddedKitSymIds.insert(sym.id);
+            }
+            if (isKitPkg && AddedOhosSymIdToIndexsMap.count(sym.id)) {
+                for (auto idx: AddedOhosSymIdToIndexsMap[sym.id]) {
+                    result.completions[idx].show = false;
+                }
+            }
+            CodeCompletion completion;
+            auto astKind = sym.kind;
+            completion.deprecated = false;
+            completion.kind = ItemResolverUtil::ResolveKindByASTKind(astKind);
+            completion.name = sym.name;
+            completion.label = completionItem.label;
+            completion.insertText = completionItem.insertText;
+            completion.detail = "import " + pkg;
+            TextEdit textEdit;
+            textEdit.range = textEditRange;
+            textEdit.newText = "import " + pkg + "." + sym.name + "\n";
+            completion.additionalTextEdits = std::vector<TextEdit>{textEdit};
+            completion.sortType = SortType::AUTO_IMPORT_SYM;
+            if (pkg.rfind(ohosPrefix, 0) == 0) {
+                if (AddedKitSymIds.count(sym.id) || (AddedOhosSymIdToIndexsMap.count(sym.id) &&
+                    !AddedOhosSymIdToIndexsMap[sym.id].empty() &&
+                    result.completions[AddedOhosSymIdToIndexsMap[sym.id][0]].show == false)) {
+                    completion.show = false;
+                }
+                AddedOhosSymIdToIndexsMap[sym.id].emplace_back(result.completions.size());
+            }
+            result.completions.push_back(completion);
+        }
+    );
 }
 
 bool CompletionImpl::IsAlreadyImportedIf(const ArkAST &input)

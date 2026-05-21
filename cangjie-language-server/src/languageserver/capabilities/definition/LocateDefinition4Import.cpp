@@ -29,12 +29,10 @@ Ptr<Decl> ProcSingleImport(
     }
 
     if (const auto targetPkg = importManager.GetPackageDecl(packagePrefix)) {
-        const auto members = importManager.GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
-        for (const auto &memberDecl : members) {
-            if (const auto declPtr = dynamic_cast<const Decl *>(memberDecl.get());
-                declPtr == nullptr || declPtr->identifier != importContent.identifier)
-                continue;
-            return memberDecl;
+        const auto id2members = importManager.GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
+        auto id = importContent.identifier;
+        if (auto it = id2members.find(id); it != id2members.end()) {
+            return it->second.empty() ? Ptr<Decl>() : *it->second.begin();
         }
     }
     return Ptr<Decl>();

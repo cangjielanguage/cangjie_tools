@@ -59,7 +59,7 @@ public:
     dberr_no GetSymbolsByName(const std::string &name, std::function<bool(const Symbol &sym)> callback);
 
     dberr_no GetPkgSymbols(std::string pkgName, std::function<bool(const Symbol &sym)> callback);
-    
+
     dberr_no GetSymbolByID(IDArray id, std::function<bool(const Symbol &sym)> callback);
 
     dberr_no GetCrossSymbolByID(IDArray id, std::function<void(const CrossSymbol &sym)> callback);
@@ -99,7 +99,7 @@ public:
                            std::function<bool(const Ref &ref)> callback);
 
     dberr_no GetFileReferences(const std::string &fileUri, RefKind kind,
-         std::function<bool(const Ref &ref, const SymbolID symId)> callback);                       
+         std::function<bool(const Ref &ref, const SymbolID symId)> callback);
 
     dberr_no GetReferred(const SymbolID &id,
                          std::function<void(const SymbolID &, const Ref &)> callback);
@@ -118,6 +118,15 @@ public:
 
     dberr_no GetCrossSymbols(const std::string &pkgName, const std::string &symName,
         const std::function<void(const CrossSymbol &)> &callback);
+
+    dberr_no GetReExportSymbols(const std::string &pkgName,
+        const std::function<void(const ReExportSymbol &)> &callback);
+
+    dberr_no GetReExportCompletion(const std::string &pkgName, const ReExportSymbol &sym,
+        std::function<void(const ReExportSymbol &, const CompletionItem &)> callback);
+
+    dberr_no GetReExportSymbolsWithCompletions(const std::string &pkgName, const std::string &prefix,
+        std::function<void(const ReExportSymbol &, const CompletionItem &)> callback);
 
     dberr_no GetRelationsRiddenUp(const SymbolID &objectID, RelationKind kind,
         std::function<bool(const Relation &rel)> callback);
@@ -217,8 +226,7 @@ public:
         /**
          * Insert new extends into index database.
          */
-        dberr_no InsertExtend(const IDArray &extendId, const IDArray &id, Modifier modifier,
-            const std::string &name, const std::string &curPkgName);
+        dberr_no InsertExtend(const IDArray &extendId, const ExtendItem &extendItem, const std::string &curPkgName);
 
         dberr_no InsertExtends(const std::map<std::pair<std::string, SymbolID>, std::vector<ExtendItem>> &extends);
 
@@ -231,6 +239,19 @@ public:
 
         dberr_no InsertCrossSymbols(const std::vector<std::pair<std::string, CrossSymbol>> &crsSyms);
 
+        dberr_no InsertReExportSymbol(const std::string &curPkgName, const ReExportSymbol &reExportSym);
+
+        void DealReExportSymbols(const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms);
+
+        dberr_no InsertReExportSymbols(const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms);
+
+        dberr_no InsertReExportCompletion(const ReExportSymbol &sym, const CompletionItem &completionItem);
+
+        void DealReExportCompletions(const std::vector<std::tuple<std::string, IDArray, CompletionItem>> &completions);
+
+        dberr_no InsertReExportCompletions(
+            const std::vector<std::tuple<std::string, IDArray, CompletionItem>> &completions);
+        // LCOV_EXCL_START
         template <typename... Ts>
         void BindValue(const sqldb::Bind<Ts...> &bind, sqlite3_stmt *stmt, int &Index)
         {

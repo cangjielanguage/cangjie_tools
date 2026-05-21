@@ -2308,7 +2308,8 @@ void CompilerCangjieProject::StorePackageCache(const std::string& pkgName)
         shard.refs = &memIndex->pkgRefsMap[pkgName];
         shard.relations = &memIndex->pkgRelationsMap[pkgName];
         shard.extends = &memIndex->pkgExtendsMap[pkgName];
-        shard.crossSymbos = &memIndex->pkgCrossSymsMap[pkgName];
+        shard.crossSymbols = &memIndex->pkgCrossSymsMap[pkgName];
+        shard.reExportSymbols = &memIndex->pkgReExportSymsMap[pkgName];
         cacheManager->StoreIndexShard(pkgName, shardIdentifier, shard);
     }
     cacheManager->Store(
@@ -2390,7 +2391,8 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
         shard.refs = sc.GetReferenceMap();
         shard.relations = sc.GetRelations();
         shard.extends = sc.GetSymbolExtendMap();
-        shard.crossSymbos = sc.GetCrossSymbolMap();
+        shard.crossSymbols = sc.GetCrossSymbolMap();
+        shard.reExportSymbols = sc.GetReExportSymbolMap();
         backgroundIndexDb->UpdateFile(fileMap);
         backgroundIndexDb->Update(curPkgName, shard);
     } else {
@@ -2401,6 +2403,7 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
         (void) memIndex->pkgRelationsMap.insert_or_assign(curPkgName, *sc.GetRelations());
         (void) memIndex->pkgExtendsMap.insert_or_assign(curPkgName, *sc.GetSymbolExtendMap());
         (void) memIndex->pkgCrossSymsMap.insert_or_assign(curPkgName, *sc.GetCrossSymbolMap());
+        (void) memIndex->pkgReExportSymsMap.insert_or_assign(curPkgName, *sc.GetReExportSymbolMap());
         indexLock.unlock();
     }
 
@@ -2548,6 +2551,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
             (void) memIndex->pkgRelationsMap.insert_or_assign(cjoPkgName, *sc.GetRelations());
             (void) memIndex->pkgExtendsMap.insert_or_assign(cjoPkgName, *sc.GetSymbolExtendMap());
             (void) memIndex->pkgCrossSymsMap.insert_or_assign(cjoPkgName, *sc.GetCrossSymbolMap());
+            (void) memIndex->pkgReExportSymsMap.insert_or_assign(cjoPkgName, *sc.GetReExportSymbolMap());
         } else if (!useDB) {
             // Merge index to memory
             (void) memIndex->pkgSymsMap.insert_or_assign(cjoPkgName, *sc.GetSymbolMap());
@@ -2555,6 +2559,7 @@ void CompilerCangjieProject::BuildIndexFromCjo()
             (void) memIndex->pkgRelationsMap.insert_or_assign(cjoPkgName, *sc.GetRelations());
             (void) memIndex->pkgExtendsMap.insert_or_assign(cjoPkgName, *sc.GetSymbolExtendMap());
             (void) memIndex->pkgCrossSymsMap.insert_or_assign(cjoPkgName, *sc.GetCrossSymbolMap());
+            (void) memIndex->pkgReExportSymsMap.insert_or_assign(cjoPkgName, *sc.GetReExportSymbolMap());
         }
     }
     if (useDB) {
@@ -2580,7 +2585,8 @@ void CompilerCangjieProject::BuildIndexFromCache(const std::string &package) {
             (void) memIndex->pkgRefsMap.insert_or_assign(package, indexCache->get()->refs);
             (void) memIndex->pkgRelationsMap.insert_or_assign(package, indexCache->get()->relations);
             (void) memIndex->pkgExtendsMap.insert_or_assign(package, indexCache->get()->extends);
-            (void) memIndex->pkgCrossSymsMap.insert_or_assign(package, indexCache->get()->crossSymbos);
+            (void) memIndex->pkgCrossSymsMap.insert_or_assign(package, indexCache->get()->crossSymbols);
+            (void) memIndex->pkgReExportSymsMap.insert_or_assign(package, indexCache->get()->reExportSymbols);
         }
 }
 

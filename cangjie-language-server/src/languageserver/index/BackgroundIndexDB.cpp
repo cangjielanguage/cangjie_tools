@@ -10,6 +10,7 @@
 #include <optional>
 #include "../CompilerCangjieProject.h"
 #include "BackgroundIndexDB.h"
+#include "MemIndex.h"
 
 namespace ark {
 namespace lsp {
@@ -81,12 +82,17 @@ void BackgroundIndexDB::Update(const std::string &curPkgName, IndexFileOut index
         }
         for (const auto &extends : *index.extends) {
             for (const ExtendItem &extendItem : extends.second) {
-                update.InsertExtend(GetArrayFromID(extends.first), GetArrayFromID(extendItem.id),
-                    extendItem.modifier, extendItem.interfaceName, curPkgName);
+                update.InsertExtend(GetArrayFromID(extends.first), extendItem, curPkgName);
             }
         }
-        for (const CrossSymbol &crs : *index.crossSymbos) {
+        for (const CrossSymbol &crs : *index.crossSymbols) {
             update.InsertCrossSymbol(curPkgName, crs);
+        }
+        for (const ReExportSymbol &res : *index.reExportSymbols) {
+            update.InsertReExportSymbol(curPkgName, res);
+            for (const auto &completionItem : res.completionItems) {
+                update.InsertReExportCompletion(res, completionItem);
+            }
         }
         return update.Done();
     });
@@ -177,6 +183,21 @@ void BackgroundIndexDB::UpdateAll(const std::map<int, std::vector<std::string>> 
             }
         }
         update.InsertCrossSymbols(crsSymbols);
+
+        std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> reExportSymbols;
+        std::vector<std::tuple<std::string, IDArray, CompletionItem>> reExportCompletions;
+        for (const auto &item : index->pkgReExportSymsMap) {
+            for (const auto &res : item.second) {
+                for (const auto &completionItem : res.completionItems) {
+                    std::string name = res.name;
+                    reExportCompletions.emplace_back(name, GetArrayFromID(res.id), completionItem);
+                }
+                std::string pkgName = item.first;
+                reExportSymbols.emplace_back(pkgName, GetArrayFromID(res.id), res);
+            }
+        }
+        update.InsertReExportSymbols(reExportSymbols);
+        update.InsertReExportCompletions(reExportCompletions);
         return update.Done();
     });
     index.reset(nullptr);
@@ -458,7 +479,7 @@ void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSy
         CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
     db.GetExtendItem(GetArrayFromID(dotCompleteSym),
         [&](const std::string &packageName, const Symbol &sym,
-            const ExtendItem &extendIem, const CompletionItem &completionItem) {
+        const ExtendItem &extendIem, const CompletionItem &completionItem) {
             if (curPkgName == packageName) {
                 return;
             }
@@ -484,6 +505,97 @@ void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSy
                 callback(packageName, extendIem.interfaceName, sym, completionItem);
             }
     });
+}
+
+void BackgroundIndexDB::FindExtendSymsOnCompletionBatch(
+    const std::unordered_set<SymbolID> &ids,
+    const std::unordered_set<SymbolID> &allVisibleMembers,
+    const std::string &curPkgName, bool filterStatic,
+    const std::function<void(const std::string &, const std::string &,
+        const Symbol &, const CompletionItem &)>& callback)
+{
+    if (ids.empty()) {
+        return;
+    }
+    auto curModule = SplitFullPackage(curPkgName).first;
+    std::unordered_set<std::string> curModuleDeps =
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+
+    for (const auto dotCompleteSym : ids) {
+        db.GetExtendItem(GetArrayFromID(dotCompleteSym),
+            [&](const std::string &packageName, const Symbol &sym,
+            const ExtendItem &extendIem, const CompletionItem &completionItem) {
+                if (curPkgName == packageName || extendIem.isStatic != filterStatic ||
+                    !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, packageName)) {
+                    return;
+                }
+                if (allVisibleMembers.find(extendIem.id) != allVisibleMembers.end()) {
+                    return;
+                }
+                auto relation = GetPackageRelation(curPkgName, packageName);
+                auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
+                    bool isAccessible =
+                        modifier == Modifier::PUBLIC
+                        || (relation == PackageRelation::CHILD && (modifier == Modifier::INTERNAL
+                                                                || modifier == Modifier::PROTECTED))
+                        || (relation == PackageRelation::SAME_MODULE &&
+                            modifier == Modifier::PROTECTED)
+                        || (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
+                    return isAccessible;
+                };
+                if (!sym.isCjoSym && !curModuleDeps.count(sym.curModule)) {
+                    return;
+                }
+                // filter by modifier
+                if (checkAccessible(extendIem.modifier) && checkAccessible(sym.modifier)) {
+                    callback(packageName, extendIem.interfaceName, sym, completionItem);
+                }
+            });
+    }
+}
+
+void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
+    const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
+    const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
+    std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback)
+{
+    const auto &normalCompleteSyms = filterSyms.first;
+    const auto &importDeclSyms = filterSyms.second;
+    size_t normalCompleteCount = 0;
+    size_t importDeclCount = 0;
+
+    auto pkgNameList = CompilerCangjieProject::GetInstance()->GetPkgToModifierMap();
+    for (const auto &it : pkgNameList) {
+        auto pkgName = it.first;
+        if (pkgName == curPkgName ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgName) ||
+            CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgName)) {
+            continue;
+        }
+        auto relation = GetPackageRelation(curPkgName, pkgName);
+        db.GetReExportSymbolsWithCompletions(pkgName, prefix,
+            [&](const ReExportSymbol &sym, const CompletionItem &completionItem) {
+            bool isAccessiable =
+                sym.modifier == Modifier::PUBLIC
+                || (relation == PackageRelation::CHILD && (sym.modifier == Modifier::INTERNAL
+                                                              || sym.modifier == Modifier::PROTECTED))
+                || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
+                || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
+            if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
+                return true;
+            }
+            if (normalCompleteCount < normalCompleteSyms.size() && normalCompleteSyms.count(sym.id)) {
+                normalCompleteCount++;
+                return true;
+            }
+            if (importDeclCount < importDeclSyms.size() && importDeclSyms.count(sym.id)) {
+                importDeclCount++;
+                return true;
+            }
+            callback(pkgName, sym, completionItem);
+            return true;
+        });
+    }
 }
 
 void BackgroundIndexDB::FindComment(const Symbol &sym, std::vector<std::string> &comments)

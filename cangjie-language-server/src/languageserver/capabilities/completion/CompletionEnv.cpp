@@ -1608,6 +1608,18 @@ ark::lsp::SymbolID CompletionEnv::GetDeclSymbolID(const Decl& decl)
     return ret;
 }
 
+ark::lsp::SymbolID CompletionEnv::GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+{
+    if (!ty || !ty->IsPrimitive()) {
+        return ark::lsp::INVALID_SYMBOL_ID;
+    }
+
+    std::string exportId = "CANGJIE_PRIMARY_TYPE$" + Ty::KindName(ty->kind);
+    size_t id = 0;
+    id = hash_combine<std::string>(id, exportId);
+    return id;
+}
+
 Range CompletionEnv::GetEditRangeForAutoImport(const ArkAST &file)
 {
     int lastImportLine = 0;

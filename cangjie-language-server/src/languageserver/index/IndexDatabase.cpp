@@ -10,6 +10,7 @@
 #include "../sql/wrapper/Memory.h"
 #include "../common/Utils.h"
 #include "IndexDatabase.h"
+#include "Symbol.h"
 
 namespace ark {
 namespace lsp {
@@ -125,7 +126,7 @@ void PopulateExtendItemAndCompletions(const sqldb::Result &row, ExtendItem &exte
     IDArray idArray;
     row.store(
         // extendItem
-        extendId, extendItem.id, extendItem.modifier, extendItem.interfaceName, pkgName,
+        extendId, extendItem.id, extendItem.modifier, extendItem.isStatic, extendItem.interfaceName, pkgName,
         // symbol
         idArray, sym.name, sym.modifier, sym.kind, sym.curModule, sym.isCjoSym, sym.isDeprecated, sym.syscap,
         sym.signature,
@@ -199,6 +200,15 @@ void PopulateCrossSymbol(const sqldb::Result &row, CrossSymbol &crs)
         Column(crs.declaration.end));
     crs.id = GetIDFromArray(idArray);
     crs.container = GetIDFromArray(containerIdArray);
+}
+
+void PopulateReExportSymbol(const sqldb::Result &row, ReExportSymbol &reExportSym)
+{
+    IDArray idArray;
+    std::string pkgName;
+
+    row.store(pkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.signature);
+    reExportSym.id = GetIDFromArray(idArray);
 }
 
 std::once_flag g_configureFlag;
@@ -785,6 +795,67 @@ dberr_no IndexDatabase::GetCrossSymbols(
     return true;
 }
 
+dberr_no IndexDatabase::GetReExportSymbols(
+    const std::string &pkgName, const std::function<void(const ReExportSymbol &)> &callback)
+{
+    Use(sql::SelectReExportSymbol)
+        .execute(sqldb::with(pkgName), [&](sqldb::Result row) {
+            ReExportSymbol reExportSym;
+            PopulateReExportSymbol(row, reExportSym);
+            callback(reExportSym);
+            return true;
+        });
+    return true;
+}
+
+dberr_no IndexDatabase::GetReExportCompletion(const std::string &pkgName, const ReExportSymbol &sym,
+    std::function<void(const ReExportSymbol &, const CompletionItem &)> callback)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        Use(sql::SelectReExportCompletion).
+            execute(sqldb::with(pkgName, GetArrayFromID(sym.id)), [&](sqldb::Result Row) {
+                CompletionItem resCompletion;
+                PopulateCompletion(Row, resCompletion);
+                callback(sym, resCompletion);
+                return true;
+        });
+#ifndef NO_EXCEPTIONS
+    } catch (std::exception &ex) {
+        std::cerr << "getReExportCompletion fail due to " << ex.what() << "\n";
+    }
+#endif
+    return true;
+}
+
+dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkgName, const std::string &prefix,
+    std::function<void(const ReExportSymbol &, const CompletionItem &)> callback)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        std::string fuzzyPrefix = AddPercentAfterEachUTF8Char(prefix);
+        Use(sql::SelectReExportSymbolsWithCompletions).execute(sqldb::with(fuzzyPrefix, pkgName),
+            [&](sqldb::Result Row) {
+                ReExportSymbol reExportSym;
+                CompletionItem completionItem;
+                IDArray idArray;
+                std::string cjPkgName;
+                Row.store(cjPkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.kind,
+                    reExportSym.signature, completionItem.label, completionItem.insertText);
+                reExportSym.id = GetIDFromArray(idArray);
+                callback(reExportSym, completionItem);
+                return true;
+        });
+#ifndef NO_EXCEPTIONS
+    } catch (std::exception &ex) {
+        std::cerr << "getReExportSymbolsWithCompletions fail due to " << ex.what() << "\n";
+    }
+#endif
+    return true;
+}
+
 dberr_no IndexDatabase::DBUpdate::InsertFileWithId(int fileID, std::vector<std::string> &fileInfo)
 {
     try {
@@ -1257,15 +1328,18 @@ dberr_no IndexDatabase::DBUpdate::InsertRelations(const std::vector<Relation> &r
     return true;
 }
 
-dberr_no IndexDatabase::DBUpdate::InsertExtend(const IDArray &extendId, const IDArray &id, const Modifier modifier,
-    const std::string &name, const std::string &curPkgName)
+dberr_no IndexDatabase::DBUpdate::InsertExtend(const IDArray &extendId, const ExtendItem &extendItem,
+    const std::string &curPkgName)
 {
     try {
         db.Use(sql::InsertExtend)
-            .execute(sqldb::with(extendId, id, modifier, name, curPkgName));
+            .execute(sqldb::with(extendId, GetArrayFromID(extendItem.id), extendItem.modifier,
+                extendItem.isStatic, extendItem.interfaceName, curPkgName));
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert extend: ", e.what());
     }
+#endif
     return true;
 }
 
@@ -1277,9 +1351,9 @@ dberr_no IndexDatabase::DBUpdate::InsertExtends(
         for (const auto &extend : extends) {
             const auto &curPkgName = extend.first.first;
             const auto &extendId = extend.first.second;
-            for (const auto &extenItem : extend.second) {
-                stmt.execute(sqldb::with(GetArrayFromID(extendId), GetArrayFromID(extenItem.id),
-                    extenItem.modifier, extenItem.interfaceName, curPkgName));
+            for (const auto &extendItem : extend.second) {
+                stmt.execute(sqldb::with(GetArrayFromID(extendId), GetArrayFromID(extendItem.id),
+                    extendItem.modifier, extendItem.isStatic, extendItem.interfaceName, curPkgName));
             }
         }
     } catch (const std::exception &e) {
@@ -1368,6 +1442,177 @@ dberr_no IndexDatabase::DBUpdate::InsertCrossSymbols(const std::vector<std::pair
     } catch (const std::exception &e) {
         Trace::Log("err in insert crossSymbol: ", e.what());
     }
+    return true;
+}
+
+dberr_no IndexDatabase::DBUpdate::InsertReExportSymbol(const std::string &curPkgName, const ReExportSymbol &reExportSym)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        db.Use(sql::InsertReExportSymbol)
+            .execute(sqldb::with(curPkgName, GetArrayFromID(reExportSym.id), reExportSym.name,
+                     reExportSym.modifier, reExportSym.kind, reExportSym.signature));
+#ifndef NO_EXCEPTIONS
+    } catch (const std::exception &e) {
+        Trace::Log("err in insert reExportSymbol: ", e.what());
+    }
+#endif
+    return true;
+}
+
+void IndexDatabase::DBUpdate::DealReExportSymbols(const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms)
+{
+    size_t maxMultiInsertIndex = 0;
+    if (reExportSyms.size() >= MUTI_INSERT_MAX_SIZE) {
+        maxMultiInsertIndex = reExportSyms.size() - (reExportSyms.size() % MUTI_INSERT_MAX_SIZE);
+        std::ostringstream oss;
+        oss << sql::MultiInsertReExportSymbolsHead;
+        bool isNeedCommon = false;
+        for (size_t i = 0; i < MUTI_INSERT_MAX_SIZE; i++) {
+            if (isNeedCommon) {
+                oss << ",";
+            }
+            oss << sql::MultiInsertReExportSymbolsValue;
+            isNeedCommon = true;
+        }
+        int Index = 0;
+        sqldb::Statement &stmt = db.Use(oss.str(), false);
+        for (size_t i = 0; i < maxMultiInsertIndex;) {
+            const auto &curPkgName = std::get<0>(reExportSyms[i]);
+            const auto &idArray = std::get<1>(reExportSyms[i]);
+            const auto &reExportSym = std::get<2>(reExportSyms[i]);
+            const auto &bind = sqldb::with(curPkgName, idArray, reExportSym.name,
+                reExportSym.modifier, reExportSym.kind, reExportSym.signature);
+            BindValue(bind, stmt.GetStmt(), Index);
+            if (++i % MUTI_INSERT_MAX_SIZE == 0) {
+                Index = 0;
+                stmt.execute();
+            }
+        }
+    }
+
+    std::ostringstream oss;
+    oss << sql::MultiInsertReExportSymbolsHead;
+    bool isNeedCommon = false;
+    for (size_t i = 0; i < reExportSyms.size() - maxMultiInsertIndex; i++) {
+        if (isNeedCommon) {
+            oss << ",";
+        }
+        oss << sql::MultiInsertReExportSymbolsValue;
+        isNeedCommon = true;
+    }
+    sqldb::Statement &stmt = db.Use(oss.str(), false);
+    int Index = 0;
+    for (size_t j = maxMultiInsertIndex; j < reExportSyms.size(); j++) {
+        const auto &curPkgName = std::get<0>(reExportSyms[j]);
+        const auto &idArray = std::get<1>(reExportSyms[j]);
+        const auto &reExportSym = std::get<2>(reExportSyms[j]);
+        const auto &bind = sqldb::with(curPkgName, idArray, reExportSym.name,
+            reExportSym.modifier, reExportSym.kind, reExportSym.signature);
+        BindValue(bind, stmt.GetStmt(), Index);
+    }
+    stmt.execute();
+}
+
+dberr_no IndexDatabase::DBUpdate::InsertReExportSymbols(
+    const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms)
+{
+    if (reExportSyms.empty()) {
+        return true;
+    }
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        DealReExportSymbols(reExportSyms);
+#ifndef NO_EXCEPTIONS
+    } catch (const std::exception &e) {
+        Trace::Log("err in insert reExportSymbol: ", e.what());
+    }
+#endif
+    return true;
+}
+
+dberr_no IndexDatabase::DBUpdate::InsertReExportCompletion(const ReExportSymbol &sym,
+    const CompletionItem &completionItem)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        db.Use(sql::InsertReExportCompletion)
+            .execute(sqldb::with(sym.name, GetArrayFromID(sym.id), completionItem.label, completionItem.insertText));
+#ifndef NO_EXCEPTIONS
+    } catch (const std::exception &e) {
+        Trace::Log("err in insert reExportCompletion: ", e.what());
+    }
+#endif
+    return true;
+}
+
+void IndexDatabase::DBUpdate::DealReExportCompletions(
+    const std::vector<std::tuple<std::string, IDArray, CompletionItem>> &completions)
+{
+    size_t maxMultiInsertIndex = 0;
+    if (completions.size() >= MUTI_INSERT_MAX_SIZE) {
+        maxMultiInsertIndex = completions.size() - (completions.size() % MUTI_INSERT_MAX_SIZE);
+        std::ostringstream oss;
+        oss << sql::MultiInsertReExportCompletionsHead;
+        bool isNeedCommon = false;
+        for (size_t i = 0; i < MUTI_INSERT_MAX_SIZE; i++) {
+            if (isNeedCommon) {
+                oss << ",";
+            }
+            oss << sql::MultiInsertReExportCompletionsValue;
+            isNeedCommon = true;
+        }
+        int Index = 0;
+        sqldb::Statement &stmt = db.Use(oss.str(), false);
+        for (size_t i = 0; i < maxMultiInsertIndex;) {
+            const auto &[name, id, completion] = completions[i];
+            const auto &bind = sqldb::with(name, id, completion.label, completion.insertText);
+            BindValue(bind, stmt.GetStmt(), Index);
+            if (++i % MUTI_INSERT_MAX_SIZE == 0) {
+                Index = 0;
+                stmt.execute();
+            }
+        }
+    }
+
+    std::ostringstream oss;
+    oss << sql::MultiInsertReExportCompletionsHead;
+    bool isNeedCommon = false;
+    for (size_t i = 0; i < completions.size() - maxMultiInsertIndex; i++) {
+        if (isNeedCommon) {
+            oss << ",";
+        }
+        oss << sql::MultiInsertReExportCompletionsValue;
+        isNeedCommon = true;
+    }
+    sqldb::Statement &stmt = db.Use(oss.str(), false);
+    int Index = 0;
+    for (size_t j = maxMultiInsertIndex; j < completions.size(); j++) {
+        const auto &[name, id, completion] = completions[j];
+        const auto &bind = sqldb::with(name, id, completion.label, completion.insertText);
+        BindValue(bind, stmt.GetStmt(), Index);
+    }
+    stmt.execute();
+}
+
+dberr_no IndexDatabase::DBUpdate::InsertReExportCompletions(
+    const std::vector<std::tuple<std::string, IDArray, CompletionItem>> &completions)
+{
+    if (completions.empty()) {
+        return true;
+    }
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        DealReExportCompletions(completions);
+#ifndef NO_EXCEPTIONS
+    } catch (const std::exception &e) {
+        Trace::Log("err in insert reExportCompletion: ", e.what());
+    }
+#endif
     return true;
 }
 
