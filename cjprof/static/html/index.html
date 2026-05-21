@@ -258,6 +258,10 @@
                 <div style="margin-bottom:15px;">
                     <button class="view-btn active" data-view="sunburst">Sunburst</button>
                     <button class="view-btn" data-view="tree">Tree</button>
+                    <span id="tree-granularity" style="display:none; margin-left:15px;">
+                        <button class="view-btn active" data-granularity="object">By Object</button>
+                        <button class="view-btn" data-granularity="type">By Type</button>
+                    </span>
                 </div>
                 <div id="sunburst-container">
                     <div id="sunburst"></div>
@@ -286,11 +290,13 @@
         const COLOR_PALETTE = ['#e94560', '#00d9ff', '#ff9f43', '#10ac84', '#5f27cd', '#ee5a24', '#0abde3', '#f368e0', '#00d2d3', '#ff6b6b'];
 
         let currentView = 'sunburst';
+        let currentGranularity = 'object';  // 'object' or 'type'
         let cachedRoot = null;
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
         let treeRootData = null;
+        let treeTypeRootData = null;  // For type granularity
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -305,14 +311,35 @@
         });
 
         // View switching (Sunburst/Tree)
-        document.querySelectorAll('.view-btn').forEach(btn => {
+        document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.view-btn[data-view]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentView = btn.dataset.view;
 
-                document.getElementById('sunburst-container').style.display = currentView === 'sunburst' ? 'flex' : 'none';
-                document.getElementById('tree-container').style.display = currentView === 'tree' ? 'block' : 'none';
+                // Show/hide granularity buttons for Tree view
+                document.getElementById('tree-granularity').style.display = currentView === 'tree' ? 'inline' : 'none';
+
+                // Toggle grid layout and Top10 visibility
+                const dominanceView = document.getElementById('dominance-view');
+                const top10Title = dominanceView.querySelectorAll('h2')[1];  // Second h2 is "Top 10 Objects"
+                const top10Table = document.getElementById('top10-table').parentElement;  // dominance-table div
+
+                if (currentView === 'sunburst') {
+                    // Sunburst: two columns, show Top10
+                    dominanceView.style.gridTemplateColumns = '1fr 520px';
+                    top10Title.style.display = 'block';
+                    top10Table.style.display = 'block';
+                    document.getElementById('sunburst-container').style.display = 'flex';
+                    document.getElementById('tree-container').style.display = 'none';
+                } else {
+                    // Tree: single column, hide Top10
+                    dominanceView.style.gridTemplateColumns = '1fr';
+                    top10Title.style.display = 'none';
+                    top10Table.style.display = 'none';
+                    document.getElementById('sunburst-container').style.display = 'none';
+                    document.getElementById('tree-container').style.display = 'block';
+                }
 
                 if (currentView === 'sunburst' && sunburstChart) {
                     sunburstChart.resize();
@@ -325,10 +352,24 @@
                         drawSunburst(cachedRoot);
                     } else if (currentView === 'tree') {
                         if (!treeChart) {
-                            initTreeView();
+                            initTreeView(currentGranularity);
+                        } else {
+                            drawTree();
                         }
                     }
                 }
+            });
+        });
+
+        // Granularity switching (Object/Type) for Tree view
+        document.querySelectorAll('.view-btn[data-granularity]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.view-btn[data-granularity]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentGranularity = btn.dataset.granularity;
+
+                // Reinitialize tree with new granularity
+                initTreeView(currentGranularity);
             });
         });
 
@@ -523,74 +564,150 @@
             };
         }
 
-        async function initTreeView() {
+        async function initTreeView(granularity) {
+            granularity = granularity || currentGranularity || 'object';
             treeNodeMap.clear();
 
             try {
-                var res = await fetch(API_BASE + '/dominance/tree');
+                // Use different API based on granularity
+                var apiUrl = granularity === 'type' ? '/dominance/tree-by-type' : '/dominance/tree';
+                var res = await fetch(API_BASE + apiUrl);
                 var data = await res.json();
 
                 if (!data.nodes || data.nodes.length === 0) return;
 
-                // Store all nodes in map
-                data.nodes.forEach(function(n) {
-                    treeNodeMap.set(n.id, Object.assign({}, n));
-                });
-
-                var rootNodes = data.nodes.filter(function(n) {
-                    return n.parent_id === 0 || n.depth === 0;
-                });
-
-                // Sort by retained_size descending
-                rootNodes.sort(function(a, b) {
-                    return (b.retained_size || 0) - (a.retained_size || 0);
-                });
-
-                // Build root with first level children, first level nodes are collapsed
-                treeRootData = {
-                    id: 0,
-                    class_name: 'Root',
-                    retained_size: 0,
-                    shallow_size: 0,
-                    depth: -1,
-                    parent_id: 0,
-                    children: rootNodes.map(function(n) {
-                        // Check if this first-level node has children:
-                        // 1. Check if children exist in data.nodes
-                        // 2. For non-clustered nodes: if retained_size > shallow_size (implies dominated children)
-                        // 3. For clustered nodes: can expand via instance_ids API
-                        var hasChildrenInData = data.nodes.some(function(x) {
-                            return x.parent_id === n.id;
-                        });
-                        var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
-                        var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
-
-                        return {
-                            id: n.id,
-                            class_name: n.class_name,
-                            retained_size: n.retained_size,
-                            shallow_size: n.shallow_size,
-                            depth: n.depth,
-                            parent_id: n.parent_id,
-                            instance_count: n.instance_count,
-                            instance_ids: n.instance_ids,  // Store for cluster expansion
-                            is_clustered: n.is_clustered,
-                            is_cutoff: n.is_cutoff,
-                            children: null,  // First level nodes are collapsed
-                            _hasChildren: hasChildrenInData || hasDominatedChildren || canExpandCluster,
-                            _loaded: false
-                        };
-                    }),
-                    _loaded: true
-                };
-
-                drawTree();
+                if (granularity === 'type') {
+                    // Type granularity: build tree by type
+                    initTreeViewByType(data);
+                } else {
+                    // Object granularity: existing logic
+                    initTreeViewByObject(data);
+                }
             } catch (e) {
                 document.getElementById('tree-view').innerHTML = '<div class="error">Failed to load tree</div>';
             }
         }
 
+        // Initialize tree view by object granularity (existing logic)
+        async function initTreeViewByObject(data) {
+            // Store all nodes in map
+            data.nodes.forEach(function(n) {
+                treeNodeMap.set(n.id, Object.assign({}, n));
+            });
+
+            var rootNodes = data.nodes.filter(function(n) {
+                return n.parent_id === 0 || n.depth === 0;
+            });
+
+            // Sort by retained_size descending
+            rootNodes.sort(function(a, b) {
+                return (b.retained_size || 0) - (a.retained_size || 0);
+            });
+
+            // Calculate total retained_size for virtual root
+            var totalRetained = rootNodes.reduce(function(sum, n) {
+                return sum + (n.retained_size || 0);
+            }, 0);
+
+            // Build root with first level children, first level nodes are collapsed
+            treeRootData = {
+                id: 0,
+                class_name: 'Root',
+                retained_size: totalRetained,
+                shallow_size: 0,
+                depth: -1,
+                parent_id: 0,
+                children: rootNodes.map(function(n) {
+                    var hasChildrenInData = data.nodes.some(function(x) {
+                        return x.parent_id === n.id;
+                    });
+                    var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
+                    var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
+
+                    return {
+                        id: n.id,
+                        class_name: n.class_name,
+                        retained_size: n.retained_size,
+                        shallow_size: n.shallow_size,
+                        depth: n.depth,
+                        parent_id: n.parent_id,
+                        instance_count: n.instance_count,
+                        instance_ids: n.instance_ids,
+                        is_clustered: n.is_clustered,
+                        is_cutoff: n.is_cutoff,
+                        children: null,
+                        _hasChildren: hasChildrenInData || hasDominatedChildren || canExpandCluster,
+                        _loaded: false
+                    };
+                }),
+                _loaded: true
+            };
+
+            drawTree();
+        }
+
+        // Initialize tree view by type granularity
+        async function initTreeViewByType(data) {
+            // Store all nodes in map by type_name
+            data.nodes.forEach(function(n) {
+                treeNodeMap.set(n.type_name, Object.assign({}, n));
+            });
+
+            // Root types have empty parent_type
+            var rootTypes = data.nodes.filter(function(n) {
+                return !n.parent_type || n.parent_type === '';
+            });
+
+            // Sort by retained_size descending
+            rootTypes.sort(function(a, b) {
+                return (b.retained_size || 0) - (a.retained_size || 0);
+            });
+
+            // Calculate total retained_size for virtual root
+            var totalRetained = rootTypes.reduce(function(sum, n) {
+                return sum + (n.retained_size || 0);
+            }, 0);
+
+            // Build root with first level type nodes
+            treeTypeRootData = {
+                id: 'type-root',
+                class_name: 'Root (Types)',
+                retained_size: totalRetained,
+                shallow_size: 0,
+                depth: -1,
+                parent_type: '',
+                children: rootTypes.map(function(n) {
+                    return {
+                        id: n.type_name,
+                        class_name: n.class_name,
+                        retained_size: n.retained_size,
+                        shallow_size: n.shallow_size,
+                        depth: n.depth || 0,
+                        parent_type: n.parent_type || '',
+                        instance_count: n.instance_count,
+                        object_ids: n.object_ids,
+                        child_types: n.child_types || [],
+                        cutoff_count: n.cutoff_count || 0,
+                        is_clustered: true,
+                        is_cutoff: n.is_cutoff || false,
+                        children: null,
+                        _hasChildren: (n.child_types && n.child_types.length > 0) || (n.cutoff_count && n.cutoff_count > 0),
+                        _loaded: false,
+                        _granularity: 'type'
+                    };
+                }),
+                _loaded: true,
+                _granularity: 'type'
+            };
+
+            drawTree();
+        }
+
         function drawTree() {
+            // Get current root data based on granularity
+            var currentTreeRoot = currentGranularity === 'type' ? treeTypeRootData : treeRootData;
+            if (!currentTreeRoot) return;
+
             if (!treeChart) {
                 treeChart = echarts.init(document.getElementById('tree-view'));
 
@@ -599,7 +716,7 @@
                     var clickedId = params.data.id;
                     if (!clickedId) return;
 
-                    // Find the node in treeRootData (not params.data, which is a copy)
+                    // Find the node in current tree root data
                     function findNode(node) {
                         if (node.id === clickedId) return node;
                         if (node.children) {
@@ -611,7 +728,8 @@
                         return null;
                     }
 
-                    var d = findNode(treeRootData);
+                    var currentRootData = currentGranularity === 'type' ? treeTypeRootData : treeRootData;
+                    var d = findNode(currentRootData);
                     if (!d) return;
 
                     // Toggle expand/collapse
@@ -626,37 +744,39 @@
                         d._childrenBackup = null;
                         d._loaded = true;
                     } else if (d._hasChildren && !d._loaded) {
-                        // Check if this is a clustered node that can be expanded
-                        if (d.is_clustered && d.instance_ids && d.instance_ids.length > 0) {
-                            // Expand clustered node via instance_ids API
+                        // Handle type granularity nodes
+                        if (d._granularity === 'type') {
+                            // Type granularity: load child types via API
                             try {
-                                var idsParam = d.instance_ids.join(',');
-                                var res = await fetch(API_BASE + '/dominance/cluster-expand?instance_ids=' + idsParam);
+                                var parentType = d.id;  // For type nodes, id is the type_name
+                                var res = await fetch(API_BASE + '/dominance/children-by-type?parent_type=' + encodeURIComponent(parentType));
                                 var data = await res.json();
 
                                 if (data.nodes && data.nodes.length > 0) {
                                     d.children = data.nodes.map(function(c) {
-                                        var hasDominatedChildren = !c.is_clustered && (c.retained_size || 0) > (c.shallow_size || 0);
                                         return {
-                                            id: c.id,
+                                            id: c.type_name,
                                             class_name: c.class_name,
                                             retained_size: c.retained_size,
                                             shallow_size: c.shallow_size,
-                                            depth: c.depth,
-                                            parent_id: c.parent_id,
-                                            instance_count: c.instance_count || 1,
-                                            instance_ids: c.instance_ids,
-                                            is_clustered: c.is_clustered || false,
+                                            depth: c.depth || 0,
+                                            parent_type: c.parent_type || '',
+                                            instance_count: c.instance_count,
+                                            object_ids: c.object_ids,
+                                            child_types: c.child_types || [],
+                                            cutoff_count: c.cutoff_count || 0,
+                                            is_clustered: !c.is_cutoff,
                                             is_cutoff: c.is_cutoff || false,
                                             children: null,
-                                            _hasChildren: !c.is_cutoff && c.id !== 0 && (hasDominatedChildren || c.has_children),
-                                            _loaded: false
+                                            _hasChildren: !c.is_cutoff && ((c.child_types && c.child_types.length > 0) || (c.cutoff_count && c.cutoff_count > 0)),
+                                            _loaded: c.is_cutoff ? true : false,
+                                            _granularity: 'type'
                                         };
                                     });
                                     d._loaded = true;
                                 }
                             } catch (e) {
-                                console.error('Failed to expand cluster:', e);
+                                console.error('Failed to load child types:', e);
                             }
                         } else {
                             // Lazy load: first try local treeNodeMap
@@ -680,8 +800,7 @@
 
                                     if (data.nodes && data.nodes.length > 0) {
                                         d.children = data.nodes.map(function(c) {
-                                            var canExpandCluster = c.is_clustered && c.instance_count > 1 && c.instance_ids && c.instance_ids.length > 0;
-                                            var hasDominatedChildren = !c.is_clustered && (c.retained_size || 0) > (c.shallow_size || 0);
+                                            var hasDominatedChildren = (c.retained_size || 0) > (c.shallow_size || 0);
                                             return {
                                                 id: c.id,
                                                 class_name: c.class_name,
@@ -690,11 +809,10 @@
                                                 depth: c.depth,
                                                 parent_id: c.parent_id,
                                                 instance_count: c.instance_count,
-                                                instance_ids: c.instance_ids,
-                                                is_clustered: c.is_clustered,
-                                                is_cutoff: c.is_cutoff,
+                                                is_clustered: c.is_clustered || false,
+                                                is_cutoff: c.is_cutoff || false,
                                                 children: null,
-                                                _hasChildren: !c.is_cutoff && c.id !== 0 && (hasDominatedChildren || canExpandCluster),
+                                                _hasChildren: !c.is_cutoff && c.id !== 0 && hasDominatedChildren,
                                                 _loaded: false
                                             };
                                         });
@@ -707,9 +825,10 @@
                         }
                     }
 
+                    var rootDataForUpdate = currentGranularity === 'type' ? treeTypeRootData : treeRootData;
                     treeChart.setOption({
                         series: [{
-                            data: [treeRootData]
+                            data: [rootDataForUpdate]
                         }]
                     });
                 });
@@ -721,6 +840,7 @@
             var layerGap = Math.max(30, Math.min(80, containerWidth / 15));
             var nodeGap = 15;
 
+            var seriesData = currentGranularity === 'type' ? [treeTypeRootData] : [treeRootData];
             treeChart.setOption({
                 backgroundColor: 'transparent',
                 tooltip: {
@@ -747,7 +867,7 @@
                 },
                 series: [{
                     type: 'tree',
-                    data: [treeRootData],
+                    data: seriesData,
                     top: '5%',
                     left: '5%',
                     bottom: '5%',

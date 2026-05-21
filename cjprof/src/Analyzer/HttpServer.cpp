@@ -47,6 +47,10 @@ void HttpServer::start() {
         res.set_content(HttpHandlers::handleDominanceTree(*ctx), "application/json");
     });
 
+    svr->Get("/api/dominance/tree-by-type", [ctx](const httplib::Request&, httplib::Response& res) {
+        res.set_content(HttpHandlers::handleDominanceTreeByType(*ctx), "application/json");
+    });
+
     svr->Get("/api/dominance/children", [ctx](const httplib::Request& req, httplib::Response& res) {
         uint64_t parentId = 0;
         auto it = req.params.find("parent_id");
@@ -54,6 +58,15 @@ void HttpServer::start() {
             parentId = std::stoull(it->second);
         }
         res.set_content(HttpHandlers::handleDominanceChildren(*ctx, parentId), "application/json");
+    });
+
+    svr->Get("/api/dominance/children-by-type", [ctx](const httplib::Request& req, httplib::Response& res) {
+        std::string parentType = "";
+        auto it = req.params.find("parent_type");
+        if (it != req.params.end()) {
+            parentType = it->second;
+        }
+        res.set_content(HttpHandlers::handleDominanceChildrenByType(*ctx, parentType), "application/json");
     });
 
     svr->Get("/api/dominance/top10", [ctx](const httplib::Request&, httplib::Response& res) {

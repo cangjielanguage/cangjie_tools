@@ -3,6 +3,7 @@
 #include "Analyzer/Logger.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <unordered_set>
 
 using json = nlohmann::json;
 
@@ -166,34 +167,24 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
         }
     }
 
-    // Cluster root nodes by class name
-    auto clusteredRoots = clusterByClassName(ctx, rootNodes, 0);
-
-    // Add clustered root nodes
-    for (const auto& cluster : clusteredRoots) {
-        std::string className = cluster.class_name;
-        if (cluster.node.is_class_clustered) {
-            className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
-        }
+    // Add root nodes directly (no clustering)
+    for (const auto* node : rootNodes) {
+        std::string className = getClassName(ctx, node->object_id);
         json nodeJson = {
-            {"id", cluster.node.object_id},
+            {"id", node->object_id},
             {"class_name", className},
-            {"retained_size", cluster.node.retained_size},
-            {"shallow_size", cluster.node.shallow_size},
-            {"depth", 0},
-            {"parent_id", 0},
-            {"instance_count", cluster.node.instance_count},
-            {"is_clustered", cluster.node.is_class_clustered},
+            {"retained_size", node->retained_size},
+            {"shallow_size", node->shallow_size},
+            {"depth", node->depth},
+            {"parent_id", node->parent_id},
+            {"instance_count", 1},
+            {"is_clustered", false},
             {"is_cutoff", false}
         };
-        // Add instance_ids for clustered nodes
-        if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
-            nodeJson["instance_ids"] = cluster.instance_ids;
-        }
         result["nodes"].push_back(nodeJson);
     }
 
-    // Group non-root nodes by parent_id for clustering
+    // Group non-root nodes by parent_id
     std::unordered_map<uint64_t, std::vector<const DominanceNode*>> childrenByParent;
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.parent_id == 0 || node.depth == 0) {
@@ -206,7 +197,7 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
         childrenByParent[node.parent_id].push_back(&node);
     }
 
-    // Cluster and add non-root nodes for each parent
+    // Add non-root nodes directly (no clustering) with cutoff filtering
     for (const auto& [parentId, children] : childrenByParent) {
         // Get parent retained size for cutoff calculation
         uint64_t parentRetained = 0;
@@ -215,16 +206,13 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
             parentRetained = it->second;
         }
 
-        // Cluster children by class name
-        auto clusteredChildren = clusterByClassName(ctx, children, parentId);
-
-        // Add clustered children with cutoff filtering
-        for (const auto& cluster : clusteredChildren) {
+        // Add children directly with cutoff filtering
+        for (const auto* node : children) {
             // Check cutoff
             bool isCutoff = false;
             if (parentRetained > 0) {
                 uint64_t cutoffThreshold = static_cast<uint64_t>(parentRetained * ctx.cutoff05Percent);
-                if (cluster.node.retained_size < cutoffThreshold) {
+                if (node->retained_size < cutoffThreshold) {
                     isCutoff = true;
                     cutoffCount++;
                     parentCutoffCount[parentId]++;
@@ -235,25 +223,18 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
                 continue;
             }
 
-            std::string className = cluster.class_name;
-            if (cluster.node.is_class_clustered) {
-                className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
-            }
+            std::string className = getClassName(ctx, node->object_id);
             json nodeJson = {
-                {"id", cluster.node.object_id},
+                {"id", node->object_id},
                 {"class_name", className},
-                {"retained_size", cluster.node.retained_size},
-                {"shallow_size", cluster.node.shallow_size},
-                {"depth", cluster.node.depth},
+                {"retained_size", node->retained_size},
+                {"shallow_size", node->shallow_size},
+                {"depth", node->depth},
                 {"parent_id", parentId},
-                {"instance_count", cluster.node.instance_count},
-                {"is_clustered", cluster.node.is_class_clustered},
+                {"instance_count", 1},
+                {"is_clustered", false},
                 {"is_cutoff", false}
             };
-            // Add instance_ids for clustered nodes
-            if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
-                nodeJson["instance_ids"] = cluster.instance_ids;
-            }
             result["nodes"].push_back(nodeJson);
         }
     }
@@ -296,7 +277,7 @@ std::string HttpHandlers::handleDominanceChildren(const HttpContext& ctx, uint64
         }
     }
 
-    // Collect and sort children
+    // Collect children
     std::vector<const DominanceNode*> children;
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.parent_id == parentId) {
@@ -304,32 +285,20 @@ std::string HttpHandlers::handleDominanceChildren(const HttpContext& ctx, uint64
         }
     }
 
-    // Cluster children by class name
-    auto clusteredNodes = clusterByClassName(ctx, children, parentId);
-
-    // Add clustered children to result
-    int cutoffCount = 0;
-    for (const auto& cluster : clusteredNodes) {
-        std::string className = cluster.class_name;
-        // For clustered nodes, modify class_name to show count
-        if (cluster.node.is_class_clustered) {
-            className = className + " (" + std::to_string(cluster.node.instance_count) + " instances)";
-        }
+    // Add children directly (no clustering)
+    for (const auto* node : children) {
+        std::string className = getClassName(ctx, node->object_id);
         json nodeJson = {
-            {"id", cluster.node.object_id},
+            {"id", node->object_id},
             {"class_name", className},
-            {"retained_size", cluster.node.retained_size},
-            {"shallow_size", cluster.node.shallow_size},
-            {"depth", cluster.node.depth},
-            {"parent_id", cluster.node.parent_id},
-            {"instance_count", cluster.node.instance_count},
-            {"is_clustered", cluster.node.is_class_clustered},
+            {"retained_size", node->retained_size},
+            {"shallow_size", node->shallow_size},
+            {"depth", node->depth},
+            {"parent_id", parentId},
+            {"instance_count", 1},
+            {"is_clustered", false},
             {"is_cutoff", false}
         };
-        // Add instance_ids for clustered nodes
-        if (cluster.node.is_class_clustered && !cluster.instance_ids.empty()) {
-            nodeJson["instance_ids"] = cluster.instance_ids;
-        }
         result["nodes"].push_back(nodeJson);
     }
 
@@ -374,6 +343,357 @@ std::string HttpHandlers::handleDominanceClusterExpand(const HttpContext& ctx, c
                 result["nodes"].push_back(nodeJson);
                 break;
             }
+        }
+    }
+
+    return result.dump();
+}
+
+std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
+    LOG_DEBUG("Handling /api/dominance/tree-by-type");
+
+    json result;
+    result["nodes"] = json::array();
+    result["cutoff_count"] = 0;
+    result["total_skipped"] = 0;
+
+    if (!ctx.dominanceNodes) {
+        return result.dump();
+    }
+
+    uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : 1;
+    if (usedHeap == 0) usedHeap = 1;
+    uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.threshold01Percent);
+    if (threshold01 == 0) threshold01 = 1;
+
+    // TypeNode: each type appears exactly once
+    struct TypeNode {
+        std::string class_name;
+        uint64_t retained_size = 0;
+        uint64_t shallow_size = 0;
+        uint64_t instance_count = 0;
+        std::vector<uint64_t> object_ids;
+        std::unordered_map<std::string, uint64_t> parent_type_counts;  // Count instances per parent type
+        std::string primary_parent_type;  // The dominant parent type
+        std::unordered_set<std::string> child_types;
+        int max_depth = 0;
+        uint64_t cutoff_count = 0;  // Count of filtered children for this type
+    };
+
+    std::unordered_map<std::string, TypeNode> typeNodes;
+
+    // Build object_id -> class_name map for quick lookup (only for above-threshold objects)
+    std::unordered_map<uint64_t, std::string> objectIdToClass;
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size >= threshold01) {
+            std::string className = getClassName(ctx, node.object_id);
+            if (className != "unknown") {
+                objectIdToClass[node.object_id] = className;
+            }
+        }
+    }
+
+    // First pass: collect all types, aggregate sizes, and count parent type occurrences
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size < threshold01) continue;
+
+        std::string className = getClassName(ctx, node.object_id);
+        if (className == "unknown") continue;
+
+        if (typeNodes.find(className) == typeNodes.end()) {
+            typeNodes[className] = TypeNode();
+            typeNodes[className].class_name = className;
+        }
+
+        TypeNode& tn = typeNodes[className];
+        tn.retained_size += node.retained_size;
+        tn.shallow_size += node.shallow_size;
+        tn.instance_count++;
+        tn.object_ids.push_back(node.object_id);
+        if (node.depth > tn.max_depth) {
+            tn.max_depth = node.depth;
+        }
+
+        // Count parent type occurrences
+        if (node.parent_id != 0) {
+            auto it = objectIdToClass.find(node.parent_id);
+            if (it != objectIdToClass.end()) {
+                std::string parentClass = it->second;
+                if (parentClass != className) {
+                    tn.parent_type_counts[parentClass]++;
+                }
+            }
+        }
+
+        // Collect child types (objects dominated by this node) and count cutoff children
+        for (const auto& child : *ctx.dominanceNodes) {
+            if (child.parent_id == node.object_id && child.object_id != node.object_id) {
+                if (child.retained_size >= threshold01) {
+                    auto childIt = objectIdToClass.find(child.object_id);
+                    if (childIt != objectIdToClass.end()) {
+                        std::string childClass = childIt->second;
+                        if (childClass != className) {
+                            tn.child_types.insert(childClass);
+                        }
+                    }
+                } else {
+                    // Child is filtered by threshold - count as cutoff
+                    tn.cutoff_count++;
+                }
+            }
+        }
+    }
+
+    // Second pass: determine parent type for each type
+    // Correct definition: Type A dominates Type B iff all instances of B are dominated by instances of A
+    // i.e., when A is released, B must also be released
+    for (auto& [className, tn] : typeNodes) {
+        if (tn.parent_type_counts.empty()) {
+            tn.primary_parent_type = "";  // Root type (instances have parent_id == 0)
+        } else if (tn.parent_type_counts.size() == 1) {
+            // All instances have the same parent type -> this type dominates them
+            tn.primary_parent_type = tn.parent_type_counts.begin()->first;
+        } else {
+            // Instances are dominated by different types -> no single type dominates all
+            // This type should be at root level
+            tn.primary_parent_type = "";
+        }
+    }
+
+    // Build result: each type appears exactly once
+    for (const auto& [className, tn] : typeNodes) {
+        json nodeJson = {
+            {"type_name", tn.class_name},
+            {"class_name", tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)"},
+            {"retained_size", tn.retained_size},
+            {"shallow_size", tn.shallow_size},
+            {"depth", tn.max_depth},
+            {"parent_type", tn.primary_parent_type},
+            {"instance_count", tn.instance_count},
+            {"object_ids", tn.object_ids},
+            {"is_clustered", true},
+            {"is_cutoff", false},
+            {"cutoff_count", tn.cutoff_count}
+        };
+
+        // Child types: types that have this type as their primary parent
+        json childTypesJson = json::array();
+        for (const auto& [childName, childNode] : typeNodes) {
+            if (childNode.primary_parent_type == className) {
+                childTypesJson.push_back(childName);
+            }
+        }
+        nodeJson["child_types"] = childTypesJson;
+
+        result["nodes"].push_back(nodeJson);
+
+        // Add cutoff node if this type has filtered children (same format as object granularity)
+        if (tn.cutoff_count > 0) {
+            result["nodes"].push_back({
+                {"type_name", className + "::cutoff"},
+                {"class_name", "... (" + std::to_string(tn.cutoff_count) + " children)"},
+                {"retained_size", 0},
+                {"shallow_size", 0},
+                {"depth", tn.max_depth + 1},
+                {"parent_type", className},
+                {"instance_count", tn.cutoff_count},
+                {"object_ids", json::array()},
+                {"is_clustered", false},
+                {"is_cutoff", true},
+                {"cutoff_count", 0},
+                {"child_types", json::array()}
+            });
+        }
+    }
+
+    return result.dump();
+}
+
+std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, const std::string& parentType) {
+    LOG_DEBUG("Handling /api/dominance/children-by-type?parent_type={}", parentType);
+
+    json result;
+    result["nodes"] = json::array();
+
+    if (!ctx.dominanceNodes) {
+        return result.dump();
+    }
+
+    uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : 1;
+    if (usedHeap == 0) usedHeap = 1;
+    uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.threshold01Percent);
+    if (threshold01 == 0) threshold01 = 1;
+
+    // Build object_id -> class_name map (only for above-threshold objects)
+    std::unordered_map<uint64_t, std::string> objectIdToClass;
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size >= threshold01) {
+            std::string className = getClassName(ctx, node.object_id);
+            if (className != "unknown") {
+                objectIdToClass[node.object_id] = className;
+            }
+        }
+    }
+
+    // TypeNode: for types that have parentType as their primary parent
+    struct TypeNode {
+        std::string class_name;
+        uint64_t retained_size = 0;
+        uint64_t shallow_size = 0;
+        uint64_t instance_count = 0;
+        std::vector<uint64_t> object_ids;
+        std::unordered_map<std::string, uint64_t> parent_type_counts;
+        std::string primary_parent_type;
+        std::unordered_set<std::string> child_types;
+        int max_depth = 0;
+        uint64_t cutoff_count = 0;  // Count of filtered children for this type
+    };
+
+    std::unordered_map<std::string, TypeNode> allTypeNodes;
+
+    // Find all object_ids belonging to parentType to count cutoff children
+    std::vector<uint64_t> parentTypeObjectIds;
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size >= threshold01) {
+            std::string className = getClassName(ctx, node.object_id);
+            if (className == parentType) {
+                parentTypeObjectIds.push_back(node.object_id);
+            }
+        }
+    }
+
+    // Count cutoff children for parentType
+    uint64_t parentCutoffCount = 0;
+    for (uint64_t parentId : parentTypeObjectIds) {
+        for (const auto& child : *ctx.dominanceNodes) {
+            if (child.parent_id == parentId && child.object_id != parentId) {
+                if (child.retained_size < threshold01) {
+                    parentCutoffCount++;
+                }
+            }
+        }
+    }
+
+    // Build all type nodes first (same logic as tree-by-type)
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size < threshold01) continue;
+
+        std::string className = getClassName(ctx, node.object_id);
+        if (className == "unknown") continue;
+
+        if (allTypeNodes.find(className) == allTypeNodes.end()) {
+            allTypeNodes[className] = TypeNode();
+            allTypeNodes[className].class_name = className;
+        }
+
+        TypeNode& tn = allTypeNodes[className];
+        tn.retained_size += node.retained_size;
+        tn.shallow_size += node.shallow_size;
+        tn.instance_count++;
+        tn.object_ids.push_back(node.object_id);
+        if (node.depth > tn.max_depth) {
+            tn.max_depth = node.depth;
+        }
+
+        // Count parent type occurrences
+        if (node.parent_id != 0) {
+            auto it = objectIdToClass.find(node.parent_id);
+            if (it != objectIdToClass.end()) {
+                std::string parentClass = it->second;
+                if (parentClass != className) {
+                    tn.parent_type_counts[parentClass]++;
+                }
+            }
+        }
+
+        // Count cutoff children for this type
+        for (const auto& child : *ctx.dominanceNodes) {
+            if (child.parent_id == node.object_id && child.object_id != node.object_id) {
+                if (child.retained_size < threshold01) {
+                    tn.cutoff_count++;
+                }
+            }
+        }
+    }
+
+    // Determine primary parent type for each type
+    // Correct definition: Type A dominates Type B iff all instances of B are dominated by instances of A
+    for (auto& [className, tn] : allTypeNodes) {
+        if (tn.parent_type_counts.empty()) {
+            tn.primary_parent_type = "";  // Root type
+        } else if (tn.parent_type_counts.size() == 1) {
+            // All instances have the same parent type -> this type dominates them
+            tn.primary_parent_type = tn.parent_type_counts.begin()->first;
+        } else {
+            // Instances are dominated by different types -> no single type dominates all
+            tn.primary_parent_type = "";
+        }
+    }
+
+    // Return only types that have parentType as their primary parent
+    for (const auto& [className, tn] : allTypeNodes) {
+        if (tn.primary_parent_type != parentType) continue;
+
+        // Find child types: types that have this type as primary parent
+        std::unordered_set<std::string> myChildTypes;
+        for (const auto& [childName, childNode] : allTypeNodes) {
+            if (childNode.primary_parent_type == className) {
+                myChildTypes.insert(childName);
+            }
+        }
+
+        json nodeJson = {
+            {"type_name", tn.class_name},
+            {"class_name", tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)"},
+            {"retained_size", tn.retained_size},
+            {"shallow_size", tn.shallow_size},
+            {"depth", tn.max_depth},
+            {"parent_type", parentType},
+            {"instance_count", tn.instance_count},
+            {"object_ids", tn.object_ids},
+            {"is_clustered", true},
+            {"is_cutoff", false},
+            {"cutoff_count", tn.cutoff_count}
+        };
+
+        json childTypesJson = json::array();
+        for (const auto& childType : myChildTypes) {
+            childTypesJson.push_back(childType);
+        }
+        nodeJson["child_types"] = childTypesJson;
+
+        result["nodes"].push_back(nodeJson);
+        // Note: cutoff nodes for child types are NOT added here
+        // They will be returned when requesting children-by-type for that specific child type
+    }
+
+    // Add cutoff node for parentType itself if it has filtered children
+    // but no child types (so cutoff appears at the same level as would-be child types)
+    if (parentCutoffCount > 0) {
+        // Check if parentType has any child types
+        bool hasChildTypes = false;
+        for (const auto& [className, tn] : allTypeNodes) {
+            if (tn.primary_parent_type == parentType) {
+                hasChildTypes = true;
+                break;
+            }
+        }
+        // If no child types, add cutoff node directly under parentType (same format as object granularity)
+        if (!hasChildTypes) {
+            result["nodes"].push_back({
+                {"type_name", parentType + "::cutoff"},
+                {"class_name", "... (" + std::to_string(parentCutoffCount) + " children)"},
+                {"retained_size", 0},
+                {"shallow_size", 0},
+                {"depth", 0},
+                {"parent_type", parentType},
+                {"instance_count", parentCutoffCount},
+                {"object_ids", json::array()},
+                {"is_clustered", false},
+                {"is_cutoff", true},
+                {"cutoff_count", 0},
+                {"child_types", json::array()}
+            });
         }
     }
 
