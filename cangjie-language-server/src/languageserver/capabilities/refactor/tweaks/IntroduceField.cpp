@@ -4,14 +4,16 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "IntroduceField.h"
-#include "../../../common/Utils.h"
-#include "../TweakRule.h"
-#include "../TweakUtils.h"
+#include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cangjie/AST/Walker.h>
+#include "../../../common/Utils.h"
+#include "../TweakRule.h"
+#include "../TweakUtils.h"
+#include "IntroduceField.h"
 
 namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_FIELD_EXPR = {
@@ -249,6 +251,60 @@ static Position GetMethodInsertStart(
     return GetLeadingCommentStart(sel, searchStart, codeBegin);
 }
 
+template <typename BodyDecl>
+static Position GetBodyFirstLineInsertStart(const BodyDecl &decl)
+{
+    Position insertPos = decl.body->leftCurlPos;
+    insertPos.line += 1;
+    insertPos.column = 1;
+    return insertPos;
+}
+
+template <typename BodyDecl>
+static Position GetFieldInsertStartInBody(const BodyDecl &decl, const Cangjie::AST::FuncDecl &funcDecl)
+{
+    Ptr<Cangjie::AST::Decl> lastField = nullptr;
+    for (auto &member : decl.body->decls) {
+        if (member && IsFieldDecl(*member) && member->begin < funcDecl.begin) {
+            lastField = member.get();
+        }
+    }
+    if (lastField) {
+        return GetDeclarationInsertEnd(*lastField);
+    }
+    return GetBodyFirstLineInsertStart(decl);
+}
+
+template <typename BodyDecl>
+static Position GetFirstNonFieldLineStartAfterInsertPos(const BodyDecl &decl, const Position &insertPos)
+{
+    Position firstNonField;
+    for (auto &member : decl.body->decls) {
+        if (!member || IsFieldDecl(*member) || member->begin <= insertPos) {
+            continue;
+        }
+        if (firstNonField.IsZero() || member->begin < firstNonField) {
+            firstNonField = {member->begin.fileID, member->begin.line, 1};
+        }
+    }
+    return firstNonField;
+}
+
+static Position GetFieldBlockEndLineStart(Cangjie::AST::FuncDecl &funcDecl, const Position &insertPos)
+{
+    auto owner = funcDecl.outerDecl ? DynamicCast<Cangjie::AST::InheritableDecl *>(funcDecl.outerDecl.get()) : nullptr;
+    if (!owner) {
+        return {};
+    }
+    if (auto classDecl = DynamicCast<Cangjie::AST::ClassDecl *>(owner)) {
+        return classDecl->body ? GetFirstNonFieldLineStartAfterInsertPos(*classDecl, insertPos) : Position{};
+    }
+    if (auto structDecl = DynamicCast<Cangjie::AST::StructDecl *>(owner)) {
+        return structDecl->body ? GetFirstNonFieldLineStartAfterInsertPos(*structDecl, insertPos) : Position{};
+    }
+    return {};
+}
+
 static Position GetTopLevelInsertStart(const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl)
 {
     if (!sel.arkAst || !sel.arkAst->file) {
@@ -273,41 +329,15 @@ static Position GetOwnerInsertStart(
         if (!classDecl->body) {
             return {};
         }
-        Ptr<Cangjie::AST::Decl> lastField = nullptr;
-        Position previousDeclEnd = classDecl->body->leftCurlPos;
-        for (auto &decl : classDecl->body->decls) {
-            if (!decl || decl->begin >= funcDecl.begin) {
-                break;
-            }
-            if (IsFieldDecl(*decl)) {
-                lastField = decl.get();
-            }
-            previousDeclEnd = decl->end;
-        }
-        if (lastField) {
-            return GetDeclarationInsertEnd(*lastField);
-        }
-        return GetMethodInsertStart(sel, previousDeclEnd, funcDecl);
+        (void)sel;
+        return GetFieldInsertStartInBody(*classDecl, funcDecl);
     }
     if (auto structDecl = DynamicCast<Cangjie::AST::StructDecl *>(&owner)) {
         if (!structDecl->body) {
             return {};
         }
-        Ptr<Cangjie::AST::Decl> lastField = nullptr;
-        Position previousDeclEnd = structDecl->body->leftCurlPos;
-        for (auto &decl : structDecl->body->decls) {
-            if (!decl || decl->begin >= funcDecl.begin) {
-                break;
-            }
-            if (IsFieldDecl(*decl)) {
-                lastField = decl.get();
-            }
-            previousDeclEnd = decl->end;
-        }
-        if (lastField) {
-            return GetDeclarationInsertEnd(*lastField);
-        }
-        return GetMethodInsertStart(sel, previousDeclEnd, funcDecl);
+        (void)sel;
+        return GetFieldInsertStartInBody(*structDecl, funcDecl);
     }
     return {};
 // LCOV_EXCL_BR_STOP
@@ -381,7 +411,21 @@ std::optional<Range> IntroduceField::GetFieldInsertRange(
     if (!isMemberField && !dependencyEnd.IsZero() && insertPos < dependencyEnd) {
         insertPos = dependencyEnd;
     }
-    return Range{insertPos, insertPos};
+    Position insertEnd = insertPos;
+    Position cleanEnd = isMemberField ? GetFieldBlockEndLineStart(funcDecl, insertPos) : Position{};
+    if (cleanEnd.IsZero()) {
+        cleanEnd = {funcDecl.GetBegin().fileID, funcDecl.GetBegin().line, 1};
+    }
+    if (isMemberField && sel.arkAst && sel.arkAst->sourceManager && insertPos < cleanEnd) {
+        std::string gap = sel.arkAst->sourceManager->GetContentBetween(insertPos, cleanEnd);
+        bool whitespaceOnly = std::all_of(gap.begin(), gap.end(), [](unsigned char ch) {
+            return std::isspace(ch) != 0;
+        });
+        if (whitespaceOnly) {
+            insertEnd = cleanEnd;
+        }
+    }
+    return Range{insertPos, insertEnd};
 }
 
 Range IntroduceField::GetAssignInsertRange(const Selection &sel, Range &range)
@@ -438,6 +482,66 @@ static std::string GetFieldIndent(const Tweak::Selection &sel, const Range &inse
     return "    ";
 }
 
+static std::string GetMemberFieldSuffix()
+{
+    return "\n\n";
+}
+
+static std::optional<Position> GetOwnerLeftCurlPos(Cangjie::AST::FuncDecl &funcDecl)
+{
+    auto owner = funcDecl.outerDecl ? DynamicCast<Cangjie::AST::InheritableDecl *>(funcDecl.outerDecl.get()) : nullptr;
+    if (!owner) {
+        return std::nullopt;
+    }
+    if (auto classDecl = DynamicCast<Cangjie::AST::ClassDecl *>(owner)) {
+        if (!classDecl->body) {
+            return std::nullopt;
+        }
+        return classDecl->body->leftCurlPos;
+    } else if (auto structDecl = DynamicCast<Cangjie::AST::StructDecl *>(owner)) {
+        if (!structDecl->body) {
+            return std::nullopt;
+        }
+        return structDecl->body->leftCurlPos;
+    }
+    return std::nullopt;
+}
+
+static bool IsFirstLineInOwnerBody(const Position &insertPos, Cangjie::AST::FuncDecl &funcDecl)
+{
+    auto leftCurlPos = GetOwnerLeftCurlPos(funcDecl);
+    return leftCurlPos.has_value() && insertPos.line == leftCurlPos->line + 1 && insertPos.column == 1;
+}
+
+static bool HasBlankLineAfterOwnerLeftCurl(const Tweak::Selection &sel,
+                                           const Range &insertRange,
+                                           Cangjie::AST::FuncDecl &funcDecl)
+{
+    if (!sel.arkAst || !sel.arkAst->sourceManager) {
+        return false;
+    }
+    auto leftCurlPos = GetOwnerLeftCurlPos(funcDecl);
+    if (!leftCurlPos.has_value() || *leftCurlPos >= insertRange.start) {
+        return false;
+    }
+    std::string gap = sel.arkAst->sourceManager->GetContentBetween(*leftCurlPos, insertRange.start);
+    return std::count(gap.begin(), gap.end(), '\n') >= 2;
+}
+
+static std::string GetMemberFieldPrefix(const Range &insertRange,
+                                        const Tweak::Selection &sel,
+                                        Cangjie::AST::FuncDecl &funcDecl,
+                                        bool insertAtLineStart)
+{
+    if (!insertAtLineStart) {
+        return "\n";
+    }
+    if (!IsFirstLineInOwnerBody(insertRange.start, funcDecl)) {
+        return "";
+    }
+    return HasBlankLineAfterOwnerLeftCurl(sel, insertRange, funcDecl) ? "" : "\n";
+}
+
 TextEdit IntroduceField::InsertFieldDeclaration(const Selection &sel, Range &range, std::string &fieldName,
     std::string &typeName, Cangjie::AST::FuncDecl &funcDecl)
 {
@@ -459,16 +563,14 @@ TextEdit IntroduceField::InsertFieldDeclaration(const Selection &sel, Range &ran
     bool isMemberField = IsMemberFieldTarget(funcDecl);
     bool insertAtLineStart = insertRange->start.column == 1;
     std::ostringstream insertText;
-    if (!insertAtLineStart) {
-        insertText << "\n";
-    }
+    insertText << GetMemberFieldPrefix(*insertRange, sel, funcDecl, insertAtLineStart);
     insertText << GetFieldIndent(sel, *insertRange, isMemberField);
     insertText << "private ";
     if (IsStaticFieldTarget(funcDecl)) {
         insertText << "static ";
     }
     insertText << "var " << fieldName << ": " << typeName << " = " << initializer;
-    insertText << (insertAtLineStart ? "\n\n" : "\n");
+    insertText << GetMemberFieldSuffix();
     textEdit.newText = insertText.str();
     return textEdit;
 }
@@ -486,7 +588,10 @@ TextEdit IntroduceField::InsertFieldAssignment(
         return textEdit;
     }
     std::string sourceCode = sel.arkAst->sourceManager->GetContentBetween(range.start, range.end);
-    std::string indent = GetLeadingIndentBefore(sel, range.start);
+    std::string indent = GetLineIndent(sel, range.start.line);
+    if (indent.empty()) {
+        indent = GetLeadingIndentBefore(sel, range.start);
+    }
     textEdit.range = TransformFromChar2IDE(insertRange);
     std::ostringstream insertText;
     insertText << indent;
