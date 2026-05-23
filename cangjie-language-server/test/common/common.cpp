@@ -1700,6 +1700,44 @@ namespace test::common {
                 reason = "the expect and actual DiagnosticsInfo " + std::to_string(i) + " diagInfo.range is different";
                 return false;
             }
+
+            // compare codeActions, only check quickfix.implementMembers
+            auto filterCodeActions = [](const nlohmann::json &actions) -> nlohmann::json {
+                if (actions.is_null() || !actions.is_array()) {
+                    return nlohmann::json::array();
+                }
+                nlohmann::json filtered = nlohmann::json::array();
+                for (const auto &action : actions) {
+                    if (action.value("kind", "") == "quickfix.implementMembers") {
+                        filtered.push_back(action);
+                    }
+                }
+                return filtered;
+            };
+            auto normalizeUri = [](nlohmann::json &actions) {
+                if (actions.is_null()) {
+                    return;
+                }
+                for (auto &action : actions) {
+                    if (action.contains("edit") && action["edit"].contains("changes")) {
+                        auto &changes = action["edit"]["changes"];
+                        nlohmann::json normalized;
+                        for (auto it = changes.begin(); it != changes.end(); ++it) {
+                            normalized["file://URI"] = it.value();
+                        }
+                        changes = normalized;
+                    }
+                }
+            };
+            nlohmann::json expActions = filterCodeActions(exp[i].codeActions);
+            nlohmann::json actActions = filterCodeActions(act[i].codeActions);
+            normalizeUri(expActions);
+            normalizeUri(actActions);
+            if (expActions != actActions) {
+                reason = "the expect and actual DiagnosticsInfo " + std::to_string(i) +
+                         " codeActions is different";
+                return false;
+            }
         }
         return true;
     }
