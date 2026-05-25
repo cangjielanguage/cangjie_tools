@@ -14,6 +14,8 @@
 
 int Heap::Execute(int argc, char **argv)
 {
+    HeapAnalyzer::SetProgramStartTime();
+
     if (!ParseArgs(argc, argv)) {
         return ERR;
     }
@@ -30,6 +32,13 @@ int Heap::Execute(int argc, char **argv)
     auto &analyzer = HeapAnalyzer::GetInstance();
     if (!analyzer.SetData(m_cfg.input)) {
         return ERR;
+    }
+
+    if (m_cfg.dumpReport) {
+        analyzer.SetDumpReport(true);
+        if (analyzer.StartReportServer(m_cfg.reportPort)) {
+            return OK;
+        }
     }
 
     if (!analyzer.Analyze(m_cfg.verbose)) {

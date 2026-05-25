@@ -82,8 +82,10 @@ def setup_compiler():
         clang_pp_path = shutil.which("clang++")
         if not clang_path:
             LOG.error("clang is required to build cangjie compiler")
+            sys.exit(1)
         if not clang_pp_path:
             LOG.error("clang++ is required to build cangjie compiler")
+            sys.exit(1)
 
         os.environ["CC"] = clang_path
         os.environ["CXX"] = clang_pp_path
@@ -92,8 +94,10 @@ def setup_compiler():
         cxx_compiler = shutil.which("g++")
         if not c_compiler:
             LOG.error("gcc is required to build cangjie compiler")
+            sys.exit(1)
         if not cxx_compiler:
             LOG.error("g++ is required to build cangjie compiler")
+            sys.exit(1)
         os.environ["CC"] = c_compiler
         os.environ["CXX"] = cxx_compiler
 

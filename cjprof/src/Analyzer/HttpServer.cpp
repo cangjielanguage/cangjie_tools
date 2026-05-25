@@ -5,6 +5,15 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#endif
+
 namespace cjprof {
 
 static std::string guessMimeType(const std::string& path) {
@@ -24,10 +33,42 @@ HttpServer::~HttpServer() {
 }
 
 bool HttpServer::isPortInUse(int port) {
-    httplib::Client cli("127.0.0.1", port);
-    cli.set_connection_timeout(0, 100 * 1000); // 100ms
-    auto res = cli.Get("/");
-    return res != nullptr;
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        return false;
+    }
+#endif
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+#ifdef _WIN32
+        WSACleanup();
+#endif
+        return false;
+    }
+
+    int opt = 1;
+#ifdef _WIN32
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
+#else
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
+
+    sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+
+    int result = bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+
+#ifdef _WIN32
+    closesocket(sock);
+    WSACleanup();
+#else
+    close(sock);
+#endif
+
+    return result != 0;
 }
 
 void HttpServer::start() {

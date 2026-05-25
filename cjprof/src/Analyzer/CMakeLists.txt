@@ -4,14 +4,10 @@
 #
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-include_directories(${CMAKE_SOURCE_DIR}/third_party/sqlite3)
-
 add_library(Analyzer OBJECT
     HeapAnalyzer.cpp
     HttpHandlers.cpp
     HttpServer.cpp
-    SqliteDb.cpp
-    DatabaseSchema.cpp
     DatabaseCache.cpp
 )
 set_target_properties(Analyzer PROPERTIES POSITION_INDEPENDENT_CODE ON)

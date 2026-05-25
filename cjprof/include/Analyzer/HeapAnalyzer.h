@@ -159,8 +159,12 @@ public:
     void ShowReference(const std::string &objNameList, int maxDepth, bool incoming = false);
     RawHeapSnapshot GetRawHeapSnapshot();
     bool StartReportServer(int port = 8080);
+    static void SetProgramStartTime();
+    void SetDumpReport(bool dump) { m_dumpReport = dump; }
 
 private:
+    bool m_dumpReport = false;
+
     struct Object {
         Hprof::ID id;
         std::string name;
