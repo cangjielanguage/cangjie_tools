@@ -126,6 +126,14 @@ bool DatabaseCache::save(const std::string& heapFilePath,
         return offset;
     };
 
+    // Pre-populate string table so header.strings_size is correct
+    for (const auto& cls : classes) {
+        addString(cls.class_name);
+    }
+    for (const auto& obj : objects) {
+        addString(obj.name);
+    }
+
     // Flatten refs and children into contiguous arrays
     std::vector<uint64_t> flatRefs;
     std::vector<uint64_t> flatChildren;

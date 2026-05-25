@@ -89,10 +89,14 @@ bool HeapAnalyzer::Analyze(bool verbose)
         return false;
     }
     auto t1 = std::chrono::steady_clock::now();
-    AnalyzeObject();
+    if (!m_dumpReport) {
+        AnalyzeObject();
+    }
     auto t2 = std::chrono::steady_clock::now();
-    AnalyzeThread();
-    FilterPlaceholderObjects();
+if (!m_dumpReport) {
+        AnalyzeThread();
+        FilterPlaceholderObjects();
+    }
     auto t3 = std::chrono::steady_clock::now();
 
     auto parseMs = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
@@ -395,6 +399,13 @@ static std::string ReplaceTypeName(const std::string &mangled)
     return demangled;
 }
 
+static const std::unordered_map<Hprof::BasicType, std::string> kPrimitiveArrayNames = {
+    { Hprof::BasicType::BOOLEAN, "RawArray<Byte>[]" },
+    { Hprof::BasicType::SHORT,   "RawArray<Harf>[]" },
+    { Hprof::BasicType::INT,     "RawArray<Word>[]" },
+    { Hprof::BasicType::LONG,    "RawArray<DWord>[]" }
+};
+
 void HeapAnalyzer::AnalyzeInstance()
 {
     const auto& strings = m_hprof.GetStrings();
@@ -430,13 +441,6 @@ void HeapAnalyzer::AnalyzeArray()
     const auto& classes = m_hprof.GetClasses();
     const auto& componentNums = m_hprof.GetComponentNums();
     const auto& categories = m_hprof.GetObjectCategories();
-    std::unordered_map<Hprof::BasicType, std::tuple<std::string, int>> typeInfo = {
-        { Hprof::BasicType::BOOLEAN, { "RawArray<Byte>[]", 1 } },
-        { Hprof::BasicType::SHORT, { "RawArray<Harf>[]", 2 } },
-        { Hprof::BasicType::INT, { "RawArray<Word>[]", 4 } },
-        { Hprof::BasicType::LONG, { "RawArray<DWord>[]", 8 } }
-    };
-
     for (auto arr : m_hprof.GetArrays()) {
         auto obj = GetObject(arr.first);
         obj->id = arr.first;
@@ -447,8 +451,14 @@ void HeapAnalyzer::AnalyzeArray()
         }
 
         if (arr.second.type != Hprof::BasicType::OBJECT) {
-            obj->name = std::get<0>(typeInfo[arr.second.type]);
-            obj->size += Align(uint64_t(std::get<1>(typeInfo[arr.second.type])) * arr.second.num);
+            auto nameIt = kPrimitiveArrayNames.find(arr.second.type);
+            if (nameIt != kPrimitiveArrayNames.end()) {
+                obj->name = nameIt->second;
+            }
+            obj->size += Align(uint64_t(arr.second.type == Hprof::BasicType::BOOLEAN ? 1 :
+                arr.second.type == Hprof::BasicType::SHORT ? 2 :
+                arr.second.type == Hprof::BasicType::INT ? 4 :
+                arr.second.type == Hprof::BasicType::LONG ? 8 : 0) * arr.second.num);
             continue;
         }
 
@@ -708,6 +718,214 @@ void RawHeapSnapshot::PrintSummary() {
 #include <thread>
 #include <chrono>
 
+static uint64_t ComputeInstanceSize(const Hprof::Instance& inst,
+                                    const std::unordered_map<Hprof::ID, Hprof::Class>& classes)
+{
+    auto it = classes.find(inst.cls);
+    return (it != classes.end()) ? ((it->second.size + 7) & ~7ULL) : 0;
+}
+
+static uint64_t ComputeArraySize(Hprof::ID id, const Hprof::Array& arr,
+                                 const std::unordered_map<Hprof::ID, Hprof::Class>& classes,
+                                 const std::unordered_map<Hprof::ID, Hprof::u4>& componentNums)
+{
+    uint64_t size = arr.GetFixedSize();
+    if (arr.type == Hprof::BasicType::OBJECT) {
+        auto it = classes.find(arr.cls);
+        if (it != classes.end() && it->second.size != 0) {
+            uint64_t num = arr.num;
+            auto compIt = componentNums.find(id);
+            if (compIt != componentNums.end()) {
+                num = compIt->second;
+            }
+            size += ((uint64_t(it->second.size) * num) + 7) & ~7ULL;
+        } else {
+            size += sizeof(Hprof::ID) * arr.num;
+        }
+    } else {
+        int elemSize = 0;
+        switch (arr.type) {
+            case Hprof::BasicType::BOOLEAN: elemSize = 1; break;
+            case Hprof::BasicType::SHORT:   elemSize = 2; break;
+            case Hprof::BasicType::INT:     elemSize = 4; break;
+            case Hprof::BasicType::LONG:    elemSize = 8; break;
+            default: break;
+        }
+        if (elemSize > 0) {
+            size += ((uint64_t(elemSize) * arr.num) + 7) & ~7ULL;
+        }
+    }
+    return size;
+}
+
+static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hprof& hprof, const std::unordered_map<uint64_t, uint64_t>& objectSizes)
+{
+    using namespace cjprof;
+    const auto& instances = hprof.GetInstances();
+    const auto& arrays = hprof.GetArrays();
+    const auto& classes = hprof.GetClasses();
+    const auto& componentNums = hprof.GetComponentNums();
+    const auto& locals = hprof.GetLocalsRoots();
+    const auto& globals = hprof.GetGlobalsRoots();
+    const auto& unknown = hprof.GetUnknownRoots();
+
+    size_t n = instances.size() + arrays.size();
+    if (n == 0) {
+        return {};
+    }
+
+    // Step 1: Build id -> index mapping and size vector
+    std::unordered_map<uint64_t, size_t> idToIndex;
+    idToIndex.reserve(n * 2);
+    std::vector<uint64_t> sizes;
+    sizes.reserve(n);
+    for (const auto& inst : instances) {
+        idToIndex[inst.first] = sizes.size();
+        sizes.push_back(objectSizes.at(inst.first));
+    }
+
+    for (const auto& arr : arrays) {
+        idToIndex[arr.first] = sizes.size();
+        sizes.push_back(objectSizes.at(arr.first));
+    }
+
+    // Step 2: Build succs/preds from raw references
+    std::vector<std::vector<size_t>> succs(n);
+    std::vector<std::vector<size_t>> preds(n);
+
+    for (const auto& inst : instances) {
+        auto itFrom = idToIndex.find(inst.first);
+        if (itFrom == idToIndex.end()) continue;
+        size_t from = itFrom->second;
+        for (auto refId : inst.second.fields) {
+            if (refId == 0) continue;
+            auto itTo = idToIndex.find(refId);
+            if (itTo != idToIndex.end()) {
+                size_t to = itTo->second;
+                succs[from].push_back(to);
+                preds[to].push_back(from);
+            }
+        }
+    }
+
+    for (const auto& arr : arrays) {
+        if (arr.second.type != Hprof::BasicType::OBJECT) continue;
+        auto itFrom = idToIndex.find(arr.first);
+        if (itFrom == idToIndex.end()) continue;
+        size_t from = itFrom->second;
+        for (auto element : arr.second.elements) {
+            if (element == 0) continue;
+            auto itTo = idToIndex.find(element);
+            if (itTo != idToIndex.end()) {
+                size_t to = itTo->second;
+                succs[from].push_back(to);
+                preds[to].push_back(from);
+            }
+        }
+    }
+
+    // Step 3: Identify GC Roots
+    std::vector<size_t> gcRoots;
+    for (size_t i = 0; i < n; ++i) {
+        if (preds[i].empty()) {
+            gcRoots.push_back(i);
+        }
+    }
+    // Also add explicit roots from hprof
+    for (const auto& local : locals) {
+        auto it = idToIndex.find(local.first);
+        if (it != idToIndex.end() && std::find(gcRoots.begin(), gcRoots.end(), it->second) == gcRoots.end()) {
+            gcRoots.push_back(it->second);
+        }
+    }
+    for (auto global : globals) {
+        auto it = idToIndex.find(global);
+        if (it != idToIndex.end() && std::find(gcRoots.begin(), gcRoots.end(), it->second) == gcRoots.end()) {
+            gcRoots.push_back(it->second);
+        }
+    }
+    for (auto unk : unknown) {
+        auto it = idToIndex.find(unk);
+        if (it != idToIndex.end() && std::find(gcRoots.begin(), gcRoots.end(), it->second) == gcRoots.end()) {
+            gcRoots.push_back(it->second);
+        }
+    }
+
+    if (gcRoots.empty()) {
+        return {};
+    }
+
+    // Step 4: Compute dominance tree
+    auto result = Cjprof::ComputeDominanceTree(n, succs, preds, gcRoots);
+    const auto& dom = result.dom;
+    const auto& domTree = result.domTree;
+    size_t entry = 0;
+
+    // Step 5: Compute retainedSize recursively
+    std::vector<uint64_t> retainedSizes(n, 0);
+    std::function<uint64_t(size_t)> computeRetainedSize = [&](size_t node) -> uint64_t {
+        size_t originalIdx = node - 1;
+        uint64_t size = sizes[originalIdx];
+        for (size_t child : domTree[node]) {
+            size += computeRetainedSize(child);
+        }
+        retainedSizes[originalIdx] = size;
+        return size;
+    };
+    for (size_t v = 1; v <= n; ++v) {
+        if (dom[v] == entry) {
+            computeRetainedSize(v);
+        }
+    }
+
+    // Step 6: Compute depth via BFS from roots
+    std::vector<uint32_t> depth(n, UINT32_MAX);
+    std::queue<size_t> bfs;
+    for (size_t i = 0; i < n; ++i) {
+        if (dom[i + 1] == entry) {
+            depth[i] = 0;
+            bfs.push(i);
+        }
+    }
+    while (!bfs.empty()) {
+        size_t idx = bfs.front();
+        bfs.pop();
+        for (size_t childOrdinal : domTree[idx + 1]) {
+            size_t childIdx = childOrdinal - 1;
+            if (depth[childIdx] == UINT32_MAX || depth[childIdx] > depth[idx] + 1) {
+                depth[childIdx] = depth[idx] + 1;
+                bfs.push(childIdx);
+            }
+        }
+    }
+
+    // Step 7: Build DominanceNode array
+    // Need a vector of IDs in index order
+    std::vector<uint64_t> ids(n);
+    for (const auto& inst : instances) {
+        ids[idToIndex[inst.first]] = inst.first;
+    }
+    for (const auto& arr : arrays) {
+        ids[idToIndex[arr.first]] = arr.first;
+    }
+
+    std::vector<DominanceNode> nodes;
+    nodes.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        DominanceNode dn;
+        dn.object_id = ids[i];
+        dn.shallow_size = sizes[i];
+        dn.retained_size = retainedSizes[i];
+        dn.depth = depth[i] == UINT32_MAX ? 0 : depth[i];
+        size_t parentOrdinal = dom[i + 1];
+        dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? ids[parentOrdinal - 1] : 0;
+        dn.instance_count = 1;
+        dn.is_class_clustered = false;
+        nodes.push_back(dn);
+    }
+    return nodes;
+}
+
 static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnapshot& rhs)
 {
     using namespace cjprof;
@@ -852,36 +1070,91 @@ bool HeapAnalyzer::StartReportServer(int port)
     }
 
     if (!cacheLoaded) {
-        if (m_objects.empty()) {
+        LOG_DEBUG("No cache found, parsing heap file...");
+
+        const auto& hprofClasses = m_hprof.GetClasses();
+        const auto& hprofStrings = m_hprof.GetStrings();
+        const auto& locals = m_hprof.GetLocalsRoots();
+        const auto& globals = m_hprof.GetGlobalsRoots();
+        const auto& unknown = m_hprof.GetUnknownRoots();
+        const auto& categories = m_hprof.GetObjectCategories();
+        const auto& componentNums = m_hprof.GetComponentNums();
+        const auto& instances = m_hprof.GetInstances();
+        const auto& arrays = m_hprof.GetArrays();
+
+        if (instances.empty() && arrays.empty()) {
             LOG_DEBUG("No parsed data available, skip building HTTP context");
             if (!g_phaseBreakdown.empty() && g_phaseBreakdown.back().first == "StartReportServer init") {
                 g_phaseBreakdown.pop_back();
             }
             return false;
         }
-        LOG_DEBUG("No cache found, parsing heap file...");
 
-        // Build HeapObject list
+        // Build HeapObject list directly from m_hprof (skip m_objects intermediary)
         auto t1 = std::chrono::steady_clock::now();
-        heapObjects.reserve(m_objects.size());
-        for (auto& obj : m_objects) {
+        std::unordered_map<uint64_t, uint64_t> objectSizes;
+        objectSizes.reserve(instances.size() + arrays.size());
+        heapObjects.reserve(instances.size() + arrays.size());
+        uint64_t totalUsedSize = 0;
+        for (const auto& inst : instances) {
             HeapObject ho;
-            ho.object_id = obj->id;
-            ho.class_id = 0;
-            ho.size = obj->size;
-            ho.retained_size = obj->retainedSize;
-            ho.name = obj->name;
-            for (auto ref : obj->outRef) {
-                ho.refs.push_back(ref);
+            ho.object_id = inst.first;
+            auto it = hprofClasses.find(inst.second.cls);
+            if (it != hprofClasses.end()) {
+                ho.class_id = inst.second.cls;
+                auto nameIt = hprofStrings.find(it->second.name);
+                if (nameIt != hprofStrings.end()) {
+                    ho.name = ReplaceTypeName(nameIt->second);
+                }
             }
-            ho.category = static_cast<ObjectCategory>(obj->category);
+            for (auto id : inst.second.fields) {
+                if (id != 0) ho.refs.push_back(id);
+            }
+            auto catIt = categories.find(inst.first);
+            if (catIt != categories.end()) {
+                ho.category = static_cast<ObjectCategory>(catIt->second);
+            }
+            uint64_t size = ComputeInstanceSize(inst.second, hprofClasses);
+            ho.size = size;
+            objectSizes[inst.first] = size;
+            totalUsedSize += size;
+            heapObjects.push_back(ho);
+        }
+        for (const auto& arr : arrays) {
+            HeapObject ho;
+            ho.object_id = arr.first;
+            if (arr.second.type == Hprof::BasicType::OBJECT) {
+                auto it = hprofClasses.find(arr.second.cls);
+                if (it != hprofClasses.end()) {
+                    ho.class_id = arr.second.cls;
+                    auto nameIt = hprofStrings.find(it->second.name);
+                    if (nameIt != hprofStrings.end()) {
+                        ho.name = ReplaceTypeName(nameIt->second);
+                    }
+                }
+                for (auto element : arr.second.elements) {
+                    if (element != 0) ho.refs.push_back(element);
+                }
+            } else {
+                // Primitive array: set name
+                auto nameIt = kPrimitiveArrayNames.find(arr.second.type);
+                if (nameIt != kPrimitiveArrayNames.end()) {
+                    ho.name = nameIt->second;
+                }
+            }
+            auto catIt = categories.find(arr.first);
+            if (catIt != categories.end()) {
+                ho.category = static_cast<ObjectCategory>(catIt->second);
+            }
+            uint64_t size = ComputeArraySize(arr.first, arr.second, hprofClasses, componentNums);
+            ho.size = size;
+            objectSizes[arr.first] = size;
+            totalUsedSize += size;
             heapObjects.push_back(ho);
         }
         auto t2 = std::chrono::steady_clock::now();
 
         // Build ClassInfo list
-        const auto& hprofClasses = m_hprof.GetClasses();
-        const auto& hprofStrings = m_hprof.GetStrings();
         for (auto& cls : hprofClasses) {
             ClassInfo ci;
             ci.class_id = cls.first;
@@ -896,9 +1169,6 @@ bool HeapAnalyzer::StartReportServer(int port)
         auto t3 = std::chrono::steady_clock::now();
 
         // Build GcRoot list
-        const auto& locals = m_hprof.GetLocalsRoots();
-        const auto& globals = m_hprof.GetGlobalsRoots();
-        const auto& unknown = m_hprof.GetUnknownRoots();
         for (auto& local : locals) {
             GcRoot root;
             root.object_id = local.first;
@@ -922,47 +1192,38 @@ bool HeapAnalyzer::StartReportServer(int port)
         auto t4 = std::chrono::steady_clock::now();
 
         // Build SnapshotInfo
-        snapshotInfo.object_count = m_objects.size();
+        snapshotInfo.object_count = instances.size() + arrays.size();
         snapshotInfo.gc_root_count = gcRoots.size();
         snapshotInfo.heap_total_size = 512ULL * 1024 * 1024;
-        uint64_t usedSize = 0;
-        for (auto& obj : m_objects) {
-            usedSize += obj->size;
-        }
-        snapshotInfo.used_size = usedSize;
         auto t5 = std::chrono::steady_clock::now();
 
-        // Build dominance tree using existing algorithm
-        RawHeapSnapshot rhs = GetRawHeapSnapshot();
+        // Build dominance tree directly from m_hprof (skip RawHeapSnapshot intermediary)
+        dominanceNodes = BuildDominanceNodesFromHprof(m_hprof, objectSizes);
+        snapshotInfo.used_size = totalUsedSize;
         auto t6 = std::chrono::steady_clock::now();
-        dominanceNodes = BuildDominanceNodes(rhs);
-        auto t7 = std::chrono::steady_clock::now();
 
         // Build string table
         for (auto& s : hprofStrings) {
             stringTable[s.first] = s.second;
         }
-        auto t8 = std::chrono::steady_clock::now();
+        auto t7 = std::chrono::steady_clock::now();
 
         auto buildHeapMs = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
         auto buildClassMs = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
         auto buildGcRootMs = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
         auto buildSnapshotMs = std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count();
-        auto rawHeapMs = std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count();
-        auto buildDomMs = std::chrono::duration_cast<std::chrono::milliseconds>(t7 - t6).count();
-        auto buildStringMs = std::chrono::duration_cast<std::chrono::milliseconds>(t8 - t7).count();
+        auto buildDomMs = std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count();
+        auto buildStringMs = std::chrono::duration_cast<std::chrono::milliseconds>(t7 - t6).count();
         LOG_INFO("[perf] Build HeapObjects: {} ms", buildHeapMs);
         LOG_INFO("[perf] Build ClassInfos: {} ms", buildClassMs);
         LOG_INFO("[perf] Build GcRoots: {} ms", buildGcRootMs);
         LOG_INFO("[perf] Build SnapshotInfo: {} ms", buildSnapshotMs);
-        LOG_INFO("[perf] GetRawHeapSnapshot: {} ms", rawHeapMs);
         LOG_INFO("[perf] BuildDominanceNodes: {} ms", buildDomMs);
         LOG_INFO("[perf] Build stringTable: {} ms", buildStringMs);
         AddPhase("Build HeapObjects", buildHeapMs);
         AddPhase("Build ClassInfos", buildClassMs);
         AddPhase("Build GcRoots", buildGcRootMs);
         AddPhase("Build SnapshotInfo", buildSnapshotMs);
-        AddPhase("GetRawHeapSnapshot", rawHeapMs);
         AddPhase("BuildDominanceNodes", buildDomMs);
         AddPhase("Build stringTable", buildStringMs);
     }
