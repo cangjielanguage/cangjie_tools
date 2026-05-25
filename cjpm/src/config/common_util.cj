@@ -275,6 +275,7 @@ func parseEachArgs(input: String): ArrayList<String> {
     var counts = 0
     var equals = 0
     var hasLeft: Bool = false
+    var hasExplicitEmptyArg: Bool = false
     for (k in input.runes()) {
         if (k == r'=') {
             if (counts % 2 == 0 && equals == 0 && !option.isEmpty() && option.contains("-")) {
@@ -298,6 +299,9 @@ func parseEachArgs(input: String): ArrayList<String> {
                 continue
             }
             if (hasLeft) {
+                if (option.isEmpty()) {
+                    hasExplicitEmptyArg = true
+                }
                 counts += 1
                 hasLeft = false
                 continue
@@ -307,6 +311,8 @@ func parseEachArgs(input: String): ArrayList<String> {
     }
     if (!option.isEmpty()) {
         res.add(option)
+    } else if (hasExplicitEmptyArg && counts % 2 == 0) {
+        res.add("")
     }
 
     if (counts % 2 != 0) {

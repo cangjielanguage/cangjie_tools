@@ -1081,13 +1081,25 @@ public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayLis
     return res
 }
 
-@When[os == "Linux" || os == "Windows"]
 public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+    
+    let compileTarget = if (crossCompileTarget.isEmpty()) {
+        targetConfigName
+    } else {
+        crossCompileTarget
+    }
+    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
+        return forcedLinkPackageForMac(libName, libPath, isLto)
+    } else {
+        return forcedLinkPackageForLinuxOrWin(libName, libPath, isLto)
+    }
+}
+
+public func forcedLinkPackageForLinuxOrWin(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
     return linkPackage(libName, libPath, isLto)
 }
 
-@When[os == "macOS"]
-public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
+public func forcedLinkPackageForMac(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
     var res = ArrayList<String>()
     let staticLibPath = Path(libPath).join(makeCangjieStaticlibName(libName)).toString()
     let dyLibPath = Path(libPath).join("lib${libName}.dylib").toString()

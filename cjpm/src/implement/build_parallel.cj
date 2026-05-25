@@ -532,7 +532,7 @@ func createCompileTasks(r: ResolveItem, buildConfig: BuildConfig): ?ArrayList<Co
                 r.outputType == Static &&
                 buildConfig.indirectRebuilds.contains(r.fullName)
 
-            let isLto = buildConfig.isLto && (outputType == Static || outputType == Exe)
+            let isLto = buildConfig.isLto
             let ltoValue = if (isLto) { buildConfig.ltoValue } else { "" }
 
             let filename = if (outputType == Exe && buildConfig.packageList.exe.size <= 1 && !COMMON_INFO.inWorkspace) {
