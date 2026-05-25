@@ -944,7 +944,6 @@ func getTypeCommand(compileTask: CompileTask): ArrayList<String> {
 
 
     if (compileTask.isLto) {
-        assertion { compileTask.outputType == Static || compileTask.outputType == Exe }
         res.add("--lto=${compileTask.ltoValue}")
     }
 
