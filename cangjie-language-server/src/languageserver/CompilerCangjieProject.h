@@ -160,6 +160,9 @@ public:
         return stdLibPath;
     }
 
+    bool IsSingleFileMode() const { return isSingleFileMode; }
+    const std::string &GetSingleFilePath() const { return singleFilePath; }
+
     std::string GetPathFromPkg(const std::string &fullPackageName)
     {
         auto found = pkgInfoMap.find(fullPackageName);
@@ -699,6 +702,8 @@ private:
     std::unordered_map<std::string, Modifier> pkgToModMap;
     static bool useDB;
     static bool incrementalOptimize;
+    bool isSingleFileMode = false;
+    std::string singleFilePath;
 };
 } // namespace ark
 

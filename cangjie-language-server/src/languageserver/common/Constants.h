@@ -26,6 +26,7 @@ namespace CONSTANTS {
     const std::string SINGLE_CONDITION_COMPILE_OPTION = "singleConditionCompileOption";
     const std::string CONDITION_COMPILE_PATHS = "conditionCompilePaths";
     const std::string MODULES_HOME_OPTION = "modulesHomeOption";
+    const std::string SINGLE_FILE_PATH_OPTION = "singleFilePath";
     const std::string STD_LIB_PATH_OPTION = "stdLibPathOption";
     const std::string STD_CJD_PATH_OPTION = "stdCjdPathOption";
     const std::string OHOS_CJD_PATH_OPTION = "ohosCjdPathOption";
