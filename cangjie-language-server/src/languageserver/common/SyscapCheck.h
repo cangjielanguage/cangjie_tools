@@ -20,6 +20,7 @@ public:
     void SetIntersectionSet(const std::string& moduleName);
     static void ParseCondition(const std::unordered_map<std::string, std::string>& passedWhenKeyValue);
     static void ParseJsonFile(const std::vector<uint8_t>& in);
+    static bool isChecked;
     // if check node has syscap and not match, return false
     bool CheckSysCap(Ptr<Cangjie::AST::Node> node);
     bool CheckSysCap(Ptr<Cangjie::AST::Node> node, bool& matchSyscap) const;

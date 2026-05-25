@@ -246,11 +246,11 @@ FuncParamDetailList ResolveFuncParamList(const Ptr<FuncDecl>& funcDecl)
                 identifier = '`' + identifier + '`';
             }
             paramDetail.isNamed = param->isNamedParam;
-            if (!param->ty || GetString(*param->ty) == "UnknownType") {
+            if (!param->GetTy() || GetString(*param->GetTy()) == "UnknownType") {
                 continue;
             }
             paramDetail.identifier = identifier;
-            paramDetail.type = std::move(ResolveType(param->ty));
+            paramDetail.type = std::move(ResolveType(param->GetTy()));
             params.isVariadic = paramList->variadicArgIndex > 0;
             params.params.emplace_back(std::move(paramDetail));
         }
@@ -268,7 +268,7 @@ std::unique_ptr<TypeDetail> ResolveFuncRetType(const Ptr<FuncDecl>& funcDecl)
     if (!type) {
         return {};
     }
-    return ResolveType(type->ty);
+    return ResolveType(type->GetTy());
 }
 
 FuncDetail ResolveFuncDetail(const Ptr<FuncDecl>& funcDecl)
@@ -287,7 +287,7 @@ PropDetail ResolvePropDetail(const Ptr<PropDecl>& propDecl)
     PropDetail detail;
     detail.modifiers = ResolveDeclModifiers(propDecl);
     detail.identifier = ResolveDeclIdentifier(propDecl);
-    detail.type = ResolveType(propDecl->ty);
+    detail.type = ResolveType(propDecl->GetTy());
     return detail;
 }
 } // namespace ark

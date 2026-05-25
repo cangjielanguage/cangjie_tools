@@ -26,9 +26,9 @@ public class GlobalConfig {
     public var typeDeclFile: String = ""
     public var gconfigArray: ArrayList<GlobalConfig> = ArrayList<GlobalConfig>()
     public var arkTSMoudleName: String = ""
-    public var requiredUnionMembers: ArrayList<(String, TsType, ArrayList<String>)> = ArrayList<(String, TsType, ArrayList<String>)>()
-    public var requiredAnonymousInterfaces: ArrayList<ObjectType> = ArrayList<ObjectType>()
-    public var count: AtomicInt64 = AtomicInt64(0)
+    public var requiredUnionMembers = ArrayList<(String, TsType, ArrayList<String>)>()
+    public var requiredAnonymousInterfaces = ArrayList<ObjectType>()
+    public var count = AtomicInt64(0)
     public var fileName: String = ""
     private var cacheUnions: TreeMap<String, TsType> = TreeMap<String, TsType>()
     private var cacheAnonymousInterfaces: TreeMap<String, TsType> = TreeMap<String, TsType>()

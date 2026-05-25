@@ -49,9 +49,12 @@ add_subdirectory(featureTest/typeHierarchy)
 add_subdirectory(featureTest/breakpoints)
 add_subdirectory(featureTest/callHierarchy)
 add_subdirectory(featureTest/codeLens)
-add_subdirectory(featureTest/crossLanguageDefinition)
 add_subdirectory(featureTest/overrideMethods)
 add_subdirectory(featureTest/findFileReference)
+add_subdirectory(featureTest/applyEdit)
+add_subdirectory(featureTest/codeAction)
+add_subdirectory(featureTest/crossLanguageDefinition)
+add_subdirectory(unitTests)
 
 # Add test main file
 add_executable(gtest_LSPServer_test main.cpp)
@@ -80,10 +83,13 @@ target_link_libraries(gtest_LSPServer_test
     SignatureHelpTest
     TypeHierarchyTest
     BreakpointsTest
+    CrossLanguageDefinitionTest
     CallHierarchyTest
     CodeLensTest
-    CrossLanguageDefinitionTest
     OverrideMethodsTest
+    ApplyEditTest
+    CodeActionTest
+    UnitTests
     Common
     libflatbuffers.a
     sqlite3

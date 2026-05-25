@@ -96,7 +96,7 @@ static void TryAddMacroDeclSymbol(
     if (!macroExpandDecl || !macroExpandDecl->invocation.decl) {
         return;
     }
-    const auto& macroName = macroExpandDecl->invocation.identifier;
+    const auto& macroName = macroExpandDecl->invocation.macroCallDiagInfo.identifier;
     if (EXCLUDED_MACRO_NAMES.count(macroName) == 0) {
         return;
     }

@@ -58,8 +58,7 @@ void StructuralRuleGENU01::DiagnosticsFunc(const Decl &decl)
     }
 }
 
-void StructuralRuleGENU01::DiagnosticsPackage(const PackageSpec &packageSpec)
-{
+void StructuralRuleGENU01::DiagnosticsPackage(const PackageSpec &packageSpec) {
     if (!enumSet.empty()) {
         for (auto &item : enumSet) {
             if (item.first == packageSpec.packageName) {

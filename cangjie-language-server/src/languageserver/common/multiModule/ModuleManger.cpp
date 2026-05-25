@@ -80,33 +80,25 @@ void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const 
         return;
     }
     moduleInfoMap[modulePath].isCommonSpecificModule = true;
-    // only support one common pkg + one specific pkg
-    int i = 0;
     for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS]) {
         if (!member.is_object() || !member.contains(TYPE) || !member.contains(PATH)) {
-            i++;
             continue;
         }
         const auto &type = member.value(TYPE, "");
         const auto &path = member.value(PATH, "");
         if (path == "") {
-            i++;
             continue;
         }
-        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "" && i == 0) {
+        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
             moduleInfoMap[modulePath].commonSpecificPaths.first = FileStore::NormalizePath(URI::Resolve(path));
             moduleInfoMap[modulePath].sourceSetNames.push_back("common");
-            i++;
             continue;
         }
-        if (type == SPECIFIC && i == jsonData[COMMON_SPECIFIC_PATHS].size() - 1) {
-            moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(
-                FileStore::NormalizePath(URI::Resolve(path)));
+        if (type == SPECIFIC) {
+            moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(FileStore::NormalizePath(URI::Resolve(path)));
             moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME, ""));
-            i++;
             continue;
         }
-        i++;
     }
 }
 
@@ -180,8 +172,8 @@ void ModuleManager::SetRequireAllPackages()
 std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)
 {
     for (const auto &iter : moduleInfoMap) {
-        auto curModulePath =
-            CompilerCangjieProject::GetInstance()->GetModuleSrcPath(iter.second.modulePath, file.filePath);
+        auto curModulePath = 
+        CompilerCangjieProject::GetInstance()->GetModuleSrcPath(iter.second.modulePath, file.filePath);
         if (!IsUnderPath(curModulePath, file.filePath)) {
             continue;
         }
@@ -195,7 +187,7 @@ std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)
     return CompilerCangjieProject::GetInstance()->GetRealPackageName(fullPkgName);
 }
 
-bool ModuleManager::IsCommonSpecificModule(const std::string &filePath)
+bool ModuleManager::isCommonSpecificModule(const std::string &filePath)
 {
     std::string normalizeFilePath = Normalize(filePath);
     for (const auto &item : moduleInfoMap) {

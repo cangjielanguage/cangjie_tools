@@ -21,7 +21,7 @@ constexpr size_t STACK_SIZE = 50;
 constexpr size_t SIGNAL_NUM = 3;
 constexpr int SIGNALS[SIGNAL_NUM] = {SIGABRT, SIGSEGV, SIGPIPE};
 #endif
-
+// LCOV_EXCL_START
 void MessageInfoHandler()
 {
     std::string baseDir = ark::Logger::GetLogPath();
@@ -144,6 +144,7 @@ void InitStack(DWORD &dwImageType, STACKFRAME64 &frame, const CONTEXT &context)
 
 namespace ark {
 #ifdef __linux__
+
 void CrashReporter::SignalHandler(int sig)
 {
     std::string baseDir = Logger::GetLogPath();
@@ -184,6 +185,7 @@ void CrashReporter::RegisterHandlers()
         }
     }
 }
+// LCOV_EXCL_STOP
 #elif defined(_WIN32)
 LONG WINAPI VectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
 {

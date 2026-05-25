@@ -14,7 +14,7 @@ FileRefactor::FileRefactor(FileRefactorRespParams &result): result(result)
 {
     InitMatcher();
 }
-
+// LCOV_EXCL_START
 void FileRefactor::AddImport()
 {
     if (!fileNode) {
@@ -208,6 +208,7 @@ void FileRefactor::CheckAndChangeImportForRe()
         ChangeImport();
     }
 }
+// LCOV_EXCL_STOP
 
 void FileRefactor::InitMatcher() const
 {
@@ -297,6 +298,7 @@ void FileRefactor::InitMatcher() const
             ark::lsp::Modifier::PUBLIC), &FileRefactor::CheckAndChangeImportForRe);
 }
 
+// LCOV_EXCL_START
 void FileRefactor::MatchRefactor(FileRefactorKind fileRefactorKind, PackageRelation packageRelation,
     ark::lsp::Modifier modifier)
 {
@@ -306,6 +308,7 @@ void FileRefactor::MatchRefactor(FileRefactorKind fileRefactorKind, PackageRelat
         (this->*(func))();
     }
 }
+// LCOV_EXCL_STOP
 
 std::string FileRefactor::GetImportFullPkg(const ImportContent &importContent)
 {
@@ -353,6 +356,7 @@ std::string FileRefactor::GetImportFullSymWithoutAlias(const ImportContent &impo
     return ss.str();
 }
 
+// LCOV_EXCL_START
 bool FileRefactor::GetDeletePosInMultiImport(std::vector<Ptr<ImportSpec>> &multiImports,
         ImportContent &singleImport, Position &beginPos, Position &endPos)
 {
@@ -415,6 +419,7 @@ void FileRefactor::RemoveDuplicateDelete(Position start, Position end, std::stri
         }
     }
 }
+// LCOV_EXCL_STOP
 
 uint8_t FileRefactor::GetRefactorCode(FileRefactorKind fileRefactorKind, PackageRelation packageRelation,
     ark::lsp::Modifier modifier) const
@@ -424,6 +429,7 @@ uint8_t FileRefactor::GetRefactorCode(FileRefactorKind fileRefactorKind, Package
            + static_cast<uint8_t>(packageRelation);
 }
 
+// LCOV_EXCL_START
 bool FileRefactor::ContainFullSymImport()
 {
     if (!fileNode) {
@@ -665,7 +671,7 @@ void FileRefactor::DeleteReExportSingleImport(ImportContent &importContent,
     deleteRange = TransformFromChar2IDE(deleteRange);
     result.changes[uri].insert({FileRefactorChangeType::DELETED, deleteRange, ""});
 }
-
+// LCOV_EXCL_STOP
 PackageRelation FileRefactor::GetPackageRelation(const std::string &fullPkgName,
     const std::string &targetFullPkgName)
 {

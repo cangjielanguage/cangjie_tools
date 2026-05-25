@@ -277,7 +277,7 @@ func getBundleFileList(dir: String, fileSet: HashSet<String>, bundleConfig: Bund
 
         let dirPath = getCanonicalPath(dirInfo.path.toString())
         if ((dirPath == bundleConfig.targetDir) || (dirPath == bundleConfig.scriptDir) ||
-            (dirPath ==  getCanonicalPath(FINAL_CJPM_CONFIG_INFO.repository[REPO_CACHE_NAME].path))) {
+            (dirPath == getCanonicalPath(FINAL_CJPM_CONFIG_INFO.repository[REPO_CACHE_NAME].path))) {
             continue
         }
         getBundleFileList(dirPath, fileSet, bundleConfig, tomlInfo)
@@ -354,7 +354,7 @@ func isPathIncluded(path: String, rule: String): Bool {
     } else if (processedpattern.startsWith("./")) {
         regexRule = "^"
         while (processedpattern.startsWith("./")) {
-            processedpattern.removePrefix("./")
+            processedpattern = processedpattern.removePrefix("./")
         }
     } else {
         regexRule = "^(.*/)?"
@@ -465,7 +465,7 @@ func uncompressCjp(org: String, name: String, version: String, buffer: Array<UIn
         let finalRepositoryPath = Path(localRepo).join("source").
             join(if (org.isEmpty()) { "default" } else { org }).
             join(finalDirName)
-        if (dirList.any({f: FileInfo => f.name == "${finalDirName}"})) {
+        if (dirList.iterator().any({f: FileInfo => f.name == "${finalDirName}"})) {
             rename(Path(repositoryTempPath).join(finalDirName), to: finalRepositoryPath, overwrite: true)
         } else {
             return (false, "${finalDirName} load failed with incorrect content in cjp package")

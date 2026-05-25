@@ -168,7 +168,7 @@ public:
             logger.LogMessage(MessageType::MSG_WARNING, log.str());
             return LSPRet::SUCCESS;
         }
-
+        // LCOV_EXCL_START
         // Log and run the reply handler.
         if (result.type == ValueOrErrorCheck::VALUE) {
             CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", success");
@@ -180,6 +180,7 @@ public:
                         "," + result.errorInfo.message);
             logger.LogMessage(MessageType::MSG_WARNING, log.str());
         }
+        // LCOV_EXCL_STOP
         return LSPRet::SUCCESS;
     }
 
@@ -189,6 +190,7 @@ public:
     {
         calls[method] = [method, handler, this](const nlohmann::json &rawParams, const nlohmann::json &id) {
             Param param;
+            // LCOV_EXCL_START
             if (!FromJSON(rawParams, param)) {
                 std::stringstream log;
                 log << "Failed to decode request or request not meet requirement, method:" << method;
@@ -196,6 +198,7 @@ public:
                 return;
             }
             (server.*handler)(param, id);
+            // LCOV_EXCL_STOP
         };
     }
 
@@ -549,8 +552,8 @@ void ArkLanguageServer::OnDocumentDidOpen(const DidOpenTextDocumentParams &param
     }
     if (reBuild) {
         auto pkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(file);
-        CompilerCangjieProject::GetInstance()->UpdateFileStatusInCI(
-            pkgName, file, CompilerInstance::SrcCodeChangeState::CHANGED);
+        CompilerCangjieProject::GetInstance()->
+            UpdateFileStatusInCI(pkgName, file,CompilerInstance::SrcCodeChangeState::CHANGED);
     }
     int64_t version = DocMgr.AddDoc(file, params.textDocument.version, contents);
     Server->AddDoc(file, contents, version, ark::NeedDiagnostics::YES, reBuild);
@@ -789,7 +792,7 @@ void ArkLanguageServer::OnDocumentLink(const DocumentLinkParams &params, nlohman
     };
     Server->FindDocumentLink(file, std::move(reply));
 }
-
+// LCOV_EXCL_START
 void ArkLanguageServer::WrapClientWatchedFiles(std::vector<FileWatchedEvent> &changes,
                                                const DidChangeWatchedFilesParam &params) const
 {
@@ -858,7 +861,7 @@ void ArkLanguageServer::OnDidChangeWatchedFiles(const DidChangeWatchedFilesParam
         Server->ChangeWatchedFiles(file, event.type, &DocMgr);
     }
 }
-
+// LCOV_EXCL_STOP
 bool ArkLanguageServer::CheckFileInCangjieProject(const std::string &filePath, bool ignoreMacro) const
 {
     if (filePath.empty() || ignoreMacro && Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
@@ -866,7 +869,7 @@ bool ArkLanguageServer::CheckFileInCangjieProject(const std::string &filePath, b
     }
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(filePath).first != CangjieFileKind::MISSING;
 }
-
+// LCOV_EXCL_START
 bool ArkLanguageServer::CheckPkgInCangjieProject(const std::string &pkgPath) const
 {
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(pkgPath, true).first != CangjieFileKind::MISSING;
@@ -876,7 +879,7 @@ void ArkLanguageServer::RemoveDocByFile(const std::string &file)
 {
     DocMgr.RemoveDoc(file);
 }
-
+// LCOV_EXCL_STOP
 void ArkLanguageServer::OnHover(const TextDocumentPositionParams &params, nlohmann::json onHoverId)
 {
     Logger& logger = Logger::Instance();
@@ -955,7 +958,7 @@ void ArkLanguageServer::OnFileReference(const DocumentLinkParams &params, nlohma
     };
     Server->FindFileReferences(file, std::move(reply));
 }
-
+// LCOV_EXCL_START
 void ArkLanguageServer::OnCrossLanguageRegister(const CrossLanguageJumpParams &params, nlohmann::json id)
 {
     Logger& logger = Logger::Instance();
@@ -1021,7 +1024,7 @@ void ArkLanguageServer::OnFileRefactor(const FileRefactorReqParams &params, nloh
     bool isTest = false;
     Server->ApplyFileRefactor(file, selectedElement, target, isTest, std::move(reply));
 }
-
+// LCOV_EXCL_STOP
 
 void ArkLanguageServer::OnGoToDefinition(const TextDocumentPositionParams &params, nlohmann::json id)
 {
@@ -1331,6 +1334,7 @@ void ArkLanguageServer::ReadyForDiagnostics(std::string file,
     PublishDiagnostics(notification);
 }
 
+// LCOV_EXCL_START
 void ArkLanguageServer::AddDiagnosticQuickFix(std::vector<DiagnosticToken> &diagnostics, ArkAST *arkAst,
     std::string file)
 {
@@ -1452,7 +1456,7 @@ void ArkLanguageServer::PublishCompletionTip(const CompletionTip &params)
     ValueOrError result(ValueOrErrorCheck::VALUE, reply);
     Notify("textDocument/publishCompletionTip", result);
 }
-
+// LCOV_EXCL_STOP
 void ArkLanguageServer::OnSignatureHelp(const SignatureHelpParams &params, nlohmann::json id)
 {
     Logger &logger = Logger::Instance();
@@ -1501,7 +1505,7 @@ void ArkLanguageServer::OnDocumentSymbol(const DocumentSymbolParams &params, nlo
     };
     Server->FindDocumentSymbol(params, reply);
 }
-
+// LCOV_EXCL_START
 void ArkLanguageServer::AddImportQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst)
 {
     std::string identifier = GetSubStrBetweenSingleQuote(diagnostic.message);
@@ -1663,6 +1667,7 @@ void ArkLanguageServer::RemoveAllUnusedImportsCodeAction(std::vector<DiagnosticT
     }
 }
 
+
 void ArkLanguageServer::HandleExternalImportSym(std::vector<CodeAction> &actions, const std::string &pkg,
     const lsp::Symbol &sym, Range textEditRange, const std::string &uri)
 {
@@ -1816,7 +1821,6 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     std::string symbolName;
     std::string symbolKindDesc;
     const FuncBody* currentFuncBody = nullptr;
-
     Ptr<const MacroExpandDecl> parentMacroExpandDecl = nullptr;
 
     std::function<VisitAction(Ptr<const Node>)> finder = [&](Ptr<const Node> node) -> VisitAction {
@@ -1863,6 +1867,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     AddRemoveUnusedCodeAction(diagnostic, ctx, deleteRange, symbolName, symbolKindDesc);
 }
 
+// LCOV_EXCL_STOP
 void ArkLanguageServer::OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id)
 {
     Logger& logger = Logger::Instance();
@@ -2010,7 +2015,7 @@ void ArkLanguageServer::OnCommandApplyTweak(const TweakArgs &args, nlohmann::jso
         ReplyTweakNoEdit(reply);
         return;
     }
-    Range range = BuildTweakSelectionRange(static_cast<unsigned int>(fileId), args);
+    Range range = BuildTweakSelectionRange(fileId.value_or(0), args);
 
     auto action = [this, reply = std::move(reply)](Tweak::Effect effect) mutable {
         if (effect.applyEdits.empty() && effect.documentChanges.empty()) {

@@ -153,3 +153,9 @@ MyException: this is myexception
 ```
 
 `cjtrace-recover` 会根据符号映射文件还原异常堆栈信息，并通过标准输出流（`stdout`）输出。
+
+## 相关仓
+
+- [cangjie 仓](https://gitcode.com/Cangjie/cangjie_compiler)
+- [stdx 仓](https://gitcode.com/Cangjie/cangjie_stdx)
+- [cangjie SDK](https://gitcode.com/Cangjie/cangjie_build)

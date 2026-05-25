@@ -16,7 +16,7 @@ static const std::unordered_set<Cangjie::TokenKind> operatorSet = {TokenKind::AD
 
 void StructuralRuleGOPR01::CheckExtendDecl(Cangjie::AST::ExtendDecl& extendDecl)
 {
-    if (!extendDecl.ty->IsPrimitive()) {
+    if (!extendDecl.GetTy()->IsPrimitive()) {
         return;
     }
     for (auto& member : extendDecl.members) {

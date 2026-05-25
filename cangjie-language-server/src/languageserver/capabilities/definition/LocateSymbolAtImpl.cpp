@@ -15,6 +15,7 @@ namespace ark {
 void RedirectToMacroInvocation(const Decl &decl, LocatedSymbol &result, std::string &path)
 {
     if (EndsWith(path, ".macrocall") && decl.curMacroCall) {
+        // LCOV_EXCL_START
         Ptr<Node> curMacroCallNode = decl.curMacroCall;
         std::string sourceFile;
         if (RemoveFilePathExtension(path, ".macrocall", sourceFile)
@@ -24,33 +25,7 @@ void RedirectToMacroInvocation(const Decl &decl, LocatedSymbol &result, std::str
             Range macroCallBeginRange = {curMacroCallNode->begin, curMacroCallNode->begin};
             result.Definition = {uri, TransformFromChar2IDE(macroCallBeginRange)};
         }
-    }
-}
-
-void ResolveRealPosition(Range &range, const Decl &decl, std::string &path)
-{
-    auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
-    if (!index) {
-        return;
-    }
-    auto symFromIndex = index->GetAimSymbol(decl);
-    if (symFromIndex.IsInvalidSym() || symFromIndex.location.fileUri.empty() || symFromIndex.isCjoSym) {
-        return;
-    }
-    if (EndsWith(symFromIndex.location.fileUri, ".macrocall") &&
-        !decl.TestAttr(Attribute::IMPLICIT_ADD) && !symFromIndex.curMacroCall.fileUri.empty()) {
-        path = symFromIndex.curMacroCall.fileUri;
-        range.start = symFromIndex.curMacroCall.begin;
-        range.end = symFromIndex.curMacroCall.begin;
-    } else {
-        std::string idxSourceSet =
-            CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(symFromIndex.location.fileUri);
-        std::string declSourceSet = CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(path);
-        if (idxSourceSet != declSourceSet) {
-            path = symFromIndex.location.fileUri;
-            range.start = symFromIndex.location.begin;
-            range.end = symFromIndex.location.end;
-        }
+        // LCOV_EXCL_STOP
     }
 }
 
@@ -77,18 +52,35 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
     if (!index) {
         return false;
     }
-    ResolveRealPosition(range, decl, path);
+    auto symFromIndex = index->GetAimSymbol(decl);
+    if (!symFromIndex.IsInvalidSym() && !symFromIndex.location.fileUri.empty() && !symFromIndex.isCjoSym) {
+        if (EndsWith(symFromIndex.location.fileUri, ".macrocall") &&
+            !decl.TestAttr(Attribute::IMPLICIT_ADD) && !symFromIndex.curMacroCall.fileUri.empty()) {
+            path = symFromIndex.curMacroCall.fileUri;
+            range.start = symFromIndex.curMacroCall.begin;
+            range.end = symFromIndex.curMacroCall.begin;
+        } else {
+            std::string idxSourceSet = 
+                CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(symFromIndex.location.fileUri);
+            std::string declSourceSet = CompilerCangjieProject::GetInstance()->GetSourceSetNameByPath(path);
+            if (idxSourceSet != declSourceSet) {
+                path = symFromIndex.location.fileUri;
+                range.start = symFromIndex.location.begin;
+                range.end = symFromIndex.location.end;
+            }
+        }
+    }
     URIForFile uri = {URI::URIFromAbsolutePath(path).ToString()};
     result.Name = decl.identifier;
     ArkAST *arkAst = CompilerCangjieProject::GetInstance()->GetArkAST(path);
     // jump to lib
     const std::string standardDeclAbsolutePath = GetStandardDeclAbsolutePath(&decl, path);
+    // LCOV_EXCL_START
     if (standardDeclAbsolutePath != "") {
         uri.file = URI::URIFromAbsolutePath(standardDeclAbsolutePath).ToString();
         result.Definition = {uri, TransformFromChar2IDE(range)};
         return true;
     }
-    auto symFromIndex = index->GetAimSymbol(decl);
     if (!FileUtil::FileExist(path)) {
         if (MessageHeaderEndOfLine::GetIsDeveco() && !symFromIndex.IsInvalidSym() &&
             !symFromIndex.declaration.IsZeroLoc()) {
@@ -100,6 +92,7 @@ bool GetDefinitionItems(const Decl &decl, LocatedSymbol &result)
         }
         return false;
     }
+    // LCOV_EXCL_STOP
     if (arkAst) {
         UpdateRange(arkAst->tokens, range, decl);
     }

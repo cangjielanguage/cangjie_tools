@@ -12,9 +12,9 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const RELEASE_TAG = 'v1.0.0';
 const BINARY_URLS = {
-    linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-linux-x64',
-    win32: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-windows-x64.exe',
-    darwin: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v0.2.9/cjbind-darwin-arm64'
+    linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-linux-x64',
+    win32: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-windows-x64.exe',
+    darwin: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/v1.1.0-alpha.53.1/cjbind-darwin-arm64'
 };
 
 

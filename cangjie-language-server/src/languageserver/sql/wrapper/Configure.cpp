@@ -16,33 +16,41 @@ static void logCallback(void *P, int ErrCode, const char *Msg) { reinterpret_cas
 void setLogCallback(LogCallback Callback)
 {
     int RC = sqlite3_config(SQLITE_CONFIG_LOG, logCallback, reinterpret_cast<void *>(Callback));
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK) {
         throw Exception(RC, "Failed to set log callback");
     }
+#endif
 }
 
 void setSingleThreadMode()
 {
     int RC = sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK) {
         throw Exception(RC, "Failed to set single thread mode");
     }
+#endif
 }
 
 void setMultiThreadMode()
 {
     int RC = sqlite3_config(SQLITE_CONFIG_MULTITHREAD);
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK) {
         throw Exception(RC, "Failed to set multi thread mode");
     }
+#endif
 }
 
 void setSerializedMode()
 {
     int RC = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK) {
         throw Exception(RC, "Failed to set serialized mode");
     }
+#endif
 }
 
 } // namespace sqldb

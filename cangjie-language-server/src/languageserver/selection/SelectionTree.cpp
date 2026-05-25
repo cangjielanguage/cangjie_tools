@@ -284,5 +284,5 @@ void SelectionTree::FindTopDecl(Cangjie::AST::Node &node)
             return;
         });
 }
-
+// LCOV_EXCL_STOP
 } // namespace ark

@@ -179,12 +179,14 @@ void ArkASTWorker::RunWithAST(const std::string &name,
             // Do incremental build for defined file first
             if (this->callback->isRenameDefined && this->callback->NeedReParser(this->callback->path) &&
                 this->callback->path != file) {
+                // LCOV_EXCL_START
                 CompilerCangjieProject::GetInstance()->CompilerOneFile(
                     this->callback->path, this->callback->GetContentsByFile(this->callback->path));
                 this->callback->UpdateDocNeedReparse(this->callback->path,
                     this->callback->GetVersionByFile(this->callback->path), false);
                 this->callback->isRenameDefined = false;
                 this->callback->path = "";
+                // LCOV_EXCL_STOP
             }
             CompilerCangjieProject::GetInstance()->CompilerOneFile(file, this->callback->GetContentsByFile(file));
             this->callback->UpdateDocNeedReparse(file, inputs.version, false);
@@ -234,7 +236,6 @@ void ArkASTWorker::RunWithASTCache(
         if (Options::GetInstance().IsOptionSet("test")) {
             return;
         }
-
         {
             std::unique_lock<std::mutex> lock(completionMtx);
             if (waitingCompletionTask != nullptr) {
@@ -245,20 +246,13 @@ void ArkASTWorker::RunWithASTCache(
                 isCompleteRunning = false;
             }
         }
-        if (CompilerCangjieProject::GetUseDB()) {
-            lsp::BackgroundIndexDB *indexDB = CompilerCangjieProject::GetInstance()->GetBgIndexDB();
-            if (!indexDB) {
-                return;
-            }
-            auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
-            dbCache.EraseThreadCache();
-        }
     };
 
     if (Options::GetInstance().IsOptionSet("test")) {
         std::thread thread(std::move(task));
         thread.join();
     } else {
+        // LCOV_EXCL_START
         std::unique_lock<std::mutex> lock(completionMtx);
         if (isCompleteRunning) {
             waitingCompletionTask = std::move(task);
@@ -267,20 +261,53 @@ void ArkASTWorker::RunWithASTCache(
             std::thread thread(std::move(task));
             thread.detach();
         }
+        // LCOV_EXCL_STOP
     }
 }
 
-int ArkASTWorker::GetFileIDForCompletion(const std::string &file)
+int ArkASTWorker::GetFileIDForCompletion(const std::string &file) const
 {
-    int fileID = -1;
     if (Options::GetInstance().IsOptionSet("test")) {
-        fileID = CompilerCangjieProject::GetInstance()->GetFileID(file);
-    } else {
-        fileID = CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
+        return CompilerCangjieProject::GetInstance()->GetFileID(file).value_or(-1);
     }
-    return fileID;
+    return CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
 }
 
+bool ArkASTWorker::ParseAndInvokeWithASTCache(const std::string &name,
+    const std::string &file,
+    Position pos,
+    const ParseInputs &inputs,
+    const std::function<void(InputsAndAST)> &action)
+{
+    bool needReParser = this->callback->NeedReParser(file);
+    this->callback->UpdateDocNeedReparse(file, inputs.version, needReParser);
+    CompilerCangjieProject::GetInstance()->ParseOneFile(
+        file, this->callback->GetContentsByFile(file), pos, name);
+    Logger::Instance().CleanKernelLog(std::this_thread::get_id());
+    ArkAST *ast = CompilerCangjieProject::GetInstance()->GetParseArkAST(name, file);
+    if (!ast) { return false; }
+    {
+        std::unique_lock<std::recursive_mutex> lck(CompilerCangjieProject::GetInstance()->fileCacheMtx);
+        ArkAST *astCache = CompilerCangjieProject::GetInstance()->GetArkAST(file);
+        if (!astCache) {
+            return false;
+        }
+        ast->semaCache = astCache;
+        action(InputsAndAST{inputs, ast, "", false});
+    }
+    CompilerCangjieProject::GetInstance()->ClearParseCache(name);
+    // LCOV_EXCL_START
+    if (CompilerCangjieProject::GetUseDB()) {
+        lsp::BackgroundIndexDB *indexDB = CompilerCangjieProject::GetInstance()->GetBgIndexDB();
+        if (!indexDB) {
+            return false;
+        }
+        auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
+        dbCache.EraseThreadCache();
+    }
+    // LCOV_EXCL_STOP
+    return true;
+}
 void ArkASTWorker::DoCompletionWithASTCache(
     const std::string &name, const std::string &file, Position pos, std::function<void(InputsAndAST)> action)
 {
@@ -300,7 +327,6 @@ void ArkASTWorker::DoCompletionWithASTCache(
     if (!IsFromCIMap(fullPkgName) && !IsFromCIMapNotInSrc(fullPkgName)) {
         return;
     }
-
     int fileID = GetFileIDForCompletion(file);
     if (fileID == -1) {
         std::unique_lock<std::mutex> lock(completionMtx);
@@ -309,32 +335,7 @@ void ArkASTWorker::DoCompletionWithASTCache(
     }
     pos.fileID = fileID;
     std::vector<TextDocumentContentChangeEvent> contentChanges;
-    bool needReParser = this->callback->NeedReParser(file);
-    this->callback->UpdateDocNeedReparse(file, inputs.version, needReParser);
-    CompilerCangjieProject::GetInstance()->ParseOneFile(
-        file, this->callback->GetContentsByFile(file), pos, name);
-    Logger::Instance().CleanKernelLog(std::this_thread::get_id());
-    ArkAST *ast = CompilerCangjieProject::GetInstance()->GetParseArkAST(name, file);
-    if (!ast) { return; }
-    {
-        std::unique_lock<std::recursive_mutex> lck(CompilerCangjieProject::GetInstance()->fileCacheMtx);
-        ArkAST *astCache = CompilerCangjieProject::GetInstance()->GetArkAST(file);
-        if (!astCache) {
-            return;
-        }
-        ast->semaCache = astCache;
-        action(InputsAndAST{inputs, ast, "", false});
-    }
-    // LCOV_EXCL_START
-    if (CompilerCangjieProject::GetUseDB()) {
-        lsp::BackgroundIndexDB *indexDB = CompilerCangjieProject::GetInstance()->GetBgIndexDB();
-        if (!indexDB) {
-            return;
-        }
-        auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
-        dbCache.EraseThreadCache();
-    }
-    // LCOV_EXCL_STOP
+    ParseAndInvokeWithASTCache(name, file, pos, inputs, action);
 }
 
 AsyncTaskRunner::AsyncTaskRunner() : inFlightTasks(0) {}

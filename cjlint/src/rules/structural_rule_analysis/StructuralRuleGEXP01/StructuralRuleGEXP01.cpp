@@ -56,11 +56,11 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
                 [](const auto &p) { return IsIrrefutablePattern(*p); });
         }
         case AST::ASTKind::VAR_OR_ENUM_PATTERN: {
-            if (!pattern.ty) {
+            if (!pattern.GetTy()) {
                 return false;
             }
             // For variable mode, true is returned
-            if (!pattern.ty->IsEnum()) {
+            if (!pattern.GetTy()->IsEnum()) {
                 return true;
             }
             auto varOrEnumPattern = dynamic_cast<const AST::VarOrEnumPattern *>(&pattern);
@@ -68,7 +68,7 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
                 return false;
             }
             auto identifier = varOrEnumPattern->identifier;
-            auto varOrEnumTy = static_cast<EnumTy *>(pattern.ty.get());
+            auto varOrEnumTy = static_cast<EnumTy *>(pattern.GetTy().get());
             if (varOrEnumTy && varOrEnumTy->declPtr) {
                 auto &constructors = varOrEnumTy->declPtr->constructors;
                 auto iter = std::find_if(constructors.begin(), constructors.end(),
@@ -78,9 +78,9 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
                 }
             }
             // For Enum mode, determine if it is an IrrefutablePattern
-            if (varOrEnumPattern->pattern && varOrEnumPattern->pattern->ty) {
+            if (varOrEnumPattern->pattern && varOrEnumPattern->pattern->GetTy()) {
                 auto &enumPattern = static_cast<const EnumPattern &>(*varOrEnumPattern->pattern);
-                auto enumTy = RawStaticCast<EnumTy *>(varOrEnumPattern->pattern->ty);
+                auto enumTy = RawStaticCast<EnumTy *>(varOrEnumPattern->pattern->GetTy());
                 return enumTy && enumTy->declPtr && enumTy->declPtr->constructors.size() == 1 &&
                     std::all_of(enumPattern.patterns.cbegin(), enumPattern.patterns.cend(),
                     [](const OwnedPtr<Pattern> &p) { return IsIrrefutablePattern(*p); });
@@ -88,11 +88,11 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
             return false;
         }
         case AST::ASTKind::ENUM_PATTERN: {
-            if (!pattern.ty || !pattern.ty->IsEnum()) {
+            if (!pattern.GetTy() || !pattern.GetTy()->IsEnum()) {
                 return false;
             }
             auto &enumPattern = static_cast<const EnumPattern &>(pattern);
-            auto enumTy = RawStaticCast<EnumTy *>(pattern.ty);
+            auto enumTy = RawStaticCast<EnumTy *>(pattern.GetTy());
             return enumTy && enumTy->declPtr && enumTy->declPtr->constructors.size() == 1 &&
                 std::all_of(enumPattern.patterns.cbegin(), enumPattern.patterns.cend(),
                 [](const OwnedPtr<Pattern> &p) { return IsIrrefutablePattern(*p); });
@@ -106,7 +106,7 @@ void StructuralRuleGEXP01::CheckMatchExpr(const Cangjie::AST::MatchExpr &matchEx
 {
     std::vector<AST::Pattern *> patternVec;
     for (auto &matchCase : matchExpr.matchCases) {
-        if (matchCase->ty->String() == "UnknownType") {
+        if (matchCase->GetTy()->String() == "UnknownType") {
             continue;
         }
         for (auto &pattern : matchCase->patterns) {

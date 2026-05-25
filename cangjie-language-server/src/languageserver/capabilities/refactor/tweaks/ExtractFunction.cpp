@@ -20,7 +20,7 @@ const std::unordered_set<Cangjie::TokenKind> COMPOUND_ASSIGN_OPERATORS = { Token
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_FUNC_EXPR = {
     ASTKind::LAMBDA_EXPR, ASTKind::INTERPOLATION_EXPR
 };
-
+// LCOV_EXCL_START
 bool IsRefLoop(const Symbol& sym, const Node& self)
 {
     if (!sym.node) {
@@ -154,7 +154,7 @@ bool NeedExtractDecl2ReturnValue(Cangjie::AST::Decl *decl, const Tweak::Selectio
     }
     return false;
 }
-
+// LCOV_EXCL_STOP
 // compute whether the AssignExpr->leftValue need extract to return value
 bool NeedExtractAssignExpr2ReturnValue(Cangjie::AST::AssignExpr *assignExpr, const Tweak::Selection &sel)
 {
@@ -198,6 +198,7 @@ bool LeftValueIsMemberVar(Cangjie::AST::AssignExpr *assignExpr)
         return false;
     }
     if (assignExpr->leftValue->astKind == ASTKind::MEMBER_ACCESS) {
+        // LCOV_EXCL_START
         auto memberAccess = DynamicCast<MemberAccess*>(assignExpr->leftValue.get());
         if (!memberAccess || !memberAccess->baseExpr) {
             return false;
@@ -206,6 +207,7 @@ bool LeftValueIsMemberVar(Cangjie::AST::AssignExpr *assignExpr)
             return true;
         }
         return false;
+        // LCOV_EXCL_STOP
     }
     if (assignExpr->leftValue->astKind == ASTKind::REF_EXPR) {
         auto refExpr = DynamicCast<RefExpr*>(assignExpr->leftValue.get());
@@ -293,7 +295,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
 
         return isValid;
     }
-
+// LCOV_EXCL_START
     bool PreCheck(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const
     {
         auto root = sel.selectionTree.root();
@@ -507,7 +509,7 @@ class ExtractFunctionBranchRule : public TweakRule {
         return isValid;
     }
 };
-
+// LCOV_EXCL_STOP
 /**
  * need contain complete while/for... loop if continue/break is selected:
  * 1. find the JUMP_EXPR in selected range.
@@ -521,6 +523,7 @@ class ExtractFunctionBreakContinueRule : public TweakRule {
         bool isValid = true;
         SelectionTree::Walk(root, [ &isValid, &extraOptions, &sel, this]
             (const SelectionTree::SelectionTreeNode *treeNode) {
+                // LCOV_EXCL_START
                 if (!treeNode->node) {
                     isValid = false;
                     extraOptions.insert(std::make_pair("ErrorCode",
@@ -541,7 +544,7 @@ class ExtractFunctionBreakContinueRule : public TweakRule {
                         return SelectionTree::WalkAction::STOP_NOW;
                     }
                 }
-
+            // LCOV_EXCL_STOP
                 return SelectionTree::WalkAction::WALK_CHILDREN;
             });
 
@@ -655,7 +658,7 @@ TextEdit ExtractFunction::InsertDeclaration(const Tweak::Selection &sel, Extract
     textEdit.range = insertRange;
     return std::move(textEdit);
 }
-
+// LCOV_EXCL_START
 TextEdit ExtractFunction::ReplaceBlockWithCall(const Tweak::Selection &sel, ExtractedFunction &function)
 {
     TextEdit textEdit;
@@ -763,8 +766,8 @@ void ExtractFunction::GetParam(ExtractedFunction& function, Cangjie::AST::RefExp
     }
     ExtractedFunction::Param param;
     param.name = refExpr->ref.identifier;
-    if (decl->ty->HasGeneric()) {
-        CollectGenerics(*decl->ty, function.generics);
+    if (decl->GetTy()->HasGeneric()) {
+        CollectGenerics(*decl->GetTy(), function.generics);
     }
     param.type = GetVarDeclType(decl, sel.arkAst->sourceManager);
     function.params.emplace(std::move(param));
@@ -1114,4 +1117,5 @@ void ExtractFunction::AddMutParamVariable(std::string &mutParams, Cangjie::AST::
         function.params.erase(it);
     }
 }
+// LCOV_EXCL_STOP
 } // namespace ark

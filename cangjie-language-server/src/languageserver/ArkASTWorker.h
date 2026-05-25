@@ -69,7 +69,16 @@ private:
 
     void StartTask(std::string name, std::function<void()> task, NeedDiagnostics needDiag, std::string filePath);
 
-    int GetFileIDForCompletion(const std::string &file);
+    // Helper to unify file id fetching for completion path.
+    int GetFileIDForCompletion(const std::string &file) const;
+
+    // Helper to parse file, wire AST cache, and invoke the given action.
+    // Returns true if AST and cache were prepared and action invoked.
+    bool ParseAndInvokeWithASTCache(const std::string &name,
+        const std::string &file,
+        Position pos,
+        const ParseInputs &inputs,
+        const std::function<void(InputsAndAST)> &action);
 
     struct Request {
         std::function<void()> action;

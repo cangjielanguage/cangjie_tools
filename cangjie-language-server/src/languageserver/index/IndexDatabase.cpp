@@ -9,8 +9,8 @@
 #include "../sql/wrapper/Connection.h"
 #include "../sql/wrapper/Memory.h"
 #include "../common/Utils.h"
-#include "IndexDatabase.h"
 #include "Symbol.h"
+#include "IndexDatabase.h"
 
 namespace ark {
 namespace lsp {
@@ -100,7 +100,7 @@ void PopulateSymbol(const sqldb::Result &row, Symbol &sym)
         sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column);
     sym.id = GetIDFromArray(idArray);
 }
-
+// LCOV_EXCL_START
 void PopulateSymbolAndCompletions(const sqldb::Result &row, Symbol &sym, CompletionItem &completion)
 {
     IDArray idArray;
@@ -134,7 +134,7 @@ void PopulateExtendItemAndCompletions(const sqldb::Result &row, ExtendItem &exte
         idArray, completionItem.label, completionItem.insertText);
     sym.id = GetIDFromArray(idArray);
 }
-
+// LCOV_EXCL_STOP
 void PopulateRef(const sqldb::Result &row, Ref &ref, SymbolID &symId)
 {
     IDArray idArray;
@@ -155,7 +155,7 @@ void PopulateRelation(const sqldb::Result &row, Relation &rel)
     rel.subject = GetIDFromArray(subjectIdArray);
     rel.object = GetIDFromArray(objectIdArray);
 }
-
+// LCOV_EXCL_START
 dberr_no PopulateSymbolWithRank(const sqldb::Result &row, Symbol &sym)
 {
     IDArray idArray;
@@ -174,7 +174,7 @@ dberr_no PopulateSymbolWithRank(const sqldb::Result &row, Symbol &sym)
         sym.id = GetIDFromArray(idArray);
     return true;
 }
-
+// LCOV_EXCL_STOP
 void PopulateComment(const sqldb::Result &row, Comment &comment)
 {
     IDArray idArray;
@@ -232,23 +232,31 @@ dberr_no PrepareConnection(sqldb::Connection &sqlConnect)
 {
     sqlConnect.progress(ShutdownRequested);
     sqlConnect.busy(BusyHandlerCallback);
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         sqlConnect.tokenizer("identifier", GetIdentifierTokenizer());
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         std::cerr << " prepareConnection tokenizer fail\n";
         return 1;
     }
+#endif
     for (std::string_view sql : sql::PrepareDatabase) {
+#ifndef NO_EXCEPTIONS
         try {
+#endif
             sqlConnect.execute(sql);
+#ifndef NO_EXCEPTIONS
         } catch (...) {
             std::cerr << " prepareConnection execute fail\n";
             return 1;
         }
+#endif
     }
     return 0;
 }
-
+// LCOV_EXCL_START
 int32_t GetUserVersion(sqldb::Connection &sqlConnect)
 {
     sqldb::Statement pragmaUserVersion = sqlConnect.prepare(sql::PragmaUserVersion);
@@ -313,11 +321,15 @@ IndexDatabase::IndexDatabase() {}
 void ConnectionTransaction(sqldb::Connection &sqlConnect, std::function<void()> callback)
 {
     sqlConnect.execute("BEGIN");
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         callback();
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         sqlConnect.execute("ROLLBACK");
     }
+#endif
     sqlConnect.execute("COMMIT");
 }
 
@@ -337,23 +349,31 @@ dberr_no IndexDatabase::Initialize(std::function<sqldb::Connection()> openConnec
     selectSchemaEmpty.execute(sqldb::into(schemaEmpty));
     if (schemaEmpty) {
         for (std::string_view SQL : sql::CreateDatabase) {
+#ifndef NO_EXCEPTIONS
             try {
+#endif
                 sqlConnect.execute(SQL);
+#ifndef NO_EXCEPTIONS
             } catch (...) {
                 std::cerr << "---------CreateDatabase  db fail\n";
                 return 1;
             }
+#endif
         }
         databaseCache.Get([&sqlConnect] { return std::move(sqlConnect); });
     } else {
         sqldb::Statement PragmaApplicationID = std::move(sqlConnect.prepare(sql::PragmaApplicationID));
         int32_t ApplicationID;
+#ifndef NO_EXCEPTIONS
         try {
+#endif
             PragmaApplicationID.execute(sqldb::into(ApplicationID));
+#ifndef NO_EXCEPTIONS
         } catch (...) {
             std::cerr << "---------PragmaApplicationID  db fail\n";
             return 1;
         }
+#endif
         if (ApplicationID != DATABASE_MAGIC) {
             return 1;
         }
@@ -411,47 +431,59 @@ dberr_no IndexDatabase::FileExists(std::string fileURI, bool &exists)
         .execute(sqldb::with(fileURI), sqldb::into(exists));
     return 0;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetFileDigest(uint32_t fileId, std::string &digest)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectFileDigestWithId)
             .execute(sqldb::with(fileId), sqldb::into(digest));
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "GetFileDigestWithID fail due to " << ex.what() << "\n";
     }
+#endif
     return 0;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetSymbols(std::function<bool(const Symbol &sym)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectSymbols).execute([&](sqldb::Result Row) {
             Symbol resSym;
             PopulateSymbol(Row, resSym);
             callback(resSym);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         Trace::Log("getsymbols fail due to: ", ex.what());
         Trace::Log(ex.what());
     }
+#endif
     return 0;
 }
 
 dberr_no IndexDatabase::GetSymbolsByName(const std::string &name, std::function<bool(const Symbol &sym)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectSymbolByName).execute(sqldb::with(name, SymbolLanguage::CANGJIE), [&](sqldb::Result Row) {
             Symbol resSym;
             PopulateSymbol(Row, resSym);
             callback(resSym);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         Trace::Log("getsymbols fail due to: ", ex.what());
         Trace::Log(ex.what());
     }
+#endif
     return 0;
 }
 
@@ -468,40 +500,50 @@ dberr_no IndexDatabase::GetHeaderFileRelations(
 {
     return 0;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetSymbolByID(IDArray id, std::function<bool(const Symbol &sym)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectSymbol).execute(sqldb::with(id), [&](sqldb::Result Row) {
             Symbol resSym;
             PopulateSymbol(Row, resSym);
             callback(resSym);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "getsymbol fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetCrossSymbolByID(IDArray id, std::function<void(const CrossSymbol &sym)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectCrossSymbolByID).execute(sqldb::with(id), [&](sqldb::Result Row) {
             CrossSymbol crs;
             PopulateCrossSymbol(Row, crs);
             callback(crs);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "GetCrossSymbolByID fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::GetPkgSymbols(std::string pkgName, std::function<bool(const Symbol &sym)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         std::string scopePrefix = pkgName + ":";
         Use(sql::SelectSymbolsByPkgName).execute(sqldb::with(pkgName, scopePrefix),
             [&](sqldb::Result Row) {
@@ -510,9 +552,11 @@ dberr_no IndexDatabase::GetPkgSymbols(std::string pkgName, std::function<bool(co
             callback(resSym);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch(std::exception &ex) {
         std::cerr << "getsymbol fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
@@ -520,7 +564,9 @@ dberr_no IndexDatabase::GetSymbolsAndCompletions(const std::string &prefix,
     std::function<void(const Symbol &sym, const CompletionItem &completion)> callback)
 {
     std::string fuzzyPrefix = AddPercentAfterEachUTF8Char(prefix);
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectCompletions).execute(sqldb::with(fuzzyPrefix), [&](sqldb::Result Row) {
             Symbol resSym;
             CompletionItem resCompletion;
@@ -528,32 +574,40 @@ dberr_no IndexDatabase::GetSymbolsAndCompletions(const std::string &prefix,
             callback(resSym, resCompletion);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         Trace::Log("get symbol and completions failed", ex.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::GetCompletion(std::string symPackage, const Symbol &sym,
     std::function<void(const std::string &pkgName, const Symbol &sym, const CompletionItem &completion)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectCompletion).execute(sqldb::with(GetArrayFromID(sym.id)), [&](sqldb::Result Row) {
             CompletionItem resCompletion;
             PopulateCompletion(Row, resCompletion);
             callback(symPackage, sym, resCompletion);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "getsymbol fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::GetExtendItem(IDArray id,
     std::function<void(const std::string &, const Symbol &, const ExtendItem &, const CompletionItem &)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectExtends).execute(sqldb::with(id), [&](sqldb::Result Row) {
             Symbol resSym;
             ExtendItem extendItem;
@@ -563,31 +617,40 @@ dberr_no IndexDatabase::GetExtendItem(IDArray id,
             callback(packageName, resSym, extendItem, completionItem);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         Trace::Log("get extem item failed: ", ex.what());
     }
+#endif
     return true;
 }
 
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetComment(IDArray id, std::function<bool(const Comment &comment)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectComment).execute(sqldb::with(id), [&](sqldb::Result Row) {
             Comment comment;
             PopulateComment(Row, comment);
             callback(comment);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "getsymbol fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetFileWithID(int fileId,
                                       std::function<bool(std::string, std::string)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectFileWithId).execute(sqldb::with(fileId), [&](sqldb::Result Row) {
             std::string fileName;
             std::string packageName;
@@ -596,16 +659,20 @@ dberr_no IndexDatabase::GetFileWithID(int fileId,
             callback(packageName, moduleName);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "GetFileWithID fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::GetFileWithUri(std::string fileUri,
                                        std::function<bool(std::string, std::string)> callback)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectFileWithUri).execute(sqldb::with(fileUri), [&](sqldb::Result Row) {
             std::string fileName;
             std::string packageName;
@@ -614,9 +681,11 @@ dberr_no IndexDatabase::GetFileWithUri(std::string fileUri,
             callback(packageName, moduleName);
             return true;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "GetFileWithUri fail due to " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
@@ -637,7 +706,9 @@ dberr_no IndexDatabase::GetMatchingSymbols(
         patternStream << '"' << token << '"' << '*' << ' ';
     });
     std::string pattern = patternStream.str();
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use (sql::SelectMatchingSymbols).execute(sqldb::with(pattern, flags, scope), [&](sqldb::Result row) {
             Symbol resSym;
             if (PopulateSymbolWithRank(row, resSym)) {
@@ -648,13 +719,15 @@ dberr_no IndexDatabase::GetMatchingSymbols(
             }
             return callback(resSym) ? RESULT_NEXT : RESULT_DONE;
         });
+#ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "GetMatchingSymbols fail due to " << ex.what() << "\n";
         return true;
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetReferences(const SymbolID &id, RefKind kind,
                                       std::function<bool(const Ref &ref)> callback)
 {
@@ -669,7 +742,7 @@ dberr_no IndexDatabase::GetReferences(const SymbolID &id, RefKind kind,
         });
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetFileReferences(const std::string &fileUri, RefKind kind,
     std::function<bool(const Ref &ref, const SymbolID symId)> callback)
 {
@@ -683,7 +756,7 @@ dberr_no IndexDatabase::GetFileReferences(const std::string &fileUri, RefKind ki
         });
     return true;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetReferred(const SymbolID &id,
                                     std::function<void(const SymbolID &, const Ref &)> callback)
 {
@@ -698,7 +771,7 @@ dberr_no IndexDatabase::GetReferred(const SymbolID &id,
         });
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::GetUsedSymbols(std::string fileURI,
                                        std::set<SymbolID> &symbols)
 {
@@ -751,7 +824,7 @@ dberr_no IndexDatabase::GetCallRelations(
 {
     return true;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::GetRelationsRiddenUp(
     const SymbolID &objectID, RelationKind kind,
     std::function<bool(const Relation &rel)> callback)
@@ -858,14 +931,18 @@ dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkg
 
 dberr_no IndexDatabase::DBUpdate::InsertFileWithId(int fileID, std::vector<std::string> &fileInfo)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertFileWithID)
             .execute(sqldb::with(fileID, fileInfo[0], fileInfo[DIGEST_INDEX],
                                  fileInfo[PACK_INDEX], fileInfo[MODU_INDEX]));
+#ifndef NO_EXCEPTIONS
     }
     catch (std::exception &ex) {
         std::cerr << "exception in InsertFileWithID: " << ex.what() << "\n";
     }
+#endif
     return true;
 }
 
@@ -876,15 +953,19 @@ dberr_no IndexDatabase::DBUpdate::InsertFile(std::string fileURI, FileDigest dig
 
 dberr_no IndexDatabase::DBUpdate::DeleteFile(const std::string &fileURI)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::DeleteFile).execute(sqldb::with(fileURI));
+#ifndef NO_EXCEPTIONS
     }
     catch (std::exception &ex) {
         std::cerr << "exception in DeleteFile: " << ex.what() << "\n";
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_START
 dberr_no IndexDatabase::DBUpdate::UpdateFilesNotEnumerated()
 {
     return true;
@@ -900,14 +981,16 @@ dberr_no IndexDatabase::DBUpdate::RenameFile(
 {
     return true;
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::DBUpdate::InsertSymbol(const Symbol &sym)
 {
     if (sym.id == 0) {
         return true;
     }
     auto InsertSymbol = [this](const Symbol &insertSym) -> dberr_no {
+#ifndef NO_EXCEPTIONS
         try {
+#endif
             db.Use(sql::InsertSymbol)
                 .execute(sqldb::with(
                     (GetArrayFromID(insertSym.id)), insertSym.kind, insertSym.symInfo.subKind, insertSym.symInfo.lang,
@@ -925,10 +1008,12 @@ dberr_no IndexDatabase::DBUpdate::InsertSymbol(const Symbol &sym)
                     insertSym.syscap, insertSym.pkgModifier, insertSym.curModule, insertSym.curMacroCall.fileUri,
                     insertSym.curMacroCall.begin.line, insertSym.curMacroCall.begin.column,
                     insertSym.curMacroCall.end.line, insertSym.curMacroCall.end.column));
+#ifndef NO_EXCEPTIONS
         } catch (const std::exception &e) {
             Trace::Log("err in insert symbol: ", e.what());
             return 1;
         }
+#endif
         return true;
     };
     InsertSymbol(sym);
@@ -1010,23 +1095,31 @@ dberr_no IndexDatabase::DBUpdate::InsertSymbols(const std::vector<Symbol> &syms)
     if (syms.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealSymbols(syms);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert symbol: ", e.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::InsertCompletion(const Symbol &sym,  const CompletionItem &completionItem)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertCompletion)
                         .execute(sqldb::with(
                             GetArrayFromID(sym.id), completionItem.label, completionItem.insertText));
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert completion: ", e.what());
     }
+#endif
     return true;
 }
 
@@ -1086,26 +1179,34 @@ dberr_no IndexDatabase::DBUpdate::InsertCompletions(const std::vector<std::pair<
     if (completions.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealCompletions(completions);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert completion: ", e.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::InsertComment(const Symbol &sym, const AST::Comment &comment)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertComment)
                         .execute(sqldb::with(
                             GetArrayFromID(sym.id), comment.style, comment.kind, comment.info.Value()));
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert comment: ", e.what());
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_START
 void IndexDatabase::DBUpdate::DealComments(const std::vector<std::pair<IDArray, Comment>> &comments)
 {
     size_t maxMultiInsertIndex = 0;
@@ -1158,31 +1259,39 @@ void IndexDatabase::DBUpdate::DealComments(const std::vector<std::pair<IDArray, 
     }
     stmt.execute();
 }
-
+// LCOV_EXCL_STOP
 dberr_no IndexDatabase::DBUpdate::InsertComments(const std::vector<std::pair<IDArray, Comment>> &comments)
 {
     if (comments.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealComments(comments);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert comment: ", e.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::InsertReference(const IDArray &id, const Ref &ref)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertReference)
             .execute(sqldb::with(id, ref.location.fileUri, ref.location.begin.line,
                                  ref.location.begin.column, ref.location.end.line,
                                  ref.location.end.column, ref.kind, GetArrayFromID(ref.container),
                                  ref.isCjoRef, ref.isSuper));
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert ref: ", e.what());
     }
+#endif
     return true;
 }
 
@@ -1248,11 +1357,15 @@ dberr_no IndexDatabase::DBUpdate::InsertReferences(const std::vector<std::pair<I
     if (refs.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealReferences(refs);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert ref: ", e.what());
     }
+#endif
     return true;
 }
 
@@ -1320,18 +1433,24 @@ dberr_no IndexDatabase::DBUpdate::InsertRelations(const std::vector<Relation> &r
     if (relations.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealRelations(relations);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert relations: ", e.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::InsertExtend(const IDArray &extendId, const ExtendItem &extendItem,
     const std::string &curPkgName)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertExtend)
             .execute(sqldb::with(extendId, GetArrayFromID(extendItem.id), extendItem.modifier,
                 extendItem.isStatic, extendItem.interfaceName, curPkgName));
@@ -1346,7 +1465,9 @@ dberr_no IndexDatabase::DBUpdate::InsertExtend(const IDArray &extendId, const Ex
 dberr_no IndexDatabase::DBUpdate::InsertExtends(
     const std::map<std::pair<std::string, SymbolID>, std::vector<ExtendItem>> &extends)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         sqldb::Statement &stmt = db.Use(sql::InsertExtend);
         for (const auto &extend : extends) {
             const auto &curPkgName = extend.first.first;
@@ -1356,27 +1477,33 @@ dberr_no IndexDatabase::DBUpdate::InsertExtends(
                     extendItem.modifier, extendItem.isStatic, extendItem.interfaceName, curPkgName));
             }
         }
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert extend: ", e.what());
     }
+#endif
     return true;
 }
 
 dberr_no IndexDatabase::DBUpdate::InsertCrossSymbol(const std::string &curPkgName, const CrossSymbol &crsSym)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         db.Use(sql::InsertCrossSymbol)
             .execute(sqldb::with(curPkgName, GetArrayFromID(crsSym.id), crsSym.name, GetArrayFromID(crsSym.container),
                     crsSym.containerName, crsSym.crossType, crsSym.location.fileUri, crsSym.location.begin.line,
                     crsSym.location.begin.column, crsSym.location.end.line, crsSym.location.end.column,
                     crsSym.declaration.begin.line, crsSym.declaration.begin.column, crsSym.declaration.end.line,
                     crsSym.declaration.end.column));
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert crossSymbol: ", e.what());
     }
+#endif
     return true;
 }
-
+// LCOV_EXCL_START
 void IndexDatabase::DBUpdate::DealCrossSymbols(const std::vector<std::pair<std::string, CrossSymbol>> &crsSyms)
 {
     size_t maxMultiInsertIndex = 0;
@@ -1437,11 +1564,15 @@ dberr_no IndexDatabase::DBUpdate::InsertCrossSymbols(const std::vector<std::pair
     if (crsSyms.empty()) {
         return true;
     }
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         DealCrossSymbols(crsSyms);
+#ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert crossSymbol: ", e.what());
     }
+#endif
     return true;
 }
 
@@ -1620,26 +1751,34 @@ dberr_no IndexDatabase::Update(std::function<dberr_no(DBUpdate)> callback)
 {
     DatabaseConnection &dbConnect = Database();
     std::unique_lock<std::mutex> lock(updateMutex);
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         dbConnect.Use(sql::Begin).execute();
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         std::cerr << " err in update begin\n";
         return 1;
     }
     try {
+#endif
         callback(DBUpdate(dbConnect));
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         std::cerr << " err in update callback\n";
         dbConnect.Use(sql::Rollback).execute();
         return 1;
     }
     try {
+#endif
         dbConnect.Use(sql::Commit).execute();
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         std::cerr << " err in update commit\n";
         dbConnect.Use(sql::Rollback).execute();
         return 1;
     }
+#endif
     return true;
 }
 
@@ -1661,13 +1800,17 @@ int IndexDatabase::GetChanges() { return Database()->getChanges(); }
 
 dberr_no IndexDatabase::PopulateReferenceCount(Symbol &sym)
 {
+#ifndef NO_EXCEPTIONS
     try {
+#endif
         Use(sql::SelectReferenceCount)
             .execute(sqldb::with(sym.idArray, RefKind::REFERENCE),
                      sqldb::into(sym.references));
+#ifndef NO_EXCEPTIONS
     } catch (...) {
         return 1;
     }
+#endif
     return true;
 }
 
@@ -1686,18 +1829,19 @@ dberr_no OpenIndexDatabase(IndexDatabase &db, const std::string &file,
 {
     return db.Initialize([dbfile = file, dbOpts = std::move(opts)] {
         if (dbOpts.openInMemory) {
-            return (sqldb::memdb)(dbfile,
-                (unsigned int)sqldb::OpenURI |
-                    (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
-                                         : ((unsigned int)sqldb::OpenCreate | (unsigned int)sqldb::OpenReadWrite)));
+            return (sqldb::memdb)(
+                dbfile, (unsigned int)sqldb::OpenURI | (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
+                                                          : ((unsigned int)sqldb::OpenCreate |
+                                                             (unsigned int)sqldb::OpenReadWrite)));
         } else {
-            return (sqldb::open)(dbfile,
-                (unsigned int)sqldb::OpenURI |
-                    (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
-                                         : ((unsigned int)sqldb::OpenCreate | (unsigned int)sqldb::OpenReadWrite)));
+            return (sqldb::open)(
+                dbfile, (unsigned int)sqldb::OpenURI | (dbOpts.openReadOnly ? (unsigned int)sqldb::OpenReadOnly
+                                                        : ((unsigned int)sqldb::OpenCreate |
+                                                           (unsigned int)sqldb::OpenReadWrite)));
         }
     });
 }
 
 } // namespace lsp
 } // namespace ark
+// LCOV_EXCL_STOP

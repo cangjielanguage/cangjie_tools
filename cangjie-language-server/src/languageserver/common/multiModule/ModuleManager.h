@@ -37,7 +37,7 @@ public:
 
     std::string GetExpectedPkgName(const Cangjie::AST::File &file);
 
-    bool IsCommonSpecificModule(const std::string &filePath);
+    bool isCommonSpecificModule(const std::string &filePath);
 
     std::string projectRootPath;
     nlohmann::json multiModuleOption;

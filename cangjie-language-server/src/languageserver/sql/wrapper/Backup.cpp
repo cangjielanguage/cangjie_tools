@@ -36,9 +36,11 @@ int Backup::getRemainingPages() const noexcept { return sqlite3_backup_remaining
 void Backup::step(int Pages)
 {
     int RC = sqlite3_backup_step(P, Pages);
+#ifndef NO_EXCEPTIONS
     if (RC != SQLITE_OK && RC != SQLITE_DONE) {
         throw Exception(RC, "Failed to perform database backup");
     }
+#endif
 }
 
 void Backup::execute() { step(-1); }
@@ -46,9 +48,11 @@ void Backup::execute() { step(-1); }
 Backup backup(Connection &Dst, Connection &Src, const std::string &Name)
 {
     sqlite3_backup *P = sqlite3_backup_init(Dst.getNativeHandle(), Name.c_str(), Src.getNativeHandle(), Name.c_str());
+#ifndef NO_EXCEPTIONS
     if (P == nullptr) {
         throw Exception(Dst.getNativeHandle(), "Failed to initialize database backup");
     }
+#endif
     return Backup(P);
 }
 

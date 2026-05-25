@@ -39,8 +39,8 @@ void StructuralRuleGEXP03::RightOperandFinder(Ptr<Node> node)
 void StructuralRuleGEXP03::FindMemberAccess(const MemberAccess& memberAccess)
 {
     std::string name;
-    if (memberAccess.baseExpr != nullptr && memberAccess.baseExpr->ty != nullptr) {
-        name = memberAccess.baseExpr->ty->name + "." + memberAccess.field;
+    if (memberAccess.baseExpr != nullptr && memberAccess.baseExpr->GetTy() != nullptr) {
+        name = memberAccess.baseExpr->GetTy()->name + "." + memberAccess.field;
     }
     Position start, end;
     if (memberAccess.begin.IsZero() && memberAccess.callOrPattern != nullptr) {

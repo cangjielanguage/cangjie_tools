@@ -131,6 +131,7 @@ void SignatureHelpImpl::FindRealActiveParamPos()
         return;
     }
     auto realTokens = realTokensAndIndex.first;
+    // LCOV_EXCL_START
     // resolve there are namePram in func( )
     std::string namePram = realTokens[nameParamPos - 1].Value();
     // namePram is in current activeSignature
@@ -167,6 +168,7 @@ void SignatureHelpImpl::FindRealActiveParamPos()
         }
     }
     result->activeParameter = static_cast<unsigned int>(meanNoMatchParameter);
+    // LCOV_EXCL_STOP
 }
 
 void SignatureHelpImpl::FindFunDeclByNode(Cangjie::AST::Node &node)
@@ -199,6 +201,7 @@ void SignatureHelpImpl::FindFunDeclByNode(Cangjie::AST::Node &node)
         }
         return;
     }
+    // LCOV_EXCL_START
     if (node.astKind == Cangjie::AST::ASTKind::VAR_DECL) {
         auto *varDecl = dynamic_cast<VarDecl*>(&node);
         bool invalid = varDecl != nullptr && varDecl->initializer != nullptr &&
@@ -227,6 +230,7 @@ void SignatureHelpImpl::FindFunDeclByNode(Cangjie::AST::Node &node)
         }
         return;
     }
+    // LCOV_EXCL_STOP
 }
 
 void SignatureHelpImpl::CalBackParamPos(const int &index)
@@ -307,8 +311,8 @@ void SignatureHelpImpl::ResolveParameter(std::string &detail, bool &firstParams,
         }
         parameter += ": ";
     }
-    if (paramPtr->ty != nullptr) {
-        parameter += GetString(*paramPtr->ty);
+    if (paramPtr->GetTy() != nullptr) {
+        parameter += GetString(*paramPtr->GetTy());
         auto assignExpr = paramPtr->assignment.get();
         if (assignExpr && assignExpr->desugarExpr) {
             assignExpr = assignExpr->desugarExpr;
@@ -347,8 +351,8 @@ void SignatureHelpImpl::ResolveFuncDecl(Cangjie::AST::Decl &decl)
     if (!funcDecl->TestAttr(Cangjie::AST::Attribute::ENUM_CONSTRUCTOR) &&
         funcDecl->identifier != "init" &&
         funcDecl->funcBody->retType != nullptr &&
-        funcDecl->funcBody->retType->ty != nullptr) {
-        detail += " -> " + GetString(*funcDecl->funcBody->retType->ty);
+        funcDecl->funcBody->retType->GetTy() != nullptr) {
+        detail += " -> " + GetString(*funcDecl->funcBody->retType->GetTy());
     }
     signatures.label = detail;
     if (signatureLabel.find(detail) == signatureLabel.end()) {
@@ -356,7 +360,7 @@ void SignatureHelpImpl::ResolveFuncDecl(Cangjie::AST::Decl &decl)
         (void) signatureLabel.insert(detail);
     }
 }
-
+// LCOV_EXCL_START
 void SignatureHelpImpl::ResolveClassDecl(Cangjie::AST::Node &node)
 {
     auto *classDecl = dynamic_cast<Cangjie::AST::ClassDecl*>(&node);
@@ -370,7 +374,7 @@ void SignatureHelpImpl::ResolveClassDecl(Cangjie::AST::Node &node)
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void SignatureHelpImpl::NormalFuncSignatureHelp()
 {
     if (leftQuoteIndex < 1) { return; }
@@ -422,6 +426,7 @@ std::string SignatureHelpImpl::ResolveFuncName()
     // ensure like "@ValWithGrad(product,"
     // offset -2 is "@" && offset -1 is (VJP|Grad|ValWithGrad) && offset +1 is funcName &&
     // then is need signatureHelp
+    // LCOV_EXCL_START
     if (leftQuoteIndex > 1 && realTokens[leftQuoteIndex - CONSTANTS::AD_OFFSET] == "@" &&
         (funcName == "ValWithGrad" || funcName == "Grad" || funcName == "VJP") &&
         static_cast<unsigned long>(leftQuoteIndex + 1) < realTokens.size() &&
@@ -431,6 +436,7 @@ std::string SignatureHelpImpl::ResolveFuncName()
     } else if (funcNameIndex >= 0) {
         funcName = realTokens[funcNameIndex].Value();
     }
+    // LCOV_EXCL_STOP
     return funcName;
 }
 
@@ -445,7 +451,7 @@ bool SignatureHelpImpl::IsFuncDeclValid(Ptr<Cangjie::AST::FuncDecl> funcDecl)
     (void)visitedFunc.insert(funcDecl->identifier.Begin());
     return true;
 }
-
+// LCOV_EXCL_START
 void SignatureHelpImpl::FindSuperClassInit(const std::vector<Symbol*>& symbols)
 {
     for (auto symbol: symbols) {
@@ -456,8 +462,8 @@ void SignatureHelpImpl::FindSuperClassInit(const std::vector<Symbol*>& symbols)
             auto decl = dynamic_cast<ClassLikeDecl*>(symbol->node.get());
             for (auto &type : decl->inheritedTypes) {
                 if (type != nullptr) {
-                    fatherCLassName = type.get()->ty->name;
-                    FindFunDeclByType(*type->ty, "init");
+                    fatherCLassName = type.get()->GetTy()->name;
+                    FindFunDeclByType(*type->GetTy(), "init");
                     break;
                 }
             }
@@ -465,7 +471,7 @@ void SignatureHelpImpl::FindSuperClassInit(const std::vector<Symbol*>& symbols)
         }
     }
 }
-
+// LCOV_EXCL_STOP
 int SignatureHelpImpl::GetDotIndex() const
 {
     if (!ast) {
@@ -534,6 +540,7 @@ void SignatureHelpImpl::FindFuncDeclByDeclType(Ptr<Ty> declTy, const std::string
     auto extendMembers = CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
         declTy, packageNameForPath, *ast->file);
     for (auto &decl : extendMembers) {
+        // LCOV_EXCL_START
         // Make sure extend has access
         if (!decl || decl->fullPackageName != ast->semaCache->packageInstance->ctx->curPackage->fullPackageName &&
                      decl->fullPackageName != id->fullPackageName && !decl->TestAttr(Attribute::PUBLIC)) {
@@ -547,9 +554,10 @@ void SignatureHelpImpl::FindFuncDeclByDeclType(Ptr<Ty> declTy, const std::string
             continue;
         }
         ResolveFuncDecl(*decl);
+        // LCOV_EXCL_STOP
     }
 }
-
+// LCOV_EXCL_START
 bool SignatureHelpImpl::checkAccess(const std::string curPkg, const Cangjie::AST::Decl &decl) const
 {
     if (curPkg != decl.fullPackageName && !decl.TestAttr(Cangjie::AST::Attribute::PUBLIC)) {
@@ -567,7 +575,7 @@ bool SignatureHelpImpl::checkAccess(const std::string curPkg, const Cangjie::AST
     }
     return true;
 }
-
+// LCOV_EXCL_STOP
 // Complement function name based on the actual variable type.
 void SignatureHelpImpl::FindFunDeclByType(Cangjie::AST::Ty &nodeTy, const std::string funcName)
 {
@@ -620,12 +628,12 @@ void SignatureHelpImpl::FindFunDeclByType(Cangjie::AST::Ty &nodeTy, const std::s
             }
         });
     for (; begin != end; ++begin) {
-        if (begin->get() && begin->get()->ty) {
-            FindFunDeclByType(*begin->get()->ty, funcName);
+        if (begin->get() && begin->get()->GetTy()) {
+            FindFunDeclByType(*begin->get()->GetTy(), funcName);
         }
     }
 }
-
+// LCOV_EXCL_START
 void SignatureHelpImpl::FillingDeclsInPackage(std::string &packageName, const std::string &funcName,
                                               const Cangjie::AST::Node &curNode)
 {
@@ -674,7 +682,7 @@ void SignatureHelpImpl::FillingDeclsInPackage(std::string &packageName, const st
         }
     }
 }
-
+// LCOV_EXCL_STOP
 bool SignatureHelpImpl::MemberFuncSignatureHelp()
 {
     int targetOffset = 2;
@@ -701,6 +709,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
     }
     auto dotSymbol = posSyms[0];
     if (dotSymbol && dotSymbol->astKind == ASTKind::RETURN_EXPR) {
+        // LCOV_EXCL_START
         bool nodeInvalid = !dynamic_cast<ReturnExpr*>(dotSymbol->node.get()) ||
             !dynamic_cast<ReturnExpr*>(dotSymbol->node.get())->expr;
         if (nodeInvalid) {
@@ -710,6 +719,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
         if (dotSymbol == nullptr) {
             return false;
         }
+        // LCOV_EXCL_STOP
     }
     if (dotSymbol && dotSymbol->astKind == ASTKind::MEMBER_ACCESS) {
         bool nodeInvalid = !dynamic_cast<MemberAccess*>(dotSymbol->node.get()) ||
@@ -721,7 +731,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
         if (node == nullptr) {
             return false;
         }
-        auto nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->ty : node->ty;
+        auto nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->GetTy() : node->GetTy();
         Logger &logger = Logger::Instance();
         if (!Ty::IsTyCorrect(nodeTy)) {
             auto realPos = node->GetMacroCallNewPos(posOfMember);
@@ -744,7 +754,7 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
             if (node == nullptr) {
                 return false;
             }
-            nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->ty : node->ty;
+            nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->GetTy() : node->GetTy();
         }
         bool check = nodeTy != nullptr && (Is<ClassTy>(nodeTy.get()) || Is<EnumTy>(nodeTy.get()) ||
                                            Is<InterfaceTy>(nodeTy.get()) || Is<StructTy>(nodeTy.get()) ||

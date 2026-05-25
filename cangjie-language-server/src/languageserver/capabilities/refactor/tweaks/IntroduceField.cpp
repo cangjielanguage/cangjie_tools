@@ -4,16 +4,16 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "IntroduceField.h"
-#include "../../../common/Utils.h"
-#include "../TweakRule.h"
-#include "../TweakUtils.h"
 #include <algorithm>
 #include <cctype>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cangjie/AST/Walker.h>
+#include "../../../common/Utils.h"
+#include "../TweakRule.h"
+#include "../TweakUtils.h"
+#include "IntroduceField.h"
 
 namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_FIELD_EXPR = {

@@ -13,7 +13,7 @@ using namespace Meta;
 
 void StructuralRuleGFMT15::CheckLitConstExpr(const LitConstExpr& litConstExpr)
 {
-    if (!litConstExpr.ty || !litConstExpr.ty->IsFloating()) {
+    if (!litConstExpr.GetTy() || !litConstExpr.GetTy()->IsFloating()) {
         return;
     }
     auto lst = FileUtil::SplitStr(litConstExpr.rawString, '.');

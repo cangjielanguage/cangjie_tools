@@ -101,6 +101,14 @@ void RenameImpl::GetLocalVarUesage(Ptr<Decl> decl, const ArkAST &ast, ark::Docum
     }
 }
 
+Range GetLocalDefineRange(const ArkAST &ast, Ptr<Decl> defineDecl, Position definePos)
+{
+    Range range{definePos, definePos + CountUnicodeCharacters(defineDecl->identifier)};
+    PositionUTF8ToIDE(ast.tokens, range.start, *defineDecl);
+    range.end.column = range.start.column + static_cast<int>(CountUnicodeCharacters(defineDecl->identifier));
+    return TransformFromChar2IDE(range);
+}
+
 void RenameImpl::HandleGeneric(Ptr<Decl> defineDecl, const ArkAST &ast, DocumentChanges &documentChanges,
                                const std::string &newName, const std::vector<Symbol *> &syms)
 {
@@ -209,6 +217,48 @@ void HandleInit(Ptr<Decl> defineDecl, std::unordered_set<lsp::SymbolID> &defIds)
     }
 }
 
+Position GetOriginDefinePosition(Ptr<Decl> defineDecl)
+{
+    Position definePos = defineDecl->identifier.Begin();
+    if (!defineDecl->curMacroCall || !defineDecl->curMacroCall->GetInvocation()) {
+        return definePos;
+    }
+    auto inv = defineDecl->curMacroCall->GetInvocation();
+    auto originPos = inv->macroCallDiagInfo.new2originPosMap.find(defineDecl->identifier.Begin().column);
+    if (originPos != inv->macroCallDiagInfo.new2originPosMap.end()) {
+        definePos = originPos->second;
+    }
+    return definePos;
+}
+
+void RenameLocalDecl(Ptr<Decl> defineDecl, const ArkAST &ast, DocumentChanges &documentChanges,
+                     const std::string &newName)
+{
+    TextEdit t{GetLocalDefineRange(ast, defineDecl, GetOriginDefinePosition(defineDecl)), newName};
+    RenameImpl::UpdateDefineMap(documentChanges, RenameImpl::curFilePath, t);
+    RenameImpl::GetLocalVarUesage(defineDecl, ast, documentChanges, newName);
+}
+
+void CollectNonLocalDefIds(const std::string &curFilePath, std::vector<Symbol *> &syms,
+                           std::vector<Ptr<Cangjie::AST::Decl> > &decls, Ptr<Decl> defineDecl,
+                           std::unordered_set<lsp::SymbolID> &defIds)
+{
+    if (defineDecl->astKind == ASTKind::FUNC_PARAM || defineDecl->astKind == ASTKind::VAR_DECL) {
+        DealMemberParam(curFilePath, syms, decls, defineDecl);
+    }
+    for (const auto &decl : decls) {
+        if (decl->astKind == ASTKind::PRIMARY_CTOR_DECL) {
+            continue;
+        }
+        auto id = GetSymbolId(*decl);
+        if (id == lsp::INVALID_SYMBOL_ID) {
+            continue;
+        }
+        (void)defIds.emplace(id);
+    }
+    HandleInit(defineDecl, defIds);
+}
+
 std::string RenameImpl::Rename(const ArkAST &ast, std::vector<TextDocumentEdit> &result, Position pos,
                                const std::string &newName, Callbacks &cb)
 {
@@ -242,42 +292,13 @@ std::string RenameImpl::Rename(const ArkAST &ast, std::vector<TextDocumentEdit> 
     }
 
     if (!IsGlobalOrMemberOrItsParam(*defineDecl)) {
-        Position definePos = defineDecl->identifier.Begin();
-        if (defineDecl->curMacroCall && defineDecl->curMacroCall->GetInvocation()) {
-            auto inv = defineDecl->curMacroCall->GetInvocation();
-            // revise origin position before macro expand
-            if (inv->new2originPosMap.find(defineDecl->identifier.Begin().column) !=
-                inv->new2originPosMap.end()) {
-                definePos = inv->new2originPosMap[defineDecl->identifier.Begin().column];
-            }
-        }
-        TextEdit t{TransformFromChar2IDE({definePos, definePos + CountUnicodeCharacters(defineDecl->identifier)}),
-                   newName};
-        UpdateDefineMap(documentChanges, curFilePath, t);
-        GetLocalVarUesage(defineDecl, ast, documentChanges, newName);
+        RenameLocalDecl(defineDecl, ast, documentChanges, newName);
         return GetRealName(result, cb, documentChanges);
     }
 
     // Searching for nonlocal variables by index
     std::unordered_set<lsp::SymbolID> defIds;
-    // Deal member param
-    if (defineDecl->astKind == ASTKind::FUNC_PARAM || defineDecl->astKind == ASTKind::VAR_DECL) {
-        DealMemberParam(curFilePath, syms, decls, defineDecl);
-    }
-
-    for (const auto &decl : decls) {
-        if (decl->astKind == ASTKind::PRIMARY_CTOR_DECL) {
-            continue;
-        }
-        auto id = GetSymbolId(*decl);
-        if (id == lsp::INVALID_SYMBOL_ID) {
-            continue;
-        }
-        (void)defIds.emplace(GetSymbolId(*decl));
-    }
-
-    // Get init funcs of struct/class and their own
-    HandleInit(defineDecl, defIds);
+    CollectNonLocalDefIds(curFilePath, syms, decls, defineDecl, defIds);
 
     for (const auto &id : defIds) {
         RenameByIndex(id, documentChanges, newName);

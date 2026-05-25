@@ -23,7 +23,13 @@ func directoryExists(path: String): Bool {
 
 func getFileList(path: String): ArrayList<FileInfo> {
     let files = ArrayList<FileInfo>()
-    Directory.walk(path) {
+    // Handle symbolic links: resolve to real path first
+    let realPath = if (FileInfo(Path(path)).isSymbolicLink()) {
+        canonicalize(Path(path)).toString()
+    } else {
+        path
+    }
+    Directory.walk(realPath) {
         info =>
         if (info.isRegular()) {
             files.add(info)
@@ -35,7 +41,13 @@ func getFileList(path: String): ArrayList<FileInfo> {
 
 func getDirectoryList(path: String): ArrayList<FileInfo> {
     let files = ArrayList<FileInfo>()
-    Directory.walk(path) {
+    // Handle symbolic links: resolve to real path first
+    let realPath = if (FileInfo(Path(path)).isSymbolicLink()) {
+        canonicalize(Path(path)).toString()
+    } else {
+        path
+    }
+    Directory.walk(realPath) {
         info =>
         if (info.isDirectory()) {
             files.add(info)

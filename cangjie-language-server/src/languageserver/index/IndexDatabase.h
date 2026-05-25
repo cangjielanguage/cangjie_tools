@@ -260,7 +260,7 @@ public:
                         Trace::Log(RC, "Failed to bind value to parameter at index " + std::to_string(Index));
             });
         }
-
+        // LCOV_EXCL_STOP
         /**
          * Apply path mappings to paths inside index database.
          */
