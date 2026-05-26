@@ -109,24 +109,29 @@
         }
         #sunburst {
             width: 600px;
-            height: 600px;
+            height: 550px;
         }
-        .sunburst-legend {
+        #sunburst-legend {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 20px;
+            gap: 8px;
             justify-content: center;
+            padding: 10px 0;
+            border-top: 1px solid #1a1a2e;
+            font-size: 11px;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
+            gap: 4px;
+            padding: 2px 6px;
+            background: rgba(15, 52, 96, 0.5);
+            border-radius: 3px;
+            cursor: default;
         }
         .legend-color {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 2px;
         }
 
@@ -258,18 +263,20 @@
                 <div style="margin-bottom:15px;">
                     <button class="view-btn active" data-view="sunburst">Sunburst</button>
                     <button class="view-btn" data-view="tree">Tree</button>
-                    <span id="tree-granularity" style="display:none; margin-left:15px;">
-                        <button class="view-btn active" data-granularity="object">By Object</button>
-                        <button class="view-btn" data-granularity="type">By Type</button>
+<span id="granularity-select" style="margin-left:15px;">
+                        <select id="cluster-select" style="background:#0f3460;color:#eee;border:1px solid #e94560;padding:5px 10px;border-radius:4px;cursor:pointer;">
+                            <option value="object" selected>By Object</option>
+                            <option value="type">By Type</option>
+                        </select>
                     </span>
                 </div>
-                <div id="sunburst-container">
+                <div id="sunburst-container" style="display:flex;flex-direction:column;">
                     <div id="sunburst"></div>
+                    <div id="sunburst-legend" style="display:flex;flex-wrap:wrap;justify-content:center;padding:10px 0;gap:8px;border-top:1px solid #1a1a2e;font-size:11px;"></div>
                 </div>
                 <div id="tree-container" style="display:none;">
                     <div id="tree-view"></div>
                 </div>
-                <div class="sunburst-legend" id="sunburst-legend"></div>
             </div>
             <div class="dominance-table" style="align-self: start;">
                 <div id="top10-table"></div>
@@ -292,6 +299,7 @@
         let currentView = 'sunburst';
         let currentGranularity = 'object';  // 'object' or 'type'
         let cachedRoot = null;
+        let cachedTypeRoot = null;  // For type granularity in sunburst
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
@@ -316,9 +324,6 @@
                 document.querySelectorAll('.view-btn[data-view]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentView = btn.dataset.view;
-
-                // Show/hide granularity buttons for Tree view
-                document.getElementById('tree-granularity').style.display = currentView === 'tree' ? 'inline' : 'none';
 
                 // Toggle grid layout and Top10 visibility
                 const dominanceView = document.getElementById('dominance-view');
@@ -347,30 +352,52 @@
                     treeChart.resize();
                 }
 
-                if (cachedRoot) {
-                    if (currentView === 'sunburst') {
-                        drawSunburst(cachedRoot);
-                    } else if (currentView === 'tree') {
-                        if (!treeChart) {
-                            initTreeView(currentGranularity);
+                // Redraw with current granularity
+                if (currentView === 'sunburst') {
+                    if (currentGranularity === 'type') {
+                        if (cachedTypeRoot) {
+                            drawSunburst(cachedTypeRoot);
                         } else {
-                            drawTree();
+                            loadDominanceTreeByType();
                         }
+                    } else {
+                        if (cachedRoot) {
+                            drawSunburst(cachedRoot);
+                        } else {
+                            loadDominanceTree();
+                        }
+                    }
+                } else if (currentView === 'tree') {
+                    if (!treeChart) {
+                        initTreeView(currentGranularity);
+                    } else {
+                        drawTree();
                     }
                 }
             });
         });
 
-        // Granularity switching (Object/Type) for Tree view
-        document.querySelectorAll('.view-btn[data-granularity]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.view-btn[data-granularity]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentGranularity = btn.dataset.granularity;
+// Granularity switching (Object/Type) for both Sunburst and Tree
+        document.getElementById('cluster-select').addEventListener('change', (e) => {
+            currentGranularity = e.target.value;
 
-                // Reinitialize tree with new granularity
+            if (currentView === 'sunburst') {
+                if (currentGranularity === 'type') {
+                    if (cachedTypeRoot) {
+                        drawSunburst(cachedTypeRoot);
+                    } else {
+                        loadDominanceTreeByType();
+                    }
+                } else {
+                    if (cachedRoot) {
+                        drawSunburst(cachedRoot);
+                    } else {
+                        loadDominanceTree();
+                    }
+                }
+            } else if (currentView === 'tree') {
                 initTreeView(currentGranularity);
-            });
+            }
         });
 
         // Draw sunburst chart from dominance tree
@@ -432,6 +459,73 @@
             }
         }
 
+        // Load sunburst chart by type granularity
+        async function loadDominanceTreeByType() {
+            try {
+                const res = await fetch(`${API_BASE}/dominance/tree-by-type`);
+                const data = await res.json();
+
+                if (!data.nodes || data.nodes.length === 0) {
+                    document.getElementById('sunburst').innerHTML = '<div class="loading">No data</div>';
+                    return;
+                }
+
+                const root = buildTypeTree(data.nodes);
+                cachedTypeRoot = root;
+                drawSunburst(root);
+            } catch (e) {
+                document.getElementById('sunburst').innerHTML = '<div class="error">Failed to load type tree</div>';
+            }
+        }
+
+        // Build tree from type nodes
+        function buildTypeTree(nodes) {
+            const typeMap = new Map();
+            nodes.forEach(n => {
+                if (!n.is_cutoff) {
+                    typeMap.set(n.type_name, { ...n, children: [] });
+                }
+            });
+
+            let rootTypes = [];
+            nodes.forEach(n => {
+                if (n.is_cutoff) return;
+                const typeNode = typeMap.get(n.type_name);
+                if (!typeNode) return;
+
+                if (n.parent_type && typeMap.has(n.parent_type)) {
+                    typeMap.get(n.parent_type).children.push(typeNode);
+                } else {
+                    rootTypes.push(typeNode);
+                }
+            });
+
+            if (rootTypes.length > 1) {
+                var totalRetained = rootTypes.reduce(function(sum, n) {
+                    return sum + (n.retained_size || 0);
+                }, 0);
+                var totalInstances = rootTypes.reduce(function(sum, n) {
+                    return sum + (n.instance_count || 0);
+                }, 0);
+                return {
+                    id: 0,
+                    class_name: 'Root',
+                    type_name: 'Root',
+                    retained_size: totalRetained,
+                    shallow_size: 0,
+                    depth: -1,
+                    parent_id: 0,
+                    instance_count: totalInstances,
+                    is_clustered: true,
+                    is_cutoff: false,
+                    children: rootTypes
+                };
+            } else if (rootTypes.length === 1) {
+                return rootTypes[0];
+            }
+            return typeMap.values().next().value;
+        }
+
         function escapeHtml(str) {
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
@@ -454,32 +548,95 @@
                 return classColors.get(name);
             }
 
-            function convertNode(node, depth) {
+            function convertNode(node, depth, parentColor) {
                 depth = depth || 0;
-                const isLeaf = !node.children || node.children.length === 0;
-                const name = node.class_name || `obj${node.id}`;
-                const color = depth === 0 ? '#e94560' : getColor(name);
+                parentColor = parentColor || null;
+                const MAX_DEPTH = 5;
+                const CUTOFF_THRESHOLD = 0.005; // 0.5%
+                const isCutoff = node.is_cutoff || false;
+                const fullClassName = node.class_name || `obj${node.id}`;
+                const legendName = node.type_name || fullClassName.split(' (')[0];
+                const displayName = isCutoff ? fullClassName : legendName;
+                let color;
+                if (isCutoff) {
+                    color = parentColor || '#888888';
+                } else if (depth === 0) {
+                    color = '#e94560';
+                } else {
+                    color = getColor(legendName);
+                }
 
                 var result = {
-                    name: name,
-                    class_name: node.class_name,
+                    name: displayName,
+                    class_name: fullClassName,
+                    type_name: legendName,
                     retained_size: node.retained_size,
                     shallow_size: node.shallow_size,
                     depth: depth,
+                    instance_count: node.instance_count || 1,
+                    is_cutoff: isCutoff,
                     itemStyle: {
                         color: color,
-                        opacity: depth === 0 ? 1 : 0.85,
+                        opacity: depth === 0 ? 1 : (isCutoff ? 0.6 : 0.85),
                         borderColor: '#1a1a2e',
                         borderWidth: 1
                     }
                 };
 
+                const isLeaf = !node.children || node.children.length === 0 || depth >= MAX_DEPTH;
+
                 if (isLeaf) {
                     result.value = node.retained_size || 0;
                 } else {
-                    result.children = node.children.map(function(c) {
-                        return convertNode(c, depth + 1);
+                    var cutoffChildren = [];
+                    var normalChildren = [];
+                    var parentRetainedSize = node.retained_size || 0;
+
+                    node.children.forEach(function(c) {
+                        if (c.is_cutoff) {
+                            normalChildren.push(c);
+                        } else {
+                            var childRetainedSize = c.retained_size || 0;
+                            if (parentRetainedSize > 0 && childRetainedSize / parentRetainedSize < CUTOFF_THRESHOLD) {
+                                cutoffChildren.push(c);
+                            } else {
+                                normalChildren.push(c);
+                            }
+                        }
                     });
+
+                    result.children = normalChildren.map(function(c) {
+                        return convertNode(c, depth + 1, color);
+                    });
+
+                    if (cutoffChildren.length > 0) {
+                        var cutoffTotalRetained = cutoffChildren.reduce(function(sum, c) {
+                            return sum + (c.retained_size || 0);
+                        }, 0);
+                        var cutoffTotalShallow = cutoffChildren.reduce(function(sum, c) {
+                            return sum + (c.shallow_size || 0);
+                        }, 0);
+                        var cutoffTotalInstances = cutoffChildren.reduce(function(sum, c) {
+                            return sum + (c.instance_count || 1);
+                        }, 0);
+
+                        result.children.push({
+                            name: '... (' + cutoffTotalInstances + ' children)',
+                            retained_size: cutoffTotalRetained,
+                            shallow_size: cutoffTotalShallow,
+                            depth: depth + 1,
+                            instance_count: cutoffTotalInstances,
+                            is_cutoff: true,
+                            value: cutoffTotalRetained > 0 ? cutoffTotalRetained : 1,
+                            itemStyle: {
+                                color: color,
+                                opacity: 0.6,
+                                borderColor: '#1a1a2e',
+                                borderWidth: 1
+                            },
+                            _children: cutoffChildren
+                        });
+                    }
                 }
 
                 return result;
@@ -498,7 +655,10 @@
                     padding: [10, 14],
                     formatter: function(params) {
                         var d = params.data;
-                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.class_name || 'Object') + '</div>' +
+                        var instanceInfo = d.instance_count > 1 ?
+                            '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.name || d.class_name || 'Object') + '</div>' +
+                               instanceInfo +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
                     }
@@ -531,7 +691,7 @@
             var legend = document.getElementById('sunburst-legend');
             legend.innerHTML = '';
             classColors.forEach(function(color, name) {
-                legend.innerHTML += '<div class="legend-item"><div class="legend-color" style="background:' + color + '"></div>' + name + '</div>';
+                legend.innerHTML += '<div class="legend-item" title="' + name.replace(/"/g, '&quot;') + '"><div class="legend-color" style="background:' + color + '"></div>' + name + '</div>';
             });
         }
 
