@@ -142,10 +142,10 @@ void StructuralRuleGEXP02::CheckLitConstExpr(const Cangjie::AST::LitConstExpr& l
 {
     auto str = litConstExpr.stringValue;
     // Skip null pointer
-    if (!litConstExpr.ty) {
+    if (!litConstExpr.GetTy()) {
         return;
     }
-    auto kind = litConstExpr.ty->kind;
+    auto kind = litConstExpr.GetTy()->kind;
     if (!IsAccuateFloatPointNum(str, kind)) {
         Diagnose(litConstExpr.begin, litConstExpr.end, CodeCheckDiagKind::G_EXP_02_not_accurate_float_operation_01,
             litConstExpr.stringValue);
@@ -160,7 +160,7 @@ void StructuralRuleGEXP02::CheckBinaryExpr(const Cangjie::AST::BinaryExpr& binar
     if (!binaryExpr.leftExpr || !binaryExpr.rightExpr) {
         return;
     }
-    if (binaryExpr.leftExpr->ty->IsFloating() && binaryExpr.rightExpr->ty->IsFloating()) {
+    if (binaryExpr.leftExpr->GetTy()->IsFloating() && binaryExpr.rightExpr->GetTy()->IsFloating()) {
         Diagnose(binaryExpr.begin, binaryExpr.end, CodeCheckDiagKind::G_EXP_02_not_accurate_float_operation_02,
             TOKENS[static_cast<int>(binaryExpr.op)]);
     }

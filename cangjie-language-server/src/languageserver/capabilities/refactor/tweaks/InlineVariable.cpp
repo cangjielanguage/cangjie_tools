@@ -9,7 +9,6 @@
 #include "../TweakRule.h"
 #include "../TweakUtils.h"
 #include "../../../common/PositionResolver.h"
-
 // LCOV_EXCL_START
 namespace ark {
     // std::vector<std::string> lowPriorityOps = {"+", "-", "==", "!=",

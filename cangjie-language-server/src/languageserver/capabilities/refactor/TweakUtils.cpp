@@ -403,8 +403,8 @@ std::string TweakUtils::GetSelectedExprTypeName(const SelectionTree &selectionTr
         if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr() &&
             treeNode->node->begin == range.start && treeNode->node->end == range.end) {
             auto expr = DynamicCast<Expr *>(treeNode->node.get());
-            if (expr && expr->ty && GetString(*expr->ty) != "UnknownType") {
-                typeName = GetString(*expr->ty);
+            if (expr && expr->GetTy() && GetString(*expr->GetTy()) != "UnknownType") {
+                typeName = GetString(*expr->GetTy());
             }
             return SelectionTree::WalkAction::STOP_NOW;
         }
@@ -439,3 +439,4 @@ Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
     return insertRange;
 }
 } // namespace ark
+// LCOV_EXCL_STOP

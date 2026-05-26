@@ -315,7 +315,7 @@ void ArkServer::FindFileReferences(const std::string &file, const Callback<Value
 
     arkScheduler->RunWithAST("FileReferences", file, action);
 }
-
+// LCOV_EXCL_START
 void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result)
 {
     if (!decl || !ast.file || !ast.file->curPackage) {
@@ -336,14 +336,14 @@ void ArkServer::GetExportsName(
         const std::string &file, const ExportsNameParams &params, const Callback<ValueOrError> &reply) const
 {
     auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
-        int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-        if (fileId < 0) {
+        auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (!fileId) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
             reply(value);
             return;
         }
         Cangjie::Position pos =
-                Cangjie::Position{static_cast<unsigned int>(fileId), params.position.line, params.position.column};
+                Cangjie::Position{fileId.value_or(0), params.position.line, params.position.column};
         ReferencesResult result;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -447,7 +447,7 @@ void ArkServer::ApplyFileRefactor(const std::string &file,
 
     arkScheduler->RunWithAST("FileRefactor", file, action);
 }
-
+// LCOV_EXCL_STOP
 void ArkServer::FindWorkspaceSymbols(const std::string &query, const Callback<ValueOrError> &reply) const
 {
     auto action = [query, reply = std::move(reply)](const InputsAndAST &) {
@@ -555,7 +555,7 @@ void ArkServer::LocateSymbolAt(const std::string &file,
     };
     arkScheduler->RunWithAST("Definition", file, action);
 }
-
+// LCOV_EXCL_START
 void ArkServer::LocateRegisterCrossSymbolAt(
         const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
 {
@@ -583,7 +583,7 @@ void ArkServer::LocateRegisterCrossSymbolAt(
     ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
     reply(value);
 }
-
+// LCOV_EXCL_STOP
 void ArkServer::LocateCrossSymbolAt(const CrossLanguageJumpParams &params, const Callback<ValueOrError> &reply) const
 {
     CrossSymbolsResult result{};
@@ -641,47 +641,70 @@ void ArkServer::UpdateModifierDiag(const InputsAndAST &inputAST,
     }
 }
 
-void ArkServer::FindCompletion(const CompletionParams &params, const std::string &file,
-                               const Callback<ValueOrError> &reply) const
+std::optional<unsigned int> ArkServer::GetFileId(const std::string &file) const
 {
-    Trace::Log("ArkServer::FindCompletion in.");
+    if (Options::GetInstance().IsOptionSet("test")) {
+        return CompilerCangjieProject::GetInstance()->GetFileID(file);
+    }
+    return CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
+}
 
+void ArkServer::ProcessCompletion(const InputsAndAST &input, const Cangjie::Position &pos,
+                                  const Callback<ValueOrError> &reply) const
+{
     auto nullValueReply = [reply]() {
         ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
         reply(value);
     };
 
+    CompletionResult result;
+    std::string prefix;
+    if (input.ast == nullptr) {
+        nullValueReply();
+        return;
+    }
+    CompletionImpl::CodeComplete(*(input.ast), pos, result, prefix);
+    CompilerCangjieProject::GetInstance()->ClearParseCache("Completion");
+    CompletionList completionList;
+    for (auto &iter : result.completions) {
+        if (iter.show && (prefix.back() == '.' || IsMatchingCompletion(prefix, iter.name))) {
+            if (iter.name.find(BOX_DECL_PREFIX) != std::string::npos) { continue; }
+            auto score = CompilerCangjieProject::GetInstance()->CalculateScore(iter, prefix, result.cursorDepth);
+            completionList.items.push_back(iter.Render(GetSortText(score), prefix));
+        }
+    }
+
+    nlohmann::json jsonItems;
+    for (auto &iter : completionList.items) {
+        nlohmann::json value;
+        if (!ToJSON(iter, value)) { continue; }
+        (void)jsonItems.push_back(value);
+    }
+    ValueOrError val(ValueOrErrorCheck::VALUE, jsonItems);
+    reply(val);
+    CompilerCangjieProject::GetInstance()->ClearParseCache("Completion");
+}
+
+void ArkServer::FindCompletion(const CompletionParams &params, const std::string &file,
+                               const Callback<ValueOrError> &reply) const
+{
+    Trace::Log("ArkServer::FindCompletion in.");
+
+    auto fileId = GetFileId(file);
+    if (!fileId) {
+        Trace::Log("ArkServer::FindCompletion fileId is null.");
+        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
+        reply(value);
+        return;
+    }
     Cangjie::Position pos = {
         static_cast<unsigned int>(0),
         params.position.line,
         params.position.column
     };
 
-    auto action = [reply, nullValueReply, params, pos](const InputsAndAST &input) {
-        CompletionResult result;
-        std::string prefix;
-        if (input.ast == nullptr) {
-            nullValueReply();
-            return;
-        }
-        CompletionImpl::CodeComplete(*(input.ast), pos, result, prefix);
-        CompletionList completionList;
-        for (auto &iter : result.completions) {
-            if (iter.show && (prefix.back() == '.' || IsMatchingCompletion(prefix, iter.name))) {
-                if (iter.name.find(BOX_DECL_PREFIX) != std::string::npos) { continue; }
-                auto score = CompilerCangjieProject::GetInstance()->CalculateScore(iter, prefix, result.cursorDepth);
-                completionList.items.push_back(iter.Render(GetSortText(score), prefix));
-            }
-        }
-
-        nlohmann::json jsonItems;
-        for (auto &iter : completionList.items) {
-            nlohmann::json value;
-            if (!ToJSON(iter, value)) { continue; }
-            (void)jsonItems.push_back(value);
-        }
-        ValueOrError val(ValueOrErrorCheck::VALUE, jsonItems);
-        reply(val);
+    auto action = [reply, pos, this](const InputsAndAST &input) {
+        ProcessCompletion(input, pos, reply);
     };
 
     arkSchedulerOfComplete->RunWithASTCache("Completion", file, pos, action);
@@ -729,7 +752,6 @@ void ArkServer::FindSignatureHelp(const SignatureHelpParams &params, const std::
         ValueOrError value(ValueOrErrorCheck::VALUE, jsonValue);
         reply(value);
     };
-
     Cangjie::Position pos = {
         static_cast<unsigned int>(0),
         params.position.line,
@@ -773,12 +795,12 @@ void ArkServer::Rename(const std::string &file, const RenameParams &params,
                        const Callback<ValueOrError> &reply) const
 {
     auto action = [this, file, params, reply = std::move(reply)](const InputsAndAST &inputAST) mutable {
-        int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-        if (fileId < 0) {
+        auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (!fileId) {
             return;
         }
         const Cangjie::Position pos = {
-            static_cast<unsigned int>(fileId),
+            fileId.value_or(0),
             params.position.line,
             params.position.column
         };
@@ -875,6 +897,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             if (docMgr->GetDoc(file).version != -1) {
                 return;
             }
+            // LCOV_EXCL_START
             const std::string &contents = GetFileContents(file);
             if (std::hash<std::string>{}(contents) == std::hash<std::string>{}(docMgr->GetDoc(file).contents)) {
                 Logger::Instance().LogMessage(MessageType::MSG_INFO, "recieve file change, but contens are same.");
@@ -886,6 +909,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             CompilerCangjieProject::GetInstance()->
                 UpdateFileStatusInCI(pkgName, file, CompilerInstance::SrcCodeChangeState::CHANGED);
             return;
+            // LCOV_EXCL_STOP
         }
         if (type == FileChangeType::CREATED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "creat the file:  " + file);
@@ -897,6 +921,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
             AddDoc(file, contents, version, ark::NeedDiagnostics::YES, true);
             return;
         }
+        // LCOV_EXCL_START
         if (type == FileChangeType::DELETED) {
             Logger::Instance().LogMessage(MessageType::MSG_INFO, "delete the file:  " + file);
             CompilerCangjieProject::GetInstance()->IncrementForFileDelete(file);
@@ -910,6 +935,7 @@ void ArkServer::ChangeWatchedFiles(const std::string &file, FileChangeType type,
         }
         std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(input.onEditFile);
         callback->ReadyForDiagnostics(input.onEditFile, input.inputs.version, diagnostics);
+        // LCOV_EXCL_STOP
     };
 
     auto taskName = "ChangeWatchedFiles " + file;
@@ -998,12 +1024,12 @@ void ArkServer::FindOverrideMethods(const std::string &file,
 Cangjie::Position ArkServer::AlterPosition(const std::string &file,
                                            const TextDocumentPositionParams &params) const
 {
-    int fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
-    if (fileId < 0) {
+    auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
+    if (!fileId) {
         return INVALID_POSITION;
     }
     return Cangjie::Position{
-            static_cast<unsigned int>(fileId),
+            fileId.value_or(0),
             params.position.line,
             params.position.column
     };

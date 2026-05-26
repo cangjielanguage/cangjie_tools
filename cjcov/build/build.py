@@ -18,9 +18,7 @@ CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 # Check command
 def check_call(command):
     try:
-        env = os.environ.copy()
-        env["ZERO_AR_DATE"] = "1"
-        return subprocess.check_call(command, shell=True, env=env)
+        return subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
         return e.returncode

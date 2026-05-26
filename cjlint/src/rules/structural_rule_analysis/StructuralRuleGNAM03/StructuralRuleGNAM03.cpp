@@ -42,8 +42,8 @@ bool StructuralRuleGNAM03::IsExceptionSubclass(const ClassDecl &classDecl, std::
         if (it->ToString() == "Exception" || it->ToString() == "Error" || it->ToString() == "Throwable") {
             return true;
         }
-        if (it->ty && it->ty->kind == TypeKind::TYPE_CLASS) {
-            Ptr<ClassDecl> claDecl = StaticCast<ClassTy>(it->ty)->decl;
+        if (it->GetTy() && it->GetTy()->kind == TypeKind::TYPE_CLASS) {
+            Ptr<ClassDecl> claDecl = StaticCast<ClassTy>(it->GetTy())->decl;
             if (declSet.count(claDecl) > 0) {
                 continue;
             }

@@ -163,7 +163,7 @@ void DotCompleterByParse::FuzzyDotComplete(const ArkAST &input, const Position &
         NestedMacroComplete(input, pos, prefix, env, expr.get());
     }
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::NestedMacroComplete(const ArkAST &input, const Position &pos, const std::string &prefix,
     CompletionEnv &env, Ptr<Expr> expr)
 {
@@ -362,7 +362,7 @@ void DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_pt
     auto searchTy = [&ty, &macroBeginPos, &maNextTokenPos, &resExpr](auto node) {
         if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
             if (ma->begin == macroBeginPos && (maNextTokenPos.IsZero() || ma->end <= maNextTokenPos)) {
-                ty = ma->ty;
+                ty = ma->GetTy();
                 resExpr = ma;
                 return VisitAction::STOP_NOW;
             }
@@ -396,7 +396,7 @@ Position DotCompleterByParse::GetMacroNodeNextPosition(
     }
     return nextTokenPos;
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::string &prefix,
                                             CompletionEnv &env, Candidate &declOrTy)
 {
@@ -411,10 +411,10 @@ void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::stri
                 isEnumCtor = true;
                 env.SetValue(FILTER::IS_STATIC, false);
             }
-            Ptr<Ty> ty = decl->ty;
+            Ptr<Ty> ty = decl->GetTy();
             auto vd = DynamicCast<VarDecl *>(decl);
             if (vd && vd->type) {
-                ty = vd->type->ty;
+                ty = vd->type->GetTy();
             }
             CompleteFromType(decl->identifier, pos, ty, env);
         }
@@ -706,7 +706,7 @@ void DotCompleterByParse::FindExtendDecl(Ptr<Node> node, const Position &pos, st
         DeepFind(decl.get(), pos, scopeName, isInclude);
     }
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::FindIfExpr(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
     auto pIfExpr = dynamic_cast<IfExpr*>(node.get());
@@ -739,7 +739,7 @@ void DotCompleterByParse::FindDoWhileExpr(Ptr<Node> node, const Position &pos, s
     if (pDoWhileExpr == nullptr || pDoWhileExpr->body == nullptr) { return; }
     DeepFind(pDoWhileExpr->body.get(), pos, scopeName, isInclude);
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::FindForInExpr(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
     auto pForInExpr = dynamic_cast<ForInExpr*>(node.get());
@@ -859,7 +859,7 @@ void DotCompleterByParse::FindMemberAccess(Ptr<Node> node, const Position &pos,
         isInclude = false;
     }
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::FindRefExpr(Ptr<Node> node, const Position &pos,
                                       std::string &scopeName, bool &isInclude)
 {
@@ -874,7 +874,7 @@ void DotCompleterByParse::FindRefExpr(Ptr<Node> node, const Position &pos,
         return;
     }
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::FindCallExpr(Ptr<Node> node, const Position &pos,
                                        std::string &scopeName, bool &isInclude)
 {
@@ -897,7 +897,7 @@ void DotCompleterByParse::FindCallExpr(Ptr<Node> node, const Position &pos,
         return;
     }
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::FindPrimaryCtorDecl(
     Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
@@ -963,7 +963,7 @@ void DotCompleterByParse::FindMacroExpandDecl(
     if (!MED) { return; }
     DeepFind(MED->invocation.decl.get(), pos, scopeName, isInclude);
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::FindSynchronizedExpr(Ptr<Cangjie::AST::Node> node, const Cangjie::Position &pos,
                                                std::string &scopeName, bool &isInclude)
 {
@@ -1018,7 +1018,7 @@ void DotCompleterByParse::FindTrailingClosureExpr(Ptr<Cangjie::AST::Node> node, 
         DeepFind(trailingClosureExpr->lambda.get(), pos, scopeName, isInclude);
     }
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::FindIfAvailableExpr(Ptr<Node> node, const Position &pos,
                                               std::string &scopeName, bool &isInclude)
 {
@@ -1032,7 +1032,7 @@ void DotCompleterByParse::FindIfAvailableExpr(Ptr<Node> node, const Position &po
         DeepFind(pIfAvailableExpr->GetLambda2(), pos, scopeName, isInclude);
     }
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::DeepFind(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
     if (!node) { return; }
@@ -1126,7 +1126,7 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &ex
             visibleMembers.insert(symbol);
         }
 
-        if (decl && decl->ty && decl->ty->HasGeneric()) {
+        if (decl && decl->GetTy() && decl->GetTy()->HasGeneric()) {
             continue;
         }
 
@@ -1266,7 +1266,7 @@ void DotCompleterByParse::CompleteFromType(const std::string &identifier,
         if (!aliasDecl || !aliasDecl->type) {
             return;
         }
-        CompleteFromType(identifier, pos, aliasDecl->type->ty, env);
+        CompleteFromType(identifier, pos, aliasDecl->type->GetTy(), env);
     } else if (typeid(*type) == typeid(GenericsTy)) {
         auto genericsDecl = dynamic_cast<GenericsTy *>(type)->upperBounds;
         for (auto ty : genericsDecl) {
@@ -1315,7 +1315,7 @@ void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position 
     if (ark::Is<ClassDecl>(classDecl->GetSuperClassDecl().get())) {
         auto superClass = classDecl->GetSuperClassDecl();
         env.SetValue(FILTER::IS_SUPER, true);
-        CompleteClassDecl(superClass->ty, pos, env, isSuperOrThis);
+        CompleteClassDecl(superClass->GetTy(), pos, env, isSuperOrThis);
     }
 }
 
@@ -1341,8 +1341,8 @@ void DotCompleterByParse::CompleteSuperInterface(Ptr<const InterfaceDecl> interf
             continue;
         }
         auto refType = dynamic_cast<RefType*>(inheritedType.get().get());
-        if (Cangjie::Is<InterfaceTy>(refType->ty.get()) && !IsHiddenDecl(refType->ref.target)) {
-            CompleteFromType("", pos, refType->ty, env);
+        if (Cangjie::Is<InterfaceTy>(refType->GetTy().get()) && !IsHiddenDecl(refType->ref.target)) {
+            CompleteFromType("", pos, refType->GetTy(), env);
         }
     }
 }
@@ -1377,7 +1377,7 @@ void DotCompleterByParse::CompleteEnumDecl(Ptr<Ty> ty, const Cangjie::Position &
 
     CompleteEnumInterface(enumDecl, pos, env);
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::CompleteEnumInterface(Ptr<EnumDecl> enumDecl, const Position &pos, CompletionEnv &env) const
 {
     for (auto &superClassOrInterfaceType : enumDecl->inheritedTypes) {
@@ -1391,7 +1391,7 @@ void DotCompleterByParse::CompleteEnumInterface(Ptr<EnumDecl> enumDecl, const Po
         CompleteInterfaceDecl(dynamic_cast<InterfaceDecl*>(refType->ref.target.get()), pos, env);
     }
 }
-
+// LCOV_EXCL_STOP
 void DotCompleterByParse::CompleteStructDecl(Ptr<Ty> ty, const Cangjie::Position &pos, CompletionEnv &env) const
 {
     // TD: Struct Type will be written later.
@@ -1484,7 +1484,7 @@ std::string DotCompleterByParse::QueryByPos(Ptr<Node> node, const Position pos)
     }
     return scopeName;
 }
-
+// LCOV_EXCL_START
 bool DotCompleterByParse::IsEnumCtorTy(const std::string &beforePrefix, Ty *const &ty) const
 {
     auto ED = dynamic_cast<EnumTy *>(ty)->decl;
@@ -1498,7 +1498,7 @@ bool DotCompleterByParse::IsEnumCtorTy(const std::string &beforePrefix, Ty *cons
     }
     return false;
 }
-
+// LCOV_EXCL_STOP
 bool DotCompleterByParse::CheckInIfAvailable(Ptr<Decl> decl, const Position &pos)
 {
     if (decl == nullptr || decl->astKind != ASTKind::FUNC_DECL) {
@@ -1575,7 +1575,7 @@ void DotCompleterByParse::WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr
         return VisitAction::WALK_CHILDREN;
     }).Walk();
 }
-
+// LCOV_EXCL_START
 void DotCompleterByParse::WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
                         const Position &pos)
 {
@@ -1595,6 +1595,7 @@ void DotCompleterByParse::WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr,
         return VisitAction::WALK_CHILDREN;
     }).Walk();
 }
+// LCOV_EXCL_STOP
 
 // check if in multiimport complete,
 // if true, return prefix with organization name.

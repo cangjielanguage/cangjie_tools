@@ -57,6 +57,8 @@ private:
         Cangjie::CHIR::CustomType* customTy, std::vector<uint64_t>& path, ClassMemberVarsMap& memberVarMap);
     void CheckMemberVar(const CHIR::Store* store, ClassMemberVarsMap& memberVarMap);
     void CheckMemberVar(const CHIR::StoreElementRef* storeElementRef, ClassMemberVarsMap& memberVarMap);
+    void IncreaseAssignCountByLocation(Ptr<CHIR::Value> location, LocalVarAssignCountMap& localVarAssignCountMap);
+    Ptr<CHIR::Value> ResolveBaseVar(Ptr<CHIR::Value> value);
 
     std::set<const CHIR::Value*> varHasChanged;
     bool CheckVarHelper(const CHIR::Value* var, int& count);

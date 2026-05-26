@@ -4,13 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "InlineFunction.h"
+#include <sstream>
+#include <regex>
 #include "../../../CompilerCangjieProject.h"
 #include "../TweakRule.h"
 #include "../TweakUtils.h"
 #include "../../../common/PositionResolver.h"
-#include <sstream>
-#include <regex>
+#include "InlineFunction.h"
 
 // LCOV_EXCL_START
 namespace ark {
@@ -223,8 +223,8 @@ bool InlineFunction::HasReturnValue()
 
     if (funcDecl_->funcBody->retType) {
         auto retTy = funcDecl_->funcBody->retType.get();
-        if (retTy && retTy->ty) {
-            auto typeStr = retTy->ty->name;
+        if (retTy && retTy->GetTy()) {
+            auto typeStr = retTy->GetTy()->name;
             return typeStr != "void" && typeStr != "Unit";
         }
     }
@@ -247,11 +247,11 @@ std::string InlineFunction::GetReturnTypeString()
     }
 
     auto retTy = funcDecl_->funcBody->retType.get();
-    if (!retTy || !retTy->ty) {
+    if (!retTy || !retTy->GetTy()) {
         return "";
     }
 
-    return retTy->ty->name;
+    return retTy->GetTy()->name;
 }
 
 std::string InlineFunction::ReplaceParamsInCode(const std::string &code,
@@ -299,10 +299,10 @@ bool InlineFunction::IsComplexArg(Expr* expr)
 
 std::string InlineFunction::GetParamTypeString(FuncParam* param)
 {
-    if (!param || !param->ty) {
+    if (!param || !param->GetTy()) {
         return "";
     }
-    return param->ty->name;
+    return param->GetTy()->name;
 }
 
 void InlineFunction::ExtractParams()

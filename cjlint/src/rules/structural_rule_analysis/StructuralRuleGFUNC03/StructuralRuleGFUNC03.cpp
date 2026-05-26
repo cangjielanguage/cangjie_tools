@@ -22,7 +22,7 @@ static bool IsSubClass(Ptr<AST::Ty> base, Ptr<AST::Ty> derived)
     }
     auto classDecl = StaticCast<AST::ClassLikeDecl*>(AST::Ty::GetDeclOfTy(derived).get());
     for (auto& super : classDecl->inheritedTypes) {
-        if (IsSubClass(base, super->ty)) {
+        if (IsSubClass(base, super->GetTy())) {
             return true;
         }
     }
@@ -58,7 +58,7 @@ static bool HasParentChildTypeRelation(std::vector<Ptr<AST::Ty>>& current, std::
 void StructuralRuleGFUNC03::FuncDeclProcessor(Ptr<Node> node)
 {
     auto funcDecl = StaticCast<AST::FuncDecl*>(node);
-    auto functy = DynamicCast<AST::FuncTy*>(funcDecl->ty);
+    auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy());
     if (functy) {
         auto paramTys = functy->paramTys;
         for (auto modifier : funcDecl->modifiers) {
@@ -88,11 +88,11 @@ void StructuralRuleGFUNC03::FileProcessor(Ptr<Node> node)
     for (auto& decl : decls) {
         // The second part of the condition is for checking user code that does not conform to Cangjie syntax,
         // to prevent compilation failure.
-        if (decl->astKind != ASTKind::FUNC_DECL || decl->ty->kind != TypeKind::TYPE_FUNC) {
+        if (decl->astKind != ASTKind::FUNC_DECL || decl->GetTy()->kind != TypeKind::TYPE_FUNC) {
             continue;
         }
         auto funcDecl = StaticCast<AST::FuncDecl*>(decl.get());
-        auto functy = DynamicCast<AST::FuncTy*>(funcDecl->ty);
+        auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy());
         if (!functy) {
             continue;
         }

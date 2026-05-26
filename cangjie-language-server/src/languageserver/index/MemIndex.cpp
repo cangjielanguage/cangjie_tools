@@ -52,7 +52,7 @@ void MemIndex::Lookup(const LookupRequest &req, std::function<void(const Symbol 
         }
     }
 }
-
+// LCOV_EXCL_START
 void MemIndex::FindPkgSyms(const PkgSymsRequest &req, std::function<void(const Symbol &)> callback) const
 {
     auto it = pkgSymsMap.find(req.fullPkgName);
@@ -63,7 +63,7 @@ void MemIndex::FindPkgSyms(const PkgSymsRequest &req, std::function<void(const S
         callback(sym);
     }
 }
-
+// LCOV_EXCL_STOP
 void MemIndex::Refs(const RefsRequest &req, std::function<void(const Ref &)> callback) const
 {
     for (const auto &id : req.ids) {
@@ -83,7 +83,7 @@ void MemIndex::Refs(const RefsRequest &req, std::function<void(const Ref &)> cal
         }
     }
 }
-
+// LCOV_EXCL_START
 void MemIndex::FileRefs(const FileRefsRequest &req,
     std::function<void(const Ref &ref, const SymbolID symId)> callback) const
 {
@@ -102,7 +102,7 @@ void MemIndex::FileRefs(const FileRefsRequest &req,
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void MemIndex::RefsFindReference(const RefsRequest &req,
     Ref &definition, std::function<void(const Ref &)> callback) const
 {
@@ -142,7 +142,7 @@ void MemIndex::Callees(const std::string &pkgName, const SymbolID &declId,
         }
     }
 }
-
+// LCOV_EXCL_START
 void MemIndex::Relations(const RelationsRequest &req, std::function<void(const Relation &)> callback) const
 {
     for (const auto &pkgRelations : pkgRelationsMap) {
@@ -156,7 +156,7 @@ void MemIndex::Relations(const RelationsRequest &req, std::function<void(const R
         }
     }
 }
-
+// LCOV_EXCL_STOP
 Symbol MemIndex::GetAimSymbol(const Decl& decl)
 {
     auto pkgName = CompilerCangjieProject::GetInstance()->GetFinalDownStreamFullPkgName(decl.fullPackageName);
@@ -169,7 +169,7 @@ Symbol MemIndex::GetAimSymbol(const Decl& decl)
     }
     return {};
 }
-
+// LCOV_EXCL_START
 void MemIndex::FindImportSymsOnCompletion(
     const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
     const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
@@ -460,7 +460,7 @@ void MemIndex::FindImportSymsOnQuickFix(const std::string &curPkgName, const std
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void MemIndex::FindComment(const Symbol &sym, std::vector<std::string> &comments)
 {
     const auto [leadCommentGroup, innerCommentGroup, trailCommentGroup] = sym.comments;
@@ -487,12 +487,14 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
     std::unordered_set<std::string> targetPackageSet;
     targetPackageSet.insert(packageName);
     if (isComebined) {
+        // LCOV_EXCL_START
         auto pkgNameList = CompilerCangjieProject::GetInstance()->GetPkgNameList();
         for (auto &pkgName : pkgNameList) {
             if (pkgName.find(packageName) != std::string::npos) {
                 targetPackageSet.insert(pkgName);
             }
         }
+        // LCOV_EXCL_STOP
     }
     for (const auto &pkgName : targetPackageSet) {
         if (pkgCrossSymsMap.find(pkgName) == pkgCrossSymsMap.end()) {

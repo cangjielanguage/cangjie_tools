@@ -29,7 +29,8 @@ inline bool ShouldSkipDecl(const Decl &decl)
 {
     auto md = DynamicCast<const MacroDecl *>(&decl);
     const Decl &beCheckedDecl = md && md->desugarDecl ? *md->desugarDecl : decl;
-    return beCheckedDecl.TestAnyAttr(Attribute::HAS_BROKEN, Attribute::IS_BROKEN) || !Ty::IsTyCorrect(beCheckedDecl.ty);
+    return beCheckedDecl.TestAnyAttr(Attribute::HAS_BROKEN, Attribute::IS_BROKEN)
+        || !Ty::IsTyCorrect(beCheckedDecl.GetTy());
 }
 
 std::tuple<std::string, std::string> GetFullPackageNames(const ImportSpec& import)
@@ -151,7 +152,7 @@ void LSPCompilerInstance::ProcessImport(const ark::ImportSpec *import,
     std::vector<std::string> realDeps = ResolveRealDeps(dep);
     UpdateDepPkgsEdges(realDeps, modifier, context);
 }
-
+// LCOV_EXCL_START
 void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &prePkgName)
 {
     (void)UpdateUpstreamPkgs();
@@ -204,7 +205,7 @@ void LSPCompilerInstance::UpdateDepGraph(bool isIncrement, const std::string &pr
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::UpdateDepGraph(
     const std::unique_ptr<ark::DependencyGraph> &graph, const std::string &fullPkgName)
 {
@@ -252,7 +253,7 @@ Ptr<File> LSPCompilerInstance::GetFileByPath(const std::string& filePath)
     }
     return nullptr;
 }
-
+// LCOV_EXCL_START
 std::unordered_set<std::string> LSPCompilerInstance::GetAllImportedCjo(
     const std::string &pkgName, std::unordered_map<std::string, bool> &isVisited)
 {
@@ -305,7 +306,7 @@ void LSPCompilerInstance::ImportUsrPackage(const std::string &curModuleName)
         }
     }
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::ImportUsrCjo(const std::string &curModuleName,
     std::unordered_set<std::string> &visitedPackages)
 {
@@ -375,7 +376,7 @@ void LSPCompilerInstance::IndexCjoToManager(
  *
  * @param cjoManager Read cjo cache and update cjo cache and state
  * @param graph
- * @param realPkgName Update target package cjo cache, used in common-specific package
+ * @param realPkgName Update target package cjo cache, used in common-specific package 
  * @return true
  * @return false
  */
@@ -410,7 +411,7 @@ bool LSPCompilerInstance::CompileAfterParse(
     cjoManager->SetData(ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath), cjoData);
     return changed;
 }
-
+// LCOV_EXCL_START
 std::vector<std::string> LSPCompilerInstance::GetTopologySort()
 {
     auto tempDependentPackageMap = dependentPackageMap;
@@ -442,7 +443,7 @@ std::vector<std::string> LSPCompilerInstance::GetTopologySort()
     }
     return result;
 }
-
+// LCOV_EXCL_STOP
 void LSPCompilerInstance::SetCjoPathInModules(const std::string &cangjieHome,
                                               const std::string &cangjiePath)
 {

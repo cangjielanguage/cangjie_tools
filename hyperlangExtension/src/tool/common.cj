@@ -42,7 +42,7 @@ public let stropToken: Token = Token(TokenKind.IDENTIFIER, "?String")
 public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
-public let cangjieKeyword: Array<String> = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
+public let cangjieKeyword = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
 "do", "else", "enum", "extend", "for", "func", "false", "finally", "foreign", "Float16", "Float32", "Float64", "if",
 "in", "is", "init", "import", "interface", "Int8", "Int16", "Int32", "Int64", "IntNative", "let", "mut","main",
 "macro", "match", "Nothing", "open", "operator", "override", "prop", "public", "package", "private", "protected",

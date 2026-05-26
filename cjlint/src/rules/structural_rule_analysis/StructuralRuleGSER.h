@@ -31,8 +31,8 @@ protected:
             if ((it->ToString()).find("Serializable<") != std::string::npos) {
                 return true;
             }
-            if (it->ty && it->ty->kind == AST::TypeKind::TYPE_CLASS) {
-                auto classDecl = StaticCast<AST::ClassTy>(it->ty)->decl;
+            if (it->GetTy() && it->GetTy()->kind == AST::TypeKind::TYPE_CLASS) {
+                auto classDecl = StaticCast<AST::ClassTy>(it->GetTy())->decl;
                 if (declSet.count(classDecl) > 0) {
                     continue;
                 }
@@ -41,8 +41,8 @@ protected:
                     return true;
                 }
             }
-            if (it->ty && it->ty->kind == AST::TypeKind::TYPE_INTERFACE) {
-                auto interfaceDecl = StaticCast<AST::InterfaceTy>(it->ty)->decl;
+            if (it->GetTy() && it->GetTy()->kind == AST::TypeKind::TYPE_INTERFACE) {
+                auto interfaceDecl = StaticCast<AST::InterfaceTy>(it->GetTy())->decl;
                 if (declSet.count(interfaceDecl) > 0) {
                     continue;
                 }

@@ -1217,11 +1217,11 @@ public class SourceLocations {
     private static func below(family: Array<SourceSetEntry>, boundingSet: HashSet<Feature>): Array<SourceSetEntry> {
         let result = ArrayList<SourceSetEntry>()
         // `index` uniquely identifies an element of a family
-        for ((i, sourceSet) in family.enumerate()) {
+        for ((i, sourceSet) in family.iterator().enumerate()) {
             let featureSet = sourceSet.features
             if (boundingSet.contains(all: featureSet)) {
                 var noInbetweenSets = true
-                for ((j, midSourceSet) in family.enumerate() where i != j) {
+                for ((j, midSourceSet) in family.iterator().enumerate() where i != j) {
                     let midFeauteSet = midSourceSet.features
                     if (midFeauteSet.contains(all: featureSet) && boundingSet.contains(all: midFeauteSet)) {
                         // The `sourceSet` is not maximal in the diagram
@@ -1239,7 +1239,7 @@ public class SourceLocations {
 
     public func selectSourceSets(modulePath: String, localFeatures: HashSet<Feature>, globalFeatures: HashSet<Feature>): Result<CJMPSource, String> {
         assertion { globalFeatures.contains(all: localFeatures) }
-        let allSelected = toposort.filter { it => globalFeatures.contains(all: it.features) } |> collectArray
+        let allSelected = toposort.iterator().filter { it => globalFeatures.contains(all: it.features) } |> collectArray
         let globalBelow = below(toposort, globalFeatures)
 
         if (globalBelow.size > 1) {

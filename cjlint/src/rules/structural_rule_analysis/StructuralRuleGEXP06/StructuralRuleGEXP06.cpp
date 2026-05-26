@@ -32,10 +32,10 @@ void StructuralRuleGEXP06::CheckBinaryExpr(const Cangjie::AST::BinaryExpr &binar
     if (binaryExpr.leftExpr == nullptr || binaryExpr.rightExpr == nullptr) {
         return;
     }
-    if (binaryExpr.leftExpr->ty == nullptr || binaryExpr.rightExpr->ty == nullptr) {
+    if (binaryExpr.leftExpr->GetTy() == nullptr || binaryExpr.rightExpr->GetTy() == nullptr) {
         return;
     }
-    if (binaryExpr.leftExpr->ty->IsBoolean() && binaryExpr.rightExpr->ty->IsBoolean()) {
+    if (binaryExpr.leftExpr->GetTy()->IsBoolean() && binaryExpr.rightExpr->GetTy()->IsBoolean()) {
         if (binaryExpr.leftExpr->astKind == AST::ASTKind::LIT_CONST_EXPR ||
             binaryExpr.rightExpr->astKind == AST::ASTKind::LIT_CONST_EXPR) {
             // 2 is the length of a binary operator.

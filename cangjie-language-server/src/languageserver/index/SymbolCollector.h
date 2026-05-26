@@ -34,7 +34,7 @@ public:
 
     void Preamble(const Package& package);
 
-    void Build(const Package& package, const std::string &packagePath = "");
+    void Build(const Package& package, const std::string &packagePath="");
 
     const std::vector<Symbol>* GetSymbolMap() const
     {
@@ -227,10 +227,11 @@ private:
                 return fd->outerDecl->identifier.GetRawText();
             }
             CJC_NULLPTR_CHECK(fd->funcBody);
-            return fd->funcBody->retType && fd->funcBody->retType->ty ? fd->funcBody->retType->ty->String() : "Invalid";
+            return fd->funcBody->retType && fd->funcBody->retType->GetTy()
+                ? fd->funcBody->retType->GetTy()->String() : "Invalid";
         } else {
-            CJC_NULLPTR_CHECK(decl.ty);
-            return decl.ty->String();
+            CJC_NULLPTR_CHECK(decl.GetTy());
+            return decl.GetTy()->String();
         }
     }
 

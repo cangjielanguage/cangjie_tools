@@ -93,7 +93,7 @@ void StructuralRuleGVAR02::CollectVarDeclMap(Ptr<Node> node, size_t level)
         }
         if (node->astKind == ASTKind::VAR_DECL) {
             auto var = As<ASTKind::VAR_DECL>(node);
-            if (var->identifier.Val() == ".mtx" && var->ty && var->ty->name == "ReentrantMutex") {
+            if (var->identifier.Val() == ".mtx" && var->GetTy() && var->GetTy()->name == "ReentrantMutex") {
                 CollectVarDeclMap(var->initializer, SECOND_LEVEL);
                 return VisitAction::SKIP_CHILDREN;
             }

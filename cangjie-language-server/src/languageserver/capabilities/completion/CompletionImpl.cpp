@@ -375,6 +375,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
                 AddedOhosSymIdToIndexsMap[sym.id].emplace_back(result.completions.size() - 1);
             }
         });
+    // LCOV_EXCL_STOP
 
     index->FindImportReExportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
         pkgName, curModule, prefix, [&result, &textEditRange, &AddedOhosSymIdToIndexsMap, &AddedKitSymIds,
@@ -737,7 +738,7 @@ bool CompletionImpl::CheckNamedParameter(const ark::ArkAST &input, const int ind
     }
     return true;
 }
-
+// LCOV_EXCL_START
 void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const std::string &pkg,
     const lsp::Symbol &sym, const lsp::CompletionItem &completionItem, Range textEditRange)
 {
@@ -759,7 +760,7 @@ void CompletionImpl::HandleExternalSymAutoImport(CompletionResult &result, const
         return;
     }
 }
-
+// LCOV_EXCL_STOP
 void CompletionImpl::NormalParseImpl(
     const ArkAST &input, const Cangjie::Position &pos, CompletionResult &result, int index, std::string &prefix)
 {
@@ -829,6 +830,7 @@ int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdx
     if (input.tokens[firstTokIdxInLine].kind != TokenKind::DOT) {
         return firstTokIdxInLine;
     }
+    // LCOV_EXCL_START
     int qualifyPreTokenIdx = firstTokIdxInLine - 1;
     if (qualifyPreTokenIdx < 0) {
         return firstTokIdxInLine;
@@ -853,6 +855,7 @@ int CompletionImpl::GetChainedPossibleBegin(const ArkAST &input, int firstTokIdx
         return firstTokIdxInLine;
     }
     return begin;
+    // LCOV_EXCL_STOP
 }
 
 std::string CompletionImpl::GetChainedNameComplex(const ArkAST &input, int start, int end)

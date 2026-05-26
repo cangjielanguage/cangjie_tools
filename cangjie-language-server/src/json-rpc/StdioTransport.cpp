@@ -60,13 +60,17 @@ LSPRet StdioTransport::Loop(MessageHandler &handler)
             logger.LogMessage(MessageType::MSG_INFO, log.str());
             logger.CollectMessageInfo(logger.LogInfo(MessageType::MSG_INFO, json));
             nlohmann::json doc;
+#ifndef NO_EXCEPTIONS
             try {
+#endif
                 doc = nlohmann::json::parse(json);
+#ifndef NO_EXCEPTIONS
             } catch (nlohmann::detail::parse_error &errs) {
                 CleanAndLog(log, errs.what());
                 logger.LogMessage(MessageType::MSG_WARNING, log.str());
                 continue;
             }
+#endif
             LSPRet ret = HandleMessage(std::move(doc), handler);
             if (ret == LSPRet::NORMAL_EXIT || ret == LSPRet::ABNORMAL_EXIT) {
                 return ret;

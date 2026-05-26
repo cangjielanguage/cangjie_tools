@@ -24,6 +24,7 @@
                 <filteritem type="filepath" name="doc/.*" desc="doc目录过滤"/>
             </filefilter>
             <filefilter name="defaultPolicyFilter" desc="Files that do not need to be applied specified policy, will be merged with the filter items which has the same filefilter name">
+                <filteritem type="filepath" name=".*/doc/.*" desc="doc目录过滤"/>
 
             </filefilter>
             <filefilter name="copyrightPolicyFilter" desc="">

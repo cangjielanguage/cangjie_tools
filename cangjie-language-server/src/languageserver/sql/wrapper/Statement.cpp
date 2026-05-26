@@ -53,7 +53,9 @@ void Statement::clearBindings() noexcept { sqlite3_clear_bindings(Stmt); }
 void Statement::reset()
 {
     if (sqlite3_reset(Stmt) != SQLITE_OK) {
+#ifndef NO_EXCEPTIONS
         throw Exception(sqlite3_db_handle(Stmt), "Failed to reset statement");
+#endif
     }
 }
 
@@ -66,8 +68,10 @@ Result Statement::step()
             sqlite3_reset(Stmt);
             sqlite3_clear_bindings(Stmt);
             return Result();
+#ifndef NO_EXCEPTIONS
         default:
             throw Exception(sqlite3_db_handle(Stmt), "Failed to execute statement \"" + getExpandedSQL() + "\"");
+#endif
     }
 }
 

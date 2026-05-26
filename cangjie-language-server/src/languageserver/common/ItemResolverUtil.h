@@ -104,7 +104,7 @@ private:
 
     static void ResolveVarDeclDetail(std::string &detail, const Cangjie::AST::VarDecl &decl,
                                      Cangjie::SourceManager *sourceManager = nullptr);
-    
+
     static void ResolveFuncDeclQuickLook(std::string &detail, const Cangjie::AST::FuncDecl &decl,
                                          Cangjie::SourceManager *sourceManager = nullptr);
 
@@ -164,7 +164,7 @@ private:
                                        Cangjie::SourceManager *sourceManager = nullptr);
 
     static void ResolveBuiltInDeclDetail(std::string &detail, const Cangjie::AST::BuiltInDecl &decl);
- 
+
     static void ResolveMacroParamsInsert(std::string &detail,
                                          const std::vector<OwnedPtr<Cangjie::AST::FuncParamList>> &paramLists);
 

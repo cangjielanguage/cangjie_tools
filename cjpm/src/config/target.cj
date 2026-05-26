@@ -323,6 +323,108 @@ func verifyBinDependencies(targetInfo: TargetInfo, path: String, configFilePath:
     return flag
 }
 
+/*
+ * Normalize a target triple to its canonical form so that user-supplied aliases
+ * can be matched against the native target reported by `cjc -v`.
+ *
+ * The rules below mirror cjc's own triple normalization:
+ *
+ *   - Architecture aliasing: `arm64` is an alias of `aarch64`.
+ *
+ *   - Vendor segment:
+ *       * On Linux GNU / Windows / Android triples, `unknown` is optional and
+ *         is treated as if it were always present (we normalize to the form
+ *         that includes it).
+ *       * On OHOS triples, `unknown` is also optional, but the canonical form
+ *         is the one WITHOUT it (we normalize to the bare `<arch>-linux-ohos`).
+ *       * On Windows triples, `pc` is optional in the same way.
+ *
+ *   - Windows / mingw triples: mingw-style names such as `x86_64-w64-mingw32`
+ *     and `x86_64-pc-w64-mingw32` are equivalent to `x86_64-pc-windows-gnu`.
+ *
+ *   - Android API-level suffix (`-android<number>`, e.g. `android21`):
+ *     the number is OPTIONAL syntactically (both `-android` and `-android21`
+ *     are valid target names), but it is NOT a normalization wildcard:
+ *       * A triple WITHOUT a number and a triple WITH a number are NOT equivalent.
+ *       * Triples with DIFFERENT numbers are NOT equivalent.
+ *     The full `-android[<number>]` suffix is therefore preserved verbatim in
+ *     the normalized form.
+ *
+ *   - Apple iOS version suffix (`-ios<number-with-dot>`, e.g. `ios17.5`):
+ *     same policy as Android. The version part is syntactically optional,
+ *     but distinct versions (including the empty version) are NOT equivalent,
+ *     so the `-ios[<number-with-dot>]` suffix is preserved verbatim. The same
+ *     policy applies to the iOS simulator variant ending in `-simulator`.
+ *
+ * If the input does not match any known pattern, it is returned unchanged so
+ * that callers can fall back to literal comparison.
+ */
+public func normalizeTarget(target: String): String {
+    let parts = target.split("-")
+    if (parts.size < 2) {
+        return target
+    }
+
+    let arch = if (parts[0] == "arm64") {
+        "aarch64"
+    } else {
+        parts[0]
+    }
+
+    var hasW64 = false
+    var hasMingw32 = false
+    var hasWindows = false
+    var hasApple = false
+    var hasLinux = false
+    for (p in parts) {
+        match (p) {
+            case "w64" => hasW64 = true
+            case "mingw32" => hasMingw32 = true
+            case "windows" => hasWindows = true
+            case "apple" => hasApple = true
+            case "linux" => hasLinux = true
+            case _ => ()
+        }
+    }
+
+    if (hasWindows || (hasW64 && hasMingw32)) {
+        return "${arch}-pc-windows-gnu"
+    }
+
+    let last = parts[parts.size - 1]
+
+    if (hasLinux) {
+        if (last == "gnu") {
+            return "${arch}-unknown-linux-gnu"
+        }
+        if (last == "ohos") {
+            return "${arch}-linux-ohos"
+        }
+        // `-android[<number>]`: keep the suffix verbatim, since distinct
+        // numbers (and the empty number) are NOT equivalent triples.
+        if (last.startsWith("android")) {
+            return "${arch}-linux-${last}"
+        }
+    }
+
+    if (hasApple) {
+        if (last == "darwin") {
+            return "${arch}-apple-darwin"
+        }
+        if (last == "simulator" && parts.size >= 3) {
+            let osPart = parts[parts.size - 2]
+            return "${arch}-apple-${osPart}-simulator"
+        }
+        // `-ios[<number-with-dot>]`: keep the suffix verbatim, since distinct
+        // versions (and the empty version) are NOT equivalent triples.
+        if (last.startsWith("ios")) {
+            return "${arch}-apple-${last}"
+        }
+    }
+
+    return target
+}
+
 public func combineDependencies(path: String, oriDeps: HashMap<String, DepInfo>, newDeps: HashMap<String, DepInfo>,
     targetName: String): Bool {
     for ((depName, newDep) in newDeps) {

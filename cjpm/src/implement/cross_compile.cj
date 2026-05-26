@@ -34,34 +34,6 @@ func appendNativeData(buildConfig: BuildConfig, data: ModuleResolve): Unit {
     return
 }
 
-func collectMacroCjoTime(buildConfig: BuildConfig, pkgName: String): Unit {
-    let rootPkgName: String = pkgName.split(".")[0]
-    let nativeCjoFile: String = Path(buildConfig.globalConfig.nativeDir)
-        .join(rootPkgName)
-        .join("${pkgName}.cjo")
-        .toString()
-    if (!fileExists(nativeCjoFile)) {
-        buildConfig.rebuildList.add(pkgName)
-        return
-    }
-
-    if (buildConfig.targetMacroMods.contains(rootPkgName) || buildConfig.targetMacroPkgs.contains(pkgName)) {
-        let targetCjoFile: String = Path(buildConfig.globalConfig.targetDir)
-            .join(rootPkgName)
-            .join("${pkgName}.cjo")
-            .toString()
-        if (!fileExists(targetCjoFile)) {
-            buildConfig.rebuildList.add(pkgName)
-        } else {
-            buildConfig.cjoTimeMap[pkgName] = max(
-                FileInfo(nativeCjoFile).lastModificationTime.toUnixTimeStamp().toSeconds(),
-                FileInfo(targetCjoFile).lastModificationTime.toUnixTimeStamp().toSeconds())
-        }
-    } else {
-        buildConfig.cjoTimeMap[pkgName] = FileInfo(nativeCjoFile).lastModificationTime.toUnixTimeStamp().toSeconds()
-    }
-}
-
 func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto: Bool): ArrayList<String> {
     let binOptions = ArrayList<String>()
     for ((_, eachModuleDepMap) in res.binDeps) {

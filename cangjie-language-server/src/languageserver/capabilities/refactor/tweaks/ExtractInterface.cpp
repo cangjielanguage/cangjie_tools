@@ -4,21 +4,21 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "ExtractInterface.h"
-#include "../../../CompilerCangjieProject.h"
-#include "../../../capabilities/reference/FindReferencesImpl.h"
-#include "../../../common/FindDeclUsage.h"
-#include "../../../common/ItemResolverUtil.h"
-#include "../../../common/Utils.h"
-#include "../TweakUtils.h"
-#include "../TweakRule.h"
-#include "cangjie/Utils/FileUtil.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <sstream>
+#include "../../../CompilerCangjieProject.h"
+#include "../../../capabilities/reference/FindReferencesImpl.h"
+#include "../../../common/FindDeclUsage.h"
+#include "../../../common/ItemResolverUtil.h"
+#include "../../../common/Utils.h"
+#include "../TweakRule.h"
+#include "../TweakUtils.h"
+#include "ExtractInterface.h"
+#include "cangjie/Utils/FileUtil.h"
 
 namespace ark {
 using namespace Cangjie;
@@ -29,7 +29,7 @@ constexpr const char *INTERFACE_MEMBER_INDENT = "    ";
 constexpr const char *INHERITED_MEMBER_PREFIX = "<:";
 constexpr const char *FILE_URI_PREFIX = "file:/";
 constexpr const char *DOC_COMMENT_PREFIX = "/**";
-
+// LCOV_EXCL_BR_START
 enum class TargetKind {
     CLASS,
     STRUCT,
@@ -105,7 +105,7 @@ struct TextMutation {
     size_t end = 0;
     std::string text;
 };
-
+// LCOV_EXCL_BR_STOP
 void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context);
 
 std::string GetVisibility(const Cangjie::AST::Decl &decl)
@@ -153,7 +153,7 @@ std::string ResolveFuncSignature(const FuncDecl &func, SourceManager *sm)
     }
     return signature;
 }
-
+// LCOV_EXCL_START
 std::string ExtractFuncBodyText(const FuncDecl &func, SourceManager *sm)
 {
     if (!sm) {
@@ -174,7 +174,7 @@ std::string ExtractFuncBodyText(const FuncDecl &func, SourceManager *sm)
     }
     return "";
 }
-// LCOV_EXCL_START
+
 void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup> &groupList)
 {
     for (const auto &group : groupList) {
@@ -215,7 +215,7 @@ std::string ExtractDeclCommentText(const Cangjie::AST::Decl &decl)
     }
     return result;
 }
-
+// LCOV_EXCL_BR_START
 void AppendMemberJson(std::string &membersJson,
                       bool &first,
                       const std::string &signature,
@@ -229,7 +229,7 @@ void AppendMemberJson(std::string &membersJson,
     membersJson += "{\"signature\":\"" + EscapeJsonString(signature) + "\",\"isStatic\":" +
         std::string(isStatic ? "true" : "false") + ",\"visibility\":\"" + EscapeJsonString(visibility) + "\"}";
 }
-
+// LCOV_EXCL_BR_STOP
 std::optional<TargetDecl> BuildClassTargetDecl(Cangjie::AST::ClassDecl *decl)
 {
     if (decl == nullptr) {
@@ -308,8 +308,8 @@ std::string ResolveExtendTargetName(const Cangjie::AST::ExtendDecl &decl)
             extendName = extendName.substr(0, genericPos);
         }
     }
-    if (extendName.empty() && decl.extendedType && decl.extendedType->ty) {
-        extendName = Trim(decl.extendedType->ty->name);
+    if (extendName.empty() && decl.extendedType && decl.extendedType->GetTy()) {
+        extendName = Trim(decl.extendedType->GetTy()->name);
     }
     return extendName;
 }
@@ -330,7 +330,7 @@ std::optional<TargetDecl> BuildExtendTargetDecl(Cangjie::AST::ExtendDecl *decl)
         ResolveExtendTargetName(*decl)
     };
 }
-
+// LCOV_EXCL_BR_START
 std::optional<TargetDecl> BuildTargetDecl(Cangjie::AST::Decl *decl)
 {
     if (auto *classDecl = dynamic_cast<Cangjie::AST::ClassDecl *>(decl)) {
@@ -446,7 +446,7 @@ std::string GetGenericListForDecl(DeclType *decl)
     }
     return ItemResolverUtil::GetGenericParamByDecl(decl->generic.get());
 }
-
+// LCOV_EXCL_BR_STOP
 template <typename DeclType>
 std::string GetGenericWhereClauseForDecl(DeclType *decl, SourceManager *sm)
 {
@@ -671,30 +671,30 @@ std::string ResolveInheritedTypeText(const Ptr<Type> &inherited, SourceManager *
     if (sm) {
         typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
     }
-    if (typeName.empty() && inherited->ty) {
-        typeName = Trim(inherited->ty->String());
+    if (typeName.empty() && inherited->GetTy()) {
+        typeName = Trim(inherited->GetTy()->String());
     }
     return typeName;
 }
 
 bool IsInterfaceInheritedType(const Ptr<Type> &inherited)
 {
-    if (!inherited || !inherited->ty || inherited->ty->IsObject()) {
+    if (!inherited || !inherited->GetTy() || inherited->GetTy()->IsObject()) {
         return false;
     }
-    auto decl = Ty::GetDeclPtrOfTy(inherited->ty);
+    auto decl = Ty::GetDeclPtrOfTy(inherited->GetTy());
     return DynamicCast<InterfaceDecl *>(decl) != nullptr;
 }
-
+// LCOV_EXCL_START
 std::vector<InterfaceDecl *> CollectDirectInheritedInterfaceDecls(InheritableDecl &decl)
 {
     std::vector<InterfaceDecl *> inheritedInterfaces;
     std::unordered_set<InterfaceDecl *> seen;
     for (auto &inherited : decl.inheritedTypes) {
-        if (!inherited || !inherited->ty || inherited->ty->IsObject()) {
+        if (!inherited || !inherited->GetTy() || inherited->GetTy()->IsObject()) {
             continue;
         }
-        auto interfaceDecl = DynamicCast<InterfaceDecl *>(Ty::GetDeclPtrOfTy(inherited->ty));
+        auto interfaceDecl = DynamicCast<InterfaceDecl *>(Ty::GetDeclPtrOfTy(inherited->GetTy()));
         if (!interfaceDecl || !seen.insert(interfaceDecl).second) {
             continue;
         }
@@ -702,7 +702,7 @@ std::vector<InterfaceDecl *> CollectDirectInheritedInterfaceDecls(InheritableDec
     }
     return inheritedInterfaces;
 }
-
+// LCOV_EXCL_STOP
 std::unordered_set<std::string> ParseSelectedInheritedMemberTypes(const std::unordered_set<std::string> &chosen)
 {
     std::unordered_set<std::string> selectedTypes;
@@ -730,7 +730,7 @@ void CollectInheritedTypesForExtract(const Cangjie::AST::InheritableDecl &decl,
         if (!inherited) {
             continue;
         }
-        if (inherited->ty && inherited->ty->IsObject()) {
+        if (inherited->GetTy() && inherited->GetTy()->IsObject()) {
             continue;
         }
         std::string typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
@@ -756,7 +756,7 @@ void CollectInheritedTypesForExtract(const Cangjie::AST::ExtendDecl &decl,
         if (!inherited) {
             continue;
         }
-        if (inherited->ty && inherited->ty->IsObject()) {
+        if (inherited->GetTy() && inherited->GetTy()->IsObject()) {
             continue;
         }
         std::string typeName = Trim(sm->GetContentBetween(inherited->GetBegin(), inherited->GetEnd()));
@@ -784,8 +784,7 @@ std::string NormalizeTargetPath(const std::map<std::string, std::string> &option
     }
     return FileStore::NormalizePath(targetPath);
 }
-// LCOV_EXCL_STOP
-// LCOV_EXCL_START
+
 std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableLeadingCommentsRange(
     const Cangjie::AST::Decl &decl)
 {
@@ -886,7 +885,7 @@ bool IsValidPackageName(const std::string &packageName)
            packageName.find('\\') == std::string::npos &&
            packageName.find(':') == std::string::npos;
 }
-
+// LCOV_EXCL_BR_START
 std::string ResolveTargetPackageName(const std::string &targetPath)
 {
     if (targetPath.empty()) {
@@ -1031,7 +1030,7 @@ bool HasImportForInterface(const File &file, const std::string &fullSym, const s
     }
     return false;
 }
-
+// LCOV_EXCL_BR_STOP
 // LCOV_EXCL_START
 std::optional<TextEdit> BuildImportInterfaceEdit(const Tweak::Selection &sel,
                                                  const std::string &targetPath,
@@ -1169,8 +1168,7 @@ std::optional<Range> GetNameReferenceRange(const NameReferenceExpr &refExpr)
     exprRange.end.column += static_cast<int>(nameLength);
     return exprRange;
 }
-
-// LCOV_EXCL_START
+// LCOV_EXCL_BR_START
 bool IsMatchingNonTypeReference(const Node &node, const Decl &targetDecl, const Range &referenceRange)
 {
     auto refExpr = DynamicCast<const NameReferenceExpr*>(&node);
@@ -1324,7 +1322,8 @@ bool ShouldExcludeTypeReferenceReplacement(const Node &node, const Range &refere
     }).Walk();
     return shouldExclude;
 }
-
+// LCOV_EXCL_BR_STOP
+// LCOV_EXCL_START
 char PreviousNonWhitespaceChar(const std::string &text)
 {
     for (auto it = text.rbegin(); it != text.rend(); ++it) {
@@ -1365,7 +1364,7 @@ bool IsLikelyTypeReferenceText(const ArkAST &ast, const Range &referenceRange)
 
     return isLeftTypeContext(left) || isRightTypeContext(right);
 }
-
+// LCOV_EXCL_STOP
 std::optional<TextEdit> BuildTypeReplacementEditForLocation(const Location &location,
                                                             const TypeReplacementContext &context,
                                                             std::optional<TextEdit> &importEdit)
@@ -1417,9 +1416,8 @@ std::optional<TextEdit> BuildTypeReplacementEditForLocation(const Location &loca
     }
     return TextEdit{location.range, context.interfaceName};
 }
-// LCOV_EXCL_STOP
 
-// LCOV_EXCL_START
+// LCOV_EXCL_BR_START
 std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceManager *sm)
 {
     if (!sm || !func.TestAttr(Cangjie::AST::Attribute::PROTECTED)) {
@@ -1466,7 +1464,7 @@ std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceM
     range = TransformFromChar2IDE(range);
     return TextEdit{range, "public"};
 }
-
+// LCOV_EXCL_BR_STOP
 std::optional<TextEdit> BuildInternalToPublicEdit(const FuncDecl &func, SourceManager *sm)
 {
     if (!sm || !func.TestAttr(Cangjie::AST::Attribute::INTERNAL)) {
@@ -1716,22 +1714,21 @@ TextEdit BuildInsertAtDeclTail(const Cangjie::AST::Decl &decl, SourceManager *sm
     tailEdit.newText = appendText;
     return tailEdit;
 }
-// LCOV_EXCL_STOP
-
+// LCOV_EXCL_START
 bool HasRealInheritedType(const Cangjie::AST::InheritableDecl &decl)
 {
     for (auto &ty : decl.inheritedTypes) {
         if (!ty) {
             continue;
         }
-        if (!ty->ty || !ty->ty->IsObject()) {
+        if (!ty->GetTy() || !ty->GetTy()->IsObject()) {
             return true;
         }
     }
     return false;
 }
-
-// LCOV_EXCL_START
+// LCOV_EXCL_STOP
+// LCOV_EXCL_BR_START
 template <typename TypeDecl>
 void CollectMembersFromType(TypeDecl &decl, const Tweak::Selection &sel, InterfaceInfo &info)
 {
@@ -1802,7 +1799,7 @@ size_t CountExtractableMembers(const TargetDecl &target)
             return 0;
     }
 }
-
+// LCOV_EXCL_BR_STOP
 class ExtractInterfaceSelectionRule : public TweakRule {
 public:
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
@@ -1831,7 +1828,7 @@ public:
         return true;
     }
 };
-
+// LCOV_EXCL_START
 void AddPrivateMemberRemovalEdit(const FuncDecl &func, SourceManager *sm, std::vector<TextEdit> &edits)
 {
     Cangjie::Position begin = func.GetBegin();
@@ -1849,7 +1846,7 @@ void AddPrivateMemberRemovalEdit(const FuncDecl &func, SourceManager *sm, std::v
     removeRange = TransformFromChar2IDE(removeRange);
     edits.push_back({removeRange, ""});
 }
-
+// LCOV_EXCL_STOP
 bool AddInterfaceMemberEdits(const FuncDecl &func,
                              SourceManager *sm,
                              const SelectedEditsRequest &request,
@@ -2041,7 +2038,6 @@ void CollectSelectedEditsFromTarget(const TargetDecl &target, SelectedEditsReque
             return;
     }
 }
-// LCOV_EXCL_STOP
 
 std::unordered_map<std::string, const InterfaceInfo::MemberMeta *> BuildMemberMetaMap(const InterfaceInfo &info)
 {
@@ -2145,7 +2141,7 @@ void AddImplementationMemberMutations(const ApplyContext &context,
         }
     }
 }
-
+// LCOV_EXCL_BR_START
 void ApplyTextMutations(std::string &text, std::vector<TextMutation> &mutations)
 {
     std::sort(mutations.begin(), mutations.end(), [](const auto &lhs, const auto &rhs) {
@@ -2323,7 +2319,7 @@ ClassInheritUpdate CollectClassInheritUpdate(Cangjie::AST::InheritableDecl &decl
 {
     ClassInheritUpdate update;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         update.hasRealInherited = true;
@@ -2373,7 +2369,6 @@ void AddInterfaceTypeIfNeeded(ClassInheritUpdate &update, const std::string &int
     }
 }
 
-// LCOV_EXCL_START
 TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
                                         SourceManager *sm,
                                         const InterfaceInfo &info)
@@ -2395,7 +2390,8 @@ TextEdit BuildClassImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
     edit.newText = std::move(replacedText);
     return edit;
 }
-
+// LCOV_EXCL_BR_STOP
+// LCOV_EXCL_START
 bool IsSameTypeName(const std::string &lhs, const std::string &rhs)
 {
     std::string lhsTrim = Trim(lhs);
@@ -2411,7 +2407,7 @@ bool AlreadyInheritsInterface(Cangjie::AST::InheritableDecl &decl,
                               const std::string &interfaceTypeName)
 {
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         if (IsSameTypeName(ResolveInheritedTypeText(ty, sm), interfaceTypeName)) {
@@ -2425,7 +2421,7 @@ Cangjie::Position FindLastRealInheritedTypeEnd(Cangjie::AST::InheritableDecl &de
 {
     Cangjie::Position tail = Cangjie::INVALID_POSITION;
     for (auto &ty : decl.inheritedTypes) {
-        if (!ty || (ty->ty && ty->ty->IsObject())) {
+        if (!ty || (ty->GetTy() && ty->GetTy()->IsObject())) {
             continue;
         }
         tail = ty->GetEnd();
@@ -2454,7 +2450,7 @@ TextEdit BuildGeneralImplementsClauseEdit(Cangjie::AST::InheritableDecl &decl,
     edit.newText = " & " + interfaceTypeName;
     return edit;
 }
-
+// LCOV_EXCL_STOP
 TextEdit InsertImplementsClause(Cangjie::AST::InheritableDecl &decl,
                                 const Tweak::Selection &sel,
                                 const InterfaceInfo &info)
@@ -2538,7 +2534,6 @@ void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &ta
     effect.documentChanges.push_back(std::move(textEditJson));
 }
 
-// LCOV_EXCL_STOP
 void InitializeApplyContext(ApplyContext &context)
 {
     context.info.genericParams = ResolveTargetGenericParams(context.target);
@@ -2782,11 +2777,10 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
     AddTypeReferenceReplacementEdits(context);
     return context.effect;
 }
-// LCOV_EXCL_STOP
 
 namespace {
 
-// LCOV_EXCL_START
+// LCOV_EXCL_BR_START
 std::set<Location> ParseSelectedTypeReferences(const std::map<std::string, std::string> &options)
 {
     std::set<Location> selectedReferences;
@@ -2901,6 +2895,6 @@ void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context)
         AddTypeReplacementEditForReference(context, normalizedLocation);
     }
 }
-// LCOV_EXCL_STOP
+// LCOV_EXCL_BR_STOP
 
 } // namespace ark

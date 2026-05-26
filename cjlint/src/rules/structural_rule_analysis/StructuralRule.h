@@ -41,7 +41,7 @@ protected:
     void Diagnose(const std::string filePath, int line, int column, CodeCheckDiagKind kind, const Args... args)
     {
         Cangjie::Position pos;
-        pos.fileID = static_cast<unsigned int>(diagEngine->GetSourceManager().GetFileID(filePath));
+        pos.fileID = diagEngine->GetSourceManager().TryGetFileID(filePath).value_or(0);
         pos.line = line;
         pos.column = column;
         diagEngine->Diagnose(pos, kind, args...);
@@ -51,10 +51,10 @@ protected:
         const Args... args)
     {
         Cangjie::Position start, end;
-        start.fileID = static_cast<unsigned int>(diagEngine->GetSourceManager().GetFileID(filePath));
+        start.fileID = diagEngine->GetSourceManager().TryGetFileID(filePath).value_or(0);
         start.line = line;
         start.column = column;
-        end.fileID = static_cast<unsigned int>(diagEngine->GetSourceManager().GetFileID(filePath));
+        end.fileID = diagEngine->GetSourceManager().TryGetFileID(filePath).value_or(0);
         end.line = endLine;
         end.column = endColumn;
         diagEngine->Diagnose(start, end, kind, args...);

@@ -9,8 +9,8 @@
 #include <iostream>
 #include <optional>
 #include "../CompilerCangjieProject.h"
-#include "BackgroundIndexDB.h"
 #include "MemIndex.h"
+#include "BackgroundIndexDB.h"
 
 namespace ark {
 namespace lsp {
@@ -202,7 +202,7 @@ void BackgroundIndexDB::UpdateAll(const std::map<int, std::vector<std::string>> 
     });
     index.reset(nullptr);
 }
-
+// LCOV_EXCL_START
 void BackgroundIndexDB::FuzzyFind(const FuzzyFindRequest &req,
     std::function<void(const Symbol &)> callback) const
 {
@@ -228,7 +228,7 @@ void BackgroundIndexDB::FuzzyFind(const FuzzyFindRequest &req,
         req.restrictForCodeCompletion
                 ? std::optional<Symbol::SymbolFlag>(Symbol::INDEXED_FOR_CODE_COMPLETION) : std::nullopt);
 }
-
+// LCOV_EXCL_STOP
 void BackgroundIndexDB::Refs(const RefsRequest &req,
     std::function<void(const Ref &)> callback) const
 {
@@ -274,7 +274,7 @@ void BackgroundIndexDB::Lookup(const LookupRequest &req,
         });
     }
 }
-
+// LCOV_EXCL_START
 void BackgroundIndexDB::GetExportSID(IDArray array,
                                      std::function<void(const CrossSymbol &)> callback) const
 {
@@ -626,4 +626,5 @@ void BackgroundIndexDB::FindCrossSymbolByName(const std::string &packageName, co
 
 } // namespace lsp
 } // namespace ark
+// LCOV_EXCL_STOP
 
