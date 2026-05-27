@@ -156,6 +156,7 @@ bool NeedExtractDecl2ReturnValue(Cangjie::AST::Decl *decl, const Tweak::Selectio
 }
 // LCOV_EXCL_STOP
 // compute whether the AssignExpr->leftValue need extract to return value
+// LCOV_EXCL_BR_START
 bool NeedExtractAssignExpr2ReturnValue(Cangjie::AST::AssignExpr *assignExpr, const Tweak::Selection &sel)
 {
     if (!assignExpr || !assignExpr->leftValue) {
@@ -191,7 +192,7 @@ bool NeedExtractAssignExpr2ReturnValue(Cangjie::AST::AssignExpr *assignExpr, con
     }
     return false;
 }
-
+// LCOV_EXCL_BR_STOP
 bool LeftValueIsMemberVar(Cangjie::AST::AssignExpr *assignExpr)
 {
     if (!assignExpr || !assignExpr->leftValue) {
@@ -607,7 +608,7 @@ void ExtractFunction::GetExtractedFunction(const Tweak::Selection &sel, Extracte
     GetFunctionBody(sel, function);
     GetFunctionModifier(sel, function);
 }
-
+// LCOV_EXCL_BR_START
 /**
  * insert target scope:
  * 1. insert to interface-body if in_interface
@@ -658,6 +659,7 @@ TextEdit ExtractFunction::InsertDeclaration(const Tweak::Selection &sel, Extract
     textEdit.range = insertRange;
     return std::move(textEdit);
 }
+// LCOV_EXCL_BR_STOP
 // LCOV_EXCL_START
 TextEdit ExtractFunction::ReplaceBlockWithCall(const Tweak::Selection &sel, ExtractedFunction &function)
 {

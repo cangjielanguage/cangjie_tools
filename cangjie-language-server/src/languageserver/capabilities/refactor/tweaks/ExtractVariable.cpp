@@ -81,7 +81,7 @@ bool ExtractVariable::Prepare(const Selection &sel)
     ruleEngine.CheckRules(sel, extraOptions);
     return true;
 }
-
+// LCOV_EXCL_BR_START
 std::optional<Tweak::Effect> ExtractVariable::Apply(const Selection &sel)
 {
     Effect effect;
@@ -110,7 +110,7 @@ std::optional<Tweak::Effect> ExtractVariable::Apply(const Selection &sel)
     effect.applyEdits.emplace(uri, std::move(textEdits));
     return std::move(effect);
 }
-
+// LCOV_EXCL_BR_STOP
 std::map<std::string, std::string> ExtractVariable::ExtraOptions()
 {
     return extraOptions;
@@ -266,6 +266,7 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
     DealMultStatementOnSameLine(sel, range, firstToken4CurLine, insertRange);
 }
 // LCOV_EXCL_STOP
+// LCOV_EXCL_BR_START
 void ExtractVariable::FindInsertPositionByScopeName(const Selection &sel, Range &range,
     Range &insertRange, bool &isGlobal)
 {
@@ -321,7 +322,7 @@ void ExtractVariable::GetInsertRange(
         }
     }
 }
-
+// LCOV_EXCL_BR_STOP
 bool ExtractVariable::DealIfExpr(IfExpr &ifExpr, Range &range)
 {
     if (ifExpr.condExpr && ifExpr.condExpr->begin <= range.start

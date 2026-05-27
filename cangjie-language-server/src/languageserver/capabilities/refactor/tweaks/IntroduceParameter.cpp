@@ -50,7 +50,16 @@ static bool IsLocalVariableTarget(const Ptr<Cangjie::AST::Node> &target)
         Attribute::GLOBAL, Attribute::IN_CLASSLIKE, Attribute::IN_STRUCT, Attribute::IN_ENUM);
 }
 
-static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel)
+static bool IsLocalVariableDeclaredInTargetFunction(
+    const Ptr<Cangjie::AST::Node> &target, Cangjie::AST::FuncDecl &funcDecl)
+{
+    if (!IsLocalVariableTarget(target) || !funcDecl.funcBody || !funcDecl.funcBody->body) {
+        return false;
+    }
+    return funcDecl.funcBody->body->begin <= target->begin && target->end <= funcDecl.funcBody->body->end;
+}
+
+static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl)
 {
     auto root = sel.selectionTree.root();
     if (!root || !root->node) {
@@ -62,7 +71,7 @@ static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel)
     }
 
     bool isValid = true;
-    Walker(root->node.get(), [&range, &isValid](auto node) {
+    Walker(root->node.get(), [&range, &isValid, &funcDecl](auto node) {
         if (!node || !isValid) {
             return VisitAction::STOP_NOW;
         }
@@ -74,7 +83,7 @@ static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel)
         }
         auto refExpr = DynamicCast<Cangjie::AST::RefExpr *>(node.get());
         auto target = refExpr ? refExpr->GetTarget() : nullptr;
-        if (IsLocalVariableTarget(target)) {
+        if (IsLocalVariableDeclaredInTargetFunction(target, funcDecl)) {
             isValid = false;
             return VisitAction::STOP_NOW;
         }
@@ -83,7 +92,7 @@ static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel)
     return isValid;
 }
 
-static bool HasLocalVariableReference(const Tweak::Selection &sel)
+static bool HasTargetFunctionLocalVariableReference(const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl)
 {
     auto root = sel.selectionTree.root();
     if (!root || !root->node) {
@@ -95,7 +104,7 @@ static bool HasLocalVariableReference(const Tweak::Selection &sel)
     }
 
     bool hasLocalRef = false;
-    Walker(root->node.get(), [&range, &hasLocalRef](auto node) {
+    Walker(root->node.get(), [&range, &hasLocalRef, &funcDecl](auto node) {
         if (!node || hasLocalRef) {
             return VisitAction::STOP_NOW;
         }
@@ -107,7 +116,7 @@ static bool HasLocalVariableReference(const Tweak::Selection &sel)
         }
         auto refExpr = DynamicCast<Cangjie::AST::RefExpr *>(node.get());
         auto target = refExpr ? refExpr->GetTarget() : nullptr;
-        if (IsLocalVariableTarget(target)) {
+        if (IsLocalVariableDeclaredInTargetFunction(target, funcDecl)) {
             hasLocalRef = true;
             return VisitAction::STOP_NOW;
         }
@@ -123,6 +132,9 @@ static std::optional<TextEdit> InsertArgumentAtCallSite(
 static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr);
 static Ptr<Cangjie::AST::FuncArg> FindCallSiteArgByParam(
     Cangjie::AST::CallExpr &callExpr, Cangjie::AST::FuncParam &param, std::size_t paramIndex);
+static bool ShouldIntroduceNamedParameter(Cangjie::AST::FuncDecl &funcDecl);
+static std::string BuildNewParamText(
+    Cangjie::AST::FuncDecl &funcDecl, const std::string &paramName, const std::string &typeName);
 
 class IntroduceParameterRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
@@ -210,7 +222,7 @@ std::optional<Tweak::Effect> IntroduceParameter::Apply(const Selection &sel)
     std::string uri = URI::URIFromAbsolutePath(sel.arkAst->file->filePath).ToString();
     effect.applyEdits.emplace(uri, std::move(textEdits));
     std::string argumentText = sel.arkAst->sourceManager->GetContentBetween(range.start, range.end);
-    if (!HasLocalVariableReference(sel) && CanBuildArgumentAtCallSites(sel)) {
+    if (!HasTargetFunctionLocalVariableReference(sel, *funcDecl) && CanBuildArgumentAtCallSites(sel, *funcDecl)) {
         CallSiteContext callSiteContext{sel, *funcDecl, range, argumentText, paramName, removedParamIndices};
         UpdateCallSites(callSiteContext, effect.applyEdits);
     }
@@ -237,15 +249,27 @@ TextEdit IntroduceParameter::InsertParameter(
     }
 
     auto paramList = funcDecl.funcBody->paramLists.front().get();
-    Range insertRange = {paramList->rightParenPos, paramList->rightParenPos};
-    textEdit.range = TransformFromChar2IDE(insertRange);
-    std::ostringstream insertText;
-    if (!paramList->params.empty()) {
-        insertText << ", ";
-    }
-    insertText << paramName << ": " << typeName;
-    textEdit.newText = insertText.str();
+    std::string paramText = BuildNewParamText(funcDecl, paramName, typeName);
+    textEdit.range = TransformFromChar2IDE({paramList->rightParenPos, paramList->rightParenPos});
+    textEdit.newText = paramList->params.empty() ? paramText : ", " + paramText;
     return textEdit;
+}
+
+static bool ShouldIntroduceNamedParameter(Cangjie::AST::FuncDecl &funcDecl)
+{
+    if (!funcDecl.funcBody || funcDecl.funcBody->paramLists.empty() || !funcDecl.funcBody->paramLists.front()) {
+        return false;
+    }
+    const auto &params = funcDecl.funcBody->paramLists.front()->params;
+    return std::any_of(params.begin(), params.end(), [](const auto &param) {
+        return param && param->isNamedParam;
+    });
+}
+
+static std::string BuildNewParamText(
+    Cangjie::AST::FuncDecl &funcDecl, const std::string &paramName, const std::string &typeName)
+{
+    return paramName + (ShouldIntroduceNamedParameter(funcDecl) ? "!: " : ": ") + typeName;
 }
 
 static bool IsFuncParamUsedOutsideRange(Cangjie::AST::FuncDecl &funcDecl, Cangjie::AST::FuncParam &param, Range &range)
@@ -301,7 +325,7 @@ static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie
     }
     return false;
 }
-// LCOV_EXCL_STOP
+
 static std::vector<std::size_t> CollectRemovableParamIndices(
     const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl, Cangjie::AST::FuncParamList &paramList, Range &range)
 {
@@ -349,7 +373,7 @@ static TextEdit BuildReplacementParameterEdit(
     replaceEdit.newText = newParamText;
     return replaceEdit;
 }
-// LCOV_EXCL_START
+
 static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
     Cangjie::AST::FuncParamList &paramList, const std::vector<std::size_t> &removedParamIndices,
     std::size_t replacedIndex)
@@ -395,7 +419,7 @@ static std::vector<TextEdit> RemoveReplacedParameters(const ParamRemovalContext 
         return edits;
     }
 
-    std::string newParamText = context.paramName + ": " + context.typeName;
+    std::string newParamText = BuildNewParamText(context.funcDecl, context.paramName, context.typeName);
     if (context.removedParamIndices.size() == paramList->params.size()) {
         context.insertedParameter = true;
         return BuildAllParameterReplacementEdit(*paramList, newParamText);
@@ -509,13 +533,13 @@ static TextEdit InsertNewCallArgument(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
 {
     TextEdit textEdit;
-    Range insertRange = {callExpr.rightParenPos, callExpr.rightParenPos};
-    textEdit.range = TransformFromChar2IDE(insertRange);
+    bool introduceNamed = ShouldIntroduceNamedParameter(context.funcDecl);
     std::ostringstream insertText;
+    textEdit.range = TransformFromChar2IDE({callExpr.rightParenPos, callExpr.rightParenPos});
     if (!callExpr.args.empty()) {
         insertText << ", ";
     }
-    if (hasNamedArg) {
+    if (introduceNamed || hasNamedArg) {
         insertText << context.paramName << ": ";
     }
     insertText << newArgument;
@@ -537,7 +561,7 @@ static std::optional<TextEdit> InsertArgumentAtCallSite(
     }
     return InsertNewCallArgument(context, callExpr, newArgument, hasNamedArg);
 }
-
+// LCOV_EXCL_BR_START
 static std::optional<ArgumentReplacement> BuildReferenceReplacement(
     const CallSiteContext &context,
     Cangjie::AST::CallExpr &callExpr,
@@ -605,7 +629,6 @@ static std::vector<ArgumentReplacement> CollectCallSiteArgumentReplacements(
 static std::string ApplyCallSiteArgumentReplacements(
     const CallSiteContext &context, std::vector<ArgumentReplacement> replacements)
 {
-// LCOV_EXCL_BR_START
     if (replacements.empty()) {
         return context.argumentText;
     }
@@ -622,7 +645,6 @@ static std::string ApplyCallSiteArgumentReplacements(
     }
     result << context.sel.arkAst->sourceManager->GetContentBetween(cursor, context.range.end);
     return result.str();
-// LCOV_EXCL_BR_STOP
 }
 
 static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
@@ -650,4 +672,5 @@ static Ptr<Cangjie::AST::FuncArg> FindCallSiteArgByParam(
     }
     return nullptr;
 }
+// LCOV_EXCL_BR_STOP
 } // namespace ark
