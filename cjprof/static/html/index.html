@@ -304,6 +304,7 @@
         let sunburstCurrentNode = null;  // Currently viewed node
         let sunburstCenterNodeId = null;  // Sunburst center node id, for detecting center clicks
         let sunburstParentStack = [];  // Parent node stack for navigating back
+        let sunburstGranularity = 'object';  // Current sunburst granularity for API selection
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
@@ -368,7 +369,7 @@
                         if (cachedRoot) {
                             // Re-render from current navigation state
                             if (sunburstCurrentNode && cachedFullTree) {
-                                ensureDepth(sunburstCurrentNode, MAX_DEPTH).then(function() {
+                                ensureDepth(sunburstCurrentNode, MAX_DEPTH, sunburstGranularity).then(function() {
                                     renderSunburstView(sunburstCurrentNode);
                                 });
                             } else {
@@ -495,7 +496,7 @@
             const typeMap = new Map();
             nodes.forEach(n => {
                 if (!n.is_cutoff) {
-                    typeMap.set(n.type_name, { ...n, children: [] });
+                    typeMap.set(n.type_name, Object.assign({}, n, { id: n.type_name, children: [] }));
                 }
             });
 
@@ -547,6 +548,9 @@
         }
 
         function drawSunburst(root) {
+            // Track current granularity for ensureDepth API selection
+            sunburstGranularity = currentGranularity;
+
             if (!sunburstChart) {
                 sunburstChart = echarts.init(document.getElementById('sunburst'));
 
@@ -561,7 +565,7 @@
                         if (sunburstParentStack.length > 0) {
                             var parentNode = sunburstParentStack.pop();
                             sunburstCurrentNode = parentNode;
-                            await ensureDepth(parentNode, MAX_DEPTH);
+                            await ensureDepth(parentNode, MAX_DEPTH, sunburstGranularity);
                             renderSunburstView(parentNode);
                         }
                         return;
@@ -570,7 +574,7 @@
                     // Click outer data node -> drill down showing 5 layers from that node
                     var clickedNode = findNodeInFullTree(cachedFullTree, clickedNodeId);
                     if (clickedNode) {
-                        await ensureDepth(clickedNode, MAX_DEPTH);
+                        await ensureDepth(clickedNode, MAX_DEPTH, sunburstGranularity);
                         sunburstParentStack.push(sunburstCurrentNode);
                         sunburstCurrentNode = clickedNode;
                         renderSunburstView(clickedNode);
@@ -583,8 +587,10 @@
             sunburstCurrentNode = root;
             sunburstParentStack = [];
 
-            // Initial render
-            renderSunburstView(root);
+            // Ensure subtree has enough depth before initial render
+            ensureDepth(root, MAX_DEPTH, sunburstGranularity).then(function() {
+                renderSunburstView(root);
+            });
         }
 
         // Find node in full tree by id
@@ -603,7 +609,9 @@
         // Ensure node has >= targetDepth levels of children, lazy-loading via API as needed
         // BFS approach: each round collects all leaf nodes, expands those with dominated children,
         // then repeats until the subtree reaches targetDepth
-        async function ensureDepth(node, targetDepth) {
+        // granularity: 'object' uses /dominance/children?parent_id=, 'type' uses /dominance/children-by-type?parent_type=
+        async function ensureDepth(node, targetDepth, granularity) {
+            granularity = granularity || 'object';
             for (var level = 0; level < targetDepth; level++) {
                 var leaves = collectLeaves(node);
 
@@ -615,24 +623,49 @@
 
                 for (var i = 0; i < needExpand.length; i++) {
                     try {
-                        var res = await fetch(API_BASE + '/dominance/children?parent_id=' + needExpand[i].id);
-                        var data = await res.json();
-                        if (data.nodes && data.nodes.length > 0) {
-                            needExpand[i].children = data.nodes.map(function(c) {
-                                return {
-                                    id: c.id,
-                                    class_name: c.class_name,
-                                    type_name: c.type_name,
-                                    retained_size: c.retained_size,
-                                    shallow_size: c.shallow_size,
-                                    depth: c.depth,
-                                    parent_id: c.parent_id,
-                                    instance_count: c.instance_count,
-                                    is_clustered: c.is_clustered || false,
-                                    is_cutoff: c.is_cutoff || false,
-                                    children: null
-                                };
-                            });
+                        if (granularity === 'type') {
+                            // Type granularity: id is type_name (string), use children-by-type API
+                            var parentType = needExpand[i].id;
+                            var res = await fetch(API_BASE + '/dominance/children-by-type?parent_type=' + encodeURIComponent(parentType));
+                            var data = await res.json();
+                            if (data.nodes && data.nodes.length > 0) {
+                                needExpand[i].children = data.nodes.map(function(c) {
+                                    return {
+                                        id: c.type_name,
+                                        class_name: c.class_name,
+                                        type_name: c.type_name,
+                                        retained_size: c.retained_size,
+                                        shallow_size: c.shallow_size,
+                                        depth: c.depth || 0,
+                                        parent_type: c.parent_type || '',
+                                        instance_count: c.instance_count,
+                                        is_clustered: !c.is_cutoff,
+                                        is_cutoff: c.is_cutoff || false,
+                                        children: null
+                                    };
+                                });
+                            }
+                        } else {
+                            // Object granularity: id is numeric, use children API
+                            var res = await fetch(API_BASE + '/dominance/children?parent_id=' + needExpand[i].id);
+                            var data = await res.json();
+                            if (data.nodes && data.nodes.length > 0) {
+                                needExpand[i].children = data.nodes.map(function(c) {
+                                    return {
+                                        id: c.id,
+                                        class_name: c.class_name,
+                                        type_name: c.type_name,
+                                        retained_size: c.retained_size,
+                                        shallow_size: c.shallow_size,
+                                        depth: c.depth,
+                                        parent_id: c.parent_id,
+                                        instance_count: c.instance_count,
+                                        is_clustered: c.is_clustered || false,
+                                        is_cutoff: c.is_cutoff || false,
+                                        children: null
+                                    };
+                                });
+                            }
                         }
                     } catch (e) {
                         console.error('Failed to load children for node ' + needExpand[i].id, e);
