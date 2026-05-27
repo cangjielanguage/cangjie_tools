@@ -440,11 +440,14 @@
                     }
                 });
 
-                // If there are multiple root nodes, create a virtual root
-                if (rootNodes.length > 1) {
+                // If there are root nodes, create a virtual root
+                if (rootNodes.length > 0) {
                     // Calculate total retained_size for virtual root
                     var totalRetained = rootNodes.reduce(function(sum, n) {
                         return sum + (n.retained_size || 0);
+                    }, 0);
+                    var totalInstances = rootNodes.reduce(function(sum, n) {
+                        return sum + (n.instance_count || 1);
                     }, 0);
                     root = {
                         id: 0,
@@ -453,13 +456,11 @@
                         shallow_size: 0,
                         depth: -1,
                         parent_id: 0,
-                        instance_count: rootNodes.length,
+                        instance_count: totalInstances,
                         is_clustered: false,
                         is_cutoff: false,
                         children: rootNodes
                     };
-                } else if (rootNodes.length === 1) {
-                    root = rootNodes[0];
                 }
 
                 if (!root) root = nodeMap.get(nodes[0].id);
@@ -513,7 +514,7 @@
                 }
             });
 
-            if (rootTypes.length > 1) {
+            if (rootTypes.length > 0) {
                 var totalRetained = rootTypes.reduce(function(sum, n) {
                     return sum + (n.retained_size || 0);
                 }, 0);
@@ -533,8 +534,6 @@
                     is_cutoff: false,
                     children: rootTypes
                 };
-            } else if (rootTypes.length === 1) {
-                return rootTypes[0];
             }
             return typeMap.values().next().value;
         }
@@ -692,15 +691,10 @@
         function renderSunburstView(viewNode) {
             // Determine center and top-level nodes first
             var isVirtualRoot = viewNode.class_name === 'Root';
-            var topNodes;
-            if (isVirtualRoot) {
-                topNodes = (viewNode.children && viewNode.children.length > 0) ? viewNode.children : [viewNode];
-            } else {
-                topNodes = [viewNode];
-            }
+            var topNodes = [viewNode];
 
             // Record center node id: sole top-level element is the center node (spans 360°)
-            sunburstCenterNodeId = topNodes.length === 1 ? topNodes[0].id : null;
+            sunburstCenterNodeId = viewNode.id;
 
             var centerName = isVirtualRoot ? 'Root' :
                 (viewNode.class_name || 'obj' + viewNode.id).split(' (')[0];
@@ -763,7 +757,7 @@
 
                     node.children.forEach(function(c) {
                         if (c.is_cutoff) {
-                            normalChildren.push(c);
+                            cutoffChildren.push(c);
                         } else {
                             var childRetainedSize = c.retained_size || 0;
                             if (parentRetainedSize > 0 && childRetainedSize / parentRetainedSize < CUTOFF_THRESHOLD) {
