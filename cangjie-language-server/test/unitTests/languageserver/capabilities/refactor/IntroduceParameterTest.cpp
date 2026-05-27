@@ -82,6 +82,54 @@ TEST(IntroduceParameterTest, InsertParameterHandlesDifferentNamesTypesAndPositio
     EXPECT_EQ(stringEdit.range.start.column, 11);
 }
 
+TEST(IntroduceParameterTest, InsertParameterAppendsNamedParameterAfterPositionalParameters)
+{
+    auto mixedParams = MakeParamList({3, 25, 38});
+    auto namedParam = OwnedPtr<FuncParam>(new FuncParam());
+    namedParam->identifier = "factor";
+    namedParam->isNamedParam = true;
+    namedParam->begin = {3, 25, 20};
+    namedParam->end = {3, 25, 35};
+    mixedParams->params.emplace_back(std::move(namedParam));
+
+    auto positionalParam = OwnedPtr<FuncParam>(new FuncParam());
+    positionalParam->identifier = "base";
+    positionalParam->begin = {3, 25, 37};
+    positionalParam->end = {3, 25, 48};
+    mixedParams->params.emplace_back(std::move(positionalParam));
+
+    FuncDecl funcWithMixedParams;
+    SetFuncParamList(funcWithMixedParams, std::move(mixedParams));
+    std::string paramName = "newParam";
+    std::string typeName = "Int64";
+
+    TextEdit insertEdit = IntroduceParameter::InsertParameter(funcWithMixedParams, paramName, typeName);
+    EXPECT_EQ(insertEdit.newText, ", newParam!: Int64");
+    EXPECT_EQ(insertEdit.range.start.line, 24);
+    EXPECT_EQ(insertEdit.range.start.column, 37);
+    EXPECT_EQ(insertEdit.range.end.line, 24);
+    EXPECT_EQ(insertEdit.range.end.column, 37);
+}
+
+TEST(IntroduceParameterTest, InsertParameterAppendsNamedParameterWhenAllExistingParamsAreNamed)
+{
+    auto namedParams = MakeParamList({4, 30, 32});
+    auto namedParam = OwnedPtr<FuncParam>(new FuncParam());
+    namedParam->identifier = "factor";
+    namedParam->isNamedParam = true;
+    namedParams->params.emplace_back(std::move(namedParam));
+
+    FuncDecl funcWithNamedParam;
+    SetFuncParamList(funcWithNamedParam, std::move(namedParams));
+    std::string paramName = "newParam";
+    std::string typeName = "Bool";
+
+    TextEdit insertEdit = IntroduceParameter::InsertParameter(funcWithNamedParam, paramName, typeName);
+    EXPECT_EQ(insertEdit.newText, ", newParam!: Bool");
+    EXPECT_EQ(insertEdit.range.start.line, 29);
+    EXPECT_EQ(insertEdit.range.start.column, 31);
+}
+
 TEST(IntroduceParameterTest, InsertParameterRejectsMissingParamList)
 {
     FuncDecl missingBody;

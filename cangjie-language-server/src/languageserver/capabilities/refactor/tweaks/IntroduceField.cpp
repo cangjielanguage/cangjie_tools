@@ -19,6 +19,7 @@ namespace ark {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_FIELD_EXPR = {
     ASTKind::BLOCK, ASTKind::STR_INTERPOLATION_EXPR, ASTKind::INTERPOLATION_EXPR
 };
+constexpr int BLANK_LINE_NEWLINE_COUNT = 2;
 
 static bool CanUseAsFieldInitializer(const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl)
 {
@@ -525,7 +526,7 @@ static bool HasBlankLineAfterOwnerLeftCurl(const Tweak::Selection &sel,
         return false;
     }
     std::string gap = sel.arkAst->sourceManager->GetContentBetween(*leftCurlPos, insertRange.start);
-    return std::count(gap.begin(), gap.end(), '\n') >= 2;
+    return std::count(gap.begin(), gap.end(), '\n') >= BLANK_LINE_NEWLINE_COUNT;
 }
 
 static std::string GetMemberFieldPrefix(const Range &insertRange,

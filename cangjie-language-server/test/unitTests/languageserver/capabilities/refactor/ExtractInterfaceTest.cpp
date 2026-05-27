@@ -11,12 +11,22 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 using namespace Cangjie::AST;
 
 namespace ark {
+class Tweak {
+public:
+    struct Effect {
+        std::optional<std::string> showMessage;
+        std::map<std::string, std::vector<TextEdit>> applyEdits;
+        std::vector<nlohmann::json> documentChanges;
+        bool format = true;
+    };
+};
 std::string GetVisibility(const Cangjie::AST::Decl &decl);
 std::string EscapeJsonString(const std::string &input);
 void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup> &groupList);
@@ -40,6 +50,30 @@ std::string NormalizeTypeNameForCompare(std::string name);
 std::string ToSnakeCaseFileName(const std::string &name);
 std::string ResolveTargetFilePath(const std::string &targetPath, const std::string &interfaceName);
 bool IsValidPackageName(const std::string &packageName);
+bool IsTypeReferenceMatch(const Cangjie::AST::Type &type, const Cangjie::AST::Decl &targetDecl,
+    const Range &referenceRange);
+size_t FindHeaderClauseInsertOffset(const std::string &headerText);
+struct InterfaceInfo {
+    struct MemberMeta {
+        std::string signature;
+        bool isStatic = false;
+        bool isMut = false;
+        bool isOperator = false;
+        std::string visibility;
+    };
+
+    std::string name;
+    std::string genericParams;
+    std::string genericWhereClause;
+    std::vector<std::string> inheritedTypes;
+    std::vector<std::string> members;
+    std::vector<MemberMeta> metas;
+    std::unordered_map<std::string, std::string> implBodies;
+    std::unordered_map<std::string, std::string> memberComments;
+};
+std::string BuildInterfaceMemberHeader(const std::string &member, const InterfaceInfo::MemberMeta *meta);
+TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const InterfaceInfo &info);
+void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &targetPath, const TextEdit &edit);
 } // namespace ark
 
 using namespace ark;
@@ -229,4 +263,87 @@ TEST(ExtractInterfaceTest, ImportInterfaceEditRejectsInvalidOrSameDirectoryInput
     EXPECT_FALSE(BuildImportInterfaceEditForFile(sourceFile, "D:/pkg/target/person.cj", "").has_value());
     EXPECT_FALSE(BuildImportInterfaceEditForFile(sourceFile,
         "D:/pkg/source/person_interface.cj", "Person").has_value());
+}
+
+TEST(ExtractInterfaceTest, TypeReferenceMatchCoversTargetAndRangeBranches)
+{
+    ClassDecl targetDecl;
+    targetDecl.identifier = "Person";
+
+    RefType noTargetType;
+    noTargetType.ref.identifier = Cangjie::SrcIdentifier("Person", {1, 5, 3}, {1, 5, 9}, false);
+    Range fullRange{{1, 5, 3}, {1, 5, 9}};
+    EXPECT_FALSE(IsTypeReferenceMatch(noTargetType, targetDecl, fullRange));
+
+    ClassDecl otherDecl;
+    otherDecl.identifier = "Other";
+    RefType otherType;
+    otherType.ref.identifier = Cangjie::SrcIdentifier("Other", {1, 5, 3}, {1, 5, 8}, false);
+    otherType.ref.target = Ptr<Decl>(&otherDecl);
+    EXPECT_FALSE(IsTypeReferenceMatch(otherType, targetDecl, fullRange));
+
+    RefType matchedType;
+    matchedType.ref.identifier = Cangjie::SrcIdentifier("Person", {1, 5, 3}, {1, 5, 9}, false);
+    matchedType.ref.target = Ptr<Decl>(&targetDecl);
+    EXPECT_TRUE(IsTypeReferenceMatch(matchedType, targetDecl, fullRange));
+
+    Range narrowRange{{1, 5, 4}, {1, 5, 8}};
+    EXPECT_FALSE(IsTypeReferenceMatch(matchedType, targetDecl, narrowRange));
+
+    RefType zeroPositionType;
+    zeroPositionType.ref.identifier = Cangjie::SrcIdentifier("Person", {}, {}, false);
+    zeroPositionType.ref.target = Ptr<Decl>(&targetDecl);
+    EXPECT_FALSE(IsTypeReferenceMatch(zeroPositionType, targetDecl, fullRange));
+}
+
+TEST(ExtractInterfaceTest, HeaderClauseInsertOffsetCoversWhereBodyAndFallback)
+{
+    std::string headerWithWhere = "class Box<T>   where T <: ToString {";
+    EXPECT_EQ(FindHeaderClauseInsertOffset(headerWithWhere), headerWithWhere.find("where") - 3);
+
+    std::string headerWithBody = "class Person   {";
+    EXPECT_EQ(FindHeaderClauseInsertOffset(headerWithBody), headerWithBody.find("{") - 3);
+
+    std::string headerWithoutBody = "class Person";
+    EXPECT_EQ(FindHeaderClauseInsertOffset(headerWithoutBody), headerWithoutBody.size());
+}
+
+TEST(ExtractInterfaceTest, InterfaceMemberHeaderCoversMetaCombinations)
+{
+    EXPECT_EQ(BuildInterfaceMemberHeader("printName(): String", nullptr), "    func printName(): String");
+
+    InterfaceInfo::MemberMeta staticMeta;
+    staticMeta.isStatic = true;
+    EXPECT_EQ(BuildInterfaceMemberHeader("buildDefault(): Person", &staticMeta),
+        "    static func buildDefault(): Person");
+
+    InterfaceInfo::MemberMeta mutOperatorMeta;
+    mutOperatorMeta.isMut = true;
+    mutOperatorMeta.isOperator = true;
+    EXPECT_EQ(BuildInterfaceMemberHeader("+ (rhs: Person): Person", &mutOperatorMeta),
+        "    mut operator func + (rhs: Person): Person");
+}
+
+TEST(ExtractInterfaceTest, AppendCreateFileDocumentChangeAddsCreateAndEditEntries)
+{
+    Tweak::Effect emptyTargetEffect;
+    TextEdit edit{{Cangjie::Position(0, 0, 0), Cangjie::Position(0, 0, 0)}, "public interface Empty {}\n"};
+    AppendCreateFileDocumentChange(emptyTargetEffect, "", edit);
+    EXPECT_TRUE(emptyTargetEffect.documentChanges.empty());
+
+    Tweak::Effect effect;
+    AppendCreateFileDocumentChange(effect, "D:/pkg/demo/printable.cj", edit);
+
+    ASSERT_EQ(effect.documentChanges.size(), 2);
+    EXPECT_EQ(effect.documentChanges[0].at("kind"), "create");
+    ASSERT_TRUE(effect.documentChanges[0].contains("uri"));
+    EXPECT_NE(effect.documentChanges[0].at("uri").get<std::string>().find("printable.cj"), std::string::npos);
+
+    ASSERT_TRUE(effect.documentChanges[1].contains("textDocument"));
+    ASSERT_TRUE(effect.documentChanges[1].contains("edits"));
+    EXPECT_EQ(effect.documentChanges[1].at("textDocument").at("version"), -1);
+    EXPECT_NE(effect.documentChanges[1].at("textDocument").at("uri").get<std::string>().find("printable.cj"),
+        std::string::npos);
+    ASSERT_EQ(effect.documentChanges[1].at("edits").size(), 1);
+    EXPECT_EQ(effect.documentChanges[1].at("edits")[0].at("newText"), edit.newText);
 }
