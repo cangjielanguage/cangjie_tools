@@ -154,6 +154,8 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     int cutoffCount = 0;
     int totalSkipped = 0;
     std::unordered_map<uint64_t, int> parentCutoffCount;
+    std::unordered_map<uint64_t, uint64_t> parentCutoffRetained;
+    std::unordered_map<uint64_t, uint64_t> parentCutoffShallow;
 
     // Collect root nodes (parent_id == 0 or depth == 0)
     std::vector<const DominanceNode*> rootNodes;
@@ -216,6 +218,8 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
                     isCutoff = true;
                     cutoffCount++;
                     parentCutoffCount[parentId]++;
+                    parentCutoffRetained[parentId] += node->retained_size;
+                    parentCutoffShallow[parentId] += node->shallow_size;
                 }
             }
 
@@ -240,11 +244,14 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     }
 
     for (const auto& entry : parentCutoffCount) {
+        uint64_t cutoffId = 1000000000ULL + entry.first;
+        uint64_t cutoffRetained = parentCutoffRetained[entry.first];
+        uint64_t cutoffShallow = parentCutoffShallow[entry.first];
         result["nodes"].push_back({
-            {"id", 0},
+            {"id", cutoffId},
             {"class_name", "... (" + std::to_string(entry.second) + " children)"},
-            {"retained_size", 0},
-            {"shallow_size", 0},
+            {"retained_size", cutoffRetained},
+            {"shallow_size", cutoffShallow},
             {"depth", 0},
             {"parent_id", entry.first},
             {"instance_count", entry.second},
@@ -377,7 +384,9 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
         std::string primary_parent_type;  // The dominant parent type
         std::unordered_set<std::string> child_types;
         int max_depth = 0;
-        uint64_t cutoff_count = 0;  // Count of filtered children for this type
+        uint64_t cutoff_count = 0;     // Count of filtered children for this type
+        uint64_t cutoff_retained = 0;  // Total retained_size of cutoff children
+        uint64_t cutoff_shallow = 0;   // Total shallow_size of cutoff children
     };
 
     std::unordered_map<std::string, TypeNode> typeNodes;
@@ -439,6 +448,8 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
                 } else {
                     // Child is filtered by threshold - count as cutoff
                     tn.cutoff_count++;
+                    tn.cutoff_retained += child.retained_size;
+                    tn.cutoff_shallow += child.shallow_size;
                 }
             }
         }
@@ -492,8 +503,8 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
             result["nodes"].push_back({
                 {"type_name", className + "::cutoff"},
                 {"class_name", "... (" + std::to_string(tn.cutoff_count) + " children)"},
-                {"retained_size", 0},
-                {"shallow_size", 0},
+                {"retained_size", tn.cutoff_retained},
+                {"shallow_size", tn.cutoff_shallow},
                 {"depth", tn.max_depth + 1},
                 {"parent_type", className},
                 {"instance_count", tn.cutoff_count},

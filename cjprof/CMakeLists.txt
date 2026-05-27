@@ -25,6 +25,7 @@ endif ()
 
 if (WIN32)
   set(LINK_FLAGS "-Wl,--no-insert-timestamp -Wl,--no-undefined")
+  add_compile_definitions(_WIN32_WINNT=0x0A00)
 endif ()
 
 if (APPLE)
