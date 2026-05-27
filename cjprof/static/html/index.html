@@ -265,8 +265,8 @@
                     <button class="view-btn" data-view="tree">Tree</button>
 <span id="granularity-select" style="margin-left:15px;">
                         <select id="cluster-select" style="background:#0f3460;color:#eee;border:1px solid #e94560;padding:5px 10px;border-radius:4px;cursor:pointer;">
-                            <option value="object" selected>By Object</option>
-                            <option value="type">By Type</option>
+                            <option value="object" selected>Group By Object</option>
+                            <option value="type">Group By Type</option>
                         </select>
                     </span>
                 </div>
@@ -300,6 +300,10 @@
         let currentGranularity = 'object';  // 'object' or 'type'
         let cachedRoot = null;
         let cachedTypeRoot = null;  // For type granularity in sunburst
+        let cachedFullTree = null;  // Full tree data for navigation
+        let sunburstCurrentNode = null;  // Currently viewed node
+        let sunburstCenterNodeId = null;  // Sunburst center node id, for detecting center clicks
+        let sunburstParentStack = [];  // Parent node stack for navigating back
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
@@ -362,7 +366,14 @@
                         }
                     } else {
                         if (cachedRoot) {
-                            drawSunburst(cachedRoot);
+                            // Re-render from current navigation state
+                            if (sunburstCurrentNode && cachedFullTree) {
+                                ensureDepth(sunburstCurrentNode, MAX_DEPTH).then(function() {
+                                    renderSunburstView(sunburstCurrentNode);
+                                });
+                            } else {
+                                drawSunburst(cachedRoot);
+                            }
                         } else {
                             loadDominanceTree();
                         }
@@ -428,7 +439,7 @@
                     }
                 });
 
-                // 如果有多个根节点，创建虚拟根
+                // If there are multiple root nodes, create a virtual root
                 if (rootNodes.length > 1) {
                     // Calculate total retained_size for virtual root
                     var totalRetained = rootNodes.reduce(function(sum, n) {
@@ -538,10 +549,131 @@
         function drawSunburst(root) {
             if (!sunburstChart) {
                 sunburstChart = echarts.init(document.getElementById('sunburst'));
+
+                // Register click handler once at initialization
+                sunburstChart.on('click', async function(params) {
+                    if (!params.data) return;
+
+                    var clickedNodeId = params.data.nodeId;
+
+                    // Click center node (the sole top-level node spanning 360°) -> go back to parent
+                    if (sunburstCenterNodeId !== null && clickedNodeId === sunburstCenterNodeId) {
+                        if (sunburstParentStack.length > 0) {
+                            var parentNode = sunburstParentStack.pop();
+                            sunburstCurrentNode = parentNode;
+                            await ensureDepth(parentNode, MAX_DEPTH);
+                            renderSunburstView(parentNode);
+                        }
+                        return;
+                    }
+
+                    // Click outer data node -> drill down showing 5 layers from that node
+                    var clickedNode = findNodeInFullTree(cachedFullTree, clickedNodeId);
+                    if (clickedNode) {
+                        await ensureDepth(clickedNode, MAX_DEPTH);
+                        sunburstParentStack.push(sunburstCurrentNode);
+                        sunburstCurrentNode = clickedNode;
+                        renderSunburstView(clickedNode);
+                    }
+                });
             }
 
-            let colorIndex = 0;
-            const classColors = new Map();
+            // Save full tree data (reset only on initial load / granularity switch)
+            cachedFullTree = root;
+            sunburstCurrentNode = root;
+            sunburstParentStack = [];
+
+            // Initial render
+            renderSunburstView(root);
+        }
+
+        // Find node in full tree by id
+        function findNodeInFullTree(node, nodeId) {
+            if (!node) return null;
+            if (node.id === nodeId) return node;
+            if (node.children) {
+                for (var i = 0; i < node.children.length; i++) {
+                    var found = findNodeInFullTree(node.children[i], nodeId);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        // Ensure node has >= targetDepth levels of children, lazy-loading via API as needed
+        // BFS approach: each round collects all leaf nodes, expands those with dominated children,
+        // then repeats until the subtree reaches targetDepth
+        async function ensureDepth(node, targetDepth) {
+            for (var level = 0; level < targetDepth; level++) {
+                var leaves = collectLeaves(node);
+
+                var needExpand = leaves.filter(function(l) {
+                    return (l.retained_size || 0) > (l.shallow_size || 0) && l.id && l.id !== 0;
+                });
+
+                if (needExpand.length === 0) break;
+
+                for (var i = 0; i < needExpand.length; i++) {
+                    try {
+                        var res = await fetch(API_BASE + '/dominance/children?parent_id=' + needExpand[i].id);
+                        var data = await res.json();
+                        if (data.nodes && data.nodes.length > 0) {
+                            needExpand[i].children = data.nodes.map(function(c) {
+                                return {
+                                    id: c.id,
+                                    class_name: c.class_name,
+                                    type_name: c.type_name,
+                                    retained_size: c.retained_size,
+                                    shallow_size: c.shallow_size,
+                                    depth: c.depth,
+                                    parent_id: c.parent_id,
+                                    instance_count: c.instance_count,
+                                    is_clustered: c.is_clustered || false,
+                                    is_cutoff: c.is_cutoff || false,
+                                    children: null
+                                };
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Failed to load children for node ' + needExpand[i].id, e);
+                    }
+                }
+            }
+        }
+
+        // Collect all leaf nodes (nodes without children) in the subtree
+        function collectLeaves(node) {
+            if (!node) return [];
+            if (!node.children || node.children.length === 0) return [node];
+            var result = [];
+            for (var i = 0; i < node.children.length; i++) {
+                result = result.concat(collectLeaves(node.children[i]));
+            }
+            return result;
+        }
+
+        // Render sunburst view: current view node as center, showing 5 layers outward
+        // MAX_DEPTH=4 means children at depth 0-4 (5 layers), depth>=4 truncated as leaf
+        var MAX_DEPTH = 4;
+
+        function renderSunburstView(viewNode) {
+            // Determine center and top-level nodes first
+            var isVirtualRoot = viewNode.class_name === 'Root';
+            var topNodes;
+            if (isVirtualRoot) {
+                topNodes = (viewNode.children && viewNode.children.length > 0) ? viewNode.children : [viewNode];
+            } else {
+                topNodes = [viewNode];
+            }
+
+            // Record center node id: sole top-level element is the center node (spans 360°)
+            sunburstCenterNodeId = topNodes.length === 1 ? topNodes[0].id : null;
+
+            var centerName = isVirtualRoot ? 'Root' :
+                (viewNode.class_name || 'obj' + viewNode.id).split(' (')[0];
+
+            var colorIndex = 0;
+            var classColors = new Map();
             function getColor(name) {
                 if (!classColors.has(name)) {
                     classColors.set(name, COLOR_PALETTE[colorIndex++ % COLOR_PALETTE.length]);
@@ -549,25 +681,29 @@
                 return classColors.get(name);
             }
 
+            var CUTOFF_THRESHOLD = 0.005; // 0.5%
+
+            // Convert node (relative depth, depth 0 to MAX_DEPTH = 5 layers)
             function convertNode(node, depth, parentColor) {
                 depth = depth || 0;
                 parentColor = parentColor || null;
-                const MAX_DEPTH = 5;
-                const CUTOFF_THRESHOLD = 0.005; // 0.5%
-                const isCutoff = node.is_cutoff || false;
-                const fullClassName = node.class_name || `obj${node.id}`;
-                const legendName = node.type_name || fullClassName.split(' (')[0];
-                const displayName = isCutoff ? fullClassName : legendName;
-                let color;
+                var isLeaf = !node.children || node.children.length === 0 || depth >= MAX_DEPTH;
+                var isCutoff = node.is_cutoff || false;
+                var fullClassName = node.class_name || 'obj' + node.id;
+                var legendName = node.type_name || fullClassName.split(' (')[0];
+                var displayName = isCutoff ? fullClassName : legendName;
+                var isCenter = (sunburstCenterNodeId !== null && node.id === sunburstCenterNodeId);
+                var color;
                 if (isCutoff) {
                     color = parentColor || '#888888';
-                } else if (depth === 0) {
+                } else if (isCenter) {
                     color = '#e94560';
                 } else {
                     color = getColor(legendName);
                 }
 
                 var result = {
+                    nodeId: node.id,
                     name: displayName,
                     class_name: fullClassName,
                     type_name: legendName,
@@ -575,16 +711,15 @@
                     shallow_size: node.shallow_size,
                     depth: depth,
                     instance_count: node.instance_count || 1,
+                    is_clustered: node.is_clustered || false,
                     is_cutoff: isCutoff,
                     itemStyle: {
                         color: color,
-                        opacity: depth === 0 ? 1 : (isCutoff ? 0.6 : 0.85),
+                        opacity: isCenter ? 1 : (isCutoff ? 0.6 : 0.85),
                         borderColor: '#1a1a2e',
                         borderWidth: 1
                     }
                 };
-
-                const isLeaf = !node.children || node.children.length === 0 || depth >= MAX_DEPTH;
 
                 if (isLeaf) {
                     result.value = node.retained_size || 0;
@@ -622,6 +757,7 @@
                         }, 0);
 
                         result.children.push({
+                            nodeId: null,
                             name: '... (' + cutoffTotalInstances + ' children)',
                             retained_size: cutoffTotalRetained,
                             shallow_size: cutoffTotalShallow,
@@ -634,8 +770,7 @@
                                 opacity: 0.6,
                                 borderColor: '#1a1a2e',
                                 borderWidth: 1
-                            },
-                            _children: cutoffChildren
+                            }
                         });
                     }
                 }
@@ -643,7 +778,11 @@
                 return result;
             }
 
-            var data = convertNode(root);
+            // Build data array: topNodes as top-level elements
+            var data = [];
+            for (var i = 0; i < topNodes.length; i++) {
+                data.push(convertNode(topNodes[i], 0, '#e94560'));
+            }
 
             sunburstChart.setOption({
                 backgroundColor: 'transparent',
@@ -656,9 +795,19 @@
                     padding: [10, 14],
                     formatter: function(params) {
                         var d = params.data;
+                        // Center node (sole top-level node spanning 360°): show name and back hint
+                        if (sunburstCenterNodeId !== null && d.nodeId === sunburstCenterNodeId) {
+                            var backHint = sunburstParentStack.length > 0 ?
+                                '<div style="color:#888;font-size:11px;">Click to go back</div>' : '';
+                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + centerName + '</div>' +
+                                   '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
+                                   backHint;
+                        }
                         var instanceInfo = d.instance_count > 1 ?
                             '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
+                        var idInfo = d.nodeId ? '<div style="color:#888;font-size:11px;">ID: ' + d.nodeId + '</div>' : '';
                         return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.name || d.class_name || 'Object') + '</div>' +
+                               idInfo +
                                instanceInfo +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
@@ -667,7 +816,7 @@
                 series: [{
                     type: 'sunburst',
                     radius: [0, '95%'],
-                    data: [data],
+                    data: data,
                     sort: 'desc',
                     emphasis: {
                         focus: 'ancestor',
@@ -684,6 +833,9 @@
                     levels: [
                         {},
                         { label: { rotate: 'tangential' } },
+                        { label: { rotate: 'radial' } },
+                        { label: { rotate: 'radial' } },
+                        { label: { rotate: 'radial' } },
                         { label: { rotate: 'radial' } }
                     ]
                 }]
