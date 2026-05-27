@@ -227,6 +227,13 @@ private:
                 return fd->outerDecl->identifier.GetRawText();
             }
             CJC_NULLPTR_CHECK(fd->funcBody);
+            std::string retType;
+            if (fd->funcBody->retType) {
+                retType = fd->funcBody->retType->ToString();
+            }
+            if (!retType.empty()) {
+                return retType;
+            }
             return fd->funcBody->retType && fd->funcBody->retType->GetTy()
                 ? fd->funcBody->retType->GetTy()->String() : "Invalid";
         } else {

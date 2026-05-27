@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "Utils.h"
+#include "ItemResolverUtil.h"
 #include "cangjie/Basic/Version.h"
 #include "cangjie/Basic/StringConvertor.h"
 #include "Inherit/InheritDeclUtil.h"
@@ -348,12 +349,20 @@ std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager)
         return type;
     }
     if (decl->GetTy()->kind == TypeKind::TYPE_FUNC) {
-        ItemResolverUtil::GetDetailByTy(decl->GetTy(), type, true);
+        if (decl->type) {
+            type = ItemResolverUtil::ResolveTypeSignature(*decl->type);
+        } else {
+            ItemResolverUtil::GetDetailByTy(decl->GetTy(), type, true);
+        }
         std::string realType = ReplaceTuple(type);
         type = realType.empty() ? type : realType;
         return type;
     }
-    type = GetString(*decl->GetTy());
+    if (decl->type && !Ty::IsInitialTy(decl->type->aliasTy)) {
+        type = ItemResolverUtil::ResolveTypeSignature(*decl->type);
+    } else {
+        type = GetString(*decl->GetTy());
+    }
     std::string realType = ReplaceTuple(type);
     type = realType.empty() ? type : realType;
     return type;
@@ -982,7 +991,15 @@ std::vector<std::string> GetFuncParamsTypeName(Ptr<const Cangjie::AST::FuncDecl>
                 (void)paramsLists.emplace_back("");
                 continue;
             }
-            (void)paramsLists.emplace_back(GetString(*param->GetTy()));
+
+            std::string paramType;
+            if (param->type) {
+                paramType = ItemResolverUtil::ResolveTypeSignature(*param->type);
+            }
+            if (paramType.empty()) {
+                paramType = GetString(*param->GetTy());
+            }
+            (void)paramsLists.emplace_back(paramType);
         }
     }
     return paramsLists;
@@ -1042,7 +1059,11 @@ std::string GetVarDeclType(Ptr<const VarDecl> decl)
         return detail;
     }
     if (decl->GetTy()->kind != TypeKind::TYPE_FUNC) {
-        detail = GetString(*decl->GetTy());
+        if (decl->type) {
+            detail = ItemResolverUtil::ResolveTypeSignature(*decl->type);
+        } else {
+            detail = GetString(*decl->GetTy());
+        }
     }
     auto funcTy = dynamic_cast<FuncTy *>(decl->GetTy().get());
     if (funcTy == nullptr) {

@@ -1119,7 +1119,7 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &ex
             if (IsHiddenDecl(member) || IsHiddenDecl(member->outerDecl)) {
                 continue;
             }
-            if (decl) {
+            if (decl && member) {
                 addMember(member, decl);
             }
             auto symbol = CompletionEnv::GetDeclSymbolID(*member);
