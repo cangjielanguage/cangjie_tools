@@ -35,6 +35,9 @@ enum class CompleteMode {
     PARSE_COMPLETE,
     NONE_COMPLETE
 };
+
+std::string BuildHoverMarkdown(const Hover &hover);
+
 class ArkServer {
 public:
     explicit ArkServer(Callbacks *callbacks = nullptr);

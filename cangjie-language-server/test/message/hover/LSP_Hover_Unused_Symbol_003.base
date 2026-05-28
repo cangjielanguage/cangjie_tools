@@ -1,1 +1,1 @@
-{"id":233,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: unused_struct.cj\r\nPackage info: testUnusedSymbol\r\n\r\nprivate struct UnusedPrivateStruct\r\n"},"range":{"end":{"character":34,"line":9},"start":{"character":15,"line":9}}}}
+{"id":233,"jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: unused\\_struct.cj  \nPackage info: testUnusedSymbol  \n\n```cangjie\nprivate struct UnusedPrivateStruct\n```\n"},"range":{"end":{"character":34,"line":9},"start":{"character":15,"line":9}}}}

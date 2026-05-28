@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Base.cj\nPackage info: default\n\nvar bool2: Bool = false\n"},"range":{"end":{"character":9,"line":76},"start":{"character":4,"line":76}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: Base.cj  \nPackage info: default  \n\n```cangjie\nvar bool2: Bool = false\n```\n"},"range":{"end":{"character":9,"line":76},"start":{"character":4,"line":76}}}}

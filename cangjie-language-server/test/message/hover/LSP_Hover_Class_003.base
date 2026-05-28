@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: Class.cj\nPackage info: default\n\n// In class B\ninternal func init()\n"},"range":{"end":{"character":17,"line":41},"start":{"character":16,"line":41}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: Class.cj  \nPackage info: default  \n\n```cangjie\n// In class B\ninternal func init()\n```\n"},"range":{"end":{"character":17,"line":41},"start":{"character":16,"line":41}}}}
