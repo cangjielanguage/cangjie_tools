@@ -708,8 +708,6 @@
                 return classColors.get(name);
             }
 
-            var CUTOFF_THRESHOLD = 0.005; // 0.5%
-
             // Convert node (relative depth, depth 0 to MAX_DEPTH = 5 layers)
             function convertNode(node, depth, parentColor) {
                 depth = depth || 0;
@@ -759,12 +757,7 @@
                         if (c.is_cutoff) {
                             cutoffChildren.push(c);
                         } else {
-                            var childRetainedSize = c.retained_size || 0;
-                            if (parentRetainedSize > 0 && childRetainedSize / parentRetainedSize < CUTOFF_THRESHOLD) {
-                                cutoffChildren.push(c);
-                            } else {
-                                normalChildren.push(c);
-                            }
+                            normalChildren.push(c);
                         }
                     });
 

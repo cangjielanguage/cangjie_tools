@@ -135,7 +135,6 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     json result;
     result["nodes"] = json::array();
     result["cutoff_count"] = 0;
-    result["total_skipped"] = 0;
 
     if (!ctx.dominanceNodes) {
         return result.dump();
@@ -152,24 +151,31 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     }
 
     int cutoffCount = 0;
-    int totalSkipped = 0;
     std::unordered_map<uint64_t, int> parentCutoffCount;
     std::unordered_map<uint64_t, uint64_t> parentCutoffRetained;
     std::unordered_map<uint64_t, uint64_t> parentCutoffShallow;
 
-    // Collect root nodes (parent_id == 0 or depth == 0)
+    // Collect root nodes (parent_id == 0 or depth == 0) and apply threshold filtering
     std::vector<const DominanceNode*> rootNodes;
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.parent_id == 0 || node.depth == 0) {
-            if (node.depth > ctx.maxDepthLimit || node.retained_size < threshold01) {
-                totalSkipped++;
-                continue;
+            if (node.depth > ctx.maxDepthLimit) {
+                continue;  // Skip nodes beyond depth limit
             }
-            rootNodes.push_back(&node);
+
+            // Apply threshold filtering to root nodes
+            if (node.retained_size < threshold01) {
+                cutoffCount++;
+                parentCutoffCount[0]++;  // Use parent_id=0 for root cutoff nodes
+                parentCutoffRetained[0] += node.retained_size;
+                parentCutoffShallow[0] += node.shallow_size;
+            } else {
+                rootNodes.push_back(&node);
+            }
         }
     }
 
-    // Add root nodes directly (no clustering)
+    // Add root nodes that passed threshold
     for (const auto* node : rootNodes) {
         std::string className = getClassName(ctx, node->object_id);
         json nodeJson = {
@@ -192,14 +198,13 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
         if (node.parent_id == 0 || node.depth == 0) {
             continue;  // Already handled as root nodes
         }
-        if (node.depth > ctx.maxDepthLimit || node.retained_size < threshold01) {
-            totalSkipped++;
-            continue;
+        if (node.depth > ctx.maxDepthLimit) {
+            continue;  // Skip nodes beyond depth limit
         }
         childrenByParent[node.parent_id].push_back(&node);
     }
 
-    // Add non-root nodes directly (no clustering) with cutoff filtering
+    // Add non-root nodes with cutoff filtering
     for (const auto& [parentId, children] : childrenByParent) {
         // Get parent retained size for cutoff calculation
         uint64_t parentRetained = 0;
@@ -208,22 +213,27 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
             parentRetained = it->second;
         }
 
-        // Add children directly with cutoff filtering
         for (const auto* node : children) {
-            // Check cutoff
+            // Check if node should be cutoff (either by threshold01 or cutoff05Percent)
             bool isCutoff = false;
-            if (parentRetained > 0) {
+
+            // Nodes below threshold01 are always cutoff
+            if (node->retained_size < threshold01) {
+                isCutoff = true;
+            }
+            // Nodes above threshold01 but below cutoff05Percent are also cutoff
+            else if (parentRetained > 0) {
                 uint64_t cutoffThreshold = static_cast<uint64_t>(parentRetained * ctx.cutoff05Percent);
                 if (node->retained_size < cutoffThreshold) {
                     isCutoff = true;
-                    cutoffCount++;
-                    parentCutoffCount[parentId]++;
-                    parentCutoffRetained[parentId] += node->retained_size;
-                    parentCutoffShallow[parentId] += node->shallow_size;
                 }
             }
 
             if (isCutoff) {
+                cutoffCount++;
+                parentCutoffCount[parentId]++;
+                parentCutoffRetained[parentId] += node->retained_size;
+                parentCutoffShallow[parentId] += node->shallow_size;
                 continue;
             }
 
@@ -261,7 +271,6 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     }
 
     result["cutoff_count"] = cutoffCount;
-    result["total_skipped"] = totalSkipped;
     return result.dump();
 }
 
