@@ -416,7 +416,9 @@ struct PropDetail {
     std::string ToString() const
     {
         std::string detail = Cangjie::Utils::JoinStrings(modifiers, " ");
-        detail += " ";
+        if (!detail.empty()) {
+            detail += " ";
+        }
         detail += "prop";
         detail += " ";
         detail += identifier;
