@@ -174,10 +174,10 @@ namespace test::common {
     std::vector<ark::CodeLens> ReadExpectedCodeLensItems(std::string &baseFile);
 
     bool CheckCodeLensResult(std::vector<ark::CodeLens> exp, std::vector<ark::CodeLens> act,
-                             std::string &reason);    
+                             std::string &reason);
 
     bool IsMacroExpandTest(const std::string &rootUri);
-    
+
     bool IsMacroExpandTest(const std::string &rootUri);
 
     ark::FindOverrideMethodResult CreateOverrideMethodsResult(const nlohmann::json& exp);
