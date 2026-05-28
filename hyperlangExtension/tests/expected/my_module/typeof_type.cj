@@ -16,7 +16,6 @@ import ohos.base.*
     }*/
 
 public class MessagePackage {
-    
     protected MessagePackage(var arkts_object: JSObject) { }
     
     
@@ -27,11 +26,11 @@ public class MessagePackage {
         jsObjApiCallPromise < JSValue/* FIXME: `Promise<UnsupportedType[TypeQuery]>` */ >(getClassConstructorObj("my_module_typeofType", "MessagePackage"), "getDataAsync", callback, { ctx =>[p] }) { ctx, info => info }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): MessagePackage {
+    static func fromJSValue(_: JSContext, input: JSValue): MessagePackage {
         MessagePackage(input.asObject())
     }
 }

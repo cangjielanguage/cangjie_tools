@@ -26,7 +26,7 @@ public enum AutoGenType0InunionTypes {
         if (input.isBoolean()) {
             return BOOLEAN(Bool.fromJSValue(context, input))
         } 
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -47,10 +47,10 @@ public enum AutoGenType1InunionTypes {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType1InunionTypes {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         } 
         if (input.isBoolean()) {
@@ -78,10 +78,10 @@ public enum AutoGenType2InunionTypes {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType2InunionTypes {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         } 
         if (input.isBoolean()) {
@@ -102,7 +102,7 @@ public enum AutoGenType3InunionTypes {
     | STRING(String)
     | BOOLEAN(Bool)
     | BIGINT(BigInt)
-    | VOID(JSValue/* FIXME: `void` */)
+    | VOID(Unit)
     
     public func toJSValue(context: JSContext): JSValue {
         match(this) {
@@ -110,15 +110,15 @@ public enum AutoGenType3InunionTypes {
             case STRING(x) => context.string(x).toJSValue()
             case BOOLEAN(x) => context.boolean(x).toJSValue()
             case BIGINT(x) => context.bigint(x).toJSValue()
-            case VOID(x) => x
+            case VOID(x) => x.toJSValue(context)
         }
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType3InunionTypes {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         } 
         if (input.isBoolean()) {
@@ -143,10 +143,10 @@ public enum AutoGenType4InunionTypes {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType4InunionTypes {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }
         throw Exception("unsupport type!")
@@ -165,7 +165,7 @@ public enum AutoGenType5InunionTypes {
     }
     public static func fromJSValue(context: JSContext, input: JSValue): AutoGenType5InunionTypes {
         
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         }  
         if (input.isBoolean()) {
@@ -190,7 +190,6 @@ public enum AutoGenType5InunionTypes {
     }*/
 
 public class UnionTypes {
-    
     protected UnionTypes(var arkts_object: JSObject) { }
     
     // Properties with union types
@@ -198,7 +197,7 @@ public class UnionTypes {
         get() {
             checkThreadAndCall < Option<Float64> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["t_null"].isNull()) {
+                if (arkts_object["t_null"].isNull()) {
                     None < Float64 >
                 } else {
                     Float64.fromJSValue(ctx, arkts_object["t_null"])
@@ -220,7 +219,7 @@ public class UnionTypes {
         get() {
             checkThreadAndCall < Option<String> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["null_t"].isNull()) {
+                if (arkts_object["null_t"].isNull()) {
                     None < String >
                 } else {
                     String.fromJSValue(ctx, arkts_object["null_t"])
@@ -256,7 +255,7 @@ public class UnionTypes {
         get() {
             checkThreadAndCall < Option<Float64> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["t_undefined"].isNull()) {
+                if (arkts_object["t_undefined"].isNull()) {
                     None < Float64 >
                 } else {
                     Float64.fromJSValue(ctx, arkts_object["t_undefined"])
@@ -278,7 +277,7 @@ public class UnionTypes {
         get() {
             checkThreadAndCall < Option<String> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["undefined"].isNull()) {
+                if (arkts_object["undefined"].isNull()) {
                     None < String >
                 } else {
                     String.fromJSValue(ctx, arkts_object["undefined"])
@@ -353,11 +352,11 @@ public class UnionTypes {
         jsObjApiCall < AutoGenType5InunionTypes >( arkts_object, "setValue", { ctx =>[value.toJSValue(ctx)] }) { ctx, info => AutoGenType5InunionTypes.fromJSValue(ctx, info) }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UnionTypes {
+    static func fromJSValue(_: JSContext, input: JSValue): UnionTypes {
         UnionTypes(input.asObject())
     }
 }

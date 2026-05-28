@@ -16,9 +16,8 @@ import ohos.base.*
     }*/
 
 public open class i {
-    
-    protected i() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -32,24 +31,24 @@ public open class i {
         
         )
     }
-    
 }
+
 
 /*class ExportKeyword c {
     }*/
 
 public class c <: i {
-    
     protected c(var arkts_object: JSObject) {
-        super() }
+        super()
+    }
     
     
     
-    public func toJSValue(context: JSContext): JSValue {
+    public func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): c {
+    public static func fromJSValue(_: JSContext, input: JSValue): c {
         c(input.asObject())
     }
 }

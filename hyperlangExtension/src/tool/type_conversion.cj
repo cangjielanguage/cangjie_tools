@@ -39,10 +39,10 @@ extend TsType {
 private func normalize(ty: TsType): TsType {
     match (ty) {
         // arkui specific
-        case TsTypeRef("common.UIAbilityContext") => TsTypeRef("JSValue/* FIXME: `${ty.toString()}` */")
-        case TsTypeRef("Context") => TsTypeRef("JSValue/* FIXME: `${ty.toString()}` */")
-        case TsTypeRef("BaseContext") => TsTypeRef("JSValue/* FIXME: `${ty.toString()}` */")
-        case TsTypeRef("common.Context") => TsTypeRef("JSValue/* FIXME: `${ty.toString()}` */")
+        case TsTypeRef("common.UIAbilityContext") => TsTypeRef("UIAbilityContext")
+        case TsTypeRef("Context") => TsTypeRef("Context")
+        case TsTypeRef("BaseContext") => TsTypeRef("BaseContext")
+        case TsTypeRef("common.Context") => TsTypeRef("Context")
 
         // ts data structures
         case TsTypeRef("Record", arr) => normalize(TsTypeRef("HashMap", arr))
@@ -108,14 +108,14 @@ private func toCJType(ty: TsType): String {
             println("WARNING: type is not supported - ${ty}")
             "JSValue/* FIXME: `${ty}` */"
         case TsTypeRef(x) =>
-            if (userDefinedNames.contains(x) || x.startsWith("AutoGenType")) {
+            if (isUserDefinedName(x) || x.startsWith("AutoGenType")) {
                 return x
             } else {
                 return "JSValue/* FIXME: `${x}` */"
             }
         case TsTypeRef("Promise", _) => "JSValue/* FIXME: `${ty}` */"
         case TsTypeRef(x, arr) =>
-             if (userDefinedNames.contains(x) || x.startsWith("AutoGenType")) {
+             if (isUserDefinedName(x) || x.startsWith("AutoGenType")) {
                 "${x}<${arr.map(toCJType) |> collectString<String>(delimiter: ", ")}>"
             } else {
                 "JSValue/* FIXME: `${x}` */"
@@ -331,7 +331,7 @@ private func genFrom(tsType: TsType, gconfig: GlobalConfig, targetObj: Tokens, c
     } else {
         if (opt) {
             quote(
-                if ($(targetObj).isNull()) {
+                if$(space)($(targetObj).isNull()) {
                     None<$(cjType)>
                 } else {
                     $(cjType)$(fromValue)
@@ -409,7 +409,7 @@ private func genFunction(ret: TsType, gconfig: GlobalConfig, targetObj: Tokens, 
         })
     })
     if (isOptional) {
-        quote(if ($(targetObj).isUndefined()) {
+        quote(if$(space)($(targetObj).isUndefined()) {
             None
         } else {
             $(funcValue)
@@ -445,7 +445,7 @@ private func fromJSValue(tsType: TsType, gconfig: GlobalConfig, targetObj: Token
             let fromJSToken = array[1].fromJSValue(gconfig, quote(i), quote(context))
             if (isOptional) {
                 quote(
-                    if ($(targetObj).isNull()) {
+                    if$(space)($(targetObj).isNull()) {
                         None<HashMap<String, $(secondParam)>>
                     } else {
                         $(res)($(ctxParam), $(targetObj), {context, i => $(fromJSToken)})

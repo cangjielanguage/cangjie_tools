@@ -18,10 +18,14 @@ import ohos.base.*
     }*/
 
 public open class I {
-    
-    protected I(public var p: Float64,
-    public var p1: Float64) { }
-    
+    public var p: Float64
+    public var p1: Float64
+    protected init(
+    p: Float64,
+    p1: Float64) {
+        this.p = p
+        this.p1 = p1
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -37,8 +41,8 @@ public open class I {
         Float64.fromJSValue(context, obj["p1"])
         )
     }
-    
 }
+
 
 /*class DeclareKeyword C {
     p: number;
@@ -46,18 +50,18 @@ public open class I {
     }*/
 
 public class C <: I {
-    
     protected C(var arkts_object: JSObject) {
         super(Float64.fromJSValue(getMainContext(), arkts_object["p"]),
-        Float64.fromJSValue(getMainContext(), arkts_object["p1"])) }
+        Float64.fromJSValue(getMainContext(), arkts_object["p1"]))
+    }
     
     
     
-    public func toJSValue(context: JSContext): JSValue {
+    public func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    public static func fromJSValue(context: JSContext, input: JSValue): C {
+    public static func fromJSValue(_: JSContext, input: JSValue): C {
         C(input.asObject())
     }
 }

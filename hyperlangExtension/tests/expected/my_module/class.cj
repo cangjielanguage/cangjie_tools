@@ -32,14 +32,13 @@ import ohos.base.*
     }*/
 
 public class TDDiagBuilder {
-    
     protected TDDiagBuilder(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(): void
 	 */
     public init() {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_class", "TDDiagBuilder").toJSValue().asClass()
             clazz.new().asObject()
         }
@@ -121,7 +120,7 @@ public class TDDiagBuilder {
         get() {
             checkThreadAndCall < Option<LoggerAdapter> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["loggerAdapter"].isNull()) {
+                if (arkts_object["loggerAdapter"].isNull()) {
                     None < LoggerAdapter >
                 } else {
                     LoggerAdapter.fromJSValue(ctx, arkts_object["loggerAdapter"])
@@ -157,7 +156,7 @@ public class TDDiagBuilder {
         get() {
             checkThreadAndCall < Option<String> >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["platform"].isNull()) {
+                if (arkts_object["platform"].isNull()) {
                     None < String >
                 } else {
                     String.fromJSValue(ctx, arkts_object["platform"])
@@ -224,11 +223,11 @@ public class TDDiagBuilder {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): TDDiagBuilder {
+    static func fromJSValue(_: JSContext, input: JSValue): TDDiagBuilder {
         TDDiagBuilder(input.asObject())
     }
 }
@@ -239,7 +238,6 @@ public class TDDiagBuilder {
     }*/
 
 public class d10 {
-    
     protected d10(var arkts_object: JSObject) { }
     
     
@@ -286,11 +284,11 @@ public class d10 {
         jsObjApiCall < d10 >( arkts_object, "putSync", { ctx =>[key.toJSValue(ctx), toJSArray < Bool >(ctx, value)] }) { ctx, info => d10.fromJSValue(ctx, info) }
     }
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): d10 {
+    static func fromJSValue(_: JSContext, input: JSValue): d10 {
         d10(input.asObject())
     }
 }

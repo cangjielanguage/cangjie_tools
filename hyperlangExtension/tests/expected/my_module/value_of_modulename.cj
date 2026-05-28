@@ -16,32 +16,24 @@ import ohos.base.*
     }*/
 
 public class Greeter {
-    
     protected Greeter(var arkts_object: JSObject) { }
     /**
 	 * @brief constructor(greeting : string): void
 	 */
     public init(greeting: String) {
         arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
+            ctx =>
             let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").toJSValue().asClass()
-            clazz.new(greeting.toJSValue(__ctx)).asObject()
-        }
-    }
-    public init() {
-        arkts_object = checkThreadAndCall < JSObject >(getMainContext()) {
-            __ctx =>
-            let clazz = getClassConstructorObj("cases_valueOfModulename", "Greeter").toJSValue().asClass()
-            clazz.new().asObject()
+            clazz.new(greeting.toJSValue(ctx)).asObject()
         }
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): Greeter {
+    static func fromJSValue(_: JSContext, input: JSValue): Greeter {
         Greeter(input.asObject())
     }
 }

@@ -54,7 +54,6 @@ public const o = "default"
     }*/
 
 public class BuildProfile {
-    
     protected BuildProfile(var arkts_object: JSObject) { }
     
     
@@ -91,11 +90,11 @@ public class BuildProfile {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): BuildProfile {
+    static func fromJSValue(_: JSContext, input: JSValue): BuildProfile {
         BuildProfile(input.asObject())
     }
 }

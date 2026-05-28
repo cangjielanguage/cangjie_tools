@@ -15,9 +15,8 @@ import ohos.base.*
     }*/
 
 public open class AutoGenType0Inexport_class {
-    
-    protected AutoGenType0Inexport_class() { }
-    
+    protected init() {
+    }
     
     public open func toJSValue(context: JSContext): JSValue {
         let obj = context.object()
@@ -31,15 +30,14 @@ public open class AutoGenType0Inexport_class {
         
         )
     }
-    
 }
+
 
 /*class ExportKeyword DeclareKeyword UserInfoManager {
     userPreferences?: { [key: String]: String | number | boolean };
     }*/
 
 public class UserInfoManager {
-    
     protected UserInfoManager(var arkts_object: JSObject) { }
     
     
@@ -47,7 +45,7 @@ public class UserInfoManager {
         get() {
             checkThreadAndCall < ?AutoGenType0Inexport_class >(getMainContext()) {
                 ctx: JSContext =>
-                if(arkts_object["userPreferences"].isNull()) {
+                if (arkts_object["userPreferences"].isNull()) {
                     None < AutoGenType0Inexport_class >
                 } else {
                     AutoGenType0Inexport_class.fromJSValue(ctx, arkts_object["userPreferences"])
@@ -66,11 +64,11 @@ public class UserInfoManager {
     }
     
     
-    func toJSValue(context: JSContext): JSValue {
+    func toJSValue(_: JSContext): JSValue {
         arkts_object.toJSValue()
     }
     
-    static func fromJSValue(context: JSContext, input: JSValue): UserInfoManager {
+    static func fromJSValue(_: JSContext, input: JSValue): UserInfoManager {
         UserInfoManager(input.asObject())
     }
 }

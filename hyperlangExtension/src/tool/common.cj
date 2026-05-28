@@ -9,6 +9,7 @@ package hle.tool
 import std.collection.*
 import std.ast.*
 import std.regex.*
+import std.sync.Mutex
 import stdx.serialization.serialization.*
 
 public const i8: String = "Int8"
@@ -42,7 +43,8 @@ public let stropToken: Token = Token(TokenKind.IDENTIFIER, "?String")
 public let commaToken: Token = Token(TokenKind.COMMA)
 public let noneToken: Token = Token(TokenKind.IDENTIFIER, "None")
 public let deriveToStringToken: Token = Token(TokenKind.IDENTIFIER, "@Derive[ToString]")
-public let cangjieKeyword = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
+public let space = Token(TokenKind.IDENTIFIER, "")
+public let cangjieKeyword: Array<String> = ["as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "Rune",
 "do", "else", "enum", "extend", "for", "func", "false", "finally", "foreign", "Float16", "Float32", "Float64", "if",
 "in", "is", "init", "import", "interface", "Int8", "Int16", "Int32", "Int64", "IntNative", "let", "mut","main",
 "macro", "match", "Nothing", "open", "operator", "override", "prop", "public", "package", "private", "protected",
@@ -60,7 +62,20 @@ public let ContainerBase: Array<String> = ["Badge", "Column", "ColumnSplit", "Fl
 public let ShapeComponent: Array<String> = ["Circle", "Line", "Path", "Rect", "Shape", "Polygon"]
 
 // 记录用户自定义的类型名称（定义类、接口、枚举、泛型类型时更新）
-public var userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn"])
+private let userDefinedNamesLock: Mutex = Mutex()
+private let userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn", "Context", "BaseContext", "UIAbilityContext"])
+
+public func addUserDefinedName(name: String): Unit {
+    synchronized(userDefinedNamesLock) {
+        userDefinedNames.add(name)
+    }
+}
+
+public func isUserDefinedName(name: String): Bool {
+    synchronized(userDefinedNamesLock) {
+        userDefinedNames.contains(name)
+    }
+}
 
 //记录一个namespace的内容
 public class NameSpace {
@@ -100,10 +115,17 @@ public class Transform {
     public init() {}
 
     public init(fileContent: String) {
-        useBigInt = fileContent.contains(JsBigInt)
-        useContext = fileContent.contains(UIContext) || fileContent.contains("common.Context") || fileContent.contains(
-            "Context")
-        useHashMap = fileContent.contains(JsHashMap)
+        if (Regex("\\b${JsBigInt}\\b").find(fileContent).isSome()) {
+            useBigInt = true
+        }
+        if (Regex("\\bUIContext\\b").find(fileContent).isSome() || 
+            Regex("\\bcommon.Context\\b").find(fileContent).isSome() ||
+            Regex("\\bContext\\b").find(fileContent).isSome()) {
+            useContext = true
+        }
+        if (Regex("\\b${JsHashMap}\\b").find(fileContent).isSome()) {
+            useHashMap = true
+        }
     }
 }
 
@@ -125,7 +147,7 @@ public class TypeParameter <: Serializable<TypeParameter> {
 
         let result = TypeParameter()
         result.name = String.deserialize(dms.get("name"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -167,7 +189,7 @@ public class EnumType <: Serializable<EnumType> {
         result.name = String.deserialize(dms2.get("name"))
         result.keyValues = ArrayList<String>.deserialize(dms2.get("item-value"))
         result.comment = String.deserialize(dms2.get("comment"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 
@@ -333,6 +355,7 @@ public class TypeType <: Serializable<TypeType> {
     public var comment: String = ""
     public var aliasType: String = ""
     public var tsType: TsType = TsAny
+    public var gconfig: Option<GlobalConfig> = None
 
     public init() {}
 
@@ -361,7 +384,7 @@ public class TypeType <: Serializable<TypeType> {
                 }
                 if (nonNullTypes.size != 1) {
                     // handle union type, convert it to enum
-                    let ut = UnionType(name, tsType, ArrayList<String>())
+                    let ut = UnionType(name, tsType, ArrayList<String>(), gconfig)
                     tok.append(ut.genTokens())
                     return tok
                 }
@@ -408,7 +431,7 @@ public class TypeType <: Serializable<TypeType> {
         }
         let result = TypeType(typeName, String.deserialize(dms2.get("comment")),
             String.deserialize(dms2.get("type")), tsType)
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -585,7 +608,7 @@ public class ObjectType <: Serializable<ObjectType> & Equatable<ObjectType> {
             m.obj = result
         }
         result.comment = String.deserialize(dms2.get("comment"))
-        userDefinedNames.add(result.name)
+        addUserDefinedName(result.name)
         return result
     }
 }
@@ -595,8 +618,9 @@ public class UnionType {
     let name: String
     // metaInfo like: string | number
     let metaInfo: TsType
-    let typeList = ArrayList<String>()
+    var typeList = ArrayList<TsType>()
     let ctxName = "context"
+    let ctxToken = Token(TokenKind.IDENTIFIER, ctxName)
     let genericParams: ArrayList<TypeParameter>
     let genericSet = HashSet<String>()
     let nativeTypeMap = HashMap<String, (String, String, String, String)>(
@@ -610,11 +634,11 @@ public class UnionType {
             return UNDEFINED
         }"###)),
             ("number", ("NUMBER(Float64)", "NUMBER(x)", "${ctxName}.number(x).toJSValue()", ###"
-        if(input.isNumber()) {
+        if (input.isNumber()) {
             return NUMBER(Float64.fromJSValue(context, input))
         } "###)),
             ("string", ("STRING(String)", "STRING(x)", "${ctxName}.string(x).toJSValue()", ###"
-        if(input.isString()) {
+        if (input.isString()) {
             return STRING(String.fromJSValue(context, input))
         }"###)),
             ("boolean", ("BOOLEAN(Bool)", "BOOLEAN(x)", "${ctxName}.boolean(x).toJSValue()", ###"
@@ -687,14 +711,16 @@ public class UnionType {
         }"###))
         ]
     )
+    var gconfig: Option<GlobalConfig> = None
 
-    public init(_name: String, _metaInfo: TsType, _genericParams: ArrayList<String>) {
+    public init(_name: String, _metaInfo: TsType, _genericParams: ArrayList<String>, gconfig: Option<GlobalConfig>) {
         name = _name
         metaInfo = _metaInfo
         match (metaInfo) {
-            case TsUnion(list) => typeList.add(all: list.map {it => it.toString()})
+            case TsUnion(list) => typeList = ArrayList(list)
             case _ => throw IllegalArgumentException("Input is not a union type")
         }
+        this.gconfig = gconfig
         genericParams = _genericParams |> map {item =>
             let result = TypeParameter()
             result.name = item
@@ -710,7 +736,11 @@ public class UnionType {
     }
 
     private func genIdentifier(t: String): String {
-        return Regex("[^0-9a-zA-Z_]").replaceAll(t.replace(" ", ""), "_").toAsciiUpper()
+        let base = Regex("[^\\p{XID_Continue}]", [Unicode]).replaceAll(t.replace(" ", ""), "_").toAsciiUpper()
+        if (!Regex("^\\p{XID_Start}", [Unicode]).matches(base)) {
+            return "LITERAL_${base}"
+        }
+        return base
     }
 
     public func signature(): String {
@@ -727,43 +757,49 @@ public class UnionType {
         ret
     }
 
-    func getStringToken(t: String): String {
+    func getStringToken(ty: TsType): String {
+        let t = ty.toString()
+        let cjType = ty.toCJType()
         return if (let Some(v) <- nativeTypeMap.get(t)) {
             // handle native type
             v[0]
         } else if (genericSet.contains(t)) {
             t + 0.toString() + "(${t})"
-        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
+        // additionally judge for the cases such as "AutoGenType*?"、"AutoGenType*[]"
+        } else if (isUserDefinedName(t) || (t.startsWith("AutoGenType") && cjType.startsWith("AutoGenType"))) {
             // handle user-defined type
             "${name}" + t.toAsciiUpper() + "(${t})"
         } else if (isStringLiteral(t)) {
             // String Literal
-            t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'").toAsciiUpper()
+            genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
         } else {
             // handle unknown type
-            genIdentifier(t) + "(JSValue/* FIXME: `${t}` */)"
+            genIdentifier(t) + "(${ty.toCJTypeTokens()})"
         }
     }
 
-    func getIdentifierToken(t: String): (Token, Token) {
+    func getIdentifierToken(ty: TsType): (Token, Tokens) {
+        let t = ty.toString()
+        let cjType = ty.toCJType()
         return if (let Some(c) <- nativeTypeMap.get(t)) {
-            (Token(TokenKind.IDENTIFIER, c[1]), Token(TokenKind.IDENTIFIER, c[2]))
+            (Token(TokenKind.IDENTIFIER, c[1]), Tokens(Token(TokenKind.IDENTIFIER, c[2])))
         } else if (genericSet.contains(t)) {
             let x = Token(TokenKind.IDENTIFIER, t + 0.toString() + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
+            let y = quote(x.toJSValue(context))
             (x, y)
-        } else if (userDefinedNames.contains(t) || t.startsWith("AutoGenType")) {
+        // additionally judge for the cases such as "AutoGenType*?"、"AutoGenType*[]"
+        } else if (isUserDefinedName(t) || (t.startsWith("AutoGenType") && cjType.startsWith("AutoGenType"))) {
             let x = Token(TokenKind.IDENTIFIER, "${name}" + t.toAsciiUpper() + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x.toJSValue(context)")
+            let y = quote(x.toJSValue(context))
             (x, y)
         } else if (isStringLiteral(t)) {
-            let tmp = t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'")
+            let tmp = genIdentifier(t.trimStart("\"").trimStart("\'").trimEnd("\"").trimEnd("\'"))
             let x = Token(TokenKind.IDENTIFIER, tmp.toAsciiUpper())
-            let y = Token(TokenKind.IDENTIFIER, "${ctxName}.string(\"${tmp}\").toJSValue()")
+            let y = quote($(ctxToken).string($(t)).toJSValue())
             (x, y)
         } else {
             let x = Token(TokenKind.IDENTIFIER, genIdentifier(t) + "(x)")
-            let y = Token(TokenKind.IDENTIFIER, "x")
+            let y = ty.toJSValue(gconfig.getOrThrow(), quote(x), quote($(ctxToken)))
             (x, y)
         }
     }
@@ -787,14 +823,14 @@ public class UnionType {
         ret.append(quote(match(this) {) + nl)
         for (t in typeList) {
             let (cs, cv) = getIdentifierToken(t)
-            ret.append(quote(case $(cs) => ) + cv + nl)
+            ret.append(quote(case $(cs) => $(cv)) + nl)
         }
 
         ret.append(quote(}) + nl + quote(}) + nl)
         
         ret.append(quote(public static func fromJSValue(context: JSContext, input: JSValue): $(nameToken)$(typeParameters) {) + nl)
         for (t in typeList) {
-            if (let Some(c) <- nativeTypeMap.get(t)) {
+            if (let Some(c) <- nativeTypeMap.get(t.toString())) {
                 ret.append(Token(TokenKind.IDENTIFIER, c[3]))       
             }
         }

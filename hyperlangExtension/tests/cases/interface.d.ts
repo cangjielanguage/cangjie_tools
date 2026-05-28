@@ -63,9 +63,9 @@ interface ClockConstructor {
 }
 
 export interface IWBAPI {
-    authorize(context: common.UIAbilityContext, listener: WbASListener ): void
+    // authorize(context: common.UIAbilityContext, listener: WbASListener ): void
     
-    authorizeClient(context: Context, listener: WbASListener): void
+    // authorizeClient(context: Context, listener: WbASListener): void
 
     // authorizeClient(context: BaseContext, listener: WbASListener): void
 
@@ -116,4 +116,9 @@ export declare class UMConfig {
   appKey?: string;
   channel?: string;
   enableLog?: boolean;
+}
+
+export interface AA {
+    a: number;
+    foo(): void;
 }
