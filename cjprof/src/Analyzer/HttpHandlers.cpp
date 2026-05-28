@@ -721,18 +721,31 @@ std::string HttpHandlers::handleDominanceTop10(const HttpContext& ctx) {
         return result.dump();
     }
 
-    uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : 1;
-    if (usedHeap == 0) usedHeap = 1;
-    uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.threshold01Percent);
-    if (threshold01 == 0) threshold01 = 1;
-
     std::vector<const DominanceNode*> sortedNodes;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.retained_size >= threshold01) {
-            sortedNodes.push_back(&node);
+    size_t totalNodes = ctx.dominanceNodes->size();
+
+    // Initialize sortedNodes with first 10 nodes (or all nodes if less than 10)
+    size_t initialCount = std::min(static_cast<size_t>(10), totalNodes);
+    for (size_t i = 0; i < initialCount; ++i) {
+        sortedNodes.push_back(&ctx.dominanceNodes->at(i));
+    }
+
+    // Process remaining nodes: replace smallest node in sortedNodes if current node is larger
+    for (size_t i = initialCount; i < totalNodes; ++i) {
+        const DominanceNode* current = &ctx.dominanceNodes->at(i);
+
+        // Find node with smallest retained_size in sortedNodes
+        auto minIt = std::min_element(sortedNodes.begin(), sortedNodes.end(), [](const DominanceNode* a, const DominanceNode* b) {
+            return a->retained_size < b->retained_size;
+        });
+
+        // Replace if current node is larger than the smallest node
+        if (current->retained_size > (*minIt)->retained_size) {
+            *minIt = current;
         }
     }
 
+    // Sort by retained_size descending
     std::sort(sortedNodes.begin(), sortedNodes.end(), [](const DominanceNode* a, const DominanceNode* b) {
         return a->retained_size > b->retained_size;
     });
