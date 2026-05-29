@@ -178,7 +178,7 @@ namespace test::common {
 
     bool IsMacroExpandTest(const std::string &rootUri);
 
-    bool IsMacroExpandTest(const std::string &rootUri);
+    bool IsLspMacroSrvFailed();
 
     ark::FindOverrideMethodResult CreateOverrideMethodsResult(const nlohmann::json& exp);
 

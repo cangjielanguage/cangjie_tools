@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <string>
 #ifdef __linux__
@@ -648,6 +649,7 @@ namespace test::common {
 
     void StartLspServer(bool useDb) {
         SingleInstance *p = SingleInstance::GetInstance();
+        p->stderrPath = p->testFolder + "_freopen.err";
         const std::string cachePath = JoinPath(p->pathPwd, p->testFolder);
         if (!FileExist(cachePath)) {
             CreateDirs(cachePath);
@@ -658,10 +660,12 @@ namespace test::common {
         }
 #ifdef _WIN32
         std::string cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true < " +
-                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out 2> " +
+                              p->testFolder + "_freopen.err";
         if (useDb) {
             cmdLine = "cmd.exe /c " + p->pathPwd + "\\LSPServer.exe --test --enable-log true --cache-path=" +
-                      cachePath + " < " + p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+                      cachePath + " < " + p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out 2> " +
+                      p->testFolder + "_freopen.err";
         }
 
         STARTUPINFO si;
@@ -724,10 +728,11 @@ namespace test::common {
 #else
         std::string cmd =
             p->pathPwd + "/LSPServer --test --enable-log true < " + p->testFolder + "_freopen.in > " +
-            p->testFolder + "_freopen.out";
+            p->testFolder + "_freopen.out 2> " + p->testFolder + "_freopen.err";
         if (useDb) {
             cmd =  p->pathPwd + "/LSPServer --test --enable-log true --cache-path=" + cachePath + " < " +
-                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out";
+                              p->testFolder + "_freopen.in > " + p->testFolder + "_freopen.out 2> " +
+                              p->testFolder + "_freopen.err";
         }
 
         int retryCount = 0;
@@ -2060,6 +2065,17 @@ namespace test::common {
             return true;
         }
         return false;
+    }
+
+    bool IsLspMacroSrvFailed() {
+        SingleInstance *p = SingleInstance::GetInstance();
+        std::ifstream errFile(p->stderrPath);
+        if (!errFile.is_open()) {
+            return false;
+        }
+        std::string content((std::istreambuf_iterator<char>(errFile)),
+                             std::istreambuf_iterator<char>());
+        return content.find("run macro srv in fork, due to exec fail") != std::string::npos;
     }
 
     void ReadExpectedCallHierarchyResult(std::string &baseFile, CallHierarchyResult &expect) {

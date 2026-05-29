@@ -15,6 +15,7 @@ public:
     std::string pathPwd = "";
     std::string messagePath = "";
     std::string testFolder = "";
+    std::string stderrPath = "";
     std::string pathBuildScript = "";
     std::string caseProPath = "";
     std::string binaryPath = "";

@@ -36,6 +36,11 @@ namespace TestLspTypeHierarchy {
         /* Wait until the task is complete. The join blocking mode is not used. */
         StartLspServer(SingleInstance::GetInstance()->useDB);
 
+        if (IsLspMacroSrvFailed()) {
+            std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+            return false;
+        }
+
         /* Check the test case result. */
         TypeHierarchyResult expectPrepare;
         ReadExpectedTypeHierarchyResult(param.baseFile, expectPrepare);
@@ -46,6 +51,11 @@ namespace TestLspTypeHierarchy {
             return false;
         }
         StartLspServer(SingleInstance::GetInstance()->useDB);
+
+        if (IsLspMacroSrvFailed()) {
+            std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+            return false;
+        }
 
         TypeHierarchyResult expect;
         ReadExpectedTypeHierarchyResult(param.baseFile, expect);
