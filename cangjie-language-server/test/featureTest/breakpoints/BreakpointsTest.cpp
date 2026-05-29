@@ -36,6 +36,11 @@ namespace TestBreakpoints {
         /* Wait until the task is complete. The join blocking mode is not used. */
         StartLspServer(SingleInstance::GetInstance()->useDB);
 
+        if (IsLspMacroSrvFailed()) {
+            std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+            return false;
+        }
+
         /* Check the test case result. */
         std::vector<ark::BreakpointLocation> expect = ReadExpectedBreakpointLocationItems(param.baseFile);
         std::vector<ark::BreakpointLocation> actual = CreateBreakpointStruct(ReadFileById(p->pathOut, param.id));

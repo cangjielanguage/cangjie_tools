@@ -32,6 +32,12 @@ namespace TestLspCodeCovTest {
         }
         /* Wait until the task is complete. The join blocking mode is not used. */
         StartLspServer(SingleInstance::GetInstance()->useDB);
+
+        if (IsLspMacroSrvFailed()) {
+            std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+            return false;
+        }
+
         std::printf("curTestFile:\nfile:///%s\n", testFile.c_str());
         return true;
     }

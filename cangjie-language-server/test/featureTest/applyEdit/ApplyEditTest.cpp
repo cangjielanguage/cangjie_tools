@@ -37,6 +37,11 @@ namespace TestLspApplyEditTest {
         std::thread ThreadObj(StartLspServer, SingleInstance::GetInstance()->useDB);
         ThreadObj.join();
 
+        if (IsLspMacroSrvFailed()) {
+            std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+            return false;
+        }
+
         /* Check the test case result. */
         nlohmann::json expLines = ReadExpectedResult(param.baseFile);
         nlohmann::json result = ReadFileByMethod(p->pathOut, param.method);

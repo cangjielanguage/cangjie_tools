@@ -35,6 +35,11 @@ bool LspFileReferenceTest(TestParam param)
     /* Wait until the task is complete. The join blocking mode is not used. */
     StartLspServer(SingleInstance::GetInstance()->useDB);
 
+    if (IsLspMacroSrvFailed()) {
+        std::cout << "LSPMacroServer failed to start (exec fail)" << std::endl;
+        return false;
+    }
+
     /* Check the test case result. */
     std::vector<ark::Location> expect = ReadLocationExpectedVector(testFile, param.baseFile, rootUri, isMultiModule);
     std::vector<ark::Location> actual = CreateLocationStruct(ReadFileById(p->pathOut, param.id));
