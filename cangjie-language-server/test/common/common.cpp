@@ -2311,13 +2311,13 @@ namespace test::common {
             item.kind = exp["result"][i].value("kind", "");
             item.identifier = exp["result"][i].value("identifier", "");
             item.package =  exp["result"][i].value("fullPackageName", "");
-            if (exp["result"].contains("data")) {
-                for (int j = 0; j < exp["result"]["data"].size(); j++) {
+            if (exp["result"][i].contains("data")) {
+                for (int j = 0; j < exp["result"][i]["data"].size(); j++) {
                     ark::OverrideMethodInfo info;
-                    info.deprecated = exp["result"]["data"][i].value("deprecated", false);
-                    info.insertText = exp["result"]["data"][i].value("insertText", "");
-                    info.isProp = exp["result"]["data"][i].value("isProp", false);
-                    info.signatureWithRet = exp["result"]["data"][i].value("signatureWithRet", "");
+                    info.deprecated = exp["result"][i]["data"][j].value("deprecated", false);
+                    info.insertText = exp["result"][i]["data"][j].value("insertText", "");
+                    info.isProp = exp["result"][i]["data"][j].value("isProp", false);
+                    info.signatureWithRet = exp["result"][i]["data"][j].value("signatureWithRet", "");
                     item.overrideMethodInfos.emplace_back(info);
                 }
             }

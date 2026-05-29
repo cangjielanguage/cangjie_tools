@@ -1207,7 +1207,7 @@ TEST(FindOverrideMethodsUtilsTest, PropDetailTest_ToStringWithEmptyModifiersAndT
 {
     PropDetail prop;
     prop.identifier = "prop1";
-    EXPECT_EQ(prop.ToString(), " prop prop1: ");
+    EXPECT_EQ(prop.ToString(), "prop prop1: ");
 }
 
 TEST(FindOverrideMethodsUtilsTest, PropDetailTest_ToStringWithSingleModifierAndNoType)

@@ -68,6 +68,9 @@ void FindOverrideMethodsImpl::AddFuncItemsToResult(const Ptr<Decl>& decl, const 
             }
         }
         info.deprecated = method->HasAnno(AnnotationKind::DEPRECATED);
+        auto cleanDetail = funcDetail.ToString();
+        auto funcTextPos = cleanDetail.find(" func ");
+        info.signatureWithRet = cleanDetail.substr(funcTextPos+ strlen(" func "));
         FilterModifiers(decl, funcDetail.modifiers);
         info.insertText = funcDetail.ToString() + " {\n" + superCallText + "}";
         item.overrideMethodInfos.emplace_back(info);
@@ -111,7 +114,9 @@ void FindOverrideMethodsImpl::AddPropItemsToResult(const Ptr<Decl> decl, const P
         }
         OverrideMethodInfo info;
         info.isProp = true;
+        auto propTy = propDetail.type->ToString();
         info.deprecated = prop->HasAnno(AnnotationKind::DEPRECATED);
+        info.signatureWithRet = identifier + ": " + propTy;
         info.insertText = propDetail.ToString() + " {\n" + TAB + getter;
         if (!setter.empty()) {
             info.insertText += NEWLINE + TAB + setter;
