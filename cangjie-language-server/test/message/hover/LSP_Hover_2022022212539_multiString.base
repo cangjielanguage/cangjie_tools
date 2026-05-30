@@ -1,1 +1,1 @@
-{"id":9,"jsonrpc":"2.0","result":{"contents":{"language":"Cangjie","value":"Declared in: test_multiLine.cj\nPackage info: default\n\ninternal func chinese(str: String, variable!: Int64): Unit\n"},"range":{"end":{"character":31,"line":17},"start":{"character":24,"line":17}}}}
+{"id":9,"jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: test\\_multiLine.cj  \nPackage info: default  \n\n```cangjie\ninternal func chinese(str: String, variable!: Int64): Unit\n```\n"},"range":{"end":{"character":31,"line":17},"start":{"character":24,"line":17}}}}

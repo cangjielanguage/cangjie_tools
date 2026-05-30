@@ -7,8 +7,10 @@
 #include "ArkServer.h"
 #include <cangjie/Utils/ConstantsUtils.h>
 #include <cangjie/Utils/FileUtil.h>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "capabilities/definition/CrossLanguangeDefinition.h"
 #include "capabilities/documentSymbol/DocumentSymbolImpl.h"
@@ -26,9 +28,142 @@ bool Contains(const Cangjie::StringPart &str, Cangjie::Position pos)
 {
     return str.begin.column < pos.column < str.begin.column + str.value.size();
 }
+
+bool StartsWith(const std::string &text, const std::string &prefix)
+{
+    return text.size() >= prefix.size() && text.compare(0, prefix.size(), prefix) == 0;
+}
+
+std::string NormalizeHoverLineEndings(const std::string &text)
+{
+    std::string result;
+    result.reserve(text.size());
+    size_t i = 0;
+    while (i < text.size()) {
+        if (text[i] == '\r') {
+            if (i + 1 < text.size() && text[i + 1] == '\n') {
+                i += 2;
+            } else {
+                ++i;
+            }
+            result.push_back('\n');
+            continue;
+        }
+        result.push_back(text[i]);
+        ++i;
+    }
+    return result;
+}
+
+std::string TrimHoverBlock(const std::string &text)
+{
+    const auto begin = text.find_first_not_of(" \t\r\n");
+    if (begin == std::string::npos) {
+        return "";
+    }
+    const auto end = text.find_last_not_of(" \t\r\n");
+    return text.substr(begin, end - begin + 1);
+}
+
+std::string EscapeMarkdownText(const std::string &text)
+{
+    std::string escaped;
+    escaped.reserve(text.size());
+    for (char ch : text) {
+        if (ch == '\\' || ch == '`' || ch == '*' || ch == '_' || ch == '[' || ch == ']' ||
+            ch == '<' || ch == '>' || ch == '#') {
+            escaped.push_back('\\');
+        }
+        escaped.push_back(ch);
+    }
+    return escaped;
+}
+
+void AppendMarkdownText(std::ostringstream &markdown, const std::string &text, bool hardBreak = false)
+{
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) {
+        markdown << EscapeMarkdownText(line) << (hardBreak ? "  \n" : "\n");
+    }
+}
+
+struct HoverMarkdownBlocks {
+    std::vector<std::string> sourceInfo;
+    std::vector<std::string> declarations;
+    std::vector<std::string> comments;
 };
 
+HoverMarkdownBlocks CollectHoverMarkdownBlocks(const ark::Hover &hover)
+{
+    HoverMarkdownBlocks blocks;
+    bool hasPrimaryDeclaration = false;
+    for (const auto &marked : hover.markedString) {
+        std::string block = TrimHoverBlock(NormalizeHoverLineEndings(marked));
+        if (block.empty()) {
+            continue;
+        }
+        if (StartsWith(block, "Declared in:")) {
+            blocks.sourceInfo.push_back(block);
+        } else if (StartsWith(block, "apiKey:") || StartsWith(block, "// In ")) {
+            blocks.declarations.push_back(block);
+        } else if (!hasPrimaryDeclaration || StartsWith(block, "@")) {
+            blocks.declarations.push_back(block);
+            hasPrimaryDeclaration = true;
+        } else {
+            blocks.comments.push_back(block);
+        }
+    }
+    return blocks;
+}
+
+void AppendHoverSourceInfo(std::ostringstream &markdown, const std::vector<std::string> &sourceInfo)
+{
+    for (const auto &block : sourceInfo) {
+        AppendMarkdownText(markdown, block, true);
+        markdown << "\n";
+    }
+}
+
+void AppendHoverDeclarations(std::ostringstream &markdown, const std::vector<std::string> &declarations)
+{
+    if (declarations.empty()) {
+        return;
+    }
+    markdown << "```cangjie\n";
+    for (const auto &block : declarations) {
+        markdown << block << "\n";
+    }
+    markdown << "```\n";
+}
+
+void AppendHoverComments(std::ostringstream &markdown, const std::vector<std::string> &comments)
+{
+    if (comments.empty()) {
+        return;
+    }
+    markdown << "\n---\n\n";
+    for (size_t i = 0; i < comments.size(); ++i) {
+        AppendMarkdownText(markdown, comments[i]);
+        if (i + 1 < comments.size()) {
+            markdown << "\n\n";
+        }
+    }
+}
+
+} // namespace
+
 namespace ark {
+std::string BuildHoverMarkdown(const Hover &hover)
+{
+    HoverMarkdownBlocks blocks = CollectHoverMarkdownBlocks(hover);
+    std::ostringstream markdown;
+    AppendHoverSourceInfo(markdown, blocks.sourceInfo);
+    AppendHoverDeclarations(markdown, blocks.declarations);
+    AppendHoverComments(markdown, blocks.comments);
+    return markdown.str();
+}
+
 using namespace Cangjie;
 bool CompareCallHierarchyOutgoingCall(const CallHierarchyOutgoingCall &letf, const CallHierarchyOutgoingCall &right)
 {
@@ -491,16 +626,13 @@ void ArkServer::FindHover(const std::string &file,
             nullValueReply();
             return;
         }
-        std::stringstream temp;
-        for (auto &iter : result.markedString) {
-            temp << iter;
-        }
-        if (temp.str().empty()) { // sometimes we dont have valid hover message
+        std::string hoverMarkdown = BuildHoverMarkdown(result);
+        if (hoverMarkdown.empty()) { // sometimes we dont have valid hover message
             nullValueReply();
             return;
         }
-        jsonValue["contents"]["language"] = "Cangjie";
-        jsonValue["contents"]["value"] = temp.str();
+        jsonValue["contents"]["kind"] = "markdown";
+        jsonValue["contents"]["value"] = std::move(hoverMarkdown);
 
         jsonValue["range"]["start"]["line"] = result.range.start.line;
         jsonValue["range"]["start"]["character"] = result.range.start.column;

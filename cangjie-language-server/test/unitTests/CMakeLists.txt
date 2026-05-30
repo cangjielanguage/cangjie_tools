@@ -8,6 +8,7 @@ set(UNIT_TESTS_SRC
         json-rpc/ProtocolTest.cpp
         languageserver/capabilities/fileRefactor/FileMoveTest.cpp
         languageserver/capabilities/fileRefactor/FileRefactorTest.cpp
+        languageserver/capabilities/hover/HoverMarkdownTest.cpp
         languageserver/capabilities/overrideMethods/FindOverrideMethodsUtilsTest.cpp
         languageserver/capabilities/refactor/ExtractFunctionTest.cpp
         languageserver/capabilities/refactor/ExtractInterfaceTest.cpp
