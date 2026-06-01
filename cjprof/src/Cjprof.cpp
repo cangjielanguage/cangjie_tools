@@ -711,8 +711,18 @@ uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, u
 
     uint32_t res = 0;
     for (auto& constructorDiffNode : constructorDiffNodes) {
-        if (IsKeywordContained(constructorDiffNode.className, keyword, isIgnoreCase)) {
-            res += constructorDiffNode.childrenCount;
+        if (!IsKeywordContained(constructorDiffNode.className, keyword, isIgnoreCase)) {
+            continue;
+        }
+        if (constructorDiffNode.addedCount == 0) {
+            res += constructorDiffNode.removedCount;
+        } else if (constructorDiffNode.removedCount == 0) {
+            res += constructorDiffNode.addedCount;
+        } else {
+            auto expanded = ExpandConstructorDiffNode(
+                baseId, targetId, constructorDiffNode.id, 0,
+                constructorDiffNode.addedCount + constructorDiffNode.removedCount);
+            res += expanded.childrenCount;
         }
     }
 
@@ -767,11 +777,26 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 
     auto curIndex = index - 1;
     for (auto& constructorDiffNode : constructorDiffNodes) {
-        if (IsKeywordContained(constructorDiffNode.className, keyword, isIgnoreCase)) {
-            if (curIndex < constructorDiffNode.childrenCount) {
+        if (!IsKeywordContained(constructorDiffNode.className, keyword, isIgnoreCase)) {
+            continue;
+        }
+
+        if (constructorDiffNode.addedCount == 0) {
+            if (curIndex < constructorDiffNode.removedCount) {
                 return ExpandConstructorDiffNode(baseId, targetId, constructorDiffNode.id, curIndex, length);
             }
-            curIndex -= constructorDiffNode.childrenCount;
+            curIndex -= constructorDiffNode.removedCount;
+        } else if (constructorDiffNode.removedCount == 0) {
+            if (curIndex < constructorDiffNode.addedCount) {
+                return ExpandConstructorDiffNode(baseId, targetId, constructorDiffNode.id, curIndex, length);
+            }
+            curIndex -= constructorDiffNode.addedCount;
+        } else {
+            auto expanded = ExpandConstructorDiffNode(baseId, targetId, constructorDiffNode.id, curIndex, length);
+            if (curIndex < expanded.childrenCount) {
+                return expanded;
+            }
+            curIndex -= expanded.childrenCount;
         }
     }
 
