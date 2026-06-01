@@ -119,6 +119,7 @@ public class Depot {
             case 403 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: permission denied")
             case 404 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: file does not exist")
             case 409 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: artifact with the same name and verison already exists")
+            case 429 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: rate limit exceeded, retry after one day")
             case s where (s >= 500) => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: server error")
             case _ => return (false, "${name}-${version} ${orgStr}publish failed, unknown error with status ${resp.status}")
         }
@@ -159,6 +160,7 @@ public class Depot {
             case 401 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: authentication failed")
             case 403 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: permission denied")
             case 404 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: file does not exist")
+            case 429 => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: rate limit exceeded, retry after one day")
             case s where (s >= 500) => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed with status ${resp.status}: server error")
             case _ => (flag, errLog) = (false, "${name}-${version} ${orgStr}load failed, unknown error with status ${resp.status}")
         }
