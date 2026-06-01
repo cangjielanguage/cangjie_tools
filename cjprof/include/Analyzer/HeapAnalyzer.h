@@ -190,6 +190,7 @@ private:
     void AnalyzeInstance();
     void AnalyzeArray();
     void AnalyzeThread();
+    void FilterPlaceholderObjects();
     std::shared_ptr<Object> GetObject(Hprof::ID id);
 
     inline uint64_t Align(uint64_t size)
