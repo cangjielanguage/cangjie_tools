@@ -9,11 +9,15 @@ import cjpm.config.*
 
 import cjpm.config.*
 
+public func supportLtoForTarget(compileTarget: String): Bool {
+    compileTarget.contains("linux")
+}
+
 func supportLto(): Bool {
     if (crossCompileTarget.isEmpty()) {
-        return targetConfigName.contains("linux")
+        return supportLtoForTarget(targetConfigName)
     }
-    return crossCompileTarget.contains("linux")
+    return supportLtoForTarget(crossCompileTarget)
 }
 
 func isSupportCombine(): Bool {

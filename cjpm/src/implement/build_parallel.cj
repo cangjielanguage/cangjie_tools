@@ -1242,9 +1242,10 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 OutputType.Static
             } else { r.outputType }
 
-            let isLto = buildConfig.isLto
+            // LTO follows the actual compile target.
+            let isLto = buildConfig.isLto && supportLtoForTarget(target)
             let ltoValue = if (isLto) { buildConfig.ltoValue } else { "" }
-            let keepPkgVisibility = buildConfig.keepPkgVisibility
+            let keepPkgVisibility = if (isLto) { buildConfig.keepPkgVisibility } else { Option<Array<String>>.None }
 
             let isSplittable = !isMultiplatform &&
                 !isLto &&
