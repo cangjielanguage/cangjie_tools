@@ -40,6 +40,7 @@ bool HeapAnalyzer::Analyze(bool verbose)
 
     AnalyzeObject();
     AnalyzeThread();
+    FilterPlaceholderObjects();
 
     return true;
 }
@@ -188,6 +189,39 @@ void HeapAnalyzer::ShowReference(const std::string &objNameList, int maxDepth, b
     }
 
     printf("\n");
+}
+
+void HeapAnalyzer::FilterPlaceholderObjects()
+{
+    std::unordered_set<Hprof::ID> removedIds;
+    m_objects.erase(
+        std::remove_if(m_objects.begin(), m_objects.end(),
+            [&](const std::shared_ptr<Object>& obj) {
+                if (obj->name.empty()) {
+                    removedIds.insert(obj->id);
+                    objects_cache.erase(obj->id);
+                    return true;
+                }
+                return false;
+            }),
+        m_objects.end());
+
+    for (auto& obj : m_objects) {
+        for (auto it = obj->outRef.begin();it != obj->outRef.end();) {
+            if (removedIds.count(*it)) {
+                it = obj->outRef.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        for (auto it = obj->inRef.begin();it != obj->inRef.end();) {
+            if (removedIds.count(*it)) {
+                it = obj->inRef.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 }
 
 void HeapAnalyzer::AnalyzeObject()
