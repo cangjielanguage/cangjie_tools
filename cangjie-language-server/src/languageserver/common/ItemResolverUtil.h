@@ -66,6 +66,8 @@ public:
 
     static std::string FetchTypeString(const Cangjie::AST::Type &type);
 
+    static std::string ResolveTypeSignature(const Cangjie::AST::Type &type);
+
     static void DealTypeDetail(std::string &detail, Ptr<Cangjie::AST::Type> type, const std::string &filePath,
         Cangjie::SourceManager *sourceManager = nullptr);
 
@@ -199,6 +201,19 @@ private:
     static std::string GetFuncTypeString(Ptr<Cangjie::AST::Type> type);
 
     static std::string GetTypeString(const Cangjie::AST::Type &type);
+
+    // Position-independent Type signature derivation, mirroring compiler's ToString
+    static std::string ResolveInvalidTypeSignature(const Cangjie::AST::InvalidType &type);
+    static std::string ResolveRefTypeSignature(const Cangjie::AST::RefType &type);
+    static std::string ResolveThisTypeSignature(const Cangjie::AST::ThisType &type);
+    static std::string ResolvePrimitiveTypeSignature(const Cangjie::AST::PrimitiveType &type);
+    static std::string ResolveParenTypeSignature(const Cangjie::AST::ParenType &type);
+    static std::string ResolveQualifiedTypeSignature(const Cangjie::AST::QualifiedType &type);
+    static std::string ResolveOptionTypeSignature(const Cangjie::AST::OptionType &type);
+    static std::string ResolveConstantTypeSignature(const Cangjie::AST::ConstantType &type);
+    static std::string ResolveVArrayTypeSignature(const Cangjie::AST::VArrayType &type);
+    static std::string ResolveFuncTypeSignature(const Cangjie::AST::FuncType &type);
+    static std::string ResolveTupleTypeSignature(const Cangjie::AST::TupleType &type);
 };
 } // namespace ark
 

@@ -1262,7 +1262,7 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
     std::map<std::string, ExtendInfo> extendInfoMap;
     for (auto &member : extendDecl->members) {
         bool skip = IsHiddenDecl(member) || !member->IsExportedDecl() || member->TestAttr(Attribute::OPERATOR);
-        if (skip) {
+        if ( skip ) {
             continue;
         }
         std::string signature = ItemResolverUtil::ResolveSignatureByNode(*member);

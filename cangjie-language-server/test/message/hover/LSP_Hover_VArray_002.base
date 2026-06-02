@@ -1,1 +1,1 @@
-{"id":"9","jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: main.cj  \nPackage info: default  \n\n```cangjie\nlet z: Tuple<VArray<VArray<VArray<ABC, $5>, $4>, $3>, Int64>\n```\n"},"range":{"end":{"character":9,"line":11},"start":{"character":8,"line":11}}}}
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: main.cj  \nPackage info: default  \n\n```cangjie\nlet z: (VArray<VArray<VArray<ABC, $5>, $4>, $3>, Int64)\n```\n"},"range":{"end":{"character":9,"line":11},"start":{"character":8,"line":11}}}}
