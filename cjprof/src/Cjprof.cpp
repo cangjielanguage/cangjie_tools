@@ -21,7 +21,8 @@ namespace fs = std::experimental::filesystem;
 
 namespace Cjprof {
 
-static size_t intersect(const std::vector<size_t>& idom, size_t p1, size_t p2) {
+static size_t intersect(const std::vector<size_t>& idom, size_t p1, size_t p2)
+{
     while (p2 != p1) {
         while (p2 < p1) {
             p2 = idom[p2];
@@ -375,7 +376,8 @@ public:
         CalculateDistance();
     }
 
-    InstanceNode CreateInstanceNode(uint32_t index) {
+    InstanceNode CreateInstanceNode(uint32_t index)
+    {
         auto insNode = InstanceNode();
         auto& node = this->insNodes[index];
         insNode.className = this->rhs.strings[node.nameIndex];
@@ -395,7 +397,8 @@ public:
         return insNode;
     }
 
-    ConstructorNode CreateConstructorNode(ConNode& con) {
+    ConstructorNode CreateConstructorNode(ConNode& con)
+    {
         auto conNode = ConstructorNode();
         conNode.className = this->rhs.strings[con.nameIndex];
         conNode.childrenCount = con.children.size();
@@ -494,7 +497,8 @@ public:
         return conNodes;
     }
 
-    ConstructorNode GetConstructorNode(uint64_t nodeId, uint32_t startIndex, uint32_t length) {
+    ConstructorNode GetConstructorNode(uint64_t nodeId, uint32_t startIndex, uint32_t length)
+    {
         for (auto& con: this->conNodes) {
             if (con.id != nodeId) {
                 continue;
@@ -679,7 +683,8 @@ std::vector<std::vector<InstanceNode>> GetNodeRootpaths(uint64_t snapshotId, uin
  * @param[in]  isIgnoreCase     Whether to ignore case
  * @return     true if keyword is contained in name; false otherwise
  */
-static bool IsKeywordContained(const std::string& name, const std::string& keyword, bool isIgnoreCase) {
+static bool IsKeywordContained(const std::string& name, const std::string& keyword, bool isIgnoreCase)
+{
     if (keyword.empty()) return true;
     if (keyword.size() > name.size()) return false;
 
@@ -707,7 +712,8 @@ static bool IsKeywordContained(const std::string& name, const std::string& keywo
  * @param[in]  snapshotId       ID of snapshot
  * @return     Number of InstanceNodes
  */
-uint32_t QuerySnapshotCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t snapshotId) {
+uint32_t QuerySnapshotCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t snapshotId)
+{
     std::vector<ConstructorNode> constructorNodes = GetConstructorNodesBySnapshotID(snapshotId);
 
     uint32_t res = 0;
@@ -729,7 +735,8 @@ uint32_t QuerySnapshotCountOfResults(std::string keyword, bool isIgnoreCase, uin
  * @param[in]  targetId         ID of target snapshot
  * @return     Number of InstanceDiffNodes
  */
-uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId) {
+uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId)
+{
     std::vector<ConstructorDiffNode> constructorDiffNodes = QuerySnapshotComparison(baseId, targetId);
 
     uint32_t res = 0;
@@ -762,7 +769,9 @@ uint32_t QueryComparisonCountOfResults(std::string keyword, bool isIgnoreCase, u
  * @param[in]  index            Count of InstanceNode
  * @return     ConstructorNode which contains searched InstanceNode
  */
-ConstructorNode QuerySnapshotNodeByIndex(std::string keyword, bool isIgnoreCase, uint64_t snapshotId, uint32_t length, uint32_t index) {
+ConstructorNode QuerySnapshotNodeByIndex(std::string keyword, bool isIgnoreCase,
+    uint64_t snapshotId, uint32_t length, uint32_t index)
+{
     if (index == 0) {
         return ConstructorNode();
     }
@@ -792,7 +801,9 @@ ConstructorNode QuerySnapshotNodeByIndex(std::string keyword, bool isIgnoreCase,
  * @param[in]  index            Count of InstanceDiffNode
  * @return     ConstructorDiffNode which contains searched InstanceDiffNode
  */
-ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnoreCase, uint64_t baseId, uint64_t targetId, uint32_t length, uint32_t index) {
+ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnoreCase,
+    uint64_t baseId, uint64_t targetId, uint32_t length, uint32_t index)
+{
     if (index == 0) {
         return ConstructorDiffNode();
     }
@@ -844,7 +855,8 @@ void resetSnapshotDiffs(uint64_t baseId, uint64_t targetId)
     SnapshotDiffs[{targetId, baseId}] = AllConstructorDiffData();
 }
 
-void updateComparisonCache(const uint64_t baseId, const uint64_t targetId, const std::vector<ConstructorDiffNode>& constructorDiffNodes)
+void updateComparisonCache(const uint64_t baseId, const uint64_t targetId,
+    const std::vector<ConstructorDiffNode>& constructorDiffNodes)
 {
     const auto keyBaseTarget = std::make_pair(baseId, targetId);
     const auto keyTargetBase = std::make_pair(targetId, baseId);
@@ -854,14 +866,17 @@ void updateComparisonCache(const uint64_t baseId, const uint64_t targetId, const
     auto& diffBaseTarget = SnapshotDiffs[keyBaseTarget];
     auto& diffTargetBase = SnapshotDiffs[keyTargetBase];
     for (auto &diffNode: constructorDiffNodes) {
-        diffBaseTarget[diffNode.className] = {diffNode.addedCount, diffNode.removedCount, diffNode.addedSize, diffNode.removedSize};
-        diffTargetBase[diffNode.className] = {diffNode.removedCount, diffNode.addedCount, diffNode.removedSize, diffNode.addedSize};
+        diffBaseTarget[diffNode.className] = {
+            diffNode.addedCount, diffNode.removedCount, diffNode.addedSize, diffNode.removedSize};
+        diffTargetBase[diffNode.className] = {
+            diffNode.removedCount, diffNode.addedCount, diffNode.removedSize, diffNode.addedSize};
     }
     SnapshotComparison.clear();
     SnapshotComparison[keyBaseTarget] = constructorDiffNodes;
 }
 
-bool isSameConstructorNode(const uint64_t baseId, const uint64_t targetId, const ConstructorNode& baseNode, const ConstructorNode& targetNode)
+bool isSameConstructorNode(const uint64_t baseId, const uint64_t targetId,
+    const ConstructorNode& baseNode, const ConstructorNode& targetNode)
 {
     bool isSameNode = baseNode.childrenCount == targetNode.childrenCount
         && baseNode.shallowSize == targetNode.shallowSize
@@ -918,11 +933,13 @@ std::vector<ConstructorDiffNode> QuerySnapshotComparison(uint64_t baseId, uint64
             }
         } else if (baseRes != baseConsNodes.end()) {
             auto baseNode = baseRes->second;
-            ConstructorDiffNode diffNode(baseNode, baseNode.childrenCount, 0, baseNode.shallowSize, 0, baseTotalSize, targetTotalSize);
+            ConstructorDiffNode diffNode(baseNode, baseNode.childrenCount, 0,
+                baseNode.shallowSize, 0, baseTotalSize, targetTotalSize);
             res.emplace_back(diffNode);
         } else {
             auto targetNode = targetRes->second;
-            ConstructorDiffNode diffNode(targetNode, 0, targetNode.childrenCount, 0, targetNode.shallowSize, baseTotalSize, targetTotalSize);
+            ConstructorDiffNode diffNode(targetNode, 0, targetNode.childrenCount,
+                0, targetNode.shallowSize, baseTotalSize, targetTotalSize);
             res.emplace_back(diffNode);
         }
     }
@@ -931,7 +948,8 @@ std::vector<ConstructorDiffNode> QuerySnapshotComparison(uint64_t baseId, uint64
 }
 
 template <typename T>
-std::vector<T> getSubRange(const std::vector<T>& vec, size_t index, size_t length) {
+std::vector<T> getSubRange(const std::vector<T>& vec, size_t index, size_t length)
+{
     size_t start = std::min(index, vec.size());
     size_t validLen = std::min(length, vec.size() - start);
     return {vec.begin() + start, vec.begin() + start + validLen};
@@ -970,8 +988,10 @@ ConstructorDiffNode ExpandConstructorDiffNode(
     std::vector<InstanceNode> children;
     uint32_t childrenCount = 0;
     if (isBaseValid && isTargetValid) {
-        auto baseChildren = ExpandConstructorNode(baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
-        auto targetChildren = ExpandConstructorNode(targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
+        auto baseChildren = ExpandConstructorNode(
+            baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
+        auto targetChildren = ExpandConstructorNode(
+            targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
         std::unordered_set<uint64_t> baseChildIds;
         std::unordered_set<uint64_t> targetChildIds;
         for (auto& child : baseChildren) baseChildIds.emplace(child.id);
@@ -989,11 +1009,14 @@ ConstructorDiffNode ExpandConstructorDiffNode(
         children = getSubRange(diffNodes, startIndex, length);
     } else if (isTargetValid) {
         childrenCount = targetNode.childrenCount;
-        auto targetChildren = ExpandConstructorNode(targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
+        auto targetChildren = ExpandConstructorNode(
+            targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
         children = getSubRange(targetChildren, startIndex, length);
     } else {
         childrenCount = baseNode.childrenCount;
-        auto baseChildren = ExpandConstructorNode(baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
+        auto baseChildren = ExpandConstructorNode(
+            baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
+        children = getSubRange(baseChildren, startIndex, length);
         children = getSubRange(baseChildren, startIndex, length);
     }
 
@@ -1019,7 +1042,8 @@ enum class ExpandDiffType : uint64_t {
 };
 
 InstanceDiffNode ExpandDiffNode(
-    uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length, bool isReference, ExpandDiffType expendDiffType)
+    uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId,
+    uint32_t startIndex, uint32_t length, bool isReference, ExpandDiffType expendDiffType)
 {
     bool added = true;
     auto baseSnapshotRes = RawHeapSnapshotDatas.find(baseSnapshotId);
@@ -1068,8 +1092,10 @@ InstanceDiffNode ExpandDiffNode(
             }
         }
         if (found) {
-            SnapshotDiffs[{baseSnapshotId, targetSnapshotId}][insNode.className] = {addedCount, removedCount, addedSize, removedSize};
-            SnapshotDiffs[{targetSnapshotId, baseSnapshotId}][insNode.className] = {removedCount, addedCount, removedSize, addedSize};
+            SnapshotDiffs[{baseSnapshotId, targetSnapshotId}][insNode.className] =
+                {addedCount, removedCount, addedSize, removedSize};
+            SnapshotDiffs[{targetSnapshotId, baseSnapshotId}][insNode.className] =
+                {removedCount, addedCount, removedSize, addedSize};
         }
     }
     InstanceDiffNode diffNode(insNode, addedCount, removedCount, addedSize, removedSize, added);
@@ -1119,7 +1145,8 @@ InstanceNode ExpandInstanceNode(
 InstanceDiffNode ExpandInstanceDiffNode(
     uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length)
 {
-    return ExpandDiffNode(baseSnapshotId, targetSnapshotId, nodeId, startIndex, length, false, ExpandDiffType::ExpandInstanceDiffNode);
+    return ExpandDiffNode(baseSnapshotId, targetSnapshotId, nodeId,
+        startIndex, length, false, ExpandDiffType::ExpandInstanceDiffNode);
 }
 
 InstanceNode ExpandDetailNode(
@@ -1132,7 +1159,8 @@ InstanceDiffNode ExpandDetailDiffNode(
     uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId,
     bool isReference, uint32_t startIndex, uint32_t length)
 {
-    return ExpandDiffNode(baseSnapshotId, targetSnapshotId, nodeId, startIndex, length, isReference, ExpandDiffType::ExpandDetailDiffNode);
+    return ExpandDiffNode(baseSnapshotId, targetSnapshotId, nodeId,
+        startIndex, length, isReference, ExpandDiffType::ExpandDetailDiffNode);
 }
 
 std::vector<ConstructorNode> GetRootNodesBySnapshotID(uint64_t id, std::set<uint8_t> rootTypes)
@@ -1153,7 +1181,9 @@ std::vector<ConstructorDiffNode> GetRootDiffNodesBySnapshotID(
     uint64_t baseSnapshotId, uint64_t targetSnapshotId, std::set<uint8_t> rootTypes)
 {
     std::unordered_map<uint64_t, ConstructorDiffNode> allDiffNodes;
-    for (auto& conNode : QuerySnapshotComparison(baseSnapshotId, targetSnapshotId)) allDiffNodes.emplace(conNode.id, conNode);
+    for (auto& conNode : QuerySnapshotComparison(baseSnapshotId, targetSnapshotId)) {
+        allDiffNodes.emplace(conNode.id, conNode);
+    }
     auto baseRoots = GetRootNodesBySnapshotID(baseSnapshotId, rootTypes);
     auto targetRoots = GetRootNodesBySnapshotID(targetSnapshotId, rootTypes);
     std::vector<ConstructorDiffNode> res;

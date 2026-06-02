@@ -34,7 +34,7 @@ public:
     using Local = HprofData::Local;
     using Sample = HprofData::Sample;
 
-// Format version selection:
+    // Format version selection:
     // - V1 (1.0.1): Old format with fixed 8-byte IDs, header "CANGJIE PROFILE 1.0.1"
     // - V2 (1.0.2): New format with dynamic IDs (based on idSize), header "CANGJIE PROFILE 1.0.2"
     // Parser is selected automatically based on file header identification string.
@@ -195,7 +195,7 @@ private:
     }
 
 private:
-static constexpr char m_headerFlagV2[] = "CANGJIE PROFILE 1.0.2";
+    static constexpr char m_headerFlagV2[] = "CANGJIE PROFILE 1.0.2";
     static constexpr char m_headerFlagV1[] = "CANGJIE PROFILE 1.0.1";
 
     // Data storage - owned by Hprof class

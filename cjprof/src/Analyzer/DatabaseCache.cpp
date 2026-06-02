@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 #include "Analyzer/DatabaseCache.h"
 #include "Analyzer/Logger.h"
 #include <fstream>
@@ -14,10 +20,14 @@
 
 namespace cjprof {
 
+// kCacheFormatVersion is 1: binary cache format version number
+static constexpr uint32_t kCacheFormatVersion = 1;
+
 #pragma pack(push, 1)
-struct BinaryHeader {
-    char magic[4] = {'C', 'J', 'D', 'B'};
-    uint32_t version = 1;
+struct BinaryHeader
+{
+    char magic[8] = {'c', 'j', 'p', 'r', 'o', 'f', 'd', 'b'};
+    uint32_t version = kCacheFormatVersion;
     uint32_t header_size;
 
     uint64_t snapshot_offset;
@@ -45,21 +55,24 @@ struct BinaryHeader {
     uint64_t strings_size;
 };
 
-struct SnapshotEntry {
+struct SnapshotEntry
+{
     uint64_t heap_total_size;
     uint64_t object_count;
     uint64_t gc_root_count;
     uint64_t used_size;
 };
 
-struct ClassEntry {
+struct ClassEntry
+{
     uint64_t class_id;
     uint32_t name_offset;
     uint64_t size;
     uint8_t is_struct;
 };
 
-struct ObjectEntry {
+struct ObjectEntry
+{
     uint64_t object_id;
     uint64_t class_id;
     uint64_t size;
@@ -72,14 +85,16 @@ struct ObjectEntry {
     uint32_t refs_count;
 };
 
-struct GcRootEntry {
+struct GcRootEntry
+{
     uint8_t type;
     uint64_t object_id;
     uint32_t thread_idx;
     uint32_t frame_idx;
 };
 
-struct DominanceEntry {
+struct DominanceEntry
+{
     uint64_t object_id;
     uint64_t parent_id;
     uint64_t retained_size;
@@ -90,16 +105,20 @@ struct DominanceEntry {
 };
 #pragma pack(pop)
 
-static std::string getCachePath(const std::string& heapFilePath) {
+static std::string getCachePath(const std::string& heapFilePath)
+{
     return heapFilePath + ".cjprof.db";
 }
 
-bool DatabaseCache::isCacheValid(const std::string& heapFilePath) {
+bool DatabaseCache::isCacheValid(const std::string& heapFilePath)
+{
     std::ifstream file(getCachePath(heapFilePath), std::ios::binary);
-    if (!file) return false;
-    char magic[4];
-    file.read(magic, 4);
-    return file.gcount() == 4 && std::memcmp(magic, "CJDB", 4) == 0;
+    if (!file) {
+        return false;
+    }
+    char magic[8];
+    file.read(magic, 8);
+    return file.gcount() == 8 && std::memcmp(magic, "cjprofdb", 8) == 0;
 }
 
 bool DatabaseCache::save(const std::string& heapFilePath,
@@ -118,7 +137,9 @@ bool DatabaseCache::save(const std::string& heapFilePath,
     std::string stringTableData;
     auto addString = [&](const std::string& s) -> uint32_t {
         auto it = stringOffsets.find(s);
-        if (it != stringOffsets.end()) return it->second;
+        if (it != stringOffsets.end()) {
+            return it->second;
+        }
         uint32_t offset = static_cast<uint32_t>(stringTableData.size());
         stringOffsets[s] = offset;
         stringTableData += s;
@@ -139,8 +160,12 @@ bool DatabaseCache::save(const std::string& heapFilePath,
     std::vector<uint64_t> flatChildren;
     size_t totalRefs = 0;
     size_t totalChildren = 0;
-    for (const auto& obj : objects) totalRefs += obj.refs.size();
-    for (const auto& node : dominanceNodes) totalChildren += node.children.size();
+    for (const auto& obj : objects) {
+        totalRefs += obj.refs.size();
+    }
+    for (const auto& node : dominanceNodes) {
+        totalChildren += node.children.size();
+    }
     flatRefs.reserve(totalRefs);
     flatChildren.reserve(totalChildren);
     for (const auto& obj : objects) {
@@ -278,11 +303,11 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         LOG_ERROR("Cache file too small: {}", dbPath);
         return false;
     }
-    if (std::memcmp(header.magic, "CJDB", 4) != 0) {
+    if (std::memcmp(header.magic, "cjprofdb", 8) != 0) {
         LOG_ERROR("Invalid cache file magic: {}", dbPath);
         return false;
     }
-    if (header.version != 1) {
+    if (header.version != kCacheFormatVersion) {
         LOG_ERROR("Unsupported cache file version: {}", header.version);
         return false;
     }
@@ -357,11 +382,14 @@ bool DatabaseCache::load(const std::string& heapFilePath,
     if (header.refs_count > 0) {
         std::vector<uint64_t> flatRefs(header.refs_count);
         file.seekg(static_cast<std::streamoff>(header.refs_offset));
-        file.read(reinterpret_cast<char*>(flatRefs.data()), static_cast<std::streamsize>(header.refs_count * sizeof(uint64_t)));
+        file.read(reinterpret_cast<char*>(flatRefs.data()),
+            static_cast<std::streamsize>(header.refs_count * sizeof(uint64_t)));
         for (size_t i = 0; i < objects.size(); ++i) {
             const auto& info = objectRefsInfos[i];
             if (info.refs_count > 0) {
-                objects[i].refs.assign(flatRefs.begin() + info.refs_offset, flatRefs.begin() + info.refs_offset + info.refs_count);
+                objects[i].refs.assign(
+                    flatRefs.begin() + info.refs_offset,
+                    flatRefs.begin() + info.refs_offset + info.refs_count);
             }
         }
     }
@@ -404,11 +432,14 @@ bool DatabaseCache::load(const std::string& heapFilePath,
     if (header.children_count > 0) {
         std::vector<uint64_t> flatChildren(header.children_count);
         file.seekg(static_cast<std::streamoff>(header.children_offset));
-        file.read(reinterpret_cast<char*>(flatChildren.data()), static_cast<std::streamsize>(header.children_count * sizeof(uint64_t)));
+        file.read(reinterpret_cast<char*>(flatChildren.data()),
+            static_cast<std::streamsize>(header.children_count * sizeof(uint64_t)));
         for (size_t i = 0; i < dominanceNodes.size(); ++i) {
             const auto& info = nodeChildrenInfos[i];
             if (info.children_count > 0) {
-                dominanceNodes[i].children.assign(flatChildren.begin() + info.children_offset, flatChildren.begin() + info.children_offset + info.children_count);
+                dominanceNodes[i].children.assign(
+                    flatChildren.begin() + info.children_offset,
+                    flatChildren.begin() + info.children_offset + info.children_count);
             }
         }
     }

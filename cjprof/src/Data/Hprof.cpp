@@ -254,7 +254,7 @@ void Hprof::ParseHeapDumpPrimitiveArrayDump(bool verbose, ObjectCategory categor
     m_data->arrays[id].cls = 0;
     m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u1));
 
-m_data->objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::PRIMITIVE_ARRAY : category;
+    m_data->objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::PRIMITIVE_ARRAY : category;
     if (verbose) {
         printf("[PRIMITIVE ARRAY DUMP@0x%zx] id = 0x%" PRIx64 ", num = %u, type = %u\n",
             startPos, id, m_data->arrays[id].num, m_data->arrays[id].type);

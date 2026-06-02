@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 #include "Analyzer/HttpServer.h"
 #include "Analyzer/HttpHandlers.h"
 #include "Analyzer/Logger.h"
@@ -16,23 +22,38 @@
 
 namespace cjprof {
 
-static std::string guessMimeType(const std::string& path) {
-    if (path.find(".html") != std::string::npos) return "text/html";
-    if (path.find(".js") != std::string::npos) return "application/javascript";
-    if (path.find(".css") != std::string::npos) return "text/css";
-    if (path.find(".json") != std::string::npos) return "application/json";
-    if (path.find(".png") != std::string::npos) return "image/png";
-    if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
+static std::string guessMimeType(const std::string& path)
+{
+    if (path.find(".html") != std::string::npos) {
+        return "text/html";
+    }
+    if (path.find(".js") != std::string::npos) {
+        return "application/javascript";
+    }
+    if (path.find(".css") != std::string::npos) {
+        return "text/css";
+    }
+    if (path.find(".json") != std::string::npos) {
+        return "application/json";
+    }
+    if (path.find(".png") != std::string::npos) {
+        return "image/png";
+    }
+    if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) {
+        return "image/jpeg";
+    }
     return "application/octet-stream";
 }
 
 HttpServer::HttpServer(int port) : port_(port) {}
 
-HttpServer::~HttpServer() {
+HttpServer::~HttpServer()
+{
     stop();
 }
 
-bool HttpServer::isPortInUse(int port) {
+bool HttpServer::isPortInUse(int port)
+{
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -71,8 +92,11 @@ bool HttpServer::isPortInUse(int port) {
     return result != 0;
 }
 
-void HttpServer::start() {
-    if (running_) return;
+void HttpServer::start()
+{
+    if (running_) {
+        return;
+    }
     running_ = true;
 
     auto svr = std::make_unique<httplib::Server>();
@@ -178,8 +202,11 @@ void HttpServer::start() {
     });
 }
 
-void HttpServer::stop() {
-    if (!running_) return;
+void HttpServer::stop()
+{
+    if (!running_) {
+        return;
+    }
     running_ = false;
     if (serverPtr_) {
         static_cast<httplib::Server*>(serverPtr_)->stop();
@@ -190,7 +217,8 @@ void HttpServer::stop() {
     serverPtr_ = nullptr;
 }
 
-void HttpServer::setContext(std::shared_ptr<HttpContext> ctx) {
+void HttpServer::setContext(std::shared_ptr<HttpContext> ctx)
+{
     context_ = ctx;
 }
 

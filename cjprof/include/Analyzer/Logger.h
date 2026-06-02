@@ -1,3 +1,9 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
 #ifndef CJPROF_LOGGER_H
 #define CJPROF_LOGGER_H
 
@@ -15,14 +21,16 @@ enum class LogLevel { Debug = 0, Info = 1, Warn = 2, Error = 3 };
 inline LogLevel g_logLevel = LogLevel::Info;
 inline std::mutex g_logMutex;
 
-inline void replaceFirstPlaceholder(std::string& s, const std::string& val) {
+inline void replaceFirstPlaceholder(std::string& s, const std::string& val)
+{
     size_t pos = s.find("{}");
     if (pos != std::string::npos) {
         s.replace(pos, 2, val);
     }
 }
 
-inline std::string formatString(const std::string& fmt) {
+inline std::string formatString(const std::string& fmt)
+{
     return fmt;
 }
 
@@ -38,7 +46,8 @@ std::string formatString(const std::string& fmt, T&& val, Args&&... args) {
     return result;
 }
 
-inline const char* levelString(LogLevel level) {
+inline const char* levelString(LogLevel level)
+{
     switch (level) {
         case LogLevel::Error: return "error";
         case LogLevel::Warn:  return "warn";
@@ -48,7 +57,8 @@ inline const char* levelString(LogLevel level) {
     return "";
 }
 
-inline void logMessage(LogLevel level, const std::string& msg) {
+inline void logMessage(LogLevel level, const std::string& msg)
+{
     if (static_cast<int>(level) < static_cast<int>(g_logLevel)) {
         return;
     }
@@ -56,7 +66,8 @@ inline void logMessage(LogLevel level, const std::string& msg) {
     std::cout << "[" << levelString(level) << "] " << msg << std::endl;
 }
 
-inline void initLogger() {
+inline void initLogger()
+{
     auto logLevel = std::getenv("CJPROF_LOG_LEVEL");
     if (logLevel) {
         if (strcmp(logLevel, "debug") == 0) {
