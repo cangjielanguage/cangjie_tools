@@ -228,6 +228,7 @@ void LSPCompilerInstance::CompilePassForComplete(
     const std::unique_ptr<ark::CjoManager> &cjoManager,
     const std::unique_ptr<ark::DependencyGraph> &graph, Position pos, const std::string &name)
 {
+    (void)name;
     // Faster Completion needs pass: Parse, ConditionCompile and ImportPackage.
     diag.Reset();
     diag.SetSourceManager(&GetSourceManager());
@@ -359,6 +360,8 @@ void LSPCompilerInstance::ImportCjoToManager(
 void LSPCompilerInstance::IndexCjoToManager(
     const std::unique_ptr<ark::CjoManager> &cjoManager, const std::unique_ptr<ark::DependencyGraph> &graph)
 {
+    (void)cjoManager;
+    (void)graph;
     // Import stdlib's cjo, priority is low.
     for (const auto &cjoCache : cjoFileCacheMap) {
         importManager->SetPackageCjoCache(cjoCache.first, cjoCache.second);

@@ -98,9 +98,6 @@ void FileMove::DealMoveFile(const ArkAST *ast, const std::string &file,
     const std::string &targetPkg, const std::string &targetPath, FileRefactor &refactor)
 {
     unsigned int fileId = ast->fileID;
-    if (fileId < 0) {
-        return;
-    }
     std::string fullPkgName = ast->file->curPackage->fullPackageName;
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
@@ -115,7 +112,7 @@ void FileMove::DealMoveFile(const ArkAST *ast, const std::string &file,
     lsp::FileRefsRequest fileRefReq{fileId, file, fullPkgName, lsp::RefKind::REFERENCE};
     std::unordered_set<lsp::SymbolID> fileRefIds;
     index->FileRefs(
-        fileRefReq, [&fileRefIds, &fileId](const lsp::Ref &ref, const lsp::SymbolID symId) {
+        fileRefReq, [&fileRefIds](const lsp::Ref &ref, const lsp::SymbolID symId) {
             if (ref.location.IsZeroLoc()) {
                 return;
             }
@@ -161,9 +158,6 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
     FileRefactor &refactor)
 {
     unsigned int fileId = ast->fileID;
-    if (fileId < 0) {
-        return;
-    }
     std::string fullPkgName = ast->file->curPackage->fullPackageName;
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
@@ -172,6 +166,7 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
     lsp::FileRefsRequest fileDefReq{fileId, file, fullPkgName, lsp::RefKind::DEFINITION};
     std::unordered_set<lsp::SymbolID> fileDefIds;
     index->FileRefs(fileDefReq, [&fileDefIds](const lsp::Ref &ref, const lsp::SymbolID symId) {
+        (void)ref;
         fileDefIds.insert(symId);
     });
 
@@ -252,10 +247,6 @@ void FileMove::DealRefFile(const ArkAST *ast, const std::string &file, const std
 void FileMove::DealReExport(const ArkAST *ast, const std::string &file, const std::string &targetPkg,
     FileRefactor &refactor)
 {
-    unsigned int fileId = ast->fileID;
-    if (fileId < 0) {
-        return;
-    }
     std::string fullPkgName = ast->file->curPackage->fullPackageName;
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index || !ast->packageInstance) {

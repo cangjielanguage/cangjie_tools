@@ -27,7 +27,7 @@ struct ModuleInfo {
     std::string srcPath;
     bool isCommonSpecificModule = false;
     // common root path -> specific root path
-    std::pair<std::string, std::vector<std::string>> commonSpecificPaths;
+    std::pair<std::string, std::vector<std::string>> commonSpecificPaths = {};
     std::vector<std::string> sourceSetNames;
 };
 

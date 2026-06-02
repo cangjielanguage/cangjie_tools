@@ -116,6 +116,7 @@ std::string InlineVariable::GetSourceCode(Ptr<Node> node, const Selection &sel)
 
 bool InlineVariable::NeedsParentheses(Expr* initExpr, const Selection &sel)
 {
+    (void)sel;
     if (!initExpr) {
         return false;
     }
@@ -134,7 +135,7 @@ bool InlineVariable::NeedsParentheses(Expr* initExpr, const Selection &sel)
     return false;
 }
 
-TextEdit InlineVariable::ReplaceRefWithInitExpr(const Selection &sel, RefExpr* refExpr, const std::string &initExprCode)
+TextEdit InlineVariable::ReplaceRefWithInitExpr(RefExpr* refExpr, const std::string &initExprCode)
 {
     TextEdit edit;
 
@@ -182,7 +183,7 @@ std::optional<Tweak::Effect> InlineVariable::Apply(const Selection &sel)
 
     std::vector<TextEdit> textEdits;
 
-    TextEdit replaceEdit = ReplaceRefWithInitExpr(sel, refExpr, initExprCode);
+    TextEdit replaceEdit = ReplaceRefWithInitExpr(refExpr, initExprCode);
     textEdits.push_back(replaceEdit);
 
     std::string filePath = sel.arkAst->file->filePath;

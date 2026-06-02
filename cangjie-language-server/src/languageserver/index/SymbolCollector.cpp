@@ -445,7 +445,8 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     }
     CJC_ASSERT(!scopes.empty());
     std::string curScope;
-    for (auto [_, scope] : scopes) {
+    for (const auto &scopeEntry : scopes) {
+        const auto &scope = scopeEntry.second;
         curScope += scope;
     }
     curScope.pop_back(); // Pop back last delimiter char.
@@ -1112,7 +1113,7 @@ void SymbolCollector::DealCrossClassSymbol(const NameReferenceExpr &clazzRef, co
     // registerClass clazz in func, this func used to ref_expr
     Ptr<const Decl> decl;
     if (!scopes.empty()) {
-        for (size_t i = scopes.size() - 1; i >= 0; i--) {
+        for (size_t i = scopes.size(); i-- > 0;) {
             decl = DynamicCast<const Decl*>(scopes[i].first);
             if (decl && decl->astKind == ASTKind::VAR_DECL) {
                 continue;
@@ -1239,6 +1240,7 @@ struct ExtendInfo {
 
 void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath)
 {
+    (void)filePath;
     auto extendDecl = DynamicCast<ExtendDecl *>(&decl);
     bool isInvalidExtend = !extendDecl || !IsExportedExtendDecl(extendDecl) || !extendDecl->extendedType ||
         extendDecl->inheritedTypes.empty();
@@ -1266,7 +1268,6 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
             continue;
         }
         std::string signature = ItemResolverUtil::ResolveSignatureByNode(*member);
-        auto modifier = GetDeclModifier(*member);
         auto extendSymbolID = GetDeclSymbolID(*member);
         bool isStatic = member->TestAttr(Attribute::STATIC);
         ExtendInfo info = {.id=extendSymbolID, .name=signature, .isStatic=isStatic};
@@ -1310,7 +1311,6 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
             return;
         }
         auto interfaceModifier = GetDeclModifier(*targetDecl);
-        auto extendSymbolID = GetDeclSymbolID(*targetDecl);
         std::vector<Ptr<Decl>> members;
         collectInheritMember(*targetDecl, members);
         std::string interfaceName = ItemResolverUtil::ResolveSignatureByNode(*targetDecl);
@@ -1443,7 +1443,8 @@ void SymbolCollector::CreateImportRef(const File &fileNode)
             return;
         }
         const auto id2members = this->importMgr.GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
-        for (const auto &[_, memberDecls] : id2members) {
+        for (const auto &id2member : id2members) {
+            const auto &memberDecls = id2member.second;
             for (const auto& memberDecl: memberDecls) {
                 if (const auto declPtr = dynamic_cast<const Decl *>(memberDecl.get());
                     declPtr == nullptr || (!isAllImport && declPtr->identifier != importContent.identifier)) {
@@ -1923,7 +1924,7 @@ std::vector<Ptr<Decl>> SymbolCollector::FindImplMemberFromInterface(const Decl &
             if (interfaceDecl == nullptr) {
                 continue;
             }
-            if (auto [_, success] = searched.emplace(interfaceDecl); !success) {
+            if (auto insertResult = searched.emplace(interfaceDecl); !insertResult.second) {
                 continue;
             }
             auto currentMapping =

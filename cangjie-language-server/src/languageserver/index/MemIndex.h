@@ -63,23 +63,23 @@ struct PkgSymsRequest {
 struct RefsRequest {
     std::unordered_set<SymbolID> ids;
     RefKind filter = RefKind::ALL;
-    std::optional<uint32_t> limit;
+    std::optional<uint32_t> limit = std::nullopt;
 };
 
 struct FileRefsRequest {
-    unsigned int fileID;
+    unsigned int fileID = 0;
     std::string fileUri;
     std::string fullPkgName;
     RefKind filter = RefKind::ALL;
-    std::optional<uint32_t> limit;
+    std::optional<uint32_t> limit = std::nullopt;
 };
 
 
 struct RelationsRequest {
-    SymbolID id;
+    SymbolID id = INVALID_SYMBOL_ID;
     RelationKind predicate;
     /// If set, limit the number of relations returned from the index.
-    std::optional<uint32_t> limit;
+    std::optional<uint32_t> limit = std::nullopt;
 };
 
 struct FuncSigRequest {
