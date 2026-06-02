@@ -25,7 +25,7 @@ bool ark::CrossLanguangeDefinition::getCrossSymbols(const CrossLanguageJumpParam
         if (!outerName.empty() && outerName != crs.containerName) {
             return;
         }
-        Location loc{URI::URIFromAbsolutePath(realPath).ToString(),
+        Location loc{{URI::URIFromAbsolutePath(realPath).ToString()},
                      TransformFromChar2IDE({crs.location.begin, crs.location.end})};
         result.locations.emplace(loc);
     });
@@ -65,9 +65,9 @@ bool ark::CrossLanguangeDefinition::getRegisterCrossSymbols(
                 if (!outerName.empty() && outerName != crs.containerName) {
                     return;
                 }
-                Location definitionLoc{URI::URIFromAbsolutePath(realPath).ToString(),
+                Location definitionLoc{{URI::URIFromAbsolutePath(realPath).ToString()},
                                        TransformFromChar2IDE({crs.location.begin, crs.location.end})};
-                Location declarationLoc{URI::URIFromAbsolutePath(realPath).ToString(),
+                Location declarationLoc{{URI::URIFromAbsolutePath(realPath).ToString()},
                                         TransformFromChar2IDE({crs.declaration.begin, crs.declaration.end})};
                 std::string registerName = crs.name;
                 int registerType = static_cast<int>(crs.crossType);

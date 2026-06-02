@@ -15,10 +15,6 @@ using namespace std;
 using namespace Cangjie;
 using namespace Cangjie::AST;
 using namespace Cangjie::Meta;
-namespace {
-    const int STRING_LITERAL_SIZE = 2; // STRING_LITERAL SIZ
-}
-
 namespace ark {
 #ifdef THIS
 #define LIB_THIS THIS
@@ -405,8 +401,8 @@ std::vector<Ptr<Decl>> ArkAST::FindRealDecl(const ark::ArkAST& nowAst, const std
         if (i == 0 && syms[i]) { firstNode = syms[i]->node; }
         // deal all right position deSugar node
         bool isSugar = !firstNode || !syms[i] || !syms[i]->node || syms[i]->node->astKind == ASTKind::FILE ||
-                       hasFirstCompilerAdd && (syms[i]->node->begin != firstNode->begin ||
-                                               syms[i]->node->end != firstNode->end);
+                       (hasFirstCompilerAdd && (syms[i]->node->begin != firstNode->begin ||
+                                                syms[i]->node->end != firstNode->end));
         if (isSugar) { continue; }
         node = syms[i]->node;
         node = GetNodeBySymbols(nowAst, node, syms, query, i);
@@ -418,8 +414,8 @@ std::vector<Ptr<Decl>> ArkAST::FindRealDecl(const ark::ArkAST& nowAst, const std
             }
             return false;
         };
-        bool isInvalid = !node || node->TestAttr(Attribute::COMPILER_ADD) &&
-                                   !node->TestAttr(Attribute::IS_CLONED_SOURCE_CODE) && !IsAnnoRef(node);
+        bool isInvalid = !node || (node->TestAttr(Attribute::COMPILER_ADD) &&
+                                   !node->TestAttr(Attribute::IS_CLONED_SOURCE_CODE) && !IsAnnoRef(node));
         if (isInvalid) { continue; }
         if (isAlias) {
             auto ref = dynamic_cast<NameReferenceExpr*>(node.get());

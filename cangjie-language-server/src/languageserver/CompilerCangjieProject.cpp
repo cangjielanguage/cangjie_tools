@@ -96,6 +96,7 @@ PkgInfo::PkgInfo(const std::string &pkgPath,
                  Callbacks *callback,
                  PkgType packageType)
 {
+    (void)callback;
     std::string moduleSrcPath  = CompilerCangjieProject::GetInstance()->GetModuleSrcPath(curModulePath, pkgPath);
     packagePath = pkgPath;
     if (!curModulePath.empty()) {
@@ -721,6 +722,8 @@ std::vector<std::string> CompilerCangjieProject::GetIncTopologySort(const std::s
 void CompilerCangjieProject::CompilerOneFile(
     const std::string &file, const std::string &contents, Position pos, const std::string &name)
 {
+    (void)pos;
+    (void)name;
     std::string absName = Normalize(file);
     Trace::Log("Start analyzing the file: ", absName);
 
@@ -1614,7 +1617,7 @@ void CompilerCangjieProject::FullCompilation()
         for (auto &iter: allDependencies) {
             dependencies.emplace(GenTaskId(iter));
         }
-        auto task = [this, fullPkg, taskId, token, &workDoneCnt, &sendReport]() {
+        auto task = [this, fullPkg, taskId, token, &sendReport]() {
             Trace::Log("start execute task ", fullPkg);
             if (CIMap.find(fullPkg) == CIMap.end()) {
                 sendReport();
@@ -2462,7 +2465,6 @@ void CompilerCangjieProject::UpdateOnDisk(const std::string &path)
         return;
     }
     std::string pkgName = found->second;
-    DataStatus status = cjoManager->GetStatus(pkgName);
     cacheManager->Store(pkgName, Digest(GetPathFromPkg(pkgName)), LSPCompilerInstance::astDataMap[pkgName].first);
 }
 

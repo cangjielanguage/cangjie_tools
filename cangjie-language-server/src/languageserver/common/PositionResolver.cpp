@@ -5,8 +5,8 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "PositionResolver.h"
-#include <codecvt>
 #include "../CompilerCangjieProject.h"
+#include "cangjie/Utils/Unicode.h"
 
 namespace ark {
 bool IsUTF8(const std::string &str)
@@ -45,23 +45,39 @@ bool IsUTF8(const std::string &str)
 
 std::basic_string<char32_t> UTF8ToChar32(const std::string &str)
 {
-#ifndef NO_EXCEPTIONS
-    try {
-#endif
-        std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-        return conv.from_bytes(str);
-#ifndef NO_EXCEPTIONS
-    } catch (const std::exception& e) {
-        // deal with illegal utf-8 string
+    if (str.empty()) {
         return std::u32string();
     }
-#endif
+    std::vector<Unicode::UTF32> utf32(str.size());
+    const auto *sourceStart = reinterpret_cast<const Unicode::UTF8 *>(str.data());
+    const auto *sourceEnd = sourceStart + str.size();
+    auto *targetStart = utf32.data();
+    auto *targetEnd = targetStart + utf32.size();
+    auto result = Unicode::ConvertUTF8toUTF32(&sourceStart, sourceEnd, &targetStart, targetEnd);
+    if (result != Unicode::ConversionResult::OK) {
+        return std::u32string();
+    }
+    std::u32string char32Str;
+    char32Str.reserve(static_cast<size_t>(targetStart - utf32.data()));
+    for (auto *it = utf32.data(); it < targetStart; ++it) {
+        char32Str.push_back(static_cast<char32_t>(*it));
+    }
+    return char32Str;
 }
 
 std::string Char32ToUTF8(const std::basic_string<char32_t>& str)
 {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-    return conv.to_bytes(str);
+    std::vector<Unicode::UTF32> utf32;
+    utf32.reserve(str.size());
+    for (auto ch : str) {
+        utf32.push_back(ch);
+    }
+    std::string result;
+    if (!Cangjie::Unicode::ConvertUTF32ToUTF8String(Unicode::ArrayRef(utf32),
+        result)) {
+        return "";
+        }
+    return result;
 }
 
 static int GetUTF8PrefixBytesByColumns(const std::string &str, int columns)

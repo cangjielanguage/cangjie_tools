@@ -175,6 +175,7 @@ void MemIndex::FindImportSymsOnCompletion(
     const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
     std::function<void(const std::string &, const Symbol &, const CompletionItem &)> callback)
 {
+    (void)prefix;
     if (Options::GetInstance().IsOptionSet("test")) {
         return;
     }
@@ -279,7 +280,7 @@ void MemIndex::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
                     }
                     auto* sym = symMap[symbol.id];
                     // filter symbols that not dependent by curModule
-                    if (!sym || !sym->isCjoSym && !curModuleDeps.count(sym->curModule)) {
+                    if (!sym || (!sym->isCjoSym && !curModuleDeps.count(sym->curModule))) {
                         continue;
                     }
                     // filter by modifier
@@ -341,7 +342,7 @@ void MemIndex::FindExtendSymsOnCompletionBatch(
                     continue;
                 }
                 auto* sym = symMap[symbol.id];
-                if (!sym || !sym->isCjoSym && !curModuleDeps.count(sym->curModule)) {
+                if (!sym || (!sym->isCjoSym && !curModuleDeps.count(sym->curModule))) {
                     continue;
                 }
                 if (!checkAccessible(symbol.modifier) || !checkAccessible(sym->modifier)) {
@@ -367,6 +368,7 @@ void MemIndex::FindImportReExportSymsOnCompletion(
     const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
     std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback)
 {
+    (void)prefix;
     const auto &normalCompleteSyms  = filterSyms.first;
     const auto &importDeclSyms  = filterSyms.second;
     size_t normalCompleteCount = 0;
@@ -508,7 +510,10 @@ void MemIndex::FindCrossSymbolByName(const std::string &packageName, const std::
         }
     }
 }
-void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const {
+void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol &)> callback) const
+{
+    (void)array;
+    (void)callback;
 }
 } // namespace lsp
 } // namespace ark

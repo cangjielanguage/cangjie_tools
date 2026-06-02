@@ -196,9 +196,6 @@ TEST(ArkASTTest, CheckInQuote) {
 
 // Test constant definitions
 TEST(ArkASTTest, Constants) {
-    // Test STRING_LITERAL_SIZE constant
-    EXPECT_EQ(STRING_LITERAL_SIZE, 2);
-
     // Test CHECK_TOKEN_KIND set contains necessary token types
     EXPECT_TRUE(CHECK_TOKEN_KIND.count(TokenKind::IDENTIFIER));
     EXPECT_TRUE(CHECK_TOKEN_KIND.count(TokenKind::STRING_LITERAL));

@@ -833,7 +833,7 @@ bool ArkLanguageServer::CheckIsDirectory(const std::string &dirPath, bool isDele
         return false;
     }
 
-    struct stat buffer = {0};
+    struct stat buffer = {};
     std::string realPath = PathWindowsToLinux(dirPath);
     std::string file = realPath;
     if (isDelete) {
@@ -864,7 +864,7 @@ void ArkLanguageServer::OnDidChangeWatchedFiles(const DidChangeWatchedFilesParam
 // LCOV_EXCL_STOP
 bool ArkLanguageServer::CheckFileInCangjieProject(const std::string &filePath, bool ignoreMacro) const
 {
-    if (filePath.empty() || ignoreMacro && Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION)) {
+    if (filePath.empty() || (ignoreMacro && Cangjie::FileUtil::HasExtension(filePath, CANGJIE_MACRO_FILE_EXTENSION))) {
         return false;
     }
     return CompilerCangjieProject::GetInstance()->GetCangjieFileKind(filePath).first != CangjieFileKind::MISSING;
@@ -1370,12 +1370,13 @@ void ArkLanguageServer::ImportAllSymsCodeAction(std::vector<DiagnosticToken> &di
         groups[diagnostic.range].push_back(&diagnostic);
     }
     for (auto &[range, diags] : groups) {
+        (void)range;
         if (diags.size() <= 1) {
             continue;
         }
         std::vector<CodeAction> allImports;
         int insertIdx = -1;
-        for (int i = 0; i < diags.size(); ++i) {
+        for (size_t i = 0; i < diags.size(); ++i) {
             if (!diags[i] || !NeedCollect2AllImport(*diags[i])) {
                 continue;
             }

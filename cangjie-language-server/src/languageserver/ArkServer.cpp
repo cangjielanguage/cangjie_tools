@@ -24,11 +24,6 @@
 #undef INTERFACE
 
 namespace {
-bool Contains(const Cangjie::StringPart &str, Cangjie::Position pos)
-{
-    return str.begin.column < pos.column < str.begin.column + str.value.size();
-}
-
 bool StartsWith(const std::string &text, const std::string &prefix)
 {
     return text.size() >= prefix.size() && text.compare(0, prefix.size(), prefix) == 0;
@@ -275,6 +270,7 @@ void ArkServer::FindSuperTypes(const std::string &file, const TypeHierarchyItem 
                                const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -299,6 +295,7 @@ void ArkServer::FindSubTypes(const std::string &file, const TypeHierarchyItem &p
                              const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::set<TypeHierarchyItem> results;
         if (inputAST.ast == nullptr) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -351,6 +348,7 @@ void ArkServer::FindOnIncomingCalls(const std::string &file, const CallHierarchy
                                     const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::vector<CallHierarchyIncomingCall> results;
         CallHierarchyImpl::FindOnIncomingCallsImpl(results, params);
         nlohmann::json jsValue;
@@ -370,6 +368,7 @@ void ArkServer::FindOnOutgoingCalls(const std::string &file, const CallHierarchy
                                     const Callback<ValueOrError> &reply) const
 {
     auto action = [params, reply = std::move(reply)](const InputsAndAST &inputAST) {
+        (void)inputAST;
         std::vector<CallHierarchyOutgoingCall> results;
         CallHierarchyImpl::FindOnOutgoingCallsImpl(results, params);
         std::sort(results.begin(), results.end(), CompareCallHierarchyOutgoingCall);
@@ -422,7 +421,7 @@ void ArkServer::FindReferences(const std::string &file,
 
 void ArkServer::FindFileReferences(const std::string &file, const Callback<ValueOrError> &reply) const
 {
-    auto action = [file, reply = std::move(reply), this](const InputsAndAST& inputAST) {
+    auto action = [file, reply = std::move(reply)](const InputsAndAST& inputAST) {
         ReferencesResult result;
         std::string unixPath = PathWindowsToLinux(file);
         if (inputAST.ast == nullptr) {
@@ -462,7 +461,7 @@ void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result
             continue;
         }
         auto range = GetProperRange(U, ast.tokens);
-        Location loc = {URI::URIFromAbsolutePath(U->curFile->filePath).ToString(), range};
+        Location loc = {{URI::URIFromAbsolutePath(U->curFile->filePath).ToString()}, range};
         (void)result.References.emplace(loc);
     }
 }
@@ -470,7 +469,7 @@ void GetCurPkgUseAge(Ptr<Decl> decl, const ArkAST &ast, ReferencesResult &result
 void ArkServer::GetExportsName(
         const std::string &file, const ExportsNameParams &params, const Callback<ValueOrError> &reply) const
 {
-    auto action = [params, file, reply = std::move(reply), this](const InputsAndAST &inputAST) {
+    auto action = [params, file, reply = std::move(reply)](const InputsAndAST &inputAST) {
         auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(file);
         if (!fileId) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
@@ -529,7 +528,6 @@ void ArkServer::GetExportsName(
         if (!index) {
             return;
         }
-        int curIdx = ast.GetCurToken(pos, 0, static_cast<int>(ast.tokens.size()) - 1);
         ExportIDItem exportIdItem;
         for (auto &decl : decls) {
             if (decl->astKind == Cangjie::AST::ASTKind::PACKAGE_DECL) {
@@ -1186,7 +1184,7 @@ static std::vector<std::unique_ptr<Tweak::Selection>> CreateTweakSelection(const
             result.push_back(std::move(tweakSelection));
             return true;
         });
-    return std::move(result);
+    return result;
 }
 
 void ArkServer::EnumerateTweaks(const std::string &file, Range range, const Callback<std::vector<TweakRef>> &cb) const
@@ -1243,7 +1241,7 @@ void ArkServer::EnumerateTweaks(const std::string &file, Range range, const Call
 void ArkServer::ApplyTweak(const std::string &file, Range selection, const std::string &id,
     std::map<std::string, std::string> extraOptions, const Callback<Tweak::Effect> &cb)
 {
-    auto action = [file, selection, id, extraOptions, cb = std::move(cb), this]
+    auto action = [file, selection, id, extraOptions, cb = std::move(cb)]
         (const InputsAndAST &inputAST) mutable {
             Tweak::Effect effect;
             if (!inputAST.ast || !inputAST.ast->sourceManager) {

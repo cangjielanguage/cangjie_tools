@@ -21,7 +21,6 @@ public:
     static void RegisterHandlers();
 
 private:
-    bool isActive;
 };
 } // namespace ark
 

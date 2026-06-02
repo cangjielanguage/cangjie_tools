@@ -140,7 +140,7 @@ std::unique_ptr<FuncLikeTypeDetail> ResolveFuncType(const FuncTy& ty)
     for (const auto& paramTy: ty.paramTys) {
         detail->params.emplace_back(ResolveType(paramTy));
     }
-    detail->ret = std::move(ResolveType(ty.retTy));
+    detail->ret = ResolveType(ty.retTy);
     return detail;
 }
 
@@ -192,17 +192,15 @@ std::unique_ptr<TypeDetail> ResolveType(const Ptr<Ty>& type)
             return ret;
         },
         [](const TypeAliasTy &ty) {
-            std::unique_ptr<TypeDetail> ret =
-                std::move(std::make_unique<CommonTypeDetail>(ty.declPtr->identifier.Val()));
+            std::unique_ptr<TypeDetail> ret = std::make_unique<CommonTypeDetail>(ty.declPtr->identifier.Val());
             return ret;
         },
         [](const GenericsTy &ty) {
-            std::unique_ptr<TypeDetail> ret =
-                std::move(std::make_unique<CommonTypeDetail>(ty.name));
+            std::unique_ptr<TypeDetail> ret = std::make_unique<CommonTypeDetail>(ty.name);
             return ret;
         },
         [](const VArrayTy &ty) {
-            std::unique_ptr<TypeDetail> ret = std::move(ResolveVarrayType(ty));
+            std::unique_ptr<TypeDetail> ret = ResolveVarrayType(ty);
             return ret;
         },
         [](const TupleTy &ty) {
@@ -250,7 +248,7 @@ FuncParamDetailList ResolveFuncParamList(const Ptr<FuncDecl>& funcDecl)
                 continue;
             }
             paramDetail.identifier = identifier;
-            paramDetail.type = std::move(ResolveType(param->GetTy()));
+            paramDetail.type = ResolveType(param->GetTy());
             params.isVariadic = paramList->variadicArgIndex > 0;
             params.params.emplace_back(std::move(paramDetail));
         }

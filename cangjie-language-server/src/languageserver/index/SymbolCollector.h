@@ -118,7 +118,7 @@ private:
         if (scopes.empty()) {
             return;
         }
-        if (auto [scopeNode, _] = scopes.back(); scopeNode == &node) {
+        if (scopes.back().first == &node) {
             scopes.pop_back();
         }
     }
@@ -128,7 +128,7 @@ private:
         if (crossRegisterScopes.empty()) {
             return;
         }
-        if (auto [scopeNode, _] = crossRegisterScopes.back(); scopeNode == &node) {
+        if (crossRegisterScopes.back().first == &node) {
             crossRegisterScopes.pop_back();
         }
     }
@@ -247,7 +247,7 @@ private:
         SymbolID containerId = INVALID_SYMBOL_ID;
         CJC_ASSERT(!scopes.empty());
         Ptr<const Decl> decl;
-        for (size_t i = scopes.size() - 1; i >= 0; i--) {
+        for (size_t i = scopes.size(); i-- > 0;) {
             decl = DynamicCast<const Decl*>(scopes[i].first);
             if (decl && decl->astKind == Cangjie::AST::ASTKind::VAR_DECL) {
                 continue;

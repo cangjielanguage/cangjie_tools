@@ -19,8 +19,9 @@ public:
         Cangjie::ImportManager *importManager,
         const Cangjie::ASTContext &ctx,
         const std::string &prefix)
-        : result(res), importManager(importManager), context(&ctx), prefix(prefix)
+        : result(res), importManager(importManager), prefix(prefix)
     {
+        (void)ctx;
     }
 
     ~NormalCompleterByParse() = default;
@@ -56,8 +57,6 @@ private:
     CompletionResult &result;
 
     Cangjie::ImportManager *importManager = nullptr;
-
-    const Cangjie::ASTContext *context = nullptr;
 
     std::set<std::string> usedPkg = {};
 
