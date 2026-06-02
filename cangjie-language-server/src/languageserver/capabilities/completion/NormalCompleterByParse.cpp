@@ -65,7 +65,8 @@ bool NormalCompleterByParse::Complete(const ArkAST &input, const Position pos)
     if (!input.file || !input.file->curPackage) {
         return true;
     }
-    auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+        input.file->filePath, input.file->curPackage->fullPackageName);
     env.SetSyscap(curModule);
     env.prefix = prefix;
     env.curPkgName = input.file->curPackage->fullPackageName;
@@ -160,7 +161,7 @@ void NormalCompleterByParse::AddImportPkgDecl(const ArkAST &input, CompletionEnv
     }
     // Complete imported packageName for fully qualified name reference.
     // Include cjo import and source import.
-    auto curModule = SplitFullPackage(env.curPkgName).first;
+    auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(input.file->filePath, env.curPkgName);
     for (auto &im : input.file->imports) {
         if (im->IsImportSingle()) {
             auto fullPackageName = im->content.ToString();
@@ -352,13 +353,16 @@ void NormalCompleterByParse::FillingDeclsInPackage(const std::string &packageNam
     }
 }
 
-void NormalCompleterByParse::CompleteModuleName(const std::string &curModule, bool afterDoubleColon)
+void NormalCompleterByParse::CompleteModuleName(
+    const std::string &curModule,
+    bool afterDoubleColon,
+    bool includeScriptRequire)
 {
     CompletionEnv env;
     for (const auto &item : Cangjie::LSPCompilerInstance::cjoLibraryMap) {
         env.AccessibleByString(item.first, "moduleName");
     }
-    for (const auto &item : CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModule)) {
+    for (const auto &item : CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModule, includeScriptRequire)) {
         if (!IsFullPackageName(item)) {
             continue;
         }

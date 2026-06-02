@@ -363,7 +363,9 @@ private:
     void HandleOnlyParse(const std::string &name, const std::string &absName, const std::string &contents,
                          Position pos, CangjieFileKind fileKind);
 
-    void HandleFileNotInSource(const std::string &absName, const std::string &contents, const std::string &dirPath);
+    std::string GetNotInSrcCacheKey(const std::string &filePath) const;
+
+    void HandleFileNotInSource(const std::string &absName, const std::string &contents);
 
     void HandleNewPackage(const std::string &absName, const std::string &contents, const std::string &dirPath,
                           const std::string &modulePath);
@@ -467,9 +469,15 @@ public:
 
     bool IsCurModuleCjoDep(const std::string &curModule, const std::string &fullPkgName);
 
-    std::unordered_set<std::string> GetOneModuleDeps(const std::string &curModule);
+    std::unordered_set<std::string> GetOneModuleDeps(const std::string &curModule, bool includeScriptRequire = false);
 
-    std::unordered_set<std::string> GetOneModuleDirectDeps(const std::string &curModule);
+    std::unordered_set<std::string> GetOneModuleDirectDeps(
+        const std::string &curModule,
+        bool includeScriptRequire = false);
+
+    std::string GetModuleNameByFile(const std::string &filePath, const std::string &pkgName = "");
+
+    bool IsBuildScriptFile(const std::string &filePath) const;
 
     bool GetModuleCombined(const std::string &curModule);
 
@@ -585,6 +593,8 @@ private:
     void UpdateBufferCache(const std::string &fullPkgName, const std::string &filePath,
                            const std::string &contents, bool isDelete);
 
+    void ClearDiagnosticsForPkg(const PkgInfo &pkgInfo);
+
     void CompileAndCheckDownstream(const std::string &fullPkgName, const std::unique_ptr<LSPCompilerInstance> &ci);
 
     void PostCompileProcess(const std::string &fullPkgName, const std::string &filePath,
@@ -636,6 +646,23 @@ private:
     bool UpdateDependencies(std::string &fullPkgName, const std::unique_ptr<LSPCompilerInstance> &ci);
 
     bool ParseAndUpdateNotInSrcDep(const std::string &dirPath, const std::unique_ptr<LSPCompilerInstance> &newCI);
+
+    void ValidateScriptDependencyImports(
+        const std::unique_ptr<LSPCompilerInstance> &ci,
+        const std::string &filePath);
+
+    void ClearScriptDependencyImportDiags(const std::string &filePath);
+
+    bool ValidateScriptDependencyImportsInPackage(const Package &package, const std::string &filePath);
+
+    void ValidateScriptDependencyImportsInFile(const File &file, const std::string &filePath);
+
+    void ValidateScriptDependencyImportSpec(const ImportSpec &importSpec, const std::string &filePath,
+        const std::string &curModule, const std::unordered_set<std::string> &normalDeps,
+        const std::unordered_set<std::string> &buildDeps);
+
+    void ReportScriptDependencyImport(const std::string &filePath, const ImportSpec &importSpec,
+        const std::string &importedModule);
 
     void FullCompilation();
 

@@ -337,7 +337,9 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
         return;
     }
     auto pkgName = input.file->curPackage->fullPackageName;
-    auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+    auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(input.file->filePath, pkgName);
+    bool includeScriptRequire = CompilerCangjieProject::GetInstance()->IsBuildScriptFile(input.file->filePath);
+    lsp::SymbolSearchContext context{pkgName, curModule, includeScriptRequire};
     auto textEditRange = CompletionEnv::GetEditRangeForAutoImport(input);
     SyscapCheck syscap(curModule);
     std::unordered_map<lsp::SymbolID, std::vector<size_t>> AddedOhosSymIdToIndexsMap;
@@ -346,7 +348,7 @@ void CompletionImpl::AutoImportPackageComplete(const ArkAST &input, CompletionRe
     const std::string kitPrefix = "kit.";
     // LCOV_EXCL_START
     index->FindImportSymsOnCompletion(std::make_pair(result.normalCompleteSymID, result.importDeclsSymID),
-        pkgName, curModule, prefix,
+        context, prefix,
         [&result, &textEditRange, &syscap, &AddedOhosSymIdToIndexsMap, &ohosPrefix](const std::string &pkg,
             const lsp::Symbol &sym, const lsp::CompletionItem &completionItem) {
             if (!sym.syscap.empty() && !syscap.CheckSysCap(sym.syscap)) {
@@ -794,9 +796,11 @@ void CompletionImpl::NormalParseImpl(
     // modifier? import {[module] }
     // modifier? import {std.collection.ArrayList, [module]}
     if (IsPreamble(input, pos)) {
-        auto curModule = SplitFullPackage(input.file->curPackage->fullPackageName).first;
+        auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+            input.file->filePath, input.file->curPackage->fullPackageName);
+        bool includeScriptRequire = CompilerCangjieProject::GetInstance()->IsBuildScriptFile(input.file->filePath);
         afterDoubleColon = afterDoubleColon | IsImportHasOrg(input, pos);
-        normalCompleter.CompleteModuleName(curModule, afterDoubleColon);
+        normalCompleter.CompleteModuleName(curModule, afterDoubleColon, includeScriptRequire);
         return;
     }
 

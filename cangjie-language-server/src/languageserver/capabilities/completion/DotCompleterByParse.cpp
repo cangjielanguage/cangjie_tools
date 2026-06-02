@@ -65,7 +65,9 @@ void DotCompleterByParse::Complete(const ArkAST &input,
     env.parserAst = &input;
     env.cache = input.semaCache;
     env.curPkgName = context->fullPackageName;
-    env.SetSyscap(SplitFullPackage(env.curPkgName).first);
+    auto currentModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+        input.file->filePath, env.curPkgName);
+    env.SetSyscap(currentModule);
     // Complete SubPackage, include sourece dependency and binary dependency.
     // eg: import std.[sub_pkg].[sub_pkg]...
     for (const auto &iter : Cangjie::LSPCompilerInstance::cjoLibraryMap) {
@@ -79,7 +81,7 @@ void DotCompleterByParse::Complete(const ArkAST &input,
     }
 
     for (const auto &iter : Cangjie::LSPCompilerInstance::usrCjoFileCacheMap) {
-        auto curModule = SplitFullPackage(env.curPkgName).first;
+        auto curModule = currentModule;
         if (curModule != iter.first) {
             continue;
         }
@@ -99,7 +101,8 @@ void DotCompleterByParse::Complete(const ArkAST &input,
     }
     auto targetPkg = importManager->GetPackageDecl(fullImportId);
     // filter root pkg symbols if cur module is combined
-    std::string curModule = SplitFullPackage(srcPkgName).first;
+    auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+        input.file->filePath, srcPkgName);
     if (targetPkg && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, srcPkgName, fullImportId) &&
         CompilerCangjieProject::GetInstance()->IsVisibleForPackage(srcPkgName, targetPkg->fullPackageName)) {
         auto members = importManager->GetPackageMembers(srcPkgName, targetPkg->fullPackageName);
@@ -473,7 +476,8 @@ void DotCompleterByParse::CompleteQualifiedType(const std::string &beforePrefix,
             return;
         }
         auto curModule = basicStrings.front();
-        auto depends = ark::CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModule);
+        bool includeScriptRequire = CompilerCangjieProject::GetInstance()->IsBuildScriptFile(curFilePath);
+        auto depends = ark::CompilerCangjieProject::GetInstance()->GetOneModuleDeps(curModule, includeScriptRequire);
         auto strings = Utils::SplitQualifiedName(beforePrefix);
         if (strings.empty()) {
             return;
@@ -1162,16 +1166,18 @@ void DotCompleterByParse::AddExtendDeclFromIndexBatch(const std::vector<Ptr<Ty>>
         return;
     }
     auto curPkgName = ast->file->curPackage->fullPackageName;
-
+    auto curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(ast->file->filePath, curPkgName);
+    bool includeScriptRequire = CompilerCangjieProject::GetInstance()->IsBuildScriptFile(ast->file->filePath);
+    lsp::SymbolSearchContext context{curPkgName, curModule, includeScriptRequire};
     Range editRange = CompletionEnv::GetEditRangeForAutoImport(*ast);
-
     auto index = ark::CompilerCangjieProject::GetInstance()->GetIndex();
     if (!index) {
         return;
     }
 
     std::vector<CodeCompletion> completetions;
-    index->FindExtendSymsOnCompletionBatch(ids, allVisibleMembers, curPkgName, env.GetValue(FILTER::IS_STATIC),
+    index->FindExtendSymsOnCompletionBatch(
+        ids, allVisibleMembers, context, env.GetValue(FILTER::IS_STATIC),
         [&editRange, &completetions](const std::string &pkg, const std::string &interface,
             const lsp::Symbol &sym, const lsp::CompletionItem &completionItem) {
             CodeCompletion item;

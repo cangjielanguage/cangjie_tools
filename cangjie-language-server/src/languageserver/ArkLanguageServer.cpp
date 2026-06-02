@@ -1542,14 +1542,16 @@ void ArkLanguageServer::HandleAddImportQuickFix(DiagnosticToken &diagnostic, con
     Position textEditStart = {pkgPos.fileID, lastImportLine, 0};
     Range textEditRange{textEditStart, textEditStart};
     std::string curPackage = file->curPackage->fullPackageName;
-    std::string curModule = SplitFullPackage(curPackage).first;
+    std::string curModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(file->filePath, curPackage);
+    bool includeScriptRequire = CompilerCangjieProject::GetInstance()->IsBuildScriptFile(file->filePath);
+    lsp::SymbolSearchContext context{curPackage, curModule, includeScriptRequire};
     std::unordered_set<std::string> fixSet = {};
     std::vector<CodeAction> actions = {};
     std::string uri = URI::URIFromAbsolutePath(file->filePath).ToString();
     std::unordered_set<lsp::SymbolID> importedSyms = {};
     GetCurFileImportedSymbolIDs(importManager, file, importedSyms);
     index->FindImportSymsOnQuickFix(
-        curPackage, curModule, importedSyms, identifier,
+        context, importedSyms, identifier,
         [&actions, &fixSet, &textEditRange, uri, this](const std::string &pkg, const lsp::Symbol &sym) {
             std::string fullSymName = pkg + ":" + sym.name;
             if (fixSet.count(fullSymName)) {
@@ -2009,6 +2011,17 @@ void ArkLanguageServer::OnCommandApplyTweak(const TweakArgs &args, nlohmann::jso
         Logger::Instance().LogMessage(MessageType::MSG_WARNING, log.str());
         ReplyError(id);
         return;
+    }
+    if (args.tweakID == "ExtractVariable") {
+        auto buffer = CompilerCangjieProject::GetInstance()->GetContentByFile(file);
+        auto contents = GetContentsByFile(file);
+        std::regex reg("\r\n");
+        std::string replaceStr = "\n";
+        std::string bufferResult = std::regex_replace(buffer, reg, replaceStr);
+        std::string contentsResult = std::regex_replace(contents, reg, replaceStr);
+        if (!buffer.empty() && bufferResult != contentsResult) {
+            CompilerCangjieProject::GetInstance()->CompilerOneFile(file, contents);
+        }
     }
 
     auto fileId = CompilerCangjieProject::GetInstance()->GetFileID(args.file.file);

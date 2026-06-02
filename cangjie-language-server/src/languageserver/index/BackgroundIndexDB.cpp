@@ -333,18 +333,20 @@ void BackgroundIndexDB::Callees(const std::string &pkgName, const SymbolID &decl
 
 void BackgroundIndexDB::FindImportSymsOnCompletion(
     const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
-    const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
+    const SymbolSearchContext &context, const std::string &prefix,
     std::function<void(const std::string &, const Symbol &, const CompletionItem &)> callback)
 {
     if (Options::GetInstance().IsOptionSet("test")) {
         return;
     }
+    const auto &curPkgName = context.curPkgName;
+    const auto &curModule = context.curModule;
     const auto &normalCompleteSyms  = filterSyms.first;
     const auto &importDeclSyms  = filterSyms.second;
     size_t normalCompleteCount = 0;
     size_t importDeclCount = 0;
     std::unordered_set<std::string> curModuleDeps =
-        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule, context.includeScriptRequire);
     db.GetSymbolsAndCompletions(prefix, [&](const Symbol &sym, const CompletionItem &completion) {
         std::string symPackage;
         std::string symModule;
@@ -405,13 +407,15 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
     });
 }
 
-void BackgroundIndexDB::FindImportSymsOnQuickFix(const std::string &curPkgName, const std::string &curModule,
+void BackgroundIndexDB::FindImportSymsOnQuickFix(const SymbolSearchContext &context,
     const std::unordered_set<SymbolID> &importDeclSyms,
     const std::string& identifier, const std::function<void(const std::string &, const Symbol &)>& callback)
 {
+    const auto &curPkgName = context.curPkgName;
+    const auto &curModule = context.curModule;
     size_t importDeclCount = 0;
     std::unordered_set<std::string> curModuleDeps =
-        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule, context.includeScriptRequire);
     db.GetSymbolsByName(identifier, [&](const Symbol &sym) {
         std::string symPackage;
         std::string symModule;
@@ -469,15 +473,17 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const std::string &curPkgName, 
 
 void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
     const std::unordered_set<SymbolID> &visibleMembers,
-    const std::string &curPkgName, const std::string &curModule,
+    const SymbolSearchContext &context,
     const std::function<void(const std::string &, const std::string &,
         const Symbol &, const CompletionItem &)>& callback)
 {
     if (Options::GetInstance().IsOptionSet("test")) {
         return;
     }
+    const auto &curPkgName = context.curPkgName;
+    const auto &curModule = context.curModule;
     std::unordered_set<std::string> curModuleDeps =
-        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule, context.includeScriptRequire);
     db.GetExtendItem(GetArrayFromID(dotCompleteSym),
         [&](const std::string &packageName, const Symbol &sym,
         const ExtendItem &extendIem, const CompletionItem &completionItem) {
@@ -511,16 +517,17 @@ void BackgroundIndexDB::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSy
 void BackgroundIndexDB::FindExtendSymsOnCompletionBatch(
     const std::unordered_set<SymbolID> &ids,
     const std::unordered_set<SymbolID> &allVisibleMembers,
-    const std::string &curPkgName, bool filterStatic,
+    const SymbolSearchContext &context, bool filterStatic,
     const std::function<void(const std::string &, const std::string &,
         const Symbol &, const CompletionItem &)>& callback)
 {
     if (ids.empty()) {
         return;
     }
-    auto curModule = SplitFullPackage(curPkgName).first;
+    const auto &curPkgName = context.curPkgName;
+    const auto &curModule = context.curModule;
     std::unordered_set<std::string> curModuleDeps =
-        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule, context.includeScriptRequire);
 
     for (const auto dotCompleteSym : ids) {
         db.GetExtendItem(GetArrayFromID(dotCompleteSym),
@@ -628,4 +635,3 @@ void BackgroundIndexDB::FindCrossSymbolByName(const std::string &packageName, co
 } // namespace lsp
 } // namespace ark
 // LCOV_EXCL_STOP
-

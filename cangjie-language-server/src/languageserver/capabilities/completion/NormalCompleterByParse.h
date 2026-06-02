@@ -30,7 +30,7 @@ public:
 
     void CompletePackageSpec(const ArkAST &input, bool afterDoubleColon);
 
-    void CompleteModuleName(const std::string &curModule, bool afterDoubleColon);
+    void CompleteModuleName(const std::string &curModule, bool afterDoubleColon, bool includeScriptRequire = false);
 
 private:
 
