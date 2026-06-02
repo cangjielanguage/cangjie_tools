@@ -1,6 +1,7 @@
 #ifndef CJPROF_PROFILE_TYPES_H
 #define CJPROF_PROFILE_TYPES_H
 
+#include "Data/ObjectCategory.h"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -39,17 +40,6 @@ namespace HeapDumpTag {
     constexpr uint8_t UNMOVABLE_PRIMITIVE_ARRAY_DUMP = 0x2C;
     constexpr uint8_t UNMOVABLE_STRUCT_ARRAY_DUMP = 0x2D;
 }
-
-// Object category
-enum class ObjectCategory : uint8_t {
-    INSTANCE_OBJECT = 0,
-    OBJECT_ARRAY = 1,
-    STRUCT_ARRAY = 2,
-    PRIMITIVE_ARRAY = 3,
-    PINNED_OBJECT = 4,
-    LARGE_OBJECT = 5,
-    UNMOVABLE_OBJECT = 6
-};
 
 // GC Root type
 enum class RootType : uint8_t {

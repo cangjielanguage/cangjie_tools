@@ -63,7 +63,7 @@ endif()
 
 include_directories(third_party/boundscheck/include)
 include_directories(third_party/cpp-httplib)
-include_directories(third_party/nlohmann)
+include_directories(third_party/third_party_json/include)
 include_directories(third_party/runtime/runtime/src)
 add_subdirectory(third_party/runtime/runtime/src/Demangler EXCLUDE_FROM_ALL)
 set_target_properties(cangjie-demangle PROPERTIES EXCLUDE_FROM_ALL FALSE)

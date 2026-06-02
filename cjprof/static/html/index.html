@@ -11,7 +11,8 @@
             padding: 0;
             box-sizing: border-box;
         }
-        body {
+        html, body {
+            height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: #1a1a2e;
             color: #eee;
@@ -46,6 +47,7 @@
         }
         .content {
             padding: 30px;
+            min-height: calc(100vh - 120px);
         }
         .card {
             background: #16213e;
@@ -108,8 +110,9 @@
             align-items: center;
         }
         #sunburst {
-            width: 600px;
-            height: 550px;
+            width: 100%;
+            height: calc(100vh - 260px);
+            min-height: 400px;
         }
         #sunburst-legend {
             display: flex;
@@ -223,7 +226,8 @@
         #tree-container {
             width: 100%;
             overflow: auto;
-            max-height: 600px;
+            max-height: calc(100vh - 260px);
+            min-height: 400px;
         }
         #tree-container::-webkit-scrollbar {
             width: 4px;
@@ -240,7 +244,8 @@
         }
         #tree-view {
             width: 100%;
-            height: 600px;
+            height: calc(100vh - 260px);
+            min-height: 400px;
         }
     </style>
 </head>
@@ -411,7 +416,6 @@
                 initTreeView(currentGranularity);
             }
         });
-        });
 
         // Draw sunburst chart from dominance tree
         async function loadDominanceTree() {
@@ -492,25 +496,40 @@
             }
         }
 
-        // Build tree from type nodes
+        // Build tree from type nodes (per-parent grouping: same type can appear under different parents)
+        // Uses child_types (which contains child node ids) to build parent-child relationships
         function buildTypeTree(nodes) {
-            const typeMap = new Map();
+            const nodeMap = new Map();
             nodes.forEach(n => {
-                if (!n.is_cutoff) {
-                    typeMap.set(n.type_name, Object.assign({}, n, { id: n.type_name, children: [] }));
+                const key = n.id || (n.type_name + '@' + (n.parent_type || ''));
+                nodeMap.set(key, Object.assign({}, n, { id: key, children: [] }));
+            });
+
+            // Build parent-child relationships from child_types arrays
+            // Each node's child_types contains the IDs of its children
+            nodeMap.forEach((parentNode, parentKey) => {
+                if (parentNode.child_types && parentNode.child_types.length > 0) {
+                    parentNode.child_types.forEach(childId => {
+                        const childNode = nodeMap.get(childId);
+                        if (childNode && childNode.id !== parentKey) {
+                            parentNode.children.push(childNode);
+                        }
+                    });
+                }
+            });
+
+            // Root types: nodes that are not children of any other node
+            const childIds = new Set();
+            nodeMap.forEach((parentNode) => {
+                if (parentNode.children && parentNode.children.length > 0) {
+                    parentNode.children.forEach(child => childIds.add(child.id));
                 }
             });
 
             let rootTypes = [];
-            nodes.forEach(n => {
-                if (n.is_cutoff) return;
-                const typeNode = typeMap.get(n.type_name);
-                if (!typeNode) return;
-
-                if (n.parent_type && typeMap.has(n.parent_type)) {
-                    typeMap.get(n.parent_type).children.push(typeNode);
-                } else {
-                    rootTypes.push(typeNode);
+            nodeMap.forEach((node, key) => {
+                if (!childIds.has(key)) {
+                    rootTypes.push(node);
                 }
             });
 
@@ -535,7 +554,7 @@
                     children: rootTypes
                 };
             }
-            return typeMap.values().next().value;
+            return nodeMap.values().next().value;
         }
 
         function escapeHtml(str) {
@@ -623,14 +642,15 @@
                 for (var i = 0; i < needExpand.length; i++) {
                     try {
                         if (granularity === 'type') {
-                            // Type granularity: id is type_name (string), use children-by-type API
-                            var parentType = needExpand[i].id;
-                            var res = await fetch(API_BASE + '/dominance/children-by-type?parent_type=' + encodeURIComponent(parentType));
+                            // Type granularity: id is node_id (format "class_name@parent_type"), use children-by-type API
+                            var nodeId = needExpand[i].id;
+                            var res = await fetch(API_BASE + '/dominance/children-by-type?node_id=' + encodeURIComponent(nodeId));
                             var data = await res.json();
                             if (data.nodes && data.nodes.length > 0) {
                                 needExpand[i].children = data.nodes.map(function(c) {
+                                    var childKey = c.id || (c.type_name + '@' + (c.parent_type || ''));
                                     return {
-                                        id: c.type_name,
+                                        id: childKey,
                                         class_name: c.class_name,
                                         type_name: c.type_name,
                                         retained_size: c.retained_size,
@@ -699,7 +719,8 @@
             var centerName = isVirtualRoot ? 'Root' :
                 (viewNode.class_name || 'obj' + viewNode.id).split(' (')[0];
 
-            var colorIndex = 0;
+            // Start from palette index 1 to skip #e94560 (reserved for center node)
+            var colorIndex = 1;
             var classColors = new Map();
             function getColor(name) {
                 if (!classColors.has(name)) {
@@ -753,9 +774,16 @@
                     var normalChildren = [];
                     var parentRetainedSize = node.retained_size || 0;
 
+                    // Cutoff children with a real type_name (not "...") should be shown independently
+                    // Summary cutoff nodes ("...", remaining-cutoff) are merged into one "..." node
                     node.children.forEach(function(c) {
                         if (c.is_cutoff) {
-                            cutoffChildren.push(c);
+                            var tn = c.type_name || '';
+                            if (tn !== '' && tn !== '...' && !tn.startsWith('::')) {
+                                normalChildren.push(c);
+                            } else {
+                                cutoffChildren.push(c);
+                            }
                         } else {
                             normalChildren.push(c);
                         }
@@ -778,7 +806,7 @@
 
                         result.children.push({
                             nodeId: null,
-                            name: '... (' + cutoffTotalInstances + ' children)',
+                            name: '... (' + cutoffTotalInstances + ' instances)',
                             retained_size: cutoffTotalRetained,
                             shallow_size: cutoffTotalShallow,
                             depth: depth + 1,
@@ -819,15 +847,13 @@
                         if (sunburstCenterNodeId !== null && d.nodeId === sunburstCenterNodeId) {
                             var backHint = sunburstParentStack.length > 0 ?
                                 '<div style="color:#888;font-size:11px;">Click to go back</div>' : '';
-                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + centerName + '</div>' +
+                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(centerName) + '</div>' +
                                    '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                    backHint;
                         }
                         var instanceInfo = d.instance_count > 1 ?
                             '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
-                        var idInfo = d.nodeId ? '<div style="color:#888;font-size:11px;">ID: ' + d.nodeId + '</div>' : '';
-                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + (d.name || d.class_name || 'Object') + '</div>' +
-                               idInfo +
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
                                instanceInfo +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
@@ -864,7 +890,7 @@
             var legend = document.getElementById('sunburst-legend');
             legend.innerHTML = '';
             classColors.forEach(function(color, name) {
-                legend.innerHTML += '<div class="legend-item" title="' + name.replace(/"/g, '&quot;') + '"><div class="legend-color" style="background:' + color + '"></div>' + name + '</div>';
+                legend.innerHTML += '<div class="legend-item" title="' + escapeHtml(name) + '"><div class="legend-color" style="background:' + color + '"></div>' + escapeHtml(name) + '</div>';
             });
         }
 
@@ -877,7 +903,7 @@
             var hasChildrenInData = allNodes.some(function(x) {
                 return x.parent_id === n.id;
             });
-            var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
+            var hasDominatedChildren = !n.is_clustered && !n.is_cutoff && (n.retained_size || 0) > (n.shallow_size || 0);
             var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
 
             return {
@@ -954,7 +980,7 @@
                     var hasChildrenInData = data.nodes.some(function(x) {
                         return x.parent_id === n.id;
                     });
-                    var hasDominatedChildren = !n.is_clustered && (n.retained_size || 0) > (n.shallow_size || 0);
+                    var hasDominatedChildren = !n.is_clustered && !n.is_cutoff && (n.retained_size || 0) > (n.shallow_size || 0);
                     var canExpandCluster = n.is_clustered && n.instance_count > 1 && n.instance_ids && n.instance_ids.length > 0;
 
                     return {
@@ -979,16 +1005,27 @@
             drawTree();
         }
 
-        // Initialize tree view by type granularity
+        // Initialize tree view by type granularity (per-parent grouping)
         async function initTreeViewByType(data) {
-            // Store all nodes in map by type_name
+            // Store all nodes in map by id (unique key: "class_name@parent_type")
             data.nodes.forEach(function(n) {
-                treeNodeMap.set(n.type_name, Object.assign({}, n));
+                var key = n.id || (n.type_name + '@' + (n.parent_type || ''));
+                treeNodeMap.set(key, Object.assign({}, n, { id: key }));
             });
 
-            // Root types have empty parent_type
+            // Root types have empty parent_type, or parent_type not found in nodeMap
             var rootTypes = data.nodes.filter(function(n) {
-                return !n.parent_type || n.parent_type === '';
+                var key = n.id || (n.type_name + '@' + (n.parent_type || ''));
+                if (!n.parent_type || n.parent_type === '') return true;
+                // Check if parent exists in nodeMap
+                var found = false;
+                data.nodes.forEach(function(other) {
+                    var otherKey = other.id || (other.type_name + '@' + (other.parent_type || ''));
+                    if (other.type_name === n.parent_type && otherKey !== key) {
+                        found = true;
+                    }
+                });
+                return !found;
             });
 
             // Sort by retained_size descending
@@ -1010,9 +1047,11 @@
                 depth: -1,
                 parent_type: '',
                 children: rootTypes.map(function(n) {
+                    var key = n.id || (n.type_name + '@' + (n.parent_type || ''));
                     return {
-                        id: n.type_name,
+                        id: key,
                         class_name: n.class_name,
+                        type_name: n.type_name,
                         retained_size: n.retained_size,
                         shallow_size: n.shallow_size,
                         depth: n.depth || 0,
@@ -1021,7 +1060,7 @@
                         object_ids: n.object_ids,
                         child_types: n.child_types || [],
                         cutoff_count: n.cutoff_count || 0,
-                        is_clustered: true,
+                        is_clustered: !n.is_cutoff,
                         is_cutoff: n.is_cutoff || false,
                         children: null,
                         _hasChildren: (n.child_types && n.child_types.length > 0) || (n.cutoff_count && n.cutoff_count > 0),
@@ -1079,17 +1118,19 @@
                     } else if (d._hasChildren && !d._loaded) {
                         // Handle type granularity nodes
                         if (d._granularity === 'type') {
-                            // Type granularity: load child types via API
+                            // Type granularity: load child types via API using node_id
                             try {
-                                var parentType = d.id;  // For type nodes, id is the type_name
-                                var res = await fetch(API_BASE + '/dominance/children-by-type?parent_type=' + encodeURIComponent(parentType));
+                                var nodeId = d.id;  // id format: "class_name@parent_type"
+                                var res = await fetch(API_BASE + '/dominance/children-by-type?node_id=' + encodeURIComponent(nodeId));
                                 var data = await res.json();
 
                                 if (data.nodes && data.nodes.length > 0) {
                                     d.children = data.nodes.map(function(c) {
+                                        var childKey = c.id || (c.type_name + '@' + (c.parent_type || ''));
                                         return {
-                                            id: c.type_name,
+                                            id: childKey,
                                             class_name: c.class_name,
+                                            type_name: c.type_name,
                                             retained_size: c.retained_size,
                                             shallow_size: c.shallow_size,
                                             depth: c.depth || 0,
@@ -1101,8 +1142,8 @@
                                             is_clustered: !c.is_cutoff,
                                             is_cutoff: c.is_cutoff || false,
                                             children: null,
-                                            _hasChildren: !c.is_cutoff && ((c.child_types && c.child_types.length > 0) || (c.cutoff_count && c.cutoff_count > 0)),
-                                            _loaded: c.is_cutoff ? true : false,
+                                            _hasChildren: (c.child_types && c.child_types.length > 0) || (c.cutoff_count && c.cutoff_count > 0),
+                                            _loaded: false,
                                             _granularity: 'type'
                                         };
                                     });

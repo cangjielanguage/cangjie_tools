@@ -16,7 +16,7 @@ const std::map<HprofData::ID, std::string> HprofData::emptyStrings;
 const std::map<HprofData::ID, HprofData::Frame> HprofData::emptyFrames;
 const std::map<HprofData::u4, HprofData::StackTrace> HprofData::emptyStackTraces;
 const std::map<HprofData::ID, HprofData::Thread> HprofData::emptyThreads;
-const std::map<HprofData::ID, HprofData::Class> HprofData::emptyClasses;
+const std::unordered_map<HprofData::ID, HprofData::Class> HprofData::emptyClasses;
 const std::map<HprofData::ID, HprofData::Instance> HprofData::emptyInstances;
 const std::unordered_map<HprofData::ID, HprofData::Array> HprofData::emptyArrays;
 const std::unordered_map<HprofData::ID, HprofData::Local> HprofData::emptyLocals;
@@ -24,7 +24,7 @@ const std::unordered_set<HprofData::ID> HprofData::emptyGlobals;
 const std::unordered_set<HprofData::ID> HprofData::emptyUnknown;
 const std::map<HprofData::u4, HprofData::Sample> HprofData::emptyCpuSamples;
 const std::unordered_map<HprofData::ID, HprofData::u4> HprofData::emptyComponentNums;
-const std::unordered_map<HprofData::ID, HprofData::ObjectCategory> HprofData::emptyObjectCategories;
+const std::unordered_map<HprofData::ID, ObjectCategory> HprofData::emptyObjectCategories;
 
 #pragma pack(push, 1)
 
@@ -139,19 +139,19 @@ void Hprof::ParseHeapDump(bool verbose)
         { ROOT_GLOBAL, std::bind(&Hprof::ParseHeapDumpRootGlobal, this, std::placeholders::_1) },
         { ROOT_LOCAL, std::bind(&Hprof::ParseHeapDumpRootLocal, this, std::placeholders::_1) },
         { CLASS_DUMP, std::bind(&Hprof::ParseHeapDumpClassDump, this, std::placeholders::_1) },
-        { INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, INSTANCE_OBJECT); } },
-        { OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, INSTANCE_OBJECT); } },
-        { PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, INSTANCE_OBJECT); } },
-        { STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, INSTANCE_OBJECT); } },
-        { PINNED_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, PINNED_OBJECT); } },
-        { LARGE_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, LARGE_OBJECT); } },
-        { LARGE_OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, LARGE_OBJECT); } },
-        { LARGE_PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, LARGE_OBJECT); } },
-        { LARGE_STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, LARGE_OBJECT); } },
-        { UNMOVABLE_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, UNMOVABLE_OBJECT); } },
-        { UNMOVABLE_OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, UNMOVABLE_OBJECT); } },
-        { UNMOVABLE_PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, UNMOVABLE_OBJECT); } },
-        { UNMOVABLE_STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, UNMOVABLE_OBJECT); } },
+        { INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, ObjectCategory::INSTANCE_OBJECT); } },
+        { OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, ObjectCategory::INSTANCE_OBJECT); } },
+        { PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, ObjectCategory::INSTANCE_OBJECT); } },
+        { STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, ObjectCategory::INSTANCE_OBJECT); } },
+        { PINNED_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, ObjectCategory::PINNED_OBJECT); } },
+        { LARGE_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, ObjectCategory::LARGE_OBJECT); } },
+        { LARGE_OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, ObjectCategory::LARGE_OBJECT); } },
+        { LARGE_PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, ObjectCategory::LARGE_OBJECT); } },
+        { LARGE_STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, ObjectCategory::LARGE_OBJECT); } },
+        { UNMOVABLE_INSTANCE_DUMP, [this](bool v){ ParseHeapDumpInstanceDump(v, ObjectCategory::UNMOVABLE_OBJECT); } },
+        { UNMOVABLE_OBJECT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpObjectArrayDump(v, ObjectCategory::UNMOVABLE_OBJECT); } },
+        { UNMOVABLE_PRIMITIVE_ARRAY_DUMP, [this](bool v){ ParseHeapDumpPrimitiveArrayDump(v, ObjectCategory::UNMOVABLE_OBJECT); } },
+        { UNMOVABLE_STRUCT_ARRAY_DUMP, [this](bool v){ ParseHeapDumpStructArrayDump(v, ObjectCategory::UNMOVABLE_OBJECT); } },
         { ROOT_UNKNOWN, std::bind(&Hprof::ParseHeapDumpRootUnknown, this, std::placeholders::_1) }
     };
 
@@ -254,7 +254,7 @@ void Hprof::ParseHeapDumpPrimitiveArrayDump(bool verbose, ObjectCategory categor
     m_data->arrays[id].cls = 0;
     m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u1));
 
-m_data->objectCategories[id] = category == INSTANCE_OBJECT ? PRIMITIVE_ARRAY : category;
+m_data->objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::PRIMITIVE_ARRAY : category;
     if (verbose) {
         printf("[PRIMITIVE ARRAY DUMP@0x%zx] id = 0x%" PRIx64 ", num = %u, type = %u\n",
             startPos, id, m_data->arrays[id].num, m_data->arrays[id].type);

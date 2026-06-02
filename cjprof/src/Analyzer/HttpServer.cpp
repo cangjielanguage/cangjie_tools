@@ -102,12 +102,12 @@ void HttpServer::start() {
     });
 
     svr->Get("/api/dominance/children-by-type", [ctx](const httplib::Request& req, httplib::Response& res) {
-        std::string parentType = "";
-        auto it = req.params.find("parent_type");
+        std::string nodeId = "";
+        auto it = req.params.find("node_id");
         if (it != req.params.end()) {
-            parentType = it->second;
+            nodeId = it->second;
         }
-        res.set_content(HttpHandlers::handleDominanceChildrenByType(*ctx, parentType), "application/json");
+        res.set_content(HttpHandlers::handleDominanceChildrenByType(*ctx, nodeId), "application/json");
     });
 
     svr->Get("/api/dominance/top10", [ctx](const httplib::Request&, httplib::Response& res) {

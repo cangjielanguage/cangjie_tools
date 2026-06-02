@@ -44,6 +44,46 @@ static std::string getClassName(const HttpContext& ctx, uint64_t objectId) {
     return "unknown";
 }
 
+// Build object_id -> class_name map for ALL objects in one pass (O(N))
+static std::unordered_map<uint64_t, std::string> buildObjectIdToClassMap(const HttpContext& ctx) {
+    std::unordered_map<uint64_t, std::string> objectIdToClass;
+    if (!ctx.objects) return objectIdToClass;
+
+    // First build class_id -> class_name map for O(1) lookup
+    std::unordered_map<uint64_t, std::string> classIdToName;
+    if (ctx.classes) {
+        for (const auto& cls : *ctx.classes) {
+            if (!cls.class_name.empty()) {
+                classIdToName[cls.class_id] = cls.class_name;
+            }
+        }
+    }
+
+    // Then build object_id -> class_name map in one pass
+    for (const auto& obj : *ctx.objects) {
+        std::string className;
+        if (!obj.name.empty()) {
+            className = obj.name;
+        } else if (obj.class_id == 0) {
+            switch (obj.category) {
+                case ObjectCategory::PRIMITIVE_ARRAY: className = "PRIMITIVE_ARRAY"; break;
+                case ObjectCategory::OBJECT_ARRAY: className = "OBJECT_ARRAY"; break;
+                case ObjectCategory::STRUCT_ARRAY: className = "STRUCT_ARRAY"; break;
+                case ObjectCategory::PINNED_OBJECT: className = "PINNED_OBJECT"; break;
+                case ObjectCategory::LARGE_OBJECT: className = "LARGE_OBJECT"; break;
+                case ObjectCategory::UNMOVABLE_OBJECT: className = "UNMOVABLE_OBJECT"; break;
+                default: className = "unknown"; break;
+            }
+        } else {
+            auto it = classIdToName.find(obj.class_id);
+            className = (it != classIdToName.end()) ? it->second : "unknown";
+        }
+        objectIdToClass[obj.object_id] = className;
+    }
+
+    return objectIdToClass;
+}
+
 /**
  * Cluster result containing the node, its class name, and original instance IDs.
  */
@@ -205,12 +245,21 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
     }
 
     // Add non-root nodes with cutoff filtering
+    // Only generate cutoff summaries for parents that will appear in the tree
+    // (parentRetained >= threshold01). Skip parents that are themselves cutoff.
     for (const auto& [parentId, children] : childrenByParent) {
         // Get parent retained size for cutoff calculation
         uint64_t parentRetained = 0;
         auto it = parentRetainedSize.find(parentId);
         if (it != parentRetainedSize.end()) {
             parentRetained = it->second;
+        }
+
+        // If parent is itself a cutoff node, it won't appear in the tree.
+        // Skip all its children — no cutoff summary needed for invisible parents.
+        if (parentRetained < threshold01) {
+            cutoffCount += static_cast<int>(children.size());
+            continue;
         }
 
         for (const auto* node : children) {
@@ -259,7 +308,7 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx) {
         uint64_t cutoffShallow = parentCutoffShallow[entry.first];
         result["nodes"].push_back({
             {"id", cutoffId},
-            {"class_name", "... (" + std::to_string(entry.second) + " children)"},
+            {"class_name", "... (" + std::to_string(entry.second) + " instances)"},
             {"retained_size", cutoffRetained},
             {"shallow_size", cutoffShallow},
             {"depth", 0},
@@ -365,6 +414,13 @@ std::string HttpHandlers::handleDominanceClusterExpand(const HttpContext& ctx, c
     return result.dump();
 }
 
+// Hash function for std::pair<std::string, std::string> (used as unordered_map key)
+struct PairStringHash {
+    std::size_t operator()(const std::pair<std::string, std::string>& p) const {
+        return std::hash<std::string>()(p.first) ^ (std::hash<std::string>()(p.second) << 1);
+    }
+};
+
 std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
     LOG_DEBUG("Handling /api/dominance/tree-by-type");
 
@@ -382,48 +438,73 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
     uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.threshold01Percent);
     if (threshold01 == 0) threshold01 = 1;
 
-    // TypeNode: each type appears exactly once
+    // TypeNode: keyed by (class_name, parent_type) — per-parent grouping
+    // Same type can appear as separate nodes under different parents
     struct TypeNode {
         std::string class_name;
+        std::string parent_type;      // The parent type for this grouping
         uint64_t retained_size = 0;
         uint64_t shallow_size = 0;
         uint64_t instance_count = 0;
         std::vector<uint64_t> object_ids;
-        std::unordered_map<std::string, uint64_t> parent_type_counts;  // Count instances per parent type
-        std::string primary_parent_type;  // The dominant parent type
         std::unordered_set<std::string> child_types;
         int max_depth = 0;
-        uint64_t cutoff_count = 0;     // Count of filtered children for this type
-        uint64_t cutoff_retained = 0;  // Total retained_size of cutoff children
-        uint64_t cutoff_shallow = 0;   // Total shallow_size of cutoff children
+        // Below-threshold children aggregated by their type
+        std::unordered_map<std::string, uint64_t> cutoff_type_counts;
+        std::unordered_map<std::string, uint64_t> cutoff_type_retained;
+        uint64_t cutoff_count = 0;
+        uint64_t cutoff_retained = 0;
+        uint64_t cutoff_shallow = 0;
     };
 
-    std::unordered_map<std::string, TypeNode> typeNodes;
+    // StandaloneCutoff: types whose all instances are below threshold, keyed by (class_name, parent_type)
+    struct StandaloneCutoff {
+        std::string class_name;
+        std::string parent_type;
+        uint64_t retained_size = 0;
+        uint64_t shallow_size = 0;
+        uint64_t instance_count = 0;
+        std::vector<uint64_t> object_ids;
+        int max_depth = 0;
+    };
 
-    // Build object_id -> class_name map for quick lookup (only for above-threshold objects)
-    std::unordered_map<uint64_t, std::string> objectIdToClass;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.retained_size >= threshold01) {
-            std::string className = getClassName(ctx, node.object_id);
-            if (className != "unknown") {
-                objectIdToClass[node.object_id] = className;
-            }
-        }
-    }
+    // Build object_id -> class_name map for ALL objects (one pass, O(N))
+    auto objectIdToClass = buildObjectIdToClassMap(ctx);
 
-    // First pass: collect all types, aggregate sizes, and count parent type occurrences
+    using GroupKey = std::pair<std::string, std::string>;
+    std::unordered_map<GroupKey, TypeNode, PairStringHash> typeNodes;
+    std::unordered_map<GroupKey, StandaloneCutoff, PairStringHash> standaloneCutoffs;
+
+    // Helper: make node id from (class_name, parent_type)
+    auto makeNodeId = [](const std::string& className, const std::string& parentType) -> std::string {
+        return className + "@" + parentType;
+    };
+
+    // Pass 1: traverse above-threshold objects, group by (class_name, parent_type)
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.retained_size < threshold01) continue;
 
-        std::string className = getClassName(ctx, node.object_id);
+        auto classIt = objectIdToClass.find(node.object_id);
+        std::string className = (classIt != objectIdToClass.end()) ? classIt->second : "unknown";
         if (className == "unknown") continue;
 
-        if (typeNodes.find(className) == typeNodes.end()) {
-            typeNodes[className] = TypeNode();
-            typeNodes[className].class_name = className;
+        // Determine parent type
+        std::string parentType = "";
+        if (node.parent_id != 0) {
+            auto parentIt = objectIdToClass.find(node.parent_id);
+            if (parentIt != objectIdToClass.end()) {
+                parentType = parentIt->second;
+            }
         }
 
-        TypeNode& tn = typeNodes[className];
+        GroupKey key = {className, parentType};
+        if (typeNodes.find(key) == typeNodes.end()) {
+            typeNodes[key] = TypeNode();
+            typeNodes[key].class_name = className;
+            typeNodes[key].parent_type = parentType;
+        }
+
+        TypeNode& tn = typeNodes[key];
         tn.retained_size += node.retained_size;
         tn.shallow_size += node.shallow_size;
         tn.instance_count++;
@@ -432,30 +513,21 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
             tn.max_depth = node.depth;
         }
 
-        // Count parent type occurrences
-        if (node.parent_id != 0) {
-            auto it = objectIdToClass.find(node.parent_id);
-            if (it != objectIdToClass.end()) {
-                std::string parentClass = it->second;
-                if (parentClass != className) {
-                    tn.parent_type_counts[parentClass]++;
-                }
-            }
-        }
-
-        // Collect child types (objects dominated by this node) and count cutoff children
+        // Collect child types and aggregate below-threshold children by their type
         for (const auto& child : *ctx.dominanceNodes) {
             if (child.parent_id == node.object_id && child.object_id != node.object_id) {
+                auto childClassIt = objectIdToClass.find(child.object_id);
+                if (childClassIt == objectIdToClass.end()) continue;
+                std::string childClass = childClassIt->second;
+                if (childClass == "unknown") continue;
+
                 if (child.retained_size >= threshold01) {
-                    auto childIt = objectIdToClass.find(child.object_id);
-                    if (childIt != objectIdToClass.end()) {
-                        std::string childClass = childIt->second;
-                        if (childClass != className) {
-                            tn.child_types.insert(childClass);
-                        }
+                    if (childClass != className) {
+                        tn.child_types.insert(childClass);
                     }
                 } else {
-                    // Child is filtered by threshold - count as cutoff
+                    tn.cutoff_type_counts[childClass]++;
+                    tn.cutoff_type_retained[childClass] += child.retained_size;
                     tn.cutoff_count++;
                     tn.cutoff_retained += child.retained_size;
                     tn.cutoff_shallow += child.shallow_size;
@@ -464,59 +536,168 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
         }
     }
 
-    // Second pass: determine parent type for each type
-    // Correct definition: Type A dominates Type B iff all instances of B are dominated by instances of A
-    // i.e., when A is released, B must also be released
-    for (auto& [className, tn] : typeNodes) {
-        if (tn.parent_type_counts.empty()) {
-            tn.primary_parent_type = "";  // Root type (instances have parent_id == 0)
-        } else if (tn.parent_type_counts.size() == 1) {
-            // All instances have the same parent type -> this type dominates them
-            tn.primary_parent_type = tn.parent_type_counts.begin()->first;
-        } else {
-            // Instances are dominated by different types -> no single type dominates all
-            // This type should be at root level
-            tn.primary_parent_type = "";
+    // Pass 2: traverse below-threshold objects for StandaloneCutoff
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size >= threshold01) continue;
+
+        auto classIt = objectIdToClass.find(node.object_id);
+        std::string className = (classIt != objectIdToClass.end()) ? classIt->second : "unknown";
+        if (className == "unknown") continue;
+
+        std::string parentType = "";
+        if (node.parent_id != 0) {
+            auto parentIt = objectIdToClass.find(node.parent_id);
+            if (parentIt != objectIdToClass.end()) {
+                parentType = parentIt->second;
+            }
+        }
+
+        GroupKey key = {className, parentType};
+
+        // Skip if this group already has a TypeNode (above-threshold instances exist)
+        if (typeNodes.find(key) != typeNodes.end()) continue;
+
+        if (standaloneCutoffs.find(key) == standaloneCutoffs.end()) {
+            standaloneCutoffs[key] = StandaloneCutoff();
+            standaloneCutoffs[key].class_name = className;
+            standaloneCutoffs[key].parent_type = parentType;
+        }
+
+        StandaloneCutoff& sc = standaloneCutoffs[key];
+        sc.retained_size += node.retained_size;
+        sc.shallow_size += node.shallow_size;
+        sc.instance_count++;
+        sc.object_ids.push_back(node.object_id);
+        if (node.depth > sc.max_depth) {
+            sc.max_depth = node.depth;
         }
     }
 
-    // Build result: each type appears exactly once
-    for (const auto& [className, tn] : typeNodes) {
+    // Pass 3: build result JSON
+    // Generate node id: class_name@parent_type
+    // For root-level nodes: class_name@ (empty parent_type part)
+
+    // First, output above-threshold TypeNodes
+    for (const auto& [key, tn] : typeNodes) {
+        std::string nodeId = makeNodeId(tn.class_name, tn.parent_type);
+
+        // Collect child_types as node IDs (children under this parent)
+        json childTypesJson = json::array();
+        for (const auto& childTypeName : tn.child_types) {
+            // Find child TypeNodes whose parent_type matches this node's class_name
+            // and whose class_name matches childTypeName
+            for (const auto& [ck, cv] : typeNodes) {
+                if (ck.first == childTypeName && ck.second == tn.class_name) {
+                    childTypesJson.push_back(makeNodeId(cv.class_name, cv.parent_type));
+                }
+            }
+            // Also check standaloneCutoffs that match
+            for (const auto& [sk, sv] : standaloneCutoffs) {
+                if (sk.first == childTypeName && sk.second == tn.class_name && sv.retained_size >= threshold01) {
+                    childTypesJson.push_back(makeNodeId(sv.class_name + "::cutoff-type", sv.parent_type));
+                }
+            }
+        }
+        // Add cutoff type children
+        for (const auto& [childType, childRetained] : tn.cutoff_type_retained) {
+            if (childRetained >= threshold01) {
+                childTypesJson.push_back(makeNodeId(childType + "::cutoff-type", tn.class_name));
+            }
+        }
+
+        // Compute parent_id: find the node that is this node's parent
+        std::string parentId = "";
+        if (!tn.parent_type.empty()) {
+            // Look for parent in TypeNodes (above-threshold)
+            for (const auto& [pk, pv] : typeNodes) {
+                if (pk.first == tn.parent_type) {
+                    parentId = makeNodeId(pv.class_name, pv.parent_type);
+                    break;
+                }
+            }
+            // If not found in TypeNodes, look in StandaloneCutoffs
+            if (parentId.empty()) {
+                for (const auto& [sk, sv] : standaloneCutoffs) {
+                    if (sk.first == tn.parent_type) {
+                        parentId = makeNodeId(sv.class_name + "::cutoff-type", sv.parent_type);
+                        break;
+                    }
+                }
+            }
+        }
+
         json nodeJson = {
+            {"id", nodeId},
             {"type_name", tn.class_name},
-            {"class_name", tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)"},
+            {"class_name", tn.instance_count > 1 ? tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)" : tn.class_name},
             {"retained_size", tn.retained_size},
             {"shallow_size", tn.shallow_size},
             {"depth", tn.max_depth},
-            {"parent_type", tn.primary_parent_type},
+            {"parent_type", tn.parent_type},
+            {"parent_id", parentId},
             {"instance_count", tn.instance_count},
             {"object_ids", tn.object_ids},
-            {"is_clustered", true},
+            {"is_clustered", tn.instance_count > 1},
             {"is_cutoff", false},
-            {"cutoff_count", tn.cutoff_count}
+            {"cutoff_count", tn.cutoff_count},
+            {"child_types", childTypesJson}
         };
-
-        // Child types: types that have this type as their primary parent
-        json childTypesJson = json::array();
-        for (const auto& [childName, childNode] : typeNodes) {
-            if (childNode.primary_parent_type == className) {
-                childTypesJson.push_back(childName);
-            }
-        }
-        nodeJson["child_types"] = childTypesJson;
 
         result["nodes"].push_back(nodeJson);
 
-        // Add cutoff node if this type has filtered children (same format as object granularity)
-        if (tn.cutoff_count > 0) {
+        // Cutoff type nodes: below-threshold children aggregated by type, retained >= threshold01
+        for (const auto& [childType, childCount] : tn.cutoff_type_counts) {
+            auto retIt = tn.cutoff_type_retained.find(childType);
+            uint64_t childRetained = retIt != tn.cutoff_type_retained.end() ? retIt->second : 0;
+            if (childRetained < threshold01) continue;
+
+            auto scIt = standaloneCutoffs.find({childType, tn.class_name});
+            uint64_t childShallow = scIt != standaloneCutoffs.end() ? scIt->second.shallow_size : 0;
+            std::vector<uint64_t> childIds = scIt != standaloneCutoffs.end() ? scIt->second.object_ids : std::vector<uint64_t>{};
+            if (childIds.size() > 50) childIds.clear();
+
+            std::string cutoffNodeId = makeNodeId(childType + "::cutoff-type", tn.class_name);
+
             result["nodes"].push_back({
-                {"type_name", className + "::cutoff"},
-                {"class_name", "... (" + std::to_string(tn.cutoff_count) + " children)"},
-                {"retained_size", tn.cutoff_retained},
-                {"shallow_size", tn.cutoff_shallow},
+                {"id", cutoffNodeId},
+                {"type_name", childType},
+                {"class_name", childCount > 1 ? childType + " (" + std::to_string(childCount) + " instances)" : childType},
+                {"retained_size", childRetained},
+                {"shallow_size", childShallow},
                 {"depth", tn.max_depth + 1},
-                {"parent_type", className},
-                {"instance_count", tn.cutoff_count},
+                {"parent_type", tn.class_name},
+                {"parent_id", nodeId},
+                {"instance_count", childCount},
+                {"object_ids", childIds},
+                {"is_clustered", childCount > 1},
+                {"is_cutoff", false},
+                {"cutoff_count", 0},
+                {"child_types", json::array()}
+            });
+        }
+
+        // Remaining cutoff: children whose type aggregation didn't reach threshold01
+        uint64_t remainingCutoffCount = tn.cutoff_count;
+        uint64_t remainingCutoffRetained = tn.cutoff_retained;
+        uint64_t remainingCutoffShallow = tn.cutoff_shallow;
+        for (const auto& [childType, childCount] : tn.cutoff_type_counts) {
+            auto retIt = tn.cutoff_type_retained.find(childType);
+            if (retIt != tn.cutoff_type_retained.end() && retIt->second >= threshold01) {
+                remainingCutoffCount -= childCount;
+                remainingCutoffRetained -= retIt->second;
+            }
+        }
+        if (remainingCutoffCount > 0) {
+            result["nodes"].push_back({
+                {"id", tn.class_name + "@@cutoff"},
+                {"type_name", tn.class_name},
+                {"class_name", "... (" + std::to_string(remainingCutoffCount) + " instances)"},
+                {"retained_size", remainingCutoffRetained},
+                {"shallow_size", remainingCutoffShallow},
+                {"depth", tn.max_depth + 1},
+                {"parent_type", tn.class_name},
+                {"parent_id", nodeId},
+                {"instance_count", remainingCutoffCount},
                 {"object_ids", json::array()},
                 {"is_clustered", false},
                 {"is_cutoff", true},
@@ -526,11 +707,137 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx) {
         }
     }
 
+    // StandaloneCutoff nodes at their parent level
+    std::unordered_set<GroupKey, PairStringHash> addedStandaloneCutoffs;
+    for (const auto& [key, sc] : standaloneCutoffs) {
+        if (sc.retained_size < threshold01) continue;
+        // Skip if already covered by some TypeNode's cutoff_type_counts
+        bool covered = false;
+        for (const auto& [tk, tv] : typeNodes) {
+            // A StandaloneCutoff (sc.class_name, sc.parent_type) is covered if
+            // some TypeNode has sc.class_name in its cutoff_type_counts AND
+            // that TypeNode's class_name matches sc.parent_type (because the
+            // cutoff children's parent class is the TypeNode itself, not the
+            // TypeNode's parent).
+            if (tv.cutoff_type_counts.find(sc.class_name) != tv.cutoff_type_counts.end()
+                && tk.first == sc.parent_type) {
+                covered = true;
+                break;
+            }
+        }
+        if (covered) continue;
+        if (addedStandaloneCutoffs.count(key)) continue;
+        addedStandaloneCutoffs.insert(key);
+
+        std::vector<uint64_t> childIds = sc.object_ids.size() <= 50 ? sc.object_ids : std::vector<uint64_t>{};
+        std::string nodeId = makeNodeId(sc.class_name + "::cutoff-type", sc.parent_type);
+
+        // Compute parent_id for standalone cutoff
+        std::string scParentId = "";
+        if (!sc.parent_type.empty()) {
+            for (const auto& [pk, pv] : typeNodes) {
+                if (pk.first == sc.parent_type) {
+                    scParentId = makeNodeId(pv.class_name, pv.parent_type);
+                    break;
+                }
+            }
+            if (scParentId.empty()) {
+                for (const auto& [sk, sv] : standaloneCutoffs) {
+                    if (sk.first == sc.parent_type) {
+                        scParentId = makeNodeId(sv.class_name + "::cutoff-type", sv.parent_type);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Build child_types for standalone cutoff: other nodes whose parent_type == sc.class_name
+        json scChildTypesJson = json::array();
+        for (const auto& [ck, cv] : typeNodes) {
+            if (cv.parent_type == sc.class_name) {
+                scChildTypesJson.push_back(makeNodeId(cv.class_name, cv.parent_type));
+            }
+        }
+        // Check TypeNode cutoff_type_counts whose parent is this standalone cutoff
+        for (const auto& [tk, tv] : typeNodes) {
+            if (tv.parent_type == sc.class_name) {
+                for (const auto& [childType, childRetained] : tv.cutoff_type_retained) {
+                    if (childRetained >= threshold01) {
+                        scChildTypesJson.push_back(makeNodeId(childType + "::cutoff-type", tv.class_name));
+                    }
+                }
+            }
+        }
+        // Check other StandaloneCutoffs whose parent_type == sc.class_name
+        for (const auto& [sk, sv] : standaloneCutoffs) {
+            if (sv.parent_type == sc.class_name && sv.retained_size >= threshold01) {
+                scChildTypesJson.push_back(makeNodeId(sv.class_name + "::cutoff-type", sv.parent_type));
+            }
+        }
+
+        result["nodes"].push_back({
+            {"id", nodeId},
+            {"type_name", sc.class_name},
+            {"class_name", sc.instance_count > 1 ? sc.class_name + " (" + std::to_string(sc.instance_count) + " instances)" : sc.class_name},
+            {"retained_size", sc.retained_size},
+            {"shallow_size", sc.shallow_size},
+            {"depth", sc.max_depth},
+            {"parent_type", sc.parent_type},
+            {"parent_id", scParentId},
+            {"instance_count", sc.instance_count},
+            {"object_ids", childIds},
+            {"is_clustered", sc.instance_count > 1},
+            {"is_cutoff", false},
+            {"cutoff_count", 0},
+            {"child_types", scChildTypesJson}
+        });
+    }
+
+    // Remaining cutoff: all below-threshold objects not covered by cutoff type nodes
+    uint64_t totalBelowThresholdCount = 0;
+    uint64_t totalBelowThresholdRetained = 0;
+    uint64_t totalBelowThresholdShallow = 0;
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size < threshold01) {
+            totalBelowThresholdCount++;
+            totalBelowThresholdRetained += node.retained_size;
+            totalBelowThresholdShallow += node.shallow_size;
+        }
+    }
+    uint64_t shownCutoffCount = 0;
+    uint64_t shownCutoffRetained = 0;
+    for (const auto& n : result["nodes"]) {
+        if (n["is_cutoff"].get<bool>()) {
+            shownCutoffCount += n["instance_count"].get<uint64_t>();
+            shownCutoffRetained += n["retained_size"].get<uint64_t>();
+        }
+    }
+    uint64_t remainingCount = totalBelowThresholdCount - shownCutoffCount;
+    uint64_t remainingRetained = totalBelowThresholdRetained - shownCutoffRetained;
+    if (remainingCount > 0) {
+        result["nodes"].push_back({
+            {"id", "::remaining-cutoff@"},
+            {"type_name", "..."},
+            {"class_name", "... (" + std::to_string(remainingCount) + " instances)"},
+            {"retained_size", remainingRetained},
+            {"shallow_size", totalBelowThresholdShallow},
+            {"depth", 0},
+            {"parent_type", ""},
+            {"instance_count", remainingCount},
+            {"object_ids", json::array()},
+            {"is_clustered", false},
+            {"is_cutoff", true},
+            {"cutoff_count", 0},
+            {"child_types", json::array()}
+        });
+    }
+
+    result["cutoff_count"] = totalBelowThresholdCount;
     return result.dump();
 }
 
-std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, const std::string& parentType) {
-    LOG_DEBUG("Handling /api/dominance/children-by-type?parent_type={}", parentType);
+std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, const std::string& nodeId) {
+    LOG_DEBUG("Handling /api/dominance/children-by-type?node_id={}", nodeId);
 
     json result;
     result["nodes"] = json::array();
@@ -539,74 +846,103 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
         return result.dump();
     }
 
+    // Parse node_id format: "class_name@parent_type" or "class_name@" (root level)
+    // For cutoff nodes: "class_name::cutoff-type@parent_type"
+    std::string parentClassName;
+    std::string parentParentType;  // parent_type of the parent node (for context)
+    size_t atPos = nodeId.rfind('@');
+    if (atPos != std::string::npos) {
+        parentClassName = nodeId.substr(0, atPos);
+        parentParentType = nodeId.substr(atPos + 1);
+    } else {
+        parentClassName = nodeId;
+    }
+
+    // Strip ::cutoff-type suffix if present (for expanding cutoff type nodes)
+    bool isParentCutoff = false;
+    if (parentClassName.find("::cutoff-type") != std::string::npos) {
+        isParentCutoff = true;
+        parentClassName = parentClassName.substr(0, parentClassName.find("::cutoff-type"));
+    }
+
+    // Strip @@cutoff suffix (for expanding cutoff summary nodes)
+    if (parentClassName.find("@@cutoff") != std::string::npos) {
+        parentClassName = parentClassName.substr(0, parentClassName.find("@@cutoff"));
+        // This is a cutoff summary node, no children to expand
+        return result.dump();
+    }
+
     uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : 1;
     if (usedHeap == 0) usedHeap = 1;
     uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.threshold01Percent);
     if (threshold01 == 0) threshold01 = 1;
 
-    // Build object_id -> class_name map (only for above-threshold objects)
-    std::unordered_map<uint64_t, std::string> objectIdToClass;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.retained_size >= threshold01) {
-            std::string className = getClassName(ctx, node.object_id);
-            if (className != "unknown") {
-                objectIdToClass[node.object_id] = className;
-            }
-        }
-    }
+    // Build object_id -> class_name map for ALL objects (O(N))
+    auto objectIdToClass = buildObjectIdToClassMap(ctx);
 
-    // TypeNode: for types that have parentType as their primary parent
+    using GroupKey = std::pair<std::string, std::string>;
+    auto makeNodeId = [](const std::string& className, const std::string& parentType) -> std::string {
+        return className + "@" + parentType;
+    };
+
+    // TypeNode: per-parent grouping
     struct TypeNode {
         std::string class_name;
+        std::string parent_type;
         uint64_t retained_size = 0;
         uint64_t shallow_size = 0;
         uint64_t instance_count = 0;
         std::vector<uint64_t> object_ids;
-        std::unordered_map<std::string, uint64_t> parent_type_counts;
-        std::string primary_parent_type;
         std::unordered_set<std::string> child_types;
         int max_depth = 0;
-        uint64_t cutoff_count = 0;  // Count of filtered children for this type
+        std::unordered_map<std::string, uint64_t> cutoff_type_counts;
+        std::unordered_map<std::string, uint64_t> cutoff_type_retained;
+        uint64_t cutoff_count = 0;
+        uint64_t cutoff_retained = 0;
+        uint64_t cutoff_shallow = 0;
     };
 
-    std::unordered_map<std::string, TypeNode> allTypeNodes;
+    struct StandaloneCutoff {
+        std::string class_name;
+        std::string parent_type;
+        uint64_t retained_size = 0;
+        uint64_t shallow_size = 0;
+        uint64_t instance_count = 0;
+        std::vector<uint64_t> object_ids;
+        int max_depth = 0;
+    };
 
-    // Find all object_ids belonging to parentType to count cutoff children
-    std::vector<uint64_t> parentTypeObjectIds;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.retained_size >= threshold01) {
-            std::string className = getClassName(ctx, node.object_id);
-            if (className == parentType) {
-                parentTypeObjectIds.push_back(node.object_id);
-            }
-        }
-    }
+    std::unordered_map<GroupKey, TypeNode, PairStringHash> typeNodes;
+    std::unordered_map<GroupKey, StandaloneCutoff, PairStringHash> standaloneCutoffs;
 
-    // Count cutoff children for parentType
-    uint64_t parentCutoffCount = 0;
-    for (uint64_t parentId : parentTypeObjectIds) {
-        for (const auto& child : *ctx.dominanceNodes) {
-            if (child.parent_id == parentId && child.object_id != parentId) {
-                if (child.retained_size < threshold01) {
-                    parentCutoffCount++;
-                }
-            }
-        }
-    }
+    // Find all object_ids belonging to parentClassName with matching parent type
+    // These are the instances whose children we want to return
+    std::vector<uint64_t> parentObjectIds;
 
-    // Build all type nodes first (same logic as tree-by-type)
+    // Pass 1: build all TypeNodes (above-threshold objects, per-parent grouping)
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.retained_size < threshold01) continue;
 
-        std::string className = getClassName(ctx, node.object_id);
+        auto classIt = objectIdToClass.find(node.object_id);
+        std::string className = (classIt != objectIdToClass.end()) ? classIt->second : "unknown";
         if (className == "unknown") continue;
 
-        if (allTypeNodes.find(className) == allTypeNodes.end()) {
-            allTypeNodes[className] = TypeNode();
-            allTypeNodes[className].class_name = className;
+        std::string parentType = "";
+        if (node.parent_id != 0) {
+            auto parentIt = objectIdToClass.find(node.parent_id);
+            if (parentIt != objectIdToClass.end()) {
+                parentType = parentIt->second;
+            }
         }
 
-        TypeNode& tn = allTypeNodes[className];
+        GroupKey key = {className, parentType};
+        if (typeNodes.find(key) == typeNodes.end()) {
+            typeNodes[key] = TypeNode();
+            typeNodes[key].class_name = className;
+            typeNodes[key].parent_type = parentType;
+        }
+
+        TypeNode& tn = typeNodes[key];
         tn.retained_size += node.retained_size;
         tn.shallow_size += node.shallow_size;
         tn.instance_count++;
@@ -615,99 +951,179 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
             tn.max_depth = node.depth;
         }
 
-        // Count parent type occurrences
-        if (node.parent_id != 0) {
-            auto it = objectIdToClass.find(node.parent_id);
-            if (it != objectIdToClass.end()) {
-                std::string parentClass = it->second;
-                if (parentClass != className) {
-                    tn.parent_type_counts[parentClass]++;
-                }
-            }
+        // Collect parent object IDs for the queried parent node
+        if (className == parentClassName && parentType == parentParentType) {
+            parentObjectIds.push_back(node.object_id);
         }
 
-        // Count cutoff children for this type
+        // Collect child types and cutoff_type_counts
         for (const auto& child : *ctx.dominanceNodes) {
             if (child.parent_id == node.object_id && child.object_id != node.object_id) {
-                if (child.retained_size < threshold01) {
+                auto childClassIt = objectIdToClass.find(child.object_id);
+                if (childClassIt == objectIdToClass.end()) continue;
+                std::string childClass = childClassIt->second;
+                if (childClass == "unknown") continue;
+
+                if (child.retained_size >= threshold01) {
+                    if (childClass != className) {
+                        tn.child_types.insert(childClass);
+                    }
+                } else {
+                    tn.cutoff_type_counts[childClass]++;
+                    tn.cutoff_type_retained[childClass] += child.retained_size;
                     tn.cutoff_count++;
+                    tn.cutoff_retained += child.retained_size;
+                    tn.cutoff_shallow += child.shallow_size;
                 }
             }
         }
     }
 
-    // Determine primary parent type for each type
-    // Correct definition: Type A dominates Type B iff all instances of B are dominated by instances of A
-    for (auto& [className, tn] : allTypeNodes) {
-        if (tn.parent_type_counts.empty()) {
-            tn.primary_parent_type = "";  // Root type
-        } else if (tn.parent_type_counts.size() == 1) {
-            // All instances have the same parent type -> this type dominates them
-            tn.primary_parent_type = tn.parent_type_counts.begin()->first;
-        } else {
-            // Instances are dominated by different types -> no single type dominates all
-            tn.primary_parent_type = "";
+    // Pass 2: build StandaloneCutoff for below-threshold objects
+    for (const auto& node : *ctx.dominanceNodes) {
+        if (node.retained_size >= threshold01) continue;
+
+        auto classIt = objectIdToClass.find(node.object_id);
+        std::string className = (classIt != objectIdToClass.end()) ? classIt->second : "unknown";
+        if (className == "unknown") continue;
+
+        std::string parentType = "";
+        if (node.parent_id != 0) {
+            auto parentIt = objectIdToClass.find(node.parent_id);
+            if (parentIt != objectIdToClass.end()) {
+                parentType = parentIt->second;
+            }
+        }
+
+        // For parent cutoff nodes, also collect below-threshold children
+        if (isParentCutoff && parentType == parentClassName) {
+            // This below-threshold object is a child of a cutoff type node
+            // Its children would be even smaller, skip for now
+        }
+
+        GroupKey key = {className, parentType};
+        if (typeNodes.find(key) != typeNodes.end()) continue;
+
+        if (standaloneCutoffs.find(key) == standaloneCutoffs.end()) {
+            standaloneCutoffs[key] = StandaloneCutoff();
+            standaloneCutoffs[key].class_name = className;
+            standaloneCutoffs[key].parent_type = parentType;
+        }
+
+        StandaloneCutoff& sc = standaloneCutoffs[key];
+        sc.retained_size += node.retained_size;
+        sc.shallow_size += node.shallow_size;
+        sc.instance_count++;
+        sc.object_ids.push_back(node.object_id);
+        if (node.depth > sc.max_depth) {
+            sc.max_depth = node.depth;
         }
     }
 
-    // Return only types that have parentType as their primary parent
-    for (const auto& [className, tn] : allTypeNodes) {
-        if (tn.primary_parent_type != parentType) continue;
+    // Find the parent TypeNode
+    auto parentIt = typeNodes.find({parentClassName, parentParentType});
+    if (parentIt == typeNodes.end() && !isParentCutoff) {
+        // Parent not found among above-threshold TypeNodes
+        // It might be a StandaloneCutoff — check
+        // For now, return empty
+    }
 
-        // Find child types: types that have this type as primary parent
-        std::unordered_set<std::string> myChildTypes;
-        for (const auto& [childName, childNode] : allTypeNodes) {
-            if (childNode.primary_parent_type == className) {
-                myChildTypes.insert(childName);
+    // Return child TypeNodes whose parent_type matches parentClassName and parent_parent matches parentParentType
+    // (i.e., children under this specific parent grouping)
+    for (const auto& [key, tn] : typeNodes) {
+        if (tn.parent_type != parentClassName) continue;
+
+        std::string childNodeId = makeNodeId(tn.class_name, tn.parent_type);
+
+        // Collect child_types for this child node
+        json childTypesJson = json::array();
+        for (const auto& childTypeName : tn.child_types) {
+            for (const auto& [ck, cv] : typeNodes) {
+                if (ck.first == childTypeName && ck.second == tn.class_name) {
+                    childTypesJson.push_back(makeNodeId(cv.class_name, cv.parent_type));
+                }
+            }
+        }
+        for (const auto& [childType, childRetained] : tn.cutoff_type_retained) {
+            if (childRetained >= threshold01) {
+                childTypesJson.push_back(makeNodeId(childType + "::cutoff-type", tn.class_name));
             }
         }
 
         json nodeJson = {
+            {"id", childNodeId},
             {"type_name", tn.class_name},
-            {"class_name", tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)"},
+            {"class_name", tn.instance_count > 1 ? tn.class_name + " (" + std::to_string(tn.instance_count) + " instances)" : tn.class_name},
             {"retained_size", tn.retained_size},
             {"shallow_size", tn.shallow_size},
             {"depth", tn.max_depth},
-            {"parent_type", parentType},
+            {"parent_type", tn.parent_type},
             {"instance_count", tn.instance_count},
             {"object_ids", tn.object_ids},
-            {"is_clustered", true},
+            {"is_clustered", tn.instance_count > 1},
             {"is_cutoff", false},
-            {"cutoff_count", tn.cutoff_count}
+            {"cutoff_count", tn.cutoff_count},
+            {"child_types", childTypesJson}
         };
 
-        json childTypesJson = json::array();
-        for (const auto& childType : myChildTypes) {
-            childTypesJson.push_back(childType);
-        }
-        nodeJson["child_types"] = childTypesJson;
-
         result["nodes"].push_back(nodeJson);
-        // Note: cutoff nodes for child types are NOT added here
-        // They will be returned when requesting children-by-type for that specific child type
     }
 
-    // Add cutoff node for parentType itself if it has filtered children
-    // but no child types (so cutoff appears at the same level as would-be child types)
-    if (parentCutoffCount > 0) {
-        // Check if parentType has any child types
-        bool hasChildTypes = false;
-        for (const auto& [className, tn] : allTypeNodes) {
-            if (tn.primary_parent_type == parentType) {
-                hasChildTypes = true;
-                break;
+    // Return cutoff type children of the parent node
+    if (parentIt != typeNodes.end()) {
+        const TypeNode& parent = parentIt->second;
+
+        // Cutoff type nodes (aggregated by type, retained >= threshold01)
+        for (const auto& [childType, childCount] : parent.cutoff_type_counts) {
+            auto retIt = parent.cutoff_type_retained.find(childType);
+            uint64_t childRetained = retIt != parent.cutoff_type_retained.end() ? retIt->second : 0;
+            if (childRetained < threshold01) continue;
+
+            auto scIt = standaloneCutoffs.find({childType, parentClassName});
+            uint64_t childShallow = scIt != standaloneCutoffs.end() ? scIt->second.shallow_size : 0;
+            std::vector<uint64_t> childIds = scIt != standaloneCutoffs.end() ? scIt->second.object_ids : std::vector<uint64_t>{};
+            if (childIds.size() > 50) childIds.clear();
+
+            std::string cutoffNodeId = makeNodeId(childType + "::cutoff-type", parentClassName);
+
+            result["nodes"].push_back({
+                {"id", cutoffNodeId},
+                {"type_name", childType},
+                {"class_name", childCount > 1 ? childType + " (" + std::to_string(childCount) + " instances)" : childType},
+                {"retained_size", childRetained},
+                {"shallow_size", childShallow},
+                {"depth", parent.max_depth + 1},
+                {"parent_type", parentClassName},
+                {"instance_count", childCount},
+                {"object_ids", childIds},
+                {"is_clustered", childCount > 1},
+                {"is_cutoff", true},
+                {"cutoff_count", 0},
+                {"child_types", json::array()}
+            });
+        }
+
+        // Remaining cutoff (children whose type aggregation didn't reach threshold01)
+        uint64_t remainingCutoffCount = parent.cutoff_count;
+        uint64_t remainingCutoffRetained = parent.cutoff_retained;
+        uint64_t remainingCutoffShallow = parent.cutoff_shallow;
+        for (const auto& [childType, childCount] : parent.cutoff_type_counts) {
+            auto retIt = parent.cutoff_type_retained.find(childType);
+            if (retIt != parent.cutoff_type_retained.end() && retIt->second >= threshold01) {
+                remainingCutoffCount -= childCount;
+                remainingCutoffRetained -= retIt->second;
             }
         }
-        // If no child types, add cutoff node directly under parentType (same format as object granularity)
-        if (!hasChildTypes) {
+        if (remainingCutoffCount > 0) {
             result["nodes"].push_back({
-                {"type_name", parentType + "::cutoff"},
-                {"class_name", "... (" + std::to_string(parentCutoffCount) + " children)"},
-                {"retained_size", 0},
-                {"shallow_size", 0},
-                {"depth", 0},
-                {"parent_type", parentType},
-                {"instance_count", parentCutoffCount},
+                {"id", parentClassName + "@@cutoff"},
+                {"type_name", parentClassName},
+                {"class_name", "... (" + std::to_string(remainingCutoffCount) + " instances)"},
+                {"retained_size", remainingCutoffRetained},
+                {"shallow_size", remainingCutoffShallow},
+                {"depth", parent.max_depth + 1},
+                {"parent_type", parentClassName},
+                {"instance_count", remainingCutoffCount},
                 {"object_ids", json::array()},
                 {"is_clustered", false},
                 {"is_cutoff", true},
@@ -715,6 +1131,39 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
                 {"child_types", json::array()}
             });
         }
+    }
+
+    // StandaloneCutoff children whose parent_type == parentClassName
+    for (const auto& [key, sc] : standaloneCutoffs) {
+        if (sc.parent_type != parentClassName) continue;
+        if (sc.retained_size < threshold01) continue;
+        // Skip if already covered by TypeNode's cutoff_type_counts
+        bool covered = false;
+        if (parentIt != typeNodes.end()) {
+            if (parentIt->second.cutoff_type_counts.find(sc.class_name) != parentIt->second.cutoff_type_counts.end()) {
+                covered = true;
+            }
+        }
+        if (covered) continue;
+
+        std::vector<uint64_t> childIds = sc.object_ids.size() <= 50 ? sc.object_ids : std::vector<uint64_t>{};
+        std::string scNodeId = makeNodeId(sc.class_name + "::cutoff-type", sc.parent_type);
+
+        result["nodes"].push_back({
+            {"id", scNodeId},
+            {"type_name", sc.class_name},
+            {"class_name", sc.instance_count > 1 ? sc.class_name + " (" + std::to_string(sc.instance_count) + " instances)" : sc.class_name},
+            {"retained_size", sc.retained_size},
+            {"shallow_size", sc.shallow_size},
+            {"depth", sc.max_depth},
+            {"parent_type", sc.parent_type},
+            {"instance_count", sc.instance_count},
+            {"object_ids", childIds},
+            {"is_clustered", sc.instance_count > 1},
+            {"is_cutoff", true},
+            {"cutoff_count", 0},
+            {"child_types", json::array()}
+        });
     }
 
     return result.dump();

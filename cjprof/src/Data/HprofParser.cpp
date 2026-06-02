@@ -219,7 +219,7 @@ void HprofParserV2::ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
-    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? OBJECT_ARRAY : category;
+    m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::OBJECT_ARRAY : category;
     ReadIdVector(m_dataRef.arrays[id].elements, num);
 
     if (verbose) {
@@ -246,7 +246,7 @@ void HprofParserV2::ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
-    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? STRUCT_ARRAY : category;
+    m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::STRUCT_ARRAY : category;
     ReadIdVector(m_dataRef.arrays[id].elements, num);
 
     if (verbose) {
@@ -428,7 +428,7 @@ void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
-    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? OBJECT_ARRAY : category;
+    m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::OBJECT_ARRAY : category;
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }
@@ -457,7 +457,7 @@ void HprofParserV1::ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].type = BasicType::OBJECT;
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
-    m_dataRef.objectCategories[id] = category == INSTANCE_OBJECT ? STRUCT_ARRAY : category;
+    m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::STRUCT_ARRAY : category;
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }

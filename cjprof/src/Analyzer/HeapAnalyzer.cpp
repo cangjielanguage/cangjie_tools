@@ -793,17 +793,21 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
     std::vector<std::vector<size_t>> succs(n);
     std::vector<std::vector<size_t>> preds(n);
 
+    size_t totalRefs = 0;
+    size_t validRefs = 0;
     for (const auto& inst : instances) {
         auto itFrom = idToIndex.find(inst.first);
         if (itFrom == idToIndex.end()) continue;
         size_t from = itFrom->second;
         for (auto refId : inst.second.fields) {
+            totalRefs++;
             if (refId == 0) continue;
             auto itTo = idToIndex.find(refId);
             if (itTo != idToIndex.end()) {
                 size_t to = itTo->second;
                 succs[from].push_back(to);
                 preds[to].push_back(from);
+                validRefs++;
             }
         }
     }
@@ -814,15 +818,27 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
         if (itFrom == idToIndex.end()) continue;
         size_t from = itFrom->second;
         for (auto element : arr.second.elements) {
+            totalRefs++;
             if (element == 0) continue;
             auto itTo = idToIndex.find(element);
             if (itTo != idToIndex.end()) {
                 size_t to = itTo->second;
                 succs[from].push_back(to);
                 preds[to].push_back(from);
+                validRefs++;
             }
         }
     }
+
+    LOG_INFO("Reference graph: {} total refs, {} valid refs (target in idToIndex)", totalRefs, validRefs);
+
+    // Count nodes with preds
+    size_t nodesWithPreds = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (!preds[i].empty()) nodesWithPreds++;
+    }
+    LOG_INFO("Reference graph: {} nodes have preds (are referenced), {} nodes have no preds (potential roots)",
+             nodesWithPreds, n - nodesWithPreds);
 
     // Step 3: Identify GC Roots
     std::vector<size_t> gcRoots;
@@ -860,6 +876,14 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
     const auto& dom = result.dom;
     const auto& domTree = result.domTree;
     size_t entry = 0;
+
+    // Debug: check dominance tree structure
+    size_t rootCount = 0;
+    for (size_t v = 1; v <= n; ++v) {
+        if (dom[v] == entry) rootCount++;
+    }
+    LOG_INFO("Dominance tree: {} nodes, {} roots (dom[v]==entry), {} children of entry in domTree",
+             n, rootCount, domTree[entry].size());
 
     // Step 5: Compute retainedSize recursively
     std::vector<uint64_t> retainedSizes(n, 0);

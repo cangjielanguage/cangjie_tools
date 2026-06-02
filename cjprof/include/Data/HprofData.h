@@ -10,6 +10,7 @@
 // Pure data structure - no parsing logic
 // Separates data model from parser for better organization
 
+#include "ObjectCategory.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -30,16 +31,6 @@ struct HprofData {
         SHORT = 9,
         INT = 10,
         LONG = 11
-    };
-
-    enum ObjectCategory : u1 {
-        INSTANCE_OBJECT = 0,
-        OBJECT_ARRAY = 1,
-        STRUCT_ARRAY = 2,
-        PRIMITIVE_ARRAY = 3,
-        PINNED_OBJECT = 4,
-        LARGE_OBJECT = 5,
-        UNMOVABLE_OBJECT = 6
     };
 
     struct Class {
@@ -108,7 +99,7 @@ struct HprofData {
     std::map<ID, Frame> frames;
     std::map<u4, StackTrace> stackTraces;
     std::map<ID, Thread> threads;
-    std::map<ID, Class> classes;
+    std::unordered_map<ID, Class> classes;
     std::map<ID, Instance> instances;
     std::unordered_map<ID, Array> arrays;
     std::unordered_map<ID, Local> locals;
@@ -126,7 +117,7 @@ struct HprofData {
     static const std::map<ID, Frame> emptyFrames;
     static const std::map<u4, StackTrace> emptyStackTraces;
     static const std::map<ID, Thread> emptyThreads;
-    static const std::map<ID, Class> emptyClasses;
+    static const std::unordered_map<ID, Class> emptyClasses;
     static const std::map<ID, Instance> emptyInstances;
     static const std::unordered_map<ID, Array> emptyArrays;
     static const std::unordered_map<ID, Local> emptyLocals;
