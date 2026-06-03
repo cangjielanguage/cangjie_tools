@@ -877,9 +877,8 @@ void CompilerCangjieProject::ParseOneFile(
     std::string filePath = Normalize(file);
     Trace::Log("Start analyzing the file: ", filePath);
 
-    std::string dirPath = GetDirPath(filePath);
-    std::string fullPkgName = GetFullPkgName(filePath);
     auto [fileKind, modulePath] = GetCangjieFileKind(filePath);
+    (void)modulePath;
     // for normalComplete
     if (taskName == "Completion") {
         if (fileKind == CangjieFileKind::IN_PROJECT_NOT_IN_SOURCE) {
@@ -2353,6 +2352,7 @@ void CompilerCangjieProject::StorePackageCache(const std::string& pkgName)
 // LCOV_EXCL_STOP
 void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstance> &ci, bool isFullCompilation)
 {
+    (void)isFullCompilation;
     auto packages = ci->GetSourcePackages();
     if (!packages[0] || !ci->typeManager) {
         return;

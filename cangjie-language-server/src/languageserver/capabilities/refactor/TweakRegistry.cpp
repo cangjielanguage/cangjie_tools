@@ -52,8 +52,8 @@ std::vector<std::string>& TweakRegistry::GetRegisteredIds()
 
 void TweakRegistry::RegisterTweak(const std::string &id, TweakRegistry::Creator creator)
 {
-    auto [_, inserted] = GetRegistry().emplace(id, std::move(creator));
-    if (inserted) {
+    auto insertResult = GetRegistry().emplace(id, std::move(creator));
+    if (insertResult.second) {
         GetRegisteredIds().push_back(id);
     }
 }
