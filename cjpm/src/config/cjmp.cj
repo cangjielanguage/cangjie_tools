@@ -168,12 +168,12 @@ public enum Env <: ToString & Parsable<Env> {
     }
 
     public static func parse(value: String): Env {
-        match (value) {
-            case "hos" => HOS
-            case "gnu" => GNU
-            case "android" => ANDROID
-            case "mingw32" => MINGW32
-            case "ohos" => OHOS
+        match {
+            case value.startsWith("hos") => HOS
+            case value.startsWith("gnu") => GNU
+            case value.startsWith("android") => ANDROID
+            case value.startsWith("mingw32") => MINGW32
+            case value.startsWith("ohos") => OHOS
             case _ => Unknown(value)
         }
     }
