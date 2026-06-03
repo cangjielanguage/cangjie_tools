@@ -47,6 +47,85 @@ static void dfs(size_t node,
     reversePostOrder.push_back(node);
 }
 
+struct PostOrderMaps {
+    const std::unordered_map<size_t, size_t>& postOrderIndex2Index;
+    const std::unordered_map<size_t, size_t>& index2PostOrderIndex;
+};
+
+static bool tryUpdateNewDom(
+    const std::vector<size_t>& idom,
+    size_t noEntry,
+    size_t entryPostOrderedIndex,
+    size_t retainerPostOrderIndex,
+    size_t& newDom)
+{
+    if (idom[retainerPostOrderIndex] == noEntry) {
+        return false;
+    }
+    if (newDom == noEntry) {
+        newDom = retainerPostOrderIndex;
+    } else {
+        newDom = intersect(idom, newDom, retainerPostOrderIndex);
+    }
+    return newDom == entryPostOrderedIndex;
+}
+
+static std::vector<size_t> computeIdom(
+    size_t entryPostOrderedIndex,
+    size_t noEntry,
+    const std::vector<std::vector<size_t>>& predList,
+    const std::vector<std::vector<size_t>>& graph,
+    const PostOrderMaps& maps)
+{
+    std::vector<size_t> idom(maps.postOrderIndex2Index.size(), noEntry);
+    idom[entryPostOrderedIndex] = entryPostOrderedIndex;
+
+    std::vector<bool> affected(maps.postOrderIndex2Index.size(), false);
+    for (auto succ : graph[0]) {
+        auto it = maps.index2PostOrderIndex.find(succ);
+        if (it != maps.index2PostOrderIndex.end()) {
+            affected[it->second] = true;
+        }
+    }
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (auto postOrderIndex = entryPostOrderedIndex; postOrderIndex-- > 0;) {
+            if (!affected[postOrderIndex]) {
+                continue;
+            }
+            affected[postOrderIndex] = false;
+            if (idom[postOrderIndex] == entryPostOrderedIndex) {
+                continue;
+            }
+            auto newDom = noEntry;
+            for (auto p : predList[maps.postOrderIndex2Index.at(postOrderIndex)]) {
+                auto it = maps.index2PostOrderIndex.find(p);
+                if (it == maps.index2PostOrderIndex.end()) {
+                    continue; // skip unreachable predecessor
+                }
+                auto retainerPostOrderIndex = it->second;
+                if (tryUpdateNewDom(idom, noEntry, entryPostOrderedIndex,
+                                    retainerPostOrderIndex, newDom)) {
+                    break;
+                }
+            }
+            if (newDom != noEntry && idom[postOrderIndex] != newDom) {
+                idom[postOrderIndex] = newDom;
+                changed = true;
+                for (auto succ : graph[maps.postOrderIndex2Index.at(postOrderIndex)]) {
+                    auto it = maps.index2PostOrderIndex.find(succ);
+                    if (it != maps.index2PostOrderIndex.end()) {
+                        affected[it->second] = true;
+                    }
+                }
+            }
+        }
+    }
+    return idom;
+}
+
 DominanceTreeResult ComputeDominanceTree(
     size_t n,
     const std::vector<std::vector<size_t>>& succs,
@@ -86,63 +165,25 @@ DominanceTreeResult ComputeDominanceTree(
     }
 
     // Cooper et al. Algorithm
-    auto entryPostOrderedIndex = totalNodes - 1;
-    auto noEntry = totalNodes;
-    std::vector<size_t> idom(totalNodes, noEntry);
-    idom[entryPostOrderedIndex] = entryPostOrderedIndex;
-
-    std::vector<bool> affected(totalNodes, false);
-    for (auto succ : graph[entry]) {
-        affected[index2PostOrderIndex[succ]] = true;
-    }
-
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        for (auto postOrderIndex = entryPostOrderedIndex; postOrderIndex-- > 0;) {
-            if (affected[postOrderIndex] == false) {
-                continue;
-            }
-            affected[postOrderIndex] = false;
-            if (idom[postOrderIndex] == entryPostOrderedIndex) {
-                continue;
-            }
-            auto newDom = noEntry;
-            for (auto p : predList[postOrderIndex2Index[postOrderIndex]]) {
-                auto retainerPostOrderIndex = index2PostOrderIndex[p];
-                if (idom[retainerPostOrderIndex] != noEntry) {
-                    if (newDom == noEntry) {
-                        newDom = retainerPostOrderIndex;
-                    } else {
-                        newDom = intersect(idom, newDom, retainerPostOrderIndex);
-                    }
-                    if (newDom == entryPostOrderedIndex) {
-                        break;
-                    }
-                }
-            }
-            if (newDom != noEntry && idom[postOrderIndex] != newDom) {
-                idom[postOrderIndex] = newDom;
-                changed = true;
-                for (auto succ : graph[postOrderIndex2Index[postOrderIndex]]) {
-                    affected[index2PostOrderIndex[succ]] = true;
-                }
-            }
-        }
-    }
+    auto entryPostOrderedIndex = postOrder.size() - 1;
+    auto noEntry = postOrder.size();
+    PostOrderMaps maps{postOrderIndex2Index, index2PostOrderIndex};
+    auto idom = computeIdom(entryPostOrderedIndex, noEntry, predList, graph, maps);
 
     std::vector<size_t> dom(totalNodes, noEntry);
-    for (size_t postOrderIndex = 0; postOrderIndex < totalNodes; ++postOrderIndex) {
+    for (size_t postOrderIndex = 0; postOrderIndex < postOrder.size(); ++postOrderIndex) {
         auto idx = postOrderIndex2Index[postOrderIndex];
         dom[idx] = postOrderIndex2Index[idom[postOrderIndex]];
     }
 
     std::vector<std::vector<size_t>> domTree(totalNodes);
     for (size_t v = 1; v <= n; ++v) {
-        domTree[dom[v]].push_back(v);
+        if (dom[v] != noEntry) {
+            domTree[dom[v]].push_back(v);
+        }
     }
 
-    return {dom, domTree};
+    return {dom, domTree, noEntry};
 }
 
 class RawHeapSnapshotData {

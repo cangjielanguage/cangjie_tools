@@ -363,6 +363,7 @@ struct DominanceTreeResult {
     std::vector<size_t> dom;
     // domTree[parent].push_back(child)
     std::vector<std::vector<size_t>> domTree;
+    size_t noEntry;
 };
 
 /**
