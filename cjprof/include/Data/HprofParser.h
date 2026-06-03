@@ -99,9 +99,9 @@ public:
     virtual void ParseStackTrace(bool verbose) = 0;
     virtual void ParseStartThread(bool verbose) = 0;
     virtual void ParseHeapDumpClassDump(bool verbose) = 0;
-    virtual void ParseHeapDumpInstanceDump(bool verbose) = 0;
-    virtual void ParseHeapDumpObjectArrayDump(bool verbose) = 0;
-    virtual void ParseHeapDumpStructArrayDump(bool verbose) = 0;
+    virtual void ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) = 0;
+    virtual void ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) = 0;
+    virtual void ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) = 0;
 
     // Common methods
     void SetData(const std::string &data);
@@ -181,9 +181,9 @@ public:
     void ParseStackTrace(bool verbose) override;
     void ParseStartThread(bool verbose) override;
     void ParseHeapDumpClassDump(bool verbose) override;
-    void ParseHeapDumpInstanceDump(bool verbose) override;
-    void ParseHeapDumpObjectArrayDump(bool verbose) override;
-    void ParseHeapDumpStructArrayDump(bool verbose) override;
+    void ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
+    void ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
+    void ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
 };
 
 // Old format parser V1 (1.0.1)
@@ -196,9 +196,9 @@ public:
     void ParseStackTrace(bool verbose) override;
     void ParseStartThread(bool verbose) override;
     void ParseHeapDumpClassDump(bool verbose) override;
-    void ParseHeapDumpInstanceDump(bool verbose) override;
-    void ParseHeapDumpObjectArrayDump(bool verbose) override;
-    void ParseHeapDumpStructArrayDump(bool verbose) override;
+    void ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
+    void ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
+    void ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT) override;
 };
 
 #endif // HPROF_PARSER_H

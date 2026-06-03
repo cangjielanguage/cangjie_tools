@@ -10,6 +10,7 @@
 // Pure data structure - no parsing logic
 // Separates data model from parser for better organization
 
+#include "ObjectCategory.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -98,7 +99,7 @@ struct HprofData {
     std::map<ID, Frame> frames;
     std::map<u4, StackTrace> stackTraces;
     std::map<ID, Thread> threads;
-    std::map<ID, Class> classes;
+    std::unordered_map<ID, Class> classes;
     std::map<ID, Instance> instances;
     std::unordered_map<ID, Array> arrays;
     std::unordered_map<ID, Local> locals;
@@ -106,6 +107,7 @@ struct HprofData {
     std::unordered_set<ID> unknown;
     std::map<u4, Sample> cpuSamples;
     std::unordered_map<ID, u4> componentNums;
+    std::unordered_map<ID, ObjectCategory> objectCategories;
 
     u8 fileTime = 0;
     u4 idSize = 0;
@@ -115,7 +117,7 @@ struct HprofData {
     static const std::map<ID, Frame> emptyFrames;
     static const std::map<u4, StackTrace> emptyStackTraces;
     static const std::map<ID, Thread> emptyThreads;
-    static const std::map<ID, Class> emptyClasses;
+    static const std::unordered_map<ID, Class> emptyClasses;
     static const std::map<ID, Instance> emptyInstances;
     static const std::unordered_map<ID, Array> emptyArrays;
     static const std::unordered_map<ID, Local> emptyLocals;
@@ -123,6 +125,7 @@ struct HprofData {
     static const std::unordered_set<ID> emptyUnknown;
     static const std::map<u4, Sample> emptyCpuSamples;
     static const std::unordered_map<ID, u4> emptyComponentNums;
+    static const std::unordered_map<ID, ObjectCategory> emptyObjectCategories;
 };
 
 #endif // HPROF_DATA_H

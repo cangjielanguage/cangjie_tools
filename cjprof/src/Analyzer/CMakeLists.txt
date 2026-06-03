@@ -6,5 +6,8 @@
 
 add_library(Analyzer OBJECT
     HeapAnalyzer.cpp
+    HttpHandlers.cpp
+    HttpServer.cpp
+    DatabaseCache.cpp
 )
 set_target_properties(Analyzer PROPERTIES POSITION_INDEPENDENT_CODE ON)

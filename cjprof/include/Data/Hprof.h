@@ -65,7 +65,7 @@ public:
         return m_data ? m_data->threads : HprofData::emptyThreads;
     }
 
-    const std::map<ID, Class> &GetClasses() const
+    const std::unordered_map<ID, Class> &GetClasses() const
     {
         return m_data ? m_data->classes : HprofData::emptyClasses;
     }
@@ -115,6 +115,11 @@ public:
         return m_data ? m_data->idSize : 0;
     }
 
+    const std::unordered_map<ID, ObjectCategory> &GetObjectCategories() const
+    {
+        return m_data ? m_data->objectCategories : HprofData::emptyObjectCategories;
+    }
+
 private:
     enum Tag : u1 {
         STRING = 0x01,
@@ -160,10 +165,10 @@ private:
     void ParseHeapDumpRootGlobal(bool verbose);
     void ParseHeapDumpRootLocal(bool verbose);
     void ParseHeapDumpClassDump(bool verbose);
-    void ParseHeapDumpInstanceDump(bool verbose);
-    void ParseHeapDumpObjectArrayDump(bool verbose);
-    void ParseHeapDumpPrimitiveArrayDump(bool verbose);
-    void ParseHeapDumpStructArrayDump(bool verbose);
+    void ParseHeapDumpInstanceDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT);
+    void ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT);
+    void ParseHeapDumpPrimitiveArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT);
+    void ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory category = ObjectCategory::INSTANCE_OBJECT);
     void ParseHeapDumpRootUnknown(bool verbose);
     void ParseCpuSamples(bool verbose);
 

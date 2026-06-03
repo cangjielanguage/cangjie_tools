@@ -14,6 +14,8 @@
 
 int Heap::Execute(int argc, char **argv)
 {
+    HeapAnalyzer::SetProgramStartTime();
+
     if (!ParseArgs(argc, argv)) {
         return ERR;
     }
@@ -32,8 +34,20 @@ int Heap::Execute(int argc, char **argv)
         return ERR;
     }
 
+    if (m_cfg.dumpReport) {
+        analyzer.SetDumpReport(true);
+        if (analyzer.StartReportServer(m_cfg.reportPort)) {
+            return OK;
+        }
+    }
+
     if (!analyzer.Analyze(m_cfg.verbose)) {
         return ERR;
+    }
+
+    if (m_cfg.dumpReport) {
+        analyzer.StartReportServer(m_cfg.reportPort);
+        return OK;
     }
 
     if (!m_cfg.showThread && !m_cfg.showReference) {
@@ -73,6 +87,7 @@ bool Heap::ParseArgs(int argc, char **argv)
 #if defined(__linux__)
     static option longOpts[] = {
         { "depth", required_argument, nullptr, 'D' }, { "dump", required_argument, nullptr, 'd' },
+        { "dump-report", optional_argument, nullptr, 2 },
         { "help", no_argument, nullptr, 'h' }, { "incoming-reference", no_argument, nullptr, 1 },
         { "input", required_argument, nullptr, 'i' }, { "output", required_argument, nullptr, 'o' },
         { "show-reference", optional_argument, nullptr, 0 }, { "show-thread", no_argument, nullptr, 't' },
@@ -81,6 +96,7 @@ bool Heap::ParseArgs(int argc, char **argv)
 #else
     static option longOpts[] = {
         {"depth", required_argument, nullptr, 'D'},
+        {"dump-report", optional_argument, nullptr, 2},
         {"help", no_argument, nullptr, 'h'},
         {"incoming-reference", no_argument, nullptr, 1},
         {"input", required_argument, nullptr, 'i'},
@@ -108,6 +124,17 @@ bool Heap::ParseArgs(int argc, char **argv)
 
             case 1:
                 m_cfg.incomingRef = true;
+                break;
+
+            case 2:
+                m_cfg.dumpReport = true;
+                if (optarg) {
+                    char *endPtr = nullptr;
+                    long port = strtol(optarg, &endPtr, 10);
+                    if (endPtr != optarg && *endPtr == '\0' && port > 0 && port <= 65535) {
+                        m_cfg.reportPort = static_cast<int>(port);
+                    }
+                }
                 break;
 
             case 'D':
@@ -165,6 +192,8 @@ void Heap::PrintHelp()
         "\n"
         "    -D, --depth <depth>   max depth to show for references, default to 10, used only with --show-reference\n"
         "    -d, --dump <pid>      dump heap into a dump file\n"
+        "        --dump-report[=<port>]\n"
+        "                          start HTTP report server, default port 8080\n"
         "    -h, --help            show this help message\n"
         "    -i, --input <file>    input dump file name, default to 'cjprof.data'\n"
         "    -o, --output <file>   output dump file name, default to 'cjprof.data'\n"
@@ -179,6 +208,8 @@ void Heap::PrintHelp()
         " Usage: cjprof heap [<options>]\n"
         "\n"
         "    -D, --depth <depth>   max depth to show for references, default to 10, used only with --show-reference\n"
+        "        --dump-report[=<port>]\n"
+        "                          start HTTP report server, default port 8080\n"
         "    -h, --help            show this help message\n"
         "    -i, --input <file>    input dump file name, default to 'cjprof.data'\n"
         "        --show-reference[=<objnames>]\n"

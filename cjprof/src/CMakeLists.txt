@@ -56,8 +56,21 @@ else()
     )
 endif()
 
+add_custom_command(TARGET cjprof POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/static
+    $<TARGET_FILE_DIR:cjprof>/static
+)
+
 if (NOT USE_CXX17_FEATURES)
     target_link_libraries(prof stdc++fs)
 endif()
+if(WIN32)
+    target_link_libraries(prof ws2_32)
+endif()
+if(NOT WIN32 AND NOT APPLE)
+    target_link_libraries(prof pthread)
+endif()
+
 target_link_libraries(cjprof prof cangjie-demangle pthread)
 install(TARGETS cjprof RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
