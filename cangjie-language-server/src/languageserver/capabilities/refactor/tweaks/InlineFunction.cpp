@@ -476,6 +476,7 @@ TextEdit InlineFunction::InsertInlineBody()
 
     std::map<std::string, std::string> paramMap;
     for (const auto &[paramName, paramType, paramValue, needsExtract] : extractedParams_.params) {
+        (void)paramType;
         if (needsExtract) {
             paramMap[paramName] = GenerateParamVarName(paramName);
         } else {

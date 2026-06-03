@@ -1270,7 +1270,8 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
         std::string signature = ItemResolverUtil::ResolveSignatureByNode(*member);
         auto extendSymbolID = GetDeclSymbolID(*member);
         bool isStatic = member->TestAttr(Attribute::STATIC);
-        ExtendInfo info = {.id=extendSymbolID, .name=signature, .isStatic=isStatic};
+        ExtendInfo info = {.id = extendSymbolID, .name = signature, .isStatic = isStatic,
+                           .modifier = {}, .interfaceName = ""};
         extendVec.emplace_back(info);
         extendInfoMap.insert_or_assign(signature, extendVec.back());
     }
