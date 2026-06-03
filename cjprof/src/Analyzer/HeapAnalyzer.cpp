@@ -1270,6 +1270,52 @@ bool HeapAnalyzer::StartReportServer(int port)
     context->snapshotInfo = sharedSnapshotInfo.get();
     context->stringTable = &stringTable;
 
+    // Build indexes for O(1)/O(children) lookup in handlers (one-time O(N) cost)
+    auto t_index_start = std::chrono::steady_clock::now();
+    for (const auto& node : *context->dominanceNodes) {
+        context->objectIdToRetainedSize[node.object_id] = node.retained_size;
+        if (node.parent_id != 0) {
+            context->childrenByParentId[node.parent_id].push_back(&node);
+        }
+    }
+    // Build object_id -> class_name index (reuse buildObjectIdToClassMap logic inline)
+    {
+        std::unordered_map<uint64_t, std::string> classIdToNameMap;
+        if (context->classes) {
+            for (const auto& cls : *context->classes) {
+                if (!cls.class_name.empty()) {
+                    classIdToNameMap[cls.class_id] = cls.class_name;
+                }
+            }
+        }
+        if (context->objects) {
+            for (const auto& obj : *context->objects) {
+                std::string className;
+                if (!obj.name.empty()) {
+                    className = obj.name;
+                } else if (obj.class_id == 0) {
+                    switch (obj.category) {
+                        case ObjectCategory::PRIMITIVE_ARRAY: className = "PRIMITIVE_ARRAY"; break;
+                        case ObjectCategory::OBJECT_ARRAY: className = "OBJECT_ARRAY"; break;
+                        case ObjectCategory::STRUCT_ARRAY: className = "STRUCT_ARRAY"; break;
+                        case ObjectCategory::PINNED_OBJECT: className = "PINNED_OBJECT"; break;
+                        case ObjectCategory::LARGE_OBJECT: className = "LARGE_OBJECT"; break;
+                        case ObjectCategory::UNMOVABLE_OBJECT: className = "UNMOVABLE_OBJECT"; break;
+                        default: className = "unknown"; break;
+                    }
+                } else {
+                    auto it = classIdToNameMap.find(obj.class_id);
+                    className = (it != classIdToNameMap.end()) ? it->second : "unknown";
+                }
+                context->objectIdToClassName[obj.object_id] = className;
+            }
+        }
+    }
+    auto t_index_end = std::chrono::steady_clock::now();
+    auto indexMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_index_end - t_index_start).count();
+    LOG_INFO("[perf] Build indexes: {} ms", indexMs);
+    AddPhase("Build indexes", indexMs);
+
     // Find available port
     int actualPort = port;
     for (int attempt = 0; attempt < 100; attempt++) {
