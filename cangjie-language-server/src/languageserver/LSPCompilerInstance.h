@@ -161,6 +161,8 @@ public:
 
     void SetBufferCacheForParse(const std::unordered_map<std::string, std::string> &buffer);
 
+    void SetActiveFilePath(const std::string &filePath);
+
     ark::Callbacks *callback = nullptr;
     std::string pkgNameForPath; // Full Package Name
     std::string pkgNameForCj;
@@ -169,6 +171,7 @@ public:
     std::mutex fileStatusLock;
     std::unordered_map<std::string, SrcCodeChangeState> fileStatus;
     const std::unique_ptr<ark::ModuleManager> &moduleManger;
+    std::string activeFilePath;
     std::string upstreamSourceSetName;
     std::unique_ptr<DiagnosticEngine> diagOwned;
 
@@ -201,6 +204,10 @@ private:
                        DependencyContext &context);
 
     static void MarkBrokenDecls(AST::Package &pkg);
+
+    bool IsBuildScriptContext();
+
+    std::string GetCurrentModuleName();
 };
 } // namespace Cangjie
 #endif // CANGJIE_FRONTEND_LSPCOMPILERINSTANCE_H

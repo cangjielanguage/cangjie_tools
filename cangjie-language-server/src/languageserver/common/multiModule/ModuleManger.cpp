@@ -72,7 +72,12 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
                 if (!FileExist(requirePath)) {
                     continue;
                 }
-                (void)requirePackages[name].insert(reqKey);
+                bool isScriptDependence = value[REQUIRES][reqKey].value(IS_SCRIPT_DEPENDENCE, false);
+                if (isScriptDependence) {
+                    (void)scriptRequirePackages[name].insert(reqKey);
+                } else {
+                    (void)requirePackages[name].insert(reqKey);
+                }
             }
         }
     }
@@ -144,7 +149,8 @@ void ModuleManager::SetPackageRequires(const nlohmann::json &jsonData, const std
 
 std::unordered_set<std::string> ModuleManager::GetAllRequiresOneModule(
     const std::string &require,
-    std::unordered_map<std::string, bool> &isVisited)
+    std::unordered_map<std::string, bool> &isVisited,
+    bool includeScriptRequire)
 {
     std::unordered_set<std::string> res;
     if (isVisited[require]) {
@@ -152,25 +158,74 @@ std::unordered_set<std::string> ModuleManager::GetAllRequiresOneModule(
     }
     isVisited[require] = true;
     auto deps = requirePackages[require];
+    if (includeScriptRequire && scriptRequirePackages.count(require) != 0) {
+        deps.insert(scriptRequirePackages[require].begin(), scriptRequirePackages[require].end());
+    }
 
     if (deps.empty()) {
         return res;
     }
-    for (const auto &dependent : requirePackages[require]) {
-        auto temp = GetAllRequiresOneModule(dependent, isVisited);
+    for (const auto &dependent : deps) {
+        auto temp = GetAllRequiresOneModule(dependent, isVisited, includeScriptRequire);
         res.insert(temp.begin(), temp.end());
     }
     res.insert(deps.begin(), deps.end());
     return res;
 }
 
+std::unordered_set<std::string> ModuleManager::GetBuildScriptRequiresOneModule(const std::string &moduleName)
+{
+    std::unordered_set<std::string> res;
+    if (moduleName.empty()) {
+        return res;
+    }
+    (void)res.insert(moduleName);
+    auto scriptFound = scriptRequirePackages.find(moduleName);
+    if (scriptFound == scriptRequirePackages.end()) {
+        return res;
+    }
+    res.insert(scriptFound->second.begin(), scriptFound->second.end());
+    for (const auto &dependent : scriptFound->second) {
+        std::unordered_map<std::string, bool> isVisited;
+        auto temp = GetAllRequiresOneModule(dependent, isVisited, true);
+        res.insert(temp.begin(), temp.end());
+    }
+    return res;
+}
+
 void ModuleManager::SetRequireAllPackages()
 {
+    std::unordered_set<std::string> moduleNames;
     for (const auto &require : requirePackages) {
-        std::unordered_map<std::string, bool> isVisited;
-        auto item = GetAllRequiresOneModule(require.first, isVisited);
-        (void)requireAllPackages.emplace(require.first, item);
+        moduleNames.insert(require.first);
     }
+    for (const auto &require : scriptRequirePackages) {
+        moduleNames.insert(require.first);
+    }
+    for (const auto &moduleName : moduleNames) {
+        std::unordered_map<std::string, bool> isVisited;
+        auto normalItem = GetAllRequiresOneModule(moduleName, isVisited, false);
+        (void)requireAllPackages.emplace(moduleName, normalItem);
+
+        auto buildItem = GetBuildScriptRequiresOneModule(moduleName);
+        (void)requireAllPackagesInBuild.emplace(moduleName, buildItem);
+    }
+}
+
+std::string ModuleManager::GetProjectModuleName() const
+{
+    auto found = moduleInfoMap.find(projectRootPath);
+    if (found == moduleInfoMap.end()) {
+        return "";
+    }
+    return found->second.moduleName;
+}
+
+bool ModuleManager::IsBuildScriptFile(const std::string &filePath) const
+{
+    std::string normalizedFilePath = Normalize(filePath);
+    std::string buildScriptPath = Normalize(JoinPath(projectRootPath, BUILD_SCRIPT_FILE_NAME));
+    return normalizedFilePath == buildScriptPath;
 }
 
 std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)

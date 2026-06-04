@@ -102,24 +102,24 @@ public:
 
     void FindImportSymsOnCompletion(
         const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
-        const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
+        const SymbolSearchContext &context, const std::string &prefix,
         std::function<void(const std::string &, const Symbol &, const CompletionItem &)> callback) override;
 
-    void FindImportSymsOnQuickFix(const std::string &curPkgName, const std::string &curModule,
+    void FindImportSymsOnQuickFix(const SymbolSearchContext &context,
         const std::unordered_set<SymbolID> &importDeclSyms,
         const std::string& identifier,
         const std::function<void(const std::string &, const Symbol &)>& callback) override;
 
     void FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         const std::unordered_set<SymbolID> &visibleMembers,
-        const std::string &curPkgName, const std::string &curModule,
+        const SymbolSearchContext &context,
         const std::function<void(const std::string &, const std::string &,
             const Symbol &, const CompletionItem &)>& callback) override;
 
     void FindExtendSymsOnCompletionBatch(
         const std::unordered_set<SymbolID> &ids,
         const std::unordered_set<SymbolID> &symAndVisibleMembers,
-        const std::string &curPkgName, bool filterStatic,
+        const SymbolSearchContext &context, bool filterStatic,
         const std::function<void(const std::string &, const std::string &,
             const Symbol &, const CompletionItem &)>& callback) override;
 

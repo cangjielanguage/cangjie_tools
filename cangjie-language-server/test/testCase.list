@@ -314,6 +314,8 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_2024092913976.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Macro.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Config_Src.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_script_dependencies_build_001.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_script_dependencies_root_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Root_Dot_Pkg.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_2025030629333.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Full_Compile_Cycle_Dependencies.test"}}
@@ -1211,6 +1213,7 @@
 
 {"applyEdit":{"testFile":"ExtractMethod_Apply_003.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractVariable_Apply_001.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"ExtractVariable_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractVariable_Apply_003.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_002.test","method":"workspace/applyEdit"}}

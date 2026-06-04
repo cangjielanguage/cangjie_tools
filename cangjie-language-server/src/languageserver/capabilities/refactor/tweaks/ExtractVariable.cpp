@@ -16,6 +16,14 @@ const std::unordered_set<Cangjie::AST::ASTKind> INVALID_PARTIAL_EXPR = {
 const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_EXTRACT_VAR_EXPR = {
     ASTKind::BLOCK, ASTKind::STR_INTERPOLATION_EXPR, ASTKind::INTERPOLATION_EXPR
 };
+
+namespace {
+std::string GetIndentBeforePosition(const Position &pos)
+{
+    return std::string(pos.column > 0 ? pos.column - 1 : 0, ' ');
+}
+}
+
 // LCOV_EXCL_START
 class ExtractVariableRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
@@ -188,6 +196,7 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
     }
 
     std::string modifier = GetVarModifier(sel, range);
+    std::string trailingIndent = sourceCode.find('\n') == std::string::npos ? "" : indent;
     if (modifier.find("const") != std::string::npos) {
         insertText << modifier;
     } else {
@@ -195,9 +204,9 @@ TextEdit ExtractVariable::InsertDeclaration(const Selection &sel, Range &range, 
     }
 
     if (root->selected == SelectionTree::Selection::Complete && root->node->astKind == ASTKind::ASSIGN_EXPR) {
-        insertText <<  varName << " = (" << sourceCode << ")\n" << indent;
+        insertText <<  varName << " = (" << sourceCode << ")\n" << trailingIndent;
     } else {
-        insertText << varName << " = " << sourceCode << "\n" << indent;
+        insertText << varName << " = " << sourceCode << "\n" << trailingIndent;
     }
 
     textEdit.range = insertRange;
@@ -214,6 +223,7 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
     // 1. use scopeName getting insert position
     FindInsertPositionByScopeName(sel, range, insertRange, isGlobal);
     if (!insertRange.end.IsZero()) {
+        indent = GetIndentBeforePosition(insertRange.start);
         return;
     }
     // 2. compute insert position if getting insert position fail by scope name (maybe the following code can delete)
@@ -225,7 +235,7 @@ void ExtractVariable::FindInsertDeclPosition(const Selection &sel, Range &range,
         Token firstToken = sel.arkAst->tokens[firstToken4CurLine];
         insertRange.start = firstToken.Begin();
         insertRange.end = insertRange.start;
-        indent = std::string (firstToken.Begin().column > 0 ? firstToken.Begin().column - 1 : 0, ' ');
+        indent = GetIndentBeforePosition(firstToken.Begin());
     }
 
     // deal do while
