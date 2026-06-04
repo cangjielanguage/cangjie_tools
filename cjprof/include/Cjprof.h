@@ -112,6 +112,7 @@ public:
     int64_t sizeDelta;
     uint32_t baseTotalSize;
     uint32_t targetTotalSize;
+    std::vector<bool> childAddedStates;
     ConstructorDiffNode() = default;
     ConstructorDiffNode(
         const ConstructorNode& baseNode,

@@ -625,6 +625,7 @@ ConstructorDiffNode QueryComparisonNodeByIndex(std::string keyword, bool isIgnor
 - int64_t sizeDelta：新增对象的浅堆大小与减少对象的浅堆大小的差值
 - uint32_t baseTotalSize：基准内存快照总堆大小
 - uint32_t targetTotalSize：目标内存快照总堆大小
+- std::vector<bool> childAddedStates: 表示包含的 Instance 节点是新增的还是减少的列表
 
 ##### class ThreadInfo
 
