@@ -49,7 +49,7 @@ private:
 
     bool IsSimpleExpr(Expr* expr);
 
-    TextEdit ReplaceRefWithInitExpr(RefExpr* refExpr, const std::string &initExprCode);
+    TextEdit ReplaceRefWithInitExpr(const Selection &sel, const std::string &initExprCode);
 };
 
 } // namespace ark

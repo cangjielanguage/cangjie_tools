@@ -56,6 +56,7 @@ private:
 
     const Selection* sel_ = nullptr;
     CallExpr* callExpr_ = nullptr;
+    Expr* baseExpr_ = nullptr;
     FuncDecl* funcDecl_ = nullptr;
     ExtractedParams extractedParams_;
     std::string indent_;
@@ -106,6 +107,8 @@ private:
     TextEdit InsertInlineBody();
 
     TextEdit ReplaceCallWithVar();
+
+    TextEdit ReplaceCallWithEmpty();
 };
 
 } // namespace ark

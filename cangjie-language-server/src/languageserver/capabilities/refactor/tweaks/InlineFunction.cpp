@@ -25,13 +25,19 @@ class InlineFunctionSelectionRule : public TweakRule {
             return false;
         }
 
-        if (root->node->astKind != ASTKind::CALL_EXPR) {
+        auto toBeInline = root->node;
+        if (root->node->astKind == ASTKind::FUNC_ARG) {
+            auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            toBeInline = funcArg->expr;
+        }
+
+        if (toBeInline->astKind != ASTKind::CALL_EXPR) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::NOT_CALL_EXPR))));
             return false;
         }
 
-        auto callExpr = DynamicCast<CallExpr*>(root->node.get());
+        auto callExpr = DynamicCast<CallExpr*>(toBeInline.get());
         if (!callExpr) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(TweakRule::TweakError::ERROR_AST))));
@@ -59,11 +65,18 @@ class InlineFunctionNoRecursiveRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
-        if (!root || !root->node || root->node->astKind != ASTKind::CALL_EXPR) {
+
+        auto toBeInline = root->node;
+        if (root->node->astKind == ASTKind::FUNC_ARG) {
+            auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            toBeInline = funcArg->expr;
+        }
+
+        if (toBeInline->astKind != ASTKind::CALL_EXPR) {
             return false;
         }
 
-        auto callExpr = DynamicCast<CallExpr*>(root->node.get());
+        auto callExpr = DynamicCast<CallExpr*>(toBeInline.get());
         if (!callExpr || !callExpr->resolvedFunction) {
             return false;
         }
@@ -102,11 +115,18 @@ class InlineFunctionNoPrivateAccessRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
-        if (!root || !root->node || root->node->astKind != ASTKind::CALL_EXPR) {
+
+        auto toBeInline = root->node;
+        if (root->node->astKind == ASTKind::FUNC_ARG) {
+            auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            toBeInline = funcArg->expr;
+        }
+
+        if (toBeInline->astKind != ASTKind::CALL_EXPR) {
             return false;
         }
 
-        auto callExpr = DynamicCast<CallExpr*>(root->node.get());
+        auto callExpr = DynamicCast<CallExpr*>(toBeInline.get());
         if (!callExpr || !callExpr->resolvedFunction) {
             return false;
         }
@@ -144,11 +164,18 @@ class InlineFunctionSimpleTypeRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
-        if (!root || !root->node || root->node->astKind != ASTKind::CALL_EXPR) {
+
+        auto toBeInline = root->node;
+        if (root->node->astKind == ASTKind::FUNC_ARG) {
+            auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            toBeInline = funcArg->expr;
+        }
+
+        if (toBeInline->astKind != ASTKind::CALL_EXPR) {
             return false;
         }
 
-        auto callExpr = DynamicCast<CallExpr*>(root->node.get());
+        auto callExpr = DynamicCast<CallExpr*>(toBeInline.get());
         if (!callExpr || !callExpr->resolvedFunction) {
             return false;
         }
@@ -161,12 +188,6 @@ class InlineFunctionSimpleTypeRule : public TweakRule {
         if (funcDecl->funcBody->generic) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::IS_GENERIC_FUNC))));
-            return false;
-        }
-
-        if (funcDecl->TestAnyAttr(Attribute::IN_CLASSLIKE, Attribute::IN_STRUCT, Attribute::IN_ENUM)) {
-            extraOptions.insert(std::make_pair("ErrorCode",
-                std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::IS_MEMBER_FUNC))));
             return false;
         }
 
@@ -195,16 +216,26 @@ bool InlineFunction::Prepare(const Selection &sel)
     ruleEngine.AddRule(std::make_unique<InlineFunctionNoPrivateAccessRule>());
     ruleEngine.AddRule(std::make_unique<InlineFunctionSimpleTypeRule>());
 
-    return ruleEngine.CheckRules(sel, extraOptions);
+    ruleEngine.CheckRules(sel, extraOptions);
+    return true;
 }
 
 CallExpr* InlineFunction::GetCallExpr()
 {
     auto root = sel_->selectionTree.root();
-    if (!root || !root->node || root->node->astKind != ASTKind::CALL_EXPR) {
+    if (!root || !root->node) {
         return nullptr;
     }
-    return DynamicCast<CallExpr*>(root->node.get());
+    auto toBeInline = root->node;
+    if (root->node->astKind == ASTKind::FUNC_ARG) {
+        auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+        toBeInline = funcArg->expr;
+    }
+    if (toBeInline->astKind != ASTKind::CALL_EXPR) {
+        return nullptr;
+    }
+
+    return DynamicCast<CallExpr*>(toBeInline.get());
 }
 
 FuncDecl* InlineFunction::GetFuncDecl()
@@ -224,7 +255,7 @@ bool InlineFunction::HasReturnValue()
     if (funcDecl_->funcBody->retType) {
         auto retTy = funcDecl_->funcBody->retType.get();
         if (retTy && retTy->GetTy()) {
-            auto typeStr = retTy->GetTy()->name;
+            auto typeStr = GetString(*retTy->GetTy());
             return typeStr != "void" && typeStr != "Unit";
         }
     }
@@ -267,12 +298,14 @@ std::string InlineFunction::ReplaceParamsInCode(const std::string &code,
 
 std::string InlineFunction::GenerateInlineVarName()
 {
-    return "inline_result";
+    return "inlineResult";
 }
 
 std::string InlineFunction::GenerateParamVarName(const std::string &paramName)
 {
-    return "inline_arg_" + paramName;
+    std::string newName = paramName;
+    newName[0] = std::toupper(newName[0]);
+    return "inlineArg" + newName;
 }
 
 bool InlineFunction::IsSimpleArg(Expr* expr)
@@ -510,10 +543,16 @@ TextEdit InlineFunction::InsertInlineBody()
     }
 
     insertText << indent;
+    std::string newText = insertText.str();
+
+    if (baseExpr_) {
+        std::regex thisRegex("\\bthis\\b");
+        newText = std::regex_replace(newText, thisRegex, baseExpr_->ToString());
+    }
 
     insertRange = TransformFromChar2IDE(insertRange);
     edit.range = insertRange;
-    edit.newText = insertText.str();
+    edit.newText = newText;
 
     return edit;
 }
@@ -530,6 +569,22 @@ TextEdit InlineFunction::ReplaceCallWithVar()
     callRange = TransformFromChar2IDE(callRange);
     edit.range = callRange;
     edit.newText = resultVarName_;
+
+    return edit;
+}
+
+TextEdit InlineFunction::ReplaceCallWithEmpty()
+{
+    TextEdit edit;
+
+    if (!callExpr_) {
+        return edit;
+    }
+
+    Range callRange = {callExpr_->begin, callExpr_->end};
+    callRange = TransformFromChar2IDE(callRange);
+    edit.range = callRange;
+    edit.newText = "";
 
     return edit;
 }
@@ -620,6 +675,12 @@ std::optional<Tweak::Effect> InlineFunction::Apply(const Selection &sel)
         return std::nullopt;
     }
 
+    if (funcDecl_->TestAnyAttr(Attribute::IN_CLASSLIKE, Attribute::IN_STRUCT, Attribute::IN_ENUM)
+        && callExpr_->baseFunc->astKind == ASTKind::MEMBER_ACCESS) {
+        auto memberAccess = DynamicCast<MemberAccess*>(callExpr_->baseFunc.get());
+        baseExpr_ = memberAccess->baseExpr.get();
+    }
+
     hasReturnValue_ = HasReturnValue();
     resultVarName_ = GenerateInlineVarName();
 
@@ -628,10 +689,6 @@ std::optional<Tweak::Effect> InlineFunction::Apply(const Selection &sel)
     std::vector<TextEdit> textEdits;
 
     indent_ = GetIndent(callExpr_->begin);
-    TextEdit paramDeclsEdit = InsertParamDecls();
-    if (!paramDeclsEdit.newText.empty()) {
-        textEdits.push_back(paramDeclsEdit);
-    }
 
     TextEdit insertBodyEdit = InsertInlineBody();
     if (!insertBodyEdit.newText.empty()) {
@@ -641,6 +698,8 @@ std::optional<Tweak::Effect> InlineFunction::Apply(const Selection &sel)
     if (hasReturnValue_) {
         TextEdit replaceCallEdit = ReplaceCallWithVar();
         textEdits.push_back(replaceCallEdit);
+    } else {
+        TextEdit replaceCallEdit = ReplaceCallWithEmpty();
     }
 
     std::string filePath = sel.arkAst->file->filePath;
