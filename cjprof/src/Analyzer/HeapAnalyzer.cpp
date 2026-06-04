@@ -594,6 +594,7 @@ RawHeapSnapshot HeapAnalyzer::GetRawHeapSnapshot()
         RawHeapSnapshot::Node node = {};
         node.id = obj->id;
         GetRawHeapNodeType(node, locals, globals, unknown, arrays);
+        node.isPinned = (obj->category == static_cast<uint8_t>(ObjectCategory::PINNED_OBJECT));
         node.selfSize = obj->size;
         node.edgeCount = obj->outRef.size();
         node.nameIndex = GetRawHeapNameIndex(data, obj->name, nameIndexs);
@@ -768,6 +769,7 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
     const auto& locals = hprof.GetLocalsRoots();
     const auto& globals = hprof.GetGlobalsRoots();
     const auto& unknown = hprof.GetUnknownRoots();
+    const auto& categories = hprof.GetObjectCategories();
 
     size_t n = instances.size() + arrays.size();
     if (n == 0) {
@@ -864,6 +866,15 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
         auto it = idToIndex.find(unk);
         if (it != idToIndex.end() && std::find(gcRoots.begin(), gcRoots.end(), it->second) == gcRoots.end()) {
             gcRoots.push_back(it->second);
+        }
+    }
+    for (const auto& inst : instances) {
+        auto catIt = categories.find(inst.first);
+        if (catIt != categories.end() && catIt->second == ObjectCategory::PINNED_OBJECT) {
+            auto it = idToIndex.find(inst.first);
+            if (it != idToIndex.end() && std::find(gcRoots.begin(), gcRoots.end(), it->second) == gcRoots.end()) {
+                gcRoots.push_back(it->second);
+            }
         }
     }
 
@@ -987,7 +998,7 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnaps
     // Identify GC Roots
     std::vector<size_t> gcRoots;
     for (size_t i = 0; i < n; ++i) {
-        if (preds[i].empty() || rhs.nodes[i].IsRoot()) {
+        if (preds[i].empty() || rhs.nodes[i].IsRoot() || rhs.nodes[i].isPinned) {
             gcRoots.push_back(i);
         }
     }

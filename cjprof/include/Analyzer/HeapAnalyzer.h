@@ -67,6 +67,7 @@ public:
         uint32_t edgeCount;
         uint32_t nodeIndex;
         uint32_t arrayLen;
+        bool isPinned = false;
         bool IsRootGlobal() const {
             return rootType == RootType::GLOBAL;
         }
