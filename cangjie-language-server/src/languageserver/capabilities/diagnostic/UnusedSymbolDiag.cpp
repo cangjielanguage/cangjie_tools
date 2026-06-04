@@ -64,19 +64,38 @@ static SymbolID GetContainerID(
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Check if a relation represents a constructor child with references.
+// ---------------------------------------------------------------------------
+static bool IsReferencedConstructor(
+    const Relation& rel,
+    SymbolID symId,
+    const std::map<SymbolID, std::vector<Ref>>& refs,
+    const std::map<SymbolID, lsp::SymbolKind>& symbolKindMap)
+{
+    if (rel.predicate != RelationKind::CONTAINED_BY || rel.object != symId) {
+        return false;
+    }
+    auto it = symbolKindMap.find(rel.subject);
+    if (it == symbolKindMap.end() || it->second != lsp::SymbolKind::CONSTRUCTOR) {
+        return false;
+    }
+    return UnusedSymbolDiag::HasReference(rel.subject, refs);
+}
+
+// ---------------------------------------------------------------------------
 // Helper: Check if any child constructor of a class/struct has references.
 // Uses CONTAINED_BY relations to find constructor children, then checks refs.
+// Only checks constructors (SymbolKind::CONSTRUCTOR), not other members.
 // ---------------------------------------------------------------------------
 static bool HasConstructorReference(
     SymbolID symId,
     const std::vector<Relation>& relations,
-    const std::map<SymbolID, std::vector<Ref>>& refs)
+    const std::map<SymbolID, std::vector<Ref>>& refs,
+    const std::map<SymbolID, lsp::SymbolKind>& symbolKindMap)
 {
     for (const auto& rel : relations) {
-        if (rel.predicate == RelationKind::CONTAINED_BY && rel.object == symId) {
-            if (UnusedSymbolDiag::HasReference(rel.subject, refs)) {
-                return true;
-            }
+        if (IsReferencedConstructor(rel, symId, refs, symbolKindMap)) {
+            return true;
         }
     }
     return false;
@@ -203,9 +222,17 @@ bool UnusedSymbolDiag::ShouldExclude(
         return true;
     }
 
+    // For member variables (VAR_DECL) inside @Component/@Entry classes,
+    // do NOT exclude them - we now have proper reference tracking for macro-expanded code.
+    // Only exclude the class/struct itself and other member types (func, prop, etc.)
     SymbolID containerId = GetContainerID(symbol.id, relations);
     if (containerId != INVALID_SYMBOL_ID && excludedMacroDecls.count(containerId) > 0) {
-        return true;
+        // Allow VAR_DECL to be checked for unused status
+        if (symbol.kind == ASTKind::VAR_DECL) {
+            // VAR_DECL NOT excluded - will check references
+        } else {
+            return true;
+        }
     }
 
     return false;
@@ -221,6 +248,8 @@ std::string UnusedSymbolDiag::GetKindDescription(ASTKind kind)
             return "Function";
         case ASTKind::VAR_DECL:
             return "Variable";
+        case ASTKind::LAMBDA_EXPR:
+            return "Lambda";
         case ASTKind::CLASS_DECL:
             return "Class";
         case ASTKind::STRUCT_DECL:
@@ -277,6 +306,12 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::Analyze(
     // Collect class/struct SymbolIDs decorated with @Entry/@Component
     auto excludedMacroDecls = CollectExcludedMacroDecls(package);
 
+    // Build SymbolID -> SymbolKind map for constructor reference checking
+    std::map<SymbolID, lsp::SymbolKind> symbolKindMap;
+    for (const auto& sym : symbols) {
+        symbolKindMap[sym.id] = sym.symInfo.kind;
+    }
+
     for (const auto& sym : symbols) {
         // 1. Only process symbols defined in the target file
         if (sym.location.fileUri != filePath) {
@@ -308,7 +343,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::Analyze(
         // For class/struct, also check if any contained constructor is referenced,
         // since constructor calls store refs under the constructor's SymbolID, not the class/struct's.
         if (!hasRef && (sym.kind == ASTKind::CLASS_DECL || sym.kind == ASTKind::STRUCT_DECL)) {
-            hasRef = HasConstructorReference(sym.id, relations, refs);
+            hasRef = HasConstructorReference(sym.id, relations, refs, symbolKindMap);
         }
         if (!hasRef) {
             diagnostics.push_back(CreateUnusedDiag(
@@ -364,8 +399,12 @@ static void CheckUnusedVarDecl(VarDecl* varDecl, Package& package,
     const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
 {
     bool isGlobalOrMember = IsGlobalOrMember(*varDecl);
-    bool isLambdaVar = isLambda(*varDecl);
-    if (!isGlobalOrMember && !isLambdaVar) {
+    // For macro-expanded declarations (e.g., member variables in @Component/@Entry classes),
+    // also check if they have curMacroCall set and have valid outerDecl
+    if (!isGlobalOrMember && varDecl->curMacroCall && !varDecl->identifier.Empty() && varDecl->outerDecl) {
+        isGlobalOrMember = true;
+    }
+    if (!isGlobalOrMember) {
         auto usages = FindDeclUsage(*varDecl, package);
         if (usages.empty()) {
             auto identifierPos = varDecl->GetIdentifierPos();
@@ -381,11 +420,36 @@ static void CheckUnusedVarDecl(VarDecl* varDecl, Package& package,
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Check if a parameter is auto-generated by @Component/@Entry macros.
+// These parameters (elmtId, isInitialRender) are added by the macro system
+// and users cannot control them, so they should not be reported as unused.
+// ---------------------------------------------------------------------------
+static bool IsComponentGeneratedParam(const FuncParam* funcParam)
+{
+    if (!funcParam || !funcParam->curMacroCall || funcParam->isInMacroCall) {
+        return false;
+    }
+    
+    // Check if this is a known @Component/@Entry generated parameter name
+    static const std::unordered_set<std::string> componentParams = {
+        "elmtId",
+        "isInitialRender"
+    };
+    
+    return componentParams.count(std::string(funcParam->identifier)) > 0;
+}
+
+// ---------------------------------------------------------------------------
 // Helper: Check and report unused function parameter.
 // ---------------------------------------------------------------------------
 static void CheckUnusedFuncParam(FuncParam* funcParam, Package& package,
     const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
 {
+    // Skip @Component/@Entry auto-generated parameters
+    if (IsComponentGeneratedParam(funcParam)) {
+        return;
+    }
+    
     auto usages = FindDeclUsage(*funcParam, package);
     if (!usages.empty()) {
         return;
@@ -402,6 +466,77 @@ static void CheckUnusedFuncParam(FuncParam* funcParam, Package& package,
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Check and report unused enum variant (enum constructor).
+// Enum variants can be FuncDecl (with associated values) or VarDecl
+// (without associated values), both stored in EnumDecl::constructors.
+// ---------------------------------------------------------------------------
+static void CheckUnusedEnumVariantCommon(Decl& decl, Package& package,
+    const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
+{
+    auto usages = FindDeclUsage(decl, package);
+    bool hasExternalUsage = false;
+    for (auto& usage : usages) {
+        if (usage->begin != decl.begin || usage->end != decl.end) {
+            hasExternalUsage = true;
+            break;
+        }
+    }
+    if (hasExternalUsage) {
+        return;
+    }
+    auto identifierPos = decl.GetIdentifierPos();
+    SymbolLocation loc{
+        identifierPos,
+        identifierPos + CountUnicodeCharacters(decl.identifier),
+        filePath
+    };
+    diagnostics.push_back(UnusedSymbolDiag::CreateUnusedDiag(
+        decl.identifier, loc, "Enum variant"));
+}
+
+// ---------------------------------------------------------------------------
+// Walker visitor for local symbol analysis
+// ---------------------------------------------------------------------------
+static VisitAction CollectUnusedLocalDiags(
+    Ptr<Node> node,
+    Package& package,
+    const std::string& filePath,
+    std::vector<DiagnosticToken>& diagnostics)
+{
+    auto decl = DynamicCast<Decl*>(node);
+    if (!decl) {
+        return VisitAction::WALK_CHILDREN;
+    }
+
+    if (decl->isInMacroCall) {
+        return VisitAction::WALK_CHILDREN;
+    }
+
+    if (auto varDecl = DynamicCast<VarDecl*>(node)) {
+        if (!DynamicCast<FuncParam*>(node)) {
+            CheckUnusedVarDecl(varDecl, package, filePath, diagnostics);
+        }
+    }
+
+    if (auto funcParam = DynamicCast<FuncParam*>(node)) {
+        if (ShouldSkipFuncParam(funcParam)) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        CheckUnusedFuncParam(funcParam, package, filePath, diagnostics);
+    }
+
+    if (auto enumDecl = DynamicCast<EnumDecl*>(node)) {
+        for (auto& ctor : enumDecl->constructors) {
+            if (ctor && !ctor->isInMacroCall) {
+                CheckUnusedEnumVariantCommon(*ctor, package, filePath, diagnostics);
+            }
+        }
+    }
+
+    return VisitAction::WALK_CHILDREN;
+}
+
+// ---------------------------------------------------------------------------
 // Local symbol analysis: detect unused local variables and non-named params
 // ---------------------------------------------------------------------------
 std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
@@ -414,31 +549,10 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
         return diagnostics;
     }
 
-    std::function<VisitAction(Ptr<Node>)> collector = [&](Ptr<Node> node) -> VisitAction {
-        auto decl = DynamicCast<Decl*>(node);
-        if (!decl) {
-            return VisitAction::WALK_CHILDREN;
-        }
-
-        if (decl->isInMacroCall) {
-            return VisitAction::WALK_CHILDREN;
-        }
-
-        if (auto varDecl = DynamicCast<VarDecl*>(node)) {
-            if (!DynamicCast<FuncParam*>(node)) {
-                CheckUnusedVarDecl(varDecl, package, file.filePath, diagnostics);
-            }
-        }
-
-        if (auto funcParam = DynamicCast<FuncParam*>(node)) {
-            if (ShouldSkipFuncParam(funcParam)) {
-                return VisitAction::WALK_CHILDREN;
-            }
-            CheckUnusedFuncParam(funcParam, package, file.filePath, diagnostics);
-        }
-
-        return VisitAction::WALK_CHILDREN;
-    };
+    std::function<VisitAction(Ptr<Node>)> collector =
+        [&](Ptr<Node> node) -> VisitAction {
+            return CollectUnusedLocalDiags(node, package, file.filePath, diagnostics);
+        };
 
     Walker(const_cast<File*>(&file), collector).Walk();
     return diagnostics;
