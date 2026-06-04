@@ -31,4 +31,6 @@ public class ConstructorDiffNode extends ConstructorNode {
     private int baseTotalSize;
 
     private int targetTotalSize;
+
+    private java.util.List<Boolean> childAddedStates;
 }

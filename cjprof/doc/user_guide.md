@@ -638,6 +638,7 @@ Returns the diff Constructor node that the matched diff Instance node belongs to
 - int64_t sizeDelta: Difference between shallow heap size of added objects and removed objects
 - uint32_t baseTotalSize: Total heap size of base heap snapshot
 - uint32_t targetTotalSize: Total heap size of target heap snapshot
+- std::vector<bool> childAddedStates: List indicating whether each contained Instance node is added or removed
 
 ##### class ThreadInfo
 

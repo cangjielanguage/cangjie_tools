@@ -38,6 +38,9 @@ static jmethodID g_frameConstructor = nullptr;
 static jclass g_integerClass = nullptr;
 static jmethodID g_integerConstructor = nullptr;
 
+static jclass g_booleanClass = nullptr;
+static jmethodID g_booleanValueOf = nullptr;
+
 static jfieldID fid_constructorNode_className = nullptr;
 static jfieldID fid_constructorNode_totalSize = nullptr;
 static jfieldID fid_constructorNode_id = nullptr;
@@ -80,6 +83,7 @@ static jfieldID fid_constructorDiffNode_removedSize = nullptr;
 static jfieldID fid_constructorDiffNode_sizeDelta = nullptr;
 static jfieldID fid_constructorDiffNode_baseTotalSize = nullptr;
 static jfieldID fid_constructorDiffNode_targetTotalSize = nullptr;
+static jfieldID fid_constructorDiffNode_childAddedStates = nullptr;
 
 static jfieldID fid_instanceDiffNode_addedCount = nullptr;
 static jfieldID fid_instanceDiffNode_removedCount = nullptr;
@@ -363,6 +367,19 @@ static jobject createConstructorDiffNode(JNIEnv* env, const Cjprof::ConstructorD
     }
     env->SetObjectField(obj, fid_constructorNode_children, childrenList);
     env->DeleteLocalRef(childrenList);
+
+    jobject addedStatesList = env->NewObject(
+        g_arrayListClass, g_arrayListConstructor, (jint)node.childAddedStates.size());
+    if (addedStatesList != nullptr) {
+        for (bool added : node.childAddedStates) {
+            jobject boolObj = env->CallStaticObjectMethod(
+                g_booleanClass, g_booleanValueOf, added ? JNI_TRUE : JNI_FALSE);
+            env->CallBooleanMethod(addedStatesList, g_listAddMethod, boolObj);
+            env->DeleteLocalRef(boolObj);
+        }
+        env->SetObjectField(obj, fid_constructorDiffNode_childAddedStates, addedStatesList);
+        env->DeleteLocalRef(addedStatesList);
+    }
     return obj;
 }
 
@@ -523,6 +540,8 @@ static void initConstructorDiffNodeFields(JNIEnv* env) {
     fid_constructorDiffNode_sizeDelta = env->GetFieldID(g_constructorDiffNodeClass, "sizeDelta", "J");
     fid_constructorDiffNode_baseTotalSize = env->GetFieldID(g_constructorDiffNodeClass, "baseTotalSize", "I");
     fid_constructorDiffNode_targetTotalSize = env->GetFieldID(g_constructorDiffNodeClass, "targetTotalSize", "I");
+    fid_constructorDiffNode_childAddedStates = env->GetFieldID(
+        g_constructorDiffNodeClass, "childAddedStates", "Ljava/util/List;");
 }
 
 static void initInstanceDiffNodeFields(JNIEnv* env) {
@@ -581,6 +600,9 @@ JNIEXPORT void JNICALL Java_com_cjprof_jni_Cjprof_initialize(JNIEnv* env, jclass
 
     g_integerClass = (jclass) env->NewGlobalRef(env->FindClass("java/lang/Integer"));
     g_integerConstructor = env->GetMethodID(g_integerClass, "<init>", "(I)V");
+
+    g_booleanClass = (jclass) env->NewGlobalRef(env->FindClass("java/lang/Boolean"));
+    g_booleanValueOf = env->GetStaticMethodID(g_booleanClass, "valueOf", "(Z)Ljava/lang/Boolean;");
 
     initConstructorNodeFields(env);
     initInstanceNodeFields(env);

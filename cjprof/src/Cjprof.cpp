@@ -955,6 +955,38 @@ std::vector<T> getSubRange(const std::vector<T>& vec, size_t index, size_t lengt
     return {vec.begin() + start, vec.begin() + start + validLen};
 }
 
+static std::tuple<std::vector<InstanceNode>, std::vector<bool>, uint32_t> buildDiffChildrenAndStates(
+    const std::vector<InstanceNode>& baseChildren,
+    const std::vector<InstanceNode>& targetChildren,
+    uint32_t startIndex, uint32_t length)
+{
+    std::unordered_set<uint64_t> baseChildIds;
+    std::unordered_set<uint64_t> targetChildIds;
+    for (auto& child : baseChildren) baseChildIds.emplace(child.id);
+    for (auto& child : targetChildren) targetChildIds.emplace(child.id);
+
+    std::vector<InstanceNode> diffNodes;
+    std::vector<bool> states;
+    for (const auto& node : baseChildren) {
+        if (!targetChildIds.count(node.id)) {
+            diffNodes.emplace_back(node);
+            states.push_back(true);
+        }
+    }
+    for (const auto& node : targetChildren) {
+        if (!baseChildIds.count(node.id)) {
+            diffNodes.emplace_back(node);
+            states.push_back(false);
+        }
+    }
+
+    return {
+        getSubRange(diffNodes, startIndex, length),
+        getSubRange(states, startIndex, length),
+        static_cast<uint32_t>(diffNodes.size())
+    };
+}
+
 ConstructorDiffNode ExpandConstructorDiffNode(
     uint64_t baseSnapshotId, uint64_t targetSnapshotId, uint64_t nodeId, uint32_t startIndex, uint32_t length)
 {
@@ -986,38 +1018,29 @@ ConstructorDiffNode ExpandConstructorDiffNode(
     uint32_t targetShallowSize = isTargetValid ? targetNode.shallowSize : 0;
 
     std::vector<InstanceNode> children;
+    std::vector<bool> childAddedStates;
     uint32_t childrenCount = 0;
     if (isBaseValid && isTargetValid) {
         auto baseChildren = ExpandConstructorNode(
             baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
         auto targetChildren = ExpandConstructorNode(
             targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
-        std::unordered_set<uint64_t> baseChildIds;
-        std::unordered_set<uint64_t> targetChildIds;
-        for (auto& child : baseChildren) baseChildIds.emplace(child.id);
-        for (auto& child : targetChildren) targetChildIds.emplace(child.id);
-        std::vector<InstanceNode> diffNodes;
-        for (const auto& node : baseChildren) {
-            if (!targetChildIds.count(node.id)) diffNodes.emplace_back(node);
-        }
-        for (const auto& node : targetChildren) {
-            if (!baseChildIds.count(node.id)) {
-                diffNodes.emplace_back(node);
-            }
-        }
-        childrenCount = diffNodes.size();
-        children = getSubRange(diffNodes, startIndex, length);
+        std::tie(children, childAddedStates, childrenCount) = buildDiffChildrenAndStates(
+            baseChildren, targetChildren, startIndex, length);
     } else if (isTargetValid) {
         childrenCount = targetNode.childrenCount;
         auto targetChildren = ExpandConstructorNode(
             targetSnapshotId, targetNode.id, 0, targetNode.childrenCount).children;
         children = getSubRange(targetChildren, startIndex, length);
+        std::vector<bool> states(targetChildren.size(), false);
+        childAddedStates = getSubRange(states, startIndex, length);
     } else {
         childrenCount = baseNode.childrenCount;
         auto baseChildren = ExpandConstructorNode(
             baseSnapshotId, baseNode.id, 0, baseNode.childrenCount).children;
         children = getSubRange(baseChildren, startIndex, length);
-        children = getSubRange(baseChildren, startIndex, length);
+        std::vector<bool> states(baseChildren.size(), true);
+        childAddedStates = getSubRange(states, startIndex, length);
     }
 
     ConstructorDiffNode diffNode(
@@ -1030,6 +1053,7 @@ ConstructorDiffNode ExpandConstructorDiffNode(
         targetTotalSize
     );
     diffNode.children = children;
+    diffNode.childAddedStates = childAddedStates;
     diffNode.childrenCount = childrenCount;
     diffNode.startPosition = startIndex;
     diffNode.endPosition = startIndex + length - 1;
