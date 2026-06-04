@@ -68,12 +68,9 @@ bool HttpServer::isPortInUse(int port)
         return false;
     }
 
-    int opt = 1;
-#ifdef _WIN32
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
-#else
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-#endif
+    // Note: Do NOT set SO_REUSEADDR here. On Windows, SO_REUSEADDR allows
+    // multiple sockets to bind the same port, making this test unreliable.
+    // Without it, bind() correctly detects ports already in use on all platforms.
 
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;

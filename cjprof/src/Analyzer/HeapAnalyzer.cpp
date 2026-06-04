@@ -93,7 +93,7 @@ bool HeapAnalyzer::Analyze(bool verbose)
         AnalyzeObject();
     }
     auto t2 = std::chrono::steady_clock::now();
-if (!m_dumpReport) {
+    if (!m_dumpReport) {
         AnalyzeThread();
         FilterPlaceholderObjects();
     }
@@ -1308,11 +1308,13 @@ bool HeapAnalyzer::StartReportServer(int port)
     auto t_index_start = std::chrono::steady_clock::now();
     for (const auto& node : *context->dominanceNodes) {
         context->objectIdToRetainedSize[node.object_id] = node.retained_size;
+        context->objectIdToDominanceNode[node.object_id] = &node;
         if (node.parent_id != 0) {
             context->childrenByParentId[node.parent_id].push_back(&node);
         }
     }
     // Build object_id -> class_name index (reuse buildObjectIdToClassMap logic inline)
+    // Also build className -> DominanceNode* index for by-type handlers
     {
         std::unordered_map<uint64_t, std::string> classIdToNameMap;
         if (context->classes) {
@@ -1342,6 +1344,13 @@ bool HeapAnalyzer::StartReportServer(int port)
                     className = (it != classIdToNameMap.end()) ? it->second : "unknown";
                 }
                 context->objectIdToClassName[obj.object_id] = className;
+                // Build className -> DominanceNode* index (only for objects in dominance tree)
+                if (className != "unknown") {
+                    auto dnIt = context->objectIdToDominanceNode.find(obj.object_id);
+                    if (dnIt != context->objectIdToDominanceNode.end()) {
+                        context->classNameToDominanceNodes[className].push_back(dnIt->second);
+                    }
+                }
             }
         }
     }
