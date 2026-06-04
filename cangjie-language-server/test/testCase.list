@@ -264,6 +264,7 @@
 {"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_006.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_PrimaryTy_Extend_007.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_ReExport_001.test","id":"6"}}
+{"completion":{"testFile":"LSP_Completion_ReExport_Alias_001.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
