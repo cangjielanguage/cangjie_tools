@@ -33,6 +33,14 @@ struct HttpContext
     double m_cutoff05Percent = 0.005;
     // m_maxDepthLimit is 5: max depth for sunburst/treemap
     int m_maxDepthLimit = 5;
+
+    // Pre-built indexes for O(1)/O(children) lookup (built once in StartReportServer)
+    // objectIdToRetainedSize: dominanceNodes object_id -> retained_size, for O(1) parent lookup
+    std::unordered_map<uint64_t, uint64_t> objectIdToRetainedSize;
+    // childrenByParentId: dominanceNodes parent_id -> vector of child node pointers, for O(children) child lookup
+    std::unordered_map<uint64_t, std::vector<const DominanceNode*>> childrenByParentId;
+    // objectIdToClassName: objects object_id -> class_name, for O(1) name lookup
+    std::unordered_map<uint64_t, std::string> objectIdToClassName;
 };
 
 } // namespace cjprof

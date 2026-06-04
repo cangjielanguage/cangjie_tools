@@ -32,47 +32,27 @@ static constexpr uint64_t kMinHeapSize = 1;
 
 static std::string getClassName(const HttpContext& ctx, uint64_t objectId)
 {
-    if (!ctx.objects) {
-        return "unknown";
-    }
-
-    for (const auto& obj : *ctx.objects) {
-        if (obj.object_id == objectId) {
-            if (!obj.name.empty()) {
-                return obj.name;
-            }
-            if (obj.class_id == 0) {
-                switch (obj.category) {
-                    case ObjectCategory::PRIMITIVE_ARRAY: return "PRIMITIVE_ARRAY";
-                    case ObjectCategory::OBJECT_ARRAY: return "OBJECT_ARRAY";
-                    case ObjectCategory::STRUCT_ARRAY: return "STRUCT_ARRAY";
-                    case ObjectCategory::PINNED_OBJECT: return "PINNED_OBJECT";
-                    case ObjectCategory::LARGE_OBJECT: return "LARGE_OBJECT";
-                    case ObjectCategory::UNMOVABLE_OBJECT: return "UNMOVABLE_OBJECT";
-                    default: return "unknown";
-                }
-            }
-
-            for (const auto& cls : *ctx.classes) {
-                if (cls.class_id == obj.class_id) {
-                    if (!cls.class_name.empty()) {
-                        return cls.class_name;
-                    }
-                }
-            }
-            break;
-        }
+    auto it = ctx.objectIdToClassName.find(objectId);
+    if (it != ctx.objectIdToClassName.end()) {
+        return it->second;
     }
     return "unknown";
 }
 
 // Build object_id -> class_name map for ALL objects in one pass (O(N))
+// NOTE: This is now only used by HeapAnalyzer::StartReportServer() to build ctx.objectIdToClassName.
+// Individual handlers should use ctx.objectIdToClassName directly via getClassName().
 static std::unordered_map<uint64_t, std::string> buildObjectIdToClassMap(const HttpContext& ctx)
 {
+    // If the pre-built index exists, just return it (avoid rebuilding)
+    if (!ctx.objectIdToClassName.empty()) {
+        return ctx.objectIdToClassName;
+    }
+
     std::unordered_map<uint64_t, std::string> objectIdToClassMap;
     if (!ctx.objects) return objectIdToClassMap;
 
-    // First build class_id -> class_name map for O(1) lookup
+    // Build class_id -> class_name map for O(1) lookup
     std::unordered_map<uint64_t, std::string> classIdToNameMap;
     if (ctx.classes) {
         for (const auto& cls : *ctx.classes) {
@@ -82,7 +62,7 @@ static std::unordered_map<uint64_t, std::string> buildObjectIdToClassMap(const H
         }
     }
 
-    // Then build object_id -> class_name map in one pass
+    // Build object_id -> class_name map in one pass
     for (const auto& obj : *ctx.objects) {
         std::string className;
         if (!obj.name.empty()) {
@@ -210,10 +190,8 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx)
     uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.m_threshold01Percent);
     if (threshold01 == 0) threshold01 = kMinHeapSize;
 
-    std::unordered_map<uint64_t, uint64_t> parentRetainedSizeMap;
-    for (const auto& node : *ctx.dominanceNodes) {
-        parentRetainedSizeMap[node.object_id] = node.retained_size;
-    }
+    // Use pre-built index instead of building parentRetainedSizeMap from scratch
+    const auto& parentRetainedSizeMap = ctx.objectIdToRetainedSize;
 
     int cutoffNodeCount = 0;
     std::unordered_map<uint64_t, int> parentCutoffCountMap;
@@ -257,23 +235,10 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx)
         result["nodes"].push_back(nodeJson);
     }
 
-    // Group non-root nodes by parent_id
-    std::unordered_map<uint64_t, std::vector<const DominanceNode*>> childrenByParentMap;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.parent_id == 0 || node.depth == 0) {
-            continue;  // Already handled as root nodes
-        }
-        if (node.depth > ctx.m_maxDepthLimit) {
-            continue;  // Skip nodes beyond depth limit
-        }
-        childrenByParentMap[node.parent_id].push_back(&node);
-    }
-
-    // Add non-root nodes with cutoff filtering
-    // Only generate cutoff summaries for parents that will appear in the tree
-    // (parentRetained >= threshold01). Skip parents that are themselves cutoff.
-    for (const auto& [parentId, children] : childrenByParentMap) {
-        // Get parent retained size for cutoff calculation
+    // Use pre-built childrenByParentId index instead of building childrenByParentMap from scratch
+    // Only process parents that have children in the index
+    for (const auto& [parentId, children] : ctx.childrenByParentId) {
+        // Get parent retained size for cutoff calculation — O(1) via pre-built index
         uint64_t parentRetained = 0;
         auto it = parentRetainedSizeMap.find(parentId);
         if (it != parentRetainedSizeMap.end()) {
@@ -288,6 +253,15 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx)
         }
 
         for (const auto* node : children) {
+            // Skip root nodes (they are handled above)
+            if (node->parent_id == 0 || node->depth == 0) {
+                continue;
+            }
+
+            if (node->depth > ctx.m_maxDepthLimit) {
+                continue;  // Skip nodes beyond depth limit
+            }
+
             // Check if node should be cutoff (either by threshold01 or cutoff05Percent)
             bool isCutoff = false;
 
@@ -358,38 +332,31 @@ std::string HttpHandlers::handleDominanceChildren(const HttpContext& ctx, uint64
         return result.dump();
     }
 
-    // Find parent's retained size
+    // Find parent's retained size — O(1) via pre-built index
     uint64_t parentRetained = 0;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.object_id == parentId) {
-            parentRetained = node.retained_size;
-            break;
-        }
+    auto retainedIt = ctx.objectIdToRetainedSize.find(parentId);
+    if (retainedIt != ctx.objectIdToRetainedSize.end()) {
+        parentRetained = retainedIt->second;
     }
 
-    // Collect children
-    std::vector<const DominanceNode*> children;
-    for (const auto& node : *ctx.dominanceNodes) {
-        if (node.parent_id == parentId) {
-            children.push_back(&node);
+    // Collect children — O(children_count) via pre-built index instead of O(N) scan
+    auto childIt = ctx.childrenByParentId.find(parentId);
+    if (childIt != ctx.childrenByParentId.end()) {
+        for (const auto* node : childIt->second) {
+            std::string className = getClassName(ctx, node->object_id);
+            json nodeJson = {
+                {"id", node->object_id},
+                {"class_name", className},
+                {"retained_size", node->retained_size},
+                {"shallow_size", node->shallow_size},
+                {"depth", node->depth},
+                {"parent_id", parentId},
+                {"instance_count", 1},
+                {"is_clustered", false},
+                {"is_cutoff", false}
+            };
+            result["nodes"].push_back(nodeJson);
         }
-    }
-
-    // Add children directly (no clustering)
-    for (const auto* node : children) {
-        std::string className = getClassName(ctx, node->object_id);
-        json nodeJson = {
-            {"id", node->object_id},
-            {"class_name", className},
-            {"retained_size", node->retained_size},
-            {"shallow_size", node->shallow_size},
-            {"depth", node->depth},
-            {"parent_id", parentId},
-            {"instance_count", 1},
-            {"is_clustered", false},
-            {"is_cutoff", false}
-        };
-        result["nodes"].push_back(nodeJson);
     }
 
     return result.dump();
@@ -407,18 +374,23 @@ std::string HttpHandlers::handleDominanceClusterExpand(const HttpContext& ctx, c
     }
 
     // Find each instance by its object_id and return as individual nodes
+    // Use pre-built indexes for O(1) lookup instead of O(N) scan per instance
     for (const auto& instanceId : instanceIds) {
+        // Check if this instance has children — O(1) via childrenByParentId index
+        auto childIt = ctx.childrenByParentId.find(instanceId);
+        bool hasChildren = (childIt != ctx.childrenByParentId.end() && !childIt->second.empty());
+
+        // Find node info via objectIdToRetainedSize to confirm existence, then scan for full details
+        // (dominanceNodes has no object_id index, so we still need a scan for the full node data)
+        auto retainedIt = ctx.objectIdToRetainedSize.find(instanceId);
+        if (retainedIt == ctx.objectIdToRetainedSize.end()) {
+            continue;  // Instance not found in dominanceNodes
+        }
+
+        // Find the full node data — O(N) but only scanning until found
         for (const auto& node : *ctx.dominanceNodes) {
             if (node.object_id == instanceId) {
                 std::string className = getClassName(ctx, node.object_id);
-                // Check if this instance has children
-                bool hasChildren = false;
-                for (const auto& child : *ctx.dominanceNodes) {
-                    if (child.parent_id == instanceId) {
-                        hasChildren = true;
-                        break;
-                    }
-                }
                 json nodeJson = {
                     {"id", node.object_id},
                     {"class_name", className},
@@ -495,8 +467,8 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx)
         int max_depth = 0;
     };
 
-    // Build object_id -> class_name map for ALL objects (one pass, O(N))
-    auto objectIdToClassMap = buildObjectIdToClassMap(ctx);
+    // Use pre-built objectIdToClassName index instead of rebuilding map each request
+    const auto& objectIdToClassMap = ctx.objectIdToClassName;
 
     using GroupKey = std::pair<std::string, std::string>;
     std::unordered_map<GroupKey, TypeNode, PairStringHash> typeNodes;
@@ -508,6 +480,7 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx)
     };
 
     // Pass 1: traverse above-threshold objects, group by (class_name, parent_type)
+    // Use pre-built childrenByParentId index to avoid O(N²) nested loop
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.retained_size < threshold01) continue;
 
@@ -540,24 +513,26 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx)
             tn.max_depth = node.depth;
         }
 
-        // Collect child types and aggregate below-threshold children by their type
-        for (const auto& child : *ctx.dominanceNodes) {
-            if (child.parent_id == node.object_id && child.object_id != node.object_id) {
-                auto childClassIt = objectIdToClassMap.find(child.object_id);
+        // Collect child types using pre-built childrenByParentId index — O(children) instead of O(N)
+        auto childIt = ctx.childrenByParentId.find(node.object_id);
+        if (childIt != ctx.childrenByParentId.end()) {
+            for (const auto* child : childIt->second) {
+                if (child->object_id == node.object_id) continue;
+                auto childClassIt = objectIdToClassMap.find(child->object_id);
                 if (childClassIt == objectIdToClassMap.end()) continue;
                 std::string childClass = childClassIt->second;
                 if (childClass == "unknown") continue;
 
-                if (child.retained_size >= threshold01) {
+                if (child->retained_size >= threshold01) {
                     if (childClass != className) {
                         tn.child_types.insert(childClass);
                     }
                 } else {
                     tn.cutoff_type_counts[childClass]++;
-                    tn.cutoff_type_retained[childClass] += child.retained_size;
+                    tn.cutoff_type_retained[childClass] += child->retained_size;
                     tn.cutoff_count++;
-                    tn.cutoff_retained += child.retained_size;
-                    tn.cutoff_shallow += child.shallow_size;
+                    tn.cutoff_retained += child->retained_size;
+                    tn.cutoff_shallow += child->shallow_size;
                 }
             }
         }
@@ -914,8 +889,8 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
     uint64_t threshold01 = static_cast<uint64_t>(usedHeap * ctx.m_threshold01Percent);
     if (threshold01 == 0) threshold01 = kMinHeapSize;
 
-    // Build object_id -> class_name map for ALL objects (O(N))
-    auto objectIdToClassMap = buildObjectIdToClassMap(ctx);
+    // Use pre-built objectIdToClassName index instead of rebuilding map each request
+    const auto& objectIdToClassMap = ctx.objectIdToClassName;
 
     using GroupKey = std::pair<std::string, std::string>;
     auto makeNodeId = [](const std::string& className, const std::string& parentType) -> std::string {
@@ -957,6 +932,7 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
     std::vector<uint64_t> parentObjectIds;
 
     // Pass 1: build all TypeNodes (above-threshold objects, per-parent grouping)
+    // Use pre-built childrenByParentId index to avoid O(N²) nested loop
     for (const auto& node : *ctx.dominanceNodes) {
         if (node.retained_size < threshold01) continue;
 
@@ -993,24 +969,26 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
             parentObjectIds.push_back(node.object_id);
         }
 
-        // Collect child types and cutoff_type_counts
-        for (const auto& child : *ctx.dominanceNodes) {
-            if (child.parent_id == node.object_id && child.object_id != node.object_id) {
-                auto childClassIt = objectIdToClassMap.find(child.object_id);
+        // Collect child types using pre-built childrenByParentId index — O(children) instead of O(N)
+        auto childIt = ctx.childrenByParentId.find(node.object_id);
+        if (childIt != ctx.childrenByParentId.end()) {
+            for (const auto* child : childIt->second) {
+                if (child->object_id == node.object_id) continue;
+                auto childClassIt = objectIdToClassMap.find(child->object_id);
                 if (childClassIt == objectIdToClassMap.end()) continue;
                 std::string childClass = childClassIt->second;
                 if (childClass == "unknown") continue;
 
-                if (child.retained_size >= threshold01) {
+                if (child->retained_size >= threshold01) {
                     if (childClass != className) {
                         tn.child_types.insert(childClass);
                     }
                 } else {
                     tn.cutoff_type_counts[childClass]++;
-                    tn.cutoff_type_retained[childClass] += child.retained_size;
+                    tn.cutoff_type_retained[childClass] += child->retained_size;
                     tn.cutoff_count++;
-                    tn.cutoff_retained += child.retained_size;
-                    tn.cutoff_shallow += child.shallow_size;
+                    tn.cutoff_retained += child->retained_size;
+                    tn.cutoff_shallow += child->shallow_size;
                 }
             }
         }
