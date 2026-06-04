@@ -902,6 +902,13 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
         }
     }
 
+    // unreachable nodes: retained = shallow
+    for (size_t i = 0; i < n; ++i) {
+        if (dom[i + 1] == result.noEntry) {
+            retainedSizes[i] = sizes[i];
+        }
+    }
+
     // Step 6: Compute depth via BFS from roots
     std::vector<uint32_t> depth(n, UINT32_MAX);
     std::queue<size_t> bfs;
@@ -942,11 +949,16 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
         dn.retained_size = retainedSizes[i];
         dn.depth = depth[i] == UINT32_MAX ? 0 : depth[i];
         size_t parentOrdinal = dom[i + 1];
-        dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? ids[parentOrdinal - 1] : 0;
+        if (parentOrdinal == result.noEntry) {
+            dn.parent_id = 0;
+        } else {
+            dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? ids[parentOrdinal - 1] : 0;
+        }
         dn.instance_count = 1;
         dn.is_class_clustered = false;
         nodes.push_back(dn);
     }
+
     return nodes;
 }
 
@@ -1007,6 +1019,13 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnaps
         }
     }
 
+    // unreachable nodes: retained = shallow
+    for (size_t i = 0; i < n; ++i) {
+        if (dom[i + 1] == result.noEntry) {
+            retainedSizes[i] = rhs.nodes[i].selfSize;
+        }
+    }
+
     // Compute depth via BFS from roots
     std::vector<uint32_t> depth(n, UINT32_MAX);
     std::queue<size_t> bfs;
@@ -1038,7 +1057,11 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnaps
         dn.retained_size = retainedSizes[i];
         dn.depth = depth[i] == UINT32_MAX ? 0 : depth[i];
         size_t parentOrdinal = dom[i + 1];
-        dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? rhs.nodes[parentOrdinal - 1].id : 0;
+        if (parentOrdinal == result.noEntry) {
+            dn.parent_id = 0;
+        } else {
+            dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? rhs.nodes[parentOrdinal - 1].id : 0;
+        }
         dn.instance_count = 1;
         dn.is_class_clustered = false;
         nodes.push_back(dn);
