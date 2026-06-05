@@ -41,6 +41,10 @@ struct HttpContext
     std::unordered_map<uint64_t, std::vector<const DominanceNode*>> childrenByParentId;
     // objectIdToClassName: objects object_id -> class_name, for O(1) name lookup
     std::unordered_map<uint64_t, std::string> objectIdToClassName;
+    // objectIdToDominanceNode: dominanceNodes object_id -> DominanceNode pointer, for O(1) node lookup
+    std::unordered_map<uint64_t, const DominanceNode*> objectIdToDominanceNode;
+    // classNameToDominanceNodes: class_name -> vector of DominanceNode pointers, for O(matches) lookup by type
+    std::unordered_map<std::string, std::vector<const DominanceNode*>> classNameToDominanceNodes;
 };
 
 } // namespace cjprof

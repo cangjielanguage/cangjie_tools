@@ -315,8 +315,10 @@
         let cachedFullTree = null;  // Full tree data for navigation
         let sunburstCurrentNode = null;  // Currently viewed node
         let sunburstCenterNodeId = null;  // Sunburst center node id, for detecting center clicks
-        let sunburstParentStack = [];  // Parent node stack for navigating back
+        let sunburstParentStack = [];  // View stack for navigating back: each entry is { node, renderData }
+        let currentRenderData = null;  // Cached renderData for current sunburst view
         let sunburstGranularity = 'object';  // Current sunburst granularity for API selection
+        let cachedTypeNodeMap = null;  // Node map for O(1) lookup in type mode
         let treeNodeMap = new Map();
         let sunburstChart = null;
         let treeChart = null;
@@ -382,7 +384,7 @@
                             // Re-render from current navigation state
                             if (sunburstCurrentNode && cachedFullTree) {
                                 ensureDepth(sunburstCurrentNode, MAX_DEPTH, sunburstGranularity).then(function() {
-                                    renderSunburstView(sunburstCurrentNode);
+                                    currentRenderData = renderSunburstView(sunburstCurrentNode);
                                 });
                             } else {
                                 drawSunburst(cachedRoot);
@@ -504,38 +506,33 @@
         }
 
         // Build tree from type nodes (per-parent grouping: same type can appear under different parents)
-        // Uses child_types (which contains child node ids) to build parent-child relationships
+        // Uses parent_id to build parent-child relationships (each child assigned to exactly ONE parent)
+        // Also saves nodeMap for O(1) findNodeInFullTree lookups
         function buildTypeTree(nodes) {
             const nodeMap = new Map();
             nodes.forEach(n => {
                 const key = n.id || (n.type_name + '@' + (n.parent_type || ''));
                 nodeMap.set(key, Object.assign({}, n, { id: key, children: [] }));
             });
+            // Cache nodeMap for O(1) lookups in findNodeInFullTree
+            cachedTypeNodeMap = nodeMap;
 
-            // Build parent-child relationships from child_types arrays
-            // Each node's child_types contains the IDs of its children
-            nodeMap.forEach((parentNode, parentKey) => {
-                if (parentNode.child_types && parentNode.child_types.length > 0) {
-                    parentNode.child_types.forEach(childId => {
-                        const childNode = nodeMap.get(childId);
-                        if (childNode && childNode.id !== parentKey) {
-                            parentNode.children.push(childNode);
-                        }
-                    });
+            // Build parent-child relationships from parent_id field
+            // Each node has parent_id pointing to its unique parent node
+            // This ensures each child is assigned to exactly ONE parent,
+            // avoiding double-counting where the same child appears under multiple parents
+            nodeMap.forEach((node, key) => {
+                var parentId = node.parent_id;
+                if (parentId && nodeMap.has(parentId) && parentId !== key) {
+                    nodeMap.get(parentId).children.push(node);
                 }
             });
 
-            // Root types: nodes that are not children of any other node
-            const childIds = new Set();
-            nodeMap.forEach((parentNode) => {
-                if (parentNode.children && parentNode.children.length > 0) {
-                    parentNode.children.forEach(child => childIds.add(child.id));
-                }
-            });
-
+            // Root types: nodes whose parent_id is empty, not found in nodeMap, or self-referencing
             let rootTypes = [];
             nodeMap.forEach((node, key) => {
-                if (!childIds.has(key)) {
+                var parentId = node.parent_id;
+                if (!parentId || !nodeMap.has(parentId) || parentId === key) {
                     rootTypes.push(node);
                 }
             });
@@ -588,10 +585,12 @@
                     // Click center node (the sole top-level node spanning 360°) -> go back to parent
                     if (sunburstCenterNodeId !== null && clickedNodeId === sunburstCenterNodeId) {
                         if (sunburstParentStack.length > 0) {
-                            var parentNode = sunburstParentStack.pop();
-                            sunburstCurrentNode = parentNode;
-                            await ensureDepth(parentNode, MAX_DEPTH, sunburstGranularity);
-                            renderSunburstView(parentNode);
+                            var stackEntry = sunburstParentStack.pop();
+                            sunburstCurrentNode = stackEntry.node;
+                            // Use cached renderData — zero convertNode, zero HTTP requests
+                            applyCachedRenderData(stackEntry.renderData);
+                            // Update currentRenderData so subsequent clicks push the correct snapshot
+                            currentRenderData = stackEntry.renderData;
                         }
                         return;
                     }
@@ -599,10 +598,17 @@
                     // Click outer data node -> drill down showing 5 layers from that node
                     var clickedNode = findNodeInFullTree(cachedFullTree, clickedNodeId);
                     if (clickedNode) {
-                        await ensureDepth(clickedNode, MAX_DEPTH, sunburstGranularity);
-                        sunburstParentStack.push(sunburstCurrentNode);
+                        // Cache current view's renderData in stack before navigating away
+                        sunburstParentStack.push({ node: sunburstCurrentNode, renderData: currentRenderData });
+
+                        // Incremental expansion for object mode: only fetch missing children
+                        // Type mode: tree already fully built, no need for expansion
+                        if (sunburstGranularity !== 'type') {
+                            await expandMissingChildren(clickedNode);
+                        }
+
                         sunburstCurrentNode = clickedNode;
-                        renderSunburstView(clickedNode);
+                        currentRenderData = renderSunburstView(clickedNode);
                     }
                 });
             }
@@ -611,19 +617,35 @@
             cachedFullTree = root;
             sunburstCurrentNode = root;
             sunburstParentStack = [];
+            currentRenderData = null;
 
-            // Render immediately with existing data, then expand depth in background
-            renderSunburstView(root);
-            ensureDepth(root, MAX_DEPTH, sunburstGranularity).then(function() {
-                // Re-render after depth expansion completes (only if still viewing same root)
-                if (sunburstCurrentNode === root) {
-                    renderSunburstView(root);
+            // For type granularity, buildTypeTree already constructs the full multi-level tree
+            // from /dominance/tree-by-type data (all nodes have parent_id set).
+            // No need for ensureDepth — it would trigger hundreds of redundant HTTP requests
+            // to /dominance/children-by-type for data that's already in the tree.
+            if (sunburstGranularity === 'type') {
+                currentRenderData = renderSunburstView(root);
+            } else {
+                // Object granularity: tree data from /dominance/tree only has root-level nodes,
+                // need ensureDepth to lazy-load deeper levels
+                if (sunburstChart) {
+                    sunburstChart.showLoading('default', { text: 'Loading...', color: '#e94560', textColor: '#eee', maskColor: 'rgba(0,0,0,0.3)' });
                 }
-            });
+                ensureDepth(root, MAX_DEPTH, sunburstGranularity).then(function() {
+                    if (sunburstChart) sunburstChart.hideLoading();
+                    if (sunburstCurrentNode === root) {
+                        currentRenderData = renderSunburstView(root);
+                    }
+                });
+            }
         }
 
-        // Find node in full tree by id
+        // Find node in full tree by id — use cachedTypeNodeMap for O(1) lookup in type mode
         function findNodeInFullTree(node, nodeId) {
+            if (sunburstGranularity === 'type' && cachedTypeNodeMap && cachedTypeNodeMap.has(nodeId)) {
+                return cachedTypeNodeMap.get(nodeId);
+            }
+            // Fallback: DFS for object mode or if nodeMap is unavailable
             if (!node) return null;
             if (node.id === nodeId) return node;
             if (node.children) {
@@ -641,10 +663,27 @@
         // granularity: 'object' uses /dominance/children?parent_id=, 'type' uses /dominance/children-by-type?parent_type=
         async function ensureDepth(node, targetDepth, granularity) {
             granularity = granularity || 'object';
+            // Collect all node IDs already in the tree to prevent duplicate type nodes
+            // under multiple parents in by-type mode
+            var existingNodeIdSet = new Set();
+            if (granularity === 'type') {
+                function collectNodeIds(n) {
+                    if (!n) return;
+                    if (n.id) existingNodeIdSet.add(n.id);
+                    if (n.children) {
+                        for (var i = 0; i < n.children.length; i++) {
+                            collectNodeIds(n.children[i]);
+                        }
+                    }
+                }
+                collectNodeIds(node);
+            }
             for (var level = 0; level < targetDepth; level++) {
                 var leaves = collectLeaves(node);
 
                 var needExpand = leaves.filter(function(l) {
+                    // Skip nodes that already have children loaded — avoid redundant network requests
+                    if (l.children && l.children.length > 0) return false;
                     return (l.retained_size || 0) > (l.shallow_size || 0) && l.id && l.id !== 0;
                 });
 
@@ -657,8 +696,14 @@
                             .then(function(res) { return res.json(); })
                             .then(function(data) {
                                 if (data.nodes && data.nodes.length > 0) {
-                                    leaf.children = data.nodes.map(function(c) {
+                                    // Filter out child nodes whose ID already exists in the tree
+                                    // to prevent the same type node from appearing under multiple parents
+                                    leaf.children = data.nodes.filter(function(c) {
                                         var childKey = c.id || (c.type_name + '@' + (c.parent_type || ''));
+                                        return !existingNodeIdSet.has(childKey);
+                                    }).map(function(c) {
+                                        var childKey = c.id || (c.type_name + '@' + (c.parent_type || ''));
+                                        existingNodeIdSet.add(childKey);
                                         return {
                                             id: childKey,
                                             class_name: c.class_name,
@@ -711,20 +756,67 @@
         }
 
         // Collect all leaf nodes (nodes without children) in the subtree
-        function collectLeaves(node) {
-            if (!node) return [];
-            if (!node.children || node.children.length === 0) return [node];
-            var result = [];
-            for (var i = 0; i < node.children.length; i++) {
-                result = result.concat(collectLeaves(node.children[i]));
+        // Uses accumulator for in-place push instead of concat (avoids repeated array creation)
+        function collectLeaves(node, acc) {
+            if (!node) return acc || [];
+            acc = acc || [];
+            if (!node.children || node.children.length === 0) {
+                acc.push(node);
+                return acc;
             }
-            return result;
+            for (var i = 0; i < node.children.length; i++) {
+                collectLeaves(node.children[i], acc);
+            }
+            return acc;
+        }
+
+        // Incremental expansion: only fetch children for leaf nodes in clickedNode's subtree
+        // that have no children loaded yet. This avoids the full BFS ensureDepth approach
+        // which re-traverses the entire subtree in 4 loops.
+        async function expandMissingChildren(clickedNode) {
+            // Collect leaf nodes (children === null) that may have dominated children
+            var needExpand = collectLeaves(clickedNode).filter(function(l) {
+                return l.children === null && (l.retained_size || 0) > (l.shallow_size || 0) && l.id && l.id !== 0;
+            });
+            if (needExpand.length === 0) return;
+
+            // Fetch all missing children in parallel
+            var promises = needExpand.map(function(leaf) {
+                return fetch(API_BASE + '/dominance/children?parent_id=' + leaf.id)
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data.nodes && data.nodes.length > 0) {
+                            leaf.children = data.nodes.map(function(c) {
+                                return {
+                                    id: c.id,
+                                    class_name: c.class_name,
+                                    type_name: c.type_name,
+                                    retained_size: c.retained_size,
+                                    shallow_size: c.shallow_size,
+                                    depth: c.depth,
+                                    parent_id: c.parent_id,
+                                    instance_count: c.instance_count,
+                                    is_clustered: c.is_clustered || false,
+                                    is_cutoff: c.is_cutoff || false,
+                                    children: null
+                                };
+                            });
+                        }
+                    })
+                    .catch(function(e) {
+                        console.error('Failed to load children for node ' + leaf.id, e);
+                    });
+            });
+
+            await Promise.all(promises);
         }
 
         // Render sunburst view: current view node as center, showing 5 layers outward
         // MAX_DEPTH=4 means children at depth 0-4 (5 layers), depth>=4 truncated as leaf
         var MAX_DEPTH = 4;
 
+        // Render sunburst view: current view node as center, showing 5 layers outward
+        // Returns renderData object for caching: { data, centerName, classColors, sunburstCenterNodeId }
         function renderSunburstView(viewNode) {
             // Determine center and top-level nodes first
             var isVirtualRoot = viewNode.class_name === 'Root';
@@ -791,16 +883,16 @@
                     var normalChildren = [];
                     var parentRetainedSize = node.retained_size || 0;
 
-                    // Cutoff children with a real type_name (not "...") should be shown independently
-                    // Summary cutoff nodes ("...", remaining-cutoff) are merged into one "..." node
+                    // Split children into normalChildren and cutoffChildren for rendering:
+                    // - cutoff-type nodes (is_cutoff=false, class_name is a real type name) → normalChildren (shown independently)
+                    // - @@cutoff and ::remaining-cutoff nodes (is_cutoff=true, class_name starts with "...") → cutoffChildren (merged into one "..." arc)
+                    // Key: use class_name to distinguish, not type_name — because @@cutoff has type_name set to
+                    // its parent class name (e.g. "MyClass"), but its class_name is "... (N instances)",
+                    // indicating it's a multi-type aggregation bucket that should be merged.
                     node.children.forEach(function(c) {
-                        if (c.is_cutoff) {
-                            var tn = c.type_name || '';
-                            if (tn !== '' && tn !== '...' && !tn.startsWith('::')) {
-                                normalChildren.push(c);
-                            } else {
-                                cutoffChildren.push(c);
-                            }
+                        var cn = c.class_name || '';
+                        if (cn.startsWith('...')) {
+                            cutoffChildren.push(c);
                         } else {
                             normalChildren.push(c);
                         }
@@ -907,6 +999,73 @@
             var legend = document.getElementById('sunburst-legend');
             legend.innerHTML = '';
             classColors.forEach(function(color, name) {
+                legend.innerHTML += '<div class="legend-item" title="' + escapeHtml(name) + '"><div class="legend-color" style="background:' + color + '"></div>' + escapeHtml(name) + '</div>';
+            });
+
+            // Return renderData for caching in view stack
+            return { data: data, centerName: centerName, classColors: classColors, sunburstCenterNodeId: sunburstCenterNodeId };
+        }
+
+        // Apply cached renderData to ECharts without running convertNode
+        function applyCachedRenderData(renderData) {
+            sunburstCenterNodeId = renderData.sunburstCenterNodeId;
+            sunburstChart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#16213e',
+                    borderColor: '#e94560',
+                    borderWidth: 1,
+                    textStyle: { color: '#eee', fontSize: 12 },
+                    padding: [10, 14],
+                    formatter: function(params) {
+                        var d = params.data;
+                        if (sunburstCenterNodeId !== null && d.nodeId === sunburstCenterNodeId) {
+                            var backHint = sunburstParentStack.length > 0 ?
+                                '<div style="color:#888;font-size:11px;">Click to go back</div>' : '';
+                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(renderData.centerName) + '</div>' +
+                                   '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
+                                   backHint;
+                        }
+                        var instanceInfo = d.instance_count > 1 ?
+                            '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
+                               instanceInfo +
+                               '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
+                               '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
+                    }
+                },
+                series: [{
+                    type: 'sunburst',
+                    radius: [0, '95%'],
+                    data: renderData.data,
+                    sort: 'desc',
+                    emphasis: {
+                        focus: 'ancestor',
+                        itemStyle: { opacity: 1 }
+                    },
+                    label: {
+                        color: '#eee',
+                        fontSize: 10,
+                        rotate: 'radial',
+                        formatter: function(params) {
+                            return truncate(params.name, 10);
+                        }
+                    },
+                    levels: [
+                        {},
+                        { label: { rotate: 'tangential' } },
+                        { label: { rotate: 'radial' } },
+                        { label: { rotate: 'radial' } },
+                        { label: { rotate: 'radial' } },
+                        { label: { rotate: 'radial' } }
+                    ]
+                }]
+            }, true);
+
+            var legend = document.getElementById('sunburst-legend');
+            legend.innerHTML = '';
+            renderData.classColors.forEach(function(color, name) {
                 legend.innerHTML += '<div class="legend-item" title="' + escapeHtml(name) + '"><div class="legend-color" style="background:' + color + '"></div>' + escapeHtml(name) + '</div>';
             });
         }
@@ -1057,19 +1216,19 @@
                 treeNodeMap.set(key, Object.assign({}, n, { id: key }));
             });
 
-            // Root types have empty parent_type, or parent_type not found in nodeMap
+            // Root types: parent_id is empty, or not found in treeNodeMap — O(N) using map + set
+            var parentTypeSet = new Set();
+            data.nodes.forEach(function(n) {
+                var typeName = n.type_name;
+                if (typeName) parentTypeSet.add(typeName);
+            });
             var rootTypes = data.nodes.filter(function(n) {
-                var key = n.id || (n.type_name + '@' + (n.parent_type || ''));
                 if (!n.parent_type || n.parent_type === '') return true;
-                // Check if parent exists in nodeMap
-                var found = false;
-                data.nodes.forEach(function(other) {
-                    var otherKey = other.id || (other.type_name + '@' + (other.parent_type || ''));
-                    if (other.type_name === n.parent_type && otherKey !== key) {
-                        found = true;
-                    }
-                });
-                return !found;
+                // Check if parent_id exists in treeNodeMap (O(1))
+                var parentId = n.parent_id;
+                if (parentId && treeNodeMap.has(parentId)) return false;
+                // Check if parent_type matches any node's type_name (O(1) via set)
+                return !parentTypeSet.has(n.parent_type);
             });
 
             // Sort by retained_size descending
