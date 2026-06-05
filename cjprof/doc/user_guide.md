@@ -148,6 +148,9 @@ Specifies the maximum display depth of object reference/referenced relationships
 `-d, --dump <pid>`
 Dumps the current heap memory of a Cangjie application, where `pid` is the process ID of the application. It also works if a child thread ID of the application is provided.
 
+`--dump-report[=<port>]`
+Starts an HTTP report server to view heap memory analysis results visually in a web browser. `port` specifies the server listening port, with a default of 8080. When specifying a port, use `=` to connect (e.g., `--dump-report=9090`); space separation is not supported. The server keeps running after analysis completes; press `Ctrl+C` to stop it.
+
 `-i, --input <file>`
 Specifies the heap memory data file to analyze. The default is `cjprof.data`.
 
@@ -179,6 +182,15 @@ cjprof heap -d 12345 -o heap.data
 >
 > Dumping heap memory sends a `SIG_USR1` signal to the target process. Exercise caution when unsure whether the target process is a Cangjie application, as sending the signal incorrectly may cause unexpected errors.
 > Both the directory of the running Cangjie program and the directory where the dump command is executed require write permissions; otherwise, the operation may fail due to insufficient permissions.
+
+- Start heap memory analysis report server.
+
+```text
+# Parse and analyze the heap memory data file heap.data in the current directory, start an HTTP report server on port 9090, and access http://localhost:9090 in a web browser to view the visual analysis report.
+cjprof heap -i heap.data --dump-report=9090
+```
+
+The visual analysis report provides a dominance tree view, displaying the dominance relationships of heap objects. It supports two visualization modes: sunburst chart and tree chart. Objects can be displayed at two granularity levels: by object or by type. Objects whose proportion falls below the threshold are merged into summary nodes. A Top 10 ranking is provided, showing the top 10 objects by retained heap size.
 
 - Analyze heap memory data and display object information.
 
