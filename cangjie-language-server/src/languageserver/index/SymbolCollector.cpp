@@ -1545,6 +1545,8 @@ void SymbolCollector::CreateReExportSymbolFromSingleImport(const File &file,
     if (addedReExportSymbols.count({identifier, id})) {
         return;
     }
+    auto rawId = refDecl->identifier;
+    refDecl->identifier = identifier;
     ReExportSymbol reExportSym;
     reExportSym.id = id;
     reExportSym.name = identifier;
@@ -1554,6 +1556,7 @@ void SymbolCollector::CreateReExportSymbolFromSingleImport(const File &file,
     CollectReExportCompletionItem(*refDecl, reExportSym);
     reExportSymsMap.emplace_back(reExportSym);
     addedReExportSymbols.insert({identifier, id});
+    refDecl->identifier = rawId;
 }
 
 void SymbolCollector::CreateReExportSymbolFromAliasImport(const File &file,
@@ -1630,6 +1633,8 @@ void SymbolCollector::CreateReExportSymbolFromAllImport(const File &file,
             if (addedReExportSymbols.count({identifier, id})) {
                 continue;
             }
+            auto rawId = decl->identifier;
+            decl->identifier = identifier;
             ReExportSymbol reExportSym;
             reExportSym.id = id;
             reExportSym.name = identifier;
@@ -1639,6 +1644,7 @@ void SymbolCollector::CreateReExportSymbolFromAllImport(const File &file,
             CollectReExportCompletionItem(*decl, reExportSym);
             reExportSymsMap.emplace_back(reExportSym);
             addedReExportSymbols.insert({identifier, id});
+            decl->identifier = rawId;
             break;
         }
     }

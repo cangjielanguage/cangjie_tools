@@ -376,8 +376,6 @@ void MemIndex::FindImportReExportSymsOnCompletion(
     (void)prefix;
     const auto &normalCompleteSyms  = filterSyms.first;
     const auto &importDeclSyms  = filterSyms.second;
-    size_t normalCompleteCount = 0;
-    size_t importDeclCount = 0;
     std::unordered_set<std::string> curModuleDeps =
         CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule);
     for (const auto &pkgReExportSymbols: pkgReExportSymsMap) {
@@ -397,12 +395,10 @@ void MemIndex::FindImportReExportSymsOnCompletion(
             if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
                 continue;
             }
-            if (normalCompleteCount >= normalCompleteSyms.size() || normalCompleteSyms.count(sym.id)) {
-                normalCompleteCount++;
+            if (normalCompleteSyms.count(sym.id)) {
                 continue;
             }
-            if (importDeclCount >= importDeclSyms.size() || importDeclSyms.count(sym.id)) {
-                importDeclCount++;
+            if (importDeclSyms.count(sym.id)) {
                 continue;
             }
             for (const auto &completionItem : sym.completionItems) {

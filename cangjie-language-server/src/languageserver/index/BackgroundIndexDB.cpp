@@ -569,8 +569,6 @@ void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
 {
     const auto &normalCompleteSyms = filterSyms.first;
     const auto &importDeclSyms = filterSyms.second;
-    size_t normalCompleteCount = 0;
-    size_t importDeclCount = 0;
 
     auto pkgNameList = CompilerCangjieProject::GetInstance()->GetPkgToModifierMap();
     for (const auto &it : pkgNameList) {
@@ -592,12 +590,10 @@ void BackgroundIndexDB::FindImportReExportSymsOnCompletion(
             if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
                 return true;
             }
-            if (normalCompleteCount < normalCompleteSyms.size() && normalCompleteSyms.count(sym.id)) {
-                normalCompleteCount++;
+            if (normalCompleteSyms.count(sym.id)) {
                 return true;
             }
-            if (importDeclCount < importDeclSyms.size() && importDeclSyms.count(sym.id)) {
-                importDeclCount++;
+            if (importDeclSyms.count(sym.id)) {
                 return true;
             }
             callback(pkgName, sym, completionItem);
