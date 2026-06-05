@@ -198,6 +198,7 @@ public:
         std::vector<uint32_t> children;     // child index in insNodes
         std::vector<uint32_t> references;   // parent index in insNodes
         bool isRoot;
+        bool isPinned = false;
     };
     struct ConNode {
         uint64_t id;
@@ -232,7 +233,7 @@ public:
 
         std::vector<size_t> gcRoots;
         for (size_t i = 0; i < n; ++i) {
-            if (preds[i].empty() || rhs.nodes[i].IsRoot()) {
+            if (preds[i].empty() || insNodes[i].isRoot || insNodes[i].isPinned) {
                 gcRoots.push_back(i);
             }
         }
@@ -382,6 +383,7 @@ public:
             insNode.nameIndex = node.nameIndex;
             insNode.shallowSize = node.selfSize;
             insNode.isRoot = node.IsRoot();
+            insNode.isPinned = node.isPinned;
             for (uint32_t i = 0; i < node.edgeCount; i++) {
                 if (edgeIndex + i >= rhs.edges.size()) break;
                 auto toNodeIndex = rhs.edges[edgeIndex + i].toNode;
