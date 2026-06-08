@@ -29,10 +29,13 @@ public:
 
 private:
     int port_;
+    std::string staticRootPath_;
     std::thread serverThread_;
     std::atomic<bool> running_{false};
     std::shared_ptr<HttpContext> context_;
     void* serverPtr_ = nullptr; // httplib::Server*
+
+    static std::string getExeDir();
 };
 
 } // namespace cjprof
