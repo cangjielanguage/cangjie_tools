@@ -59,7 +59,7 @@ endif()
 add_custom_command(TARGET cjprof POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/static
-    $<TARGET_FILE_DIR:cjprof>/static
+    $<TARGET_FILE_DIR:cjprof>/../config/static
 )
 
 if (NOT USE_CXX17_FEATURES)
@@ -74,3 +74,4 @@ endif()
 
 target_link_libraries(cjprof prof cangjie-demangle pthread)
 install(TARGETS cjprof RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/static/ DESTINATION config/static)
