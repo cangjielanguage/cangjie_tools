@@ -133,6 +133,17 @@ public:
     void FindCrossSymbolByName(const std::string &packageName, const std::string &symName, bool isComebined,
         const std::function<void(const CrossSymbol &)> &callback) override;;
 
+    void ForEachFileSymbol(const std::string &pkgName, const std::string &filePath,
+        std::function<bool(const Symbol &)> callback) const override;
+
+    bool HasSymbolReference(SymbolID symId) const override;
+
+    bool IsSymbolOverridden(SymbolID symId) const override;
+
+    SymbolID GetSymbolContainerId(SymbolID symId) const override;
+
+    bool HasReferencedConstructorChild(SymbolID symId) const override;
+
 private:
     // Database
     IndexDatabase &db;

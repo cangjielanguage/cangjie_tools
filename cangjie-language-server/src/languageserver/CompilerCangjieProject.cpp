@@ -423,6 +423,12 @@ void CompilerCangjieProject::PostCompileProcess(const std::string &fullPkgName, 
     if (cycles.second) {
         ReportCircularDeps(cycles.first);
     }
+
+    if (!isDelete) {
+        ValidateScriptDependencyImports(ci, filePath);
+        EmitDiagsOfFile(filePath);
+    }
+
     if (isDelete) {
         callback->RemoveDocByFile(filePath);
     }
@@ -432,12 +438,6 @@ void CompilerCangjieProject::PostCompileProcess(const std::string &fullPkgName, 
         CompilerCangjieProject::GetInstance()->GetBgIndexDB()->DeleteFiles({filePath});
     }
     BuildIndex(ci);
-
-    // 5. emit diagnostics after index build (includes unused symbol diagnostics)
-    if (!isDelete) {
-        ValidateScriptDependencyImports(ci, filePath);
-        EmitDiagsOfFile(filePath);
-    }
 }
 
 void CompilerCangjieProject::RemoveOldRealPkgMapping(const std::string &oldRealPkgName, const std::string &fullPkgName)
@@ -2598,6 +2598,7 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
                 std::unique_lock<std::recursive_mutex> lock(fileCacheMtx);
                 astMap[absName] = std::move(arkAST);
             }
+            (void)unusedSymbolsAnalyzedFileSet.erase(filePath);
         }
     }
 
@@ -2626,9 +2627,6 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
         (void) memIndex->pkgReExportSymsMap.insert_or_assign(curPkgName, *sc.GetReExportSymbolMap());
         indexLock.unlock();
     }
-
-    // Analyze unused symbols and produce diagnostics
-    AnalyzeUnusedSymbols(sc, *packages[0], pkgPath);
 
 #ifndef TEST_FLAG
     // Store the indexs and astdata
@@ -3069,45 +3067,30 @@ std::string CompilerCangjieProject::GetRealPackageName(const std::string& fullPa
     return fullPackageName.substr(dashPos + 1);
 }
 
-void CompilerCangjieProject::AnalyzeUnusedSymbols(const lsp::SymbolCollector& sc,
-    const Package& package, const std::string& pkgPath)
+void CompilerCangjieProject::AnalyzeUnusedSymbolsForFile(
+    const std::string& filePath,
+    const Cangjie::AST::File& astFile,
+    const Cangjie::AST::Package& package)
 {
-    const auto* symbols = sc.GetSymbolMap();
-    const auto* refs = sc.GetReferenceMap();
-    const auto* relations = sc.GetRelations();
-    if (!symbols || !refs || !relations) {
+    if (unusedSymbolsAnalyzedFileSet.count(filePath) != 0) {
         return;
     }
 
-    // Analyze global/member symbols from index for each file in the package
-    for (auto& file : package.files) {
-        if (!file) {
-            continue;
-        }
-        auto filePath = file->filePath;
-        if (!pkgPath.empty() && !IsUnderPath(pkgPath, filePath)) {
-            continue;
-        }
-        if (GetFileExtension(filePath) != "cj") {
-            continue;
-        }
-        LowFileName(filePath);
-
-        // Index-level analysis: unused global/member symbols
-        auto unusedDiags = UnusedSymbolDiag::Analyze(
-            *symbols, *refs, *relations, filePath, &package);
-
-        // AST-level analysis: unused local variables and non-named function params
-        auto localDiags = UnusedSymbolDiag::AnalyzeLocalSymbols(
-            *file, *const_cast<Package*>(&package));
-
-        // Publish all unused symbol diagnostics
+    auto* index = GetIndex();
+    if (index) {
+        std::string pkgName = GetFullPkgName(filePath);
+        auto unusedDiags = UnusedSymbolDiag::Analyze(*index, pkgName, filePath, &package);
         for (auto& diag : unusedDiags) {
             callback->UpdateDiagnostic(filePath, diag);
         }
-        for (auto& diag : localDiags) {
-            callback->UpdateDiagnostic(filePath, diag);
-        }
     }
+
+    auto localDiags = UnusedSymbolDiag::AnalyzeLocalSymbols(
+        astFile, const_cast<Cangjie::AST::Package&>(package));
+    for (auto& diag : localDiags) {
+        callback->UpdateDiagnostic(filePath, diag);
+    }
+
+    (void)unusedSymbolsAnalyzedFileSet.insert(filePath);
 }
 } // namespace ark

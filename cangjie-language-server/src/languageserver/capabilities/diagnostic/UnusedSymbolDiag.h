@@ -12,6 +12,7 @@
 #include <vector>
 #include "../../common/Callbacks.h"
 #include "../../common/PositionResolver.h"
+#include "../../index/MemIndex.h"
 #include "../../index/Ref.h"
 #include "../../index/Relation.h"
 #include "../../index/Symbol.h"
@@ -42,20 +43,19 @@ inline const std::unordered_set<Cangjie::AST::ASTKind> UNUSED_CHECK_KINDS = {
 class UnusedSymbolDiag {
 public:
     /**
-     * Analyze collected symbols/refs from SymbolCollector to detect unused
-     * global/member symbols. Returns diagnostic tokens for a specific file.
+     * Analyze global/member symbols from the index to detect unused symbols.
+     * Queries the SymbolIndex per-file for symbols, references, and relations.
      *
-     * @param symbols       All symbols in the package
-     * @param refs          All references in the package
-     * @param relations     All relations in the package (for override detection)
-     * @param filePath      The file to produce diagnostics for
-     * @param package       The AST package (for macro detection)
-     * @return vector of DiagnosticToken for unused symbols
-     */
+      * @param index         The symbol index (MemIndex or BackgroundIndexDB)
+      * @param pkgName       The full package name for symbol scoping
+      * @param filePath      The file to produce diagnostics for
+      * @param package       The AST package (for macro detection)
+      * @param timeoutMs     Max analysis time in ms, -1 for unlimited
+      * @return vector of DiagnosticToken for unused symbols
+      */
     static std::vector<DiagnosticToken> Analyze(
-        const std::vector<lsp::Symbol>& symbols,
-        const std::map<lsp::SymbolID, std::vector<lsp::Ref>>& refs,
-        const std::vector<lsp::Relation>& relations,
+        const lsp::SymbolIndex& index,
+        const std::string& pkgName,
         const std::string& filePath,
         const Cangjie::AST::Package* package
     );
@@ -73,12 +73,6 @@ public:
         Cangjie::AST::Package& package
     );
 
-    /// Check if a symbol has any REFERENCE-kind ref (not just DEFINITION).
-    static bool HasReference(
-        lsp::SymbolID symId,
-        const std::map<lsp::SymbolID, std::vector<lsp::Ref>>& refs
-    );
-
     /// Create an "unused" DiagnosticToken with HINT severity and Unnecessary tag.
     static DiagnosticToken CreateUnusedDiag(
         const std::string& name,
@@ -87,12 +81,6 @@ public:
     );
 
 private:
-    /// Check if a symbol is an override (has a RIDDEND_BY relation as object).
-    static bool IsOverride(
-        lsp::SymbolID symId,
-        const std::vector<lsp::Relation>& relations
-    );
-
     /// Collect SymbolIDs of classes/structs that are decorated with @Entry/@Component.
     static std::unordered_set<lsp::SymbolID> CollectExcludedMacroDecls(
         const Cangjie::AST::Package* package
@@ -101,7 +89,7 @@ private:
     /// Check if a symbol should be excluded from unused detection.
     static bool ShouldExclude(
         const lsp::Symbol& symbol,
-        const std::vector<lsp::Relation>& relations,
+        const lsp::SymbolIndex& index,
         const std::unordered_set<lsp::SymbolID>& excludedMacroDecls
     );
 

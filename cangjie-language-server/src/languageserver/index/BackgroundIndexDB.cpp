@@ -629,6 +629,78 @@ void BackgroundIndexDB::FindCrossSymbolByName(const std::string &packageName, co
     }
 }
 
+void BackgroundIndexDB::ForEachFileSymbol(const std::string &pkgName, const std::string &filePath,
+    std::function<bool(const Symbol &)> callback) const
+{
+    db.GetPkgSymbols(pkgName, [&](const Symbol &sym) -> bool {
+        bool isTargetFile = (sym.location.fileUri == filePath);
+        if (!isTargetFile) {
+            // Check if this is a .macrocall file corresponding to the target file
+            if (EndsWith(sym.location.fileUri, ".macrocall")) {
+                // Extract source file path from .macrocall path
+                // e.g., "foo.cj.macrocall" -> "foo.cj"
+                std::string macroCallFile = sym.location.fileUri;
+                std::string sourceFile = macroCallFile.substr(0, macroCallFile.length() - 10); // Remove ".macrocall"
+                isTargetFile = (sourceFile == filePath);
+            }
+        }
+        if (isTargetFile) {
+            return callback(sym);
+        }
+        return true;
+    });
+}
+
+bool BackgroundIndexDB::HasSymbolReference(SymbolID symId) const
+{
+    bool found = false;
+    db.GetReferences(symId, RefKind::REFERENCE, [&](const Ref &) -> bool {
+        found = true;
+        return false;
+    });
+    return found;
+}
+
+bool BackgroundIndexDB::IsSymbolOverridden(SymbolID symId) const
+{
+    bool found = false;
+    db.GetRelationsRiddenUp(symId, RelationKind::RIDDEND_BY, [&](const Relation &) -> bool {
+        found = true;
+        return false;
+    });
+    return found;
+}
+
+SymbolID BackgroundIndexDB::GetSymbolContainerId(SymbolID symId) const
+{
+    SymbolID result = INVALID_SYMBOL_ID;
+    db.GetRelationsRiddenDown(symId, RelationKind::CONTAINED_BY, [&](const Relation &rel) -> bool {
+        result = rel.object;
+        return false;
+    });
+    return result;
+}
+
+bool BackgroundIndexDB::HasReferencedConstructorChild(SymbolID symId) const
+{
+    bool found = false;
+    db.GetRelationsRiddenUp(symId, RelationKind::CONTAINED_BY, [&](const Relation &rel) -> bool {
+        bool isConstructor = false;
+        db.GetSymbolByID(GetArrayFromID(rel.subject), [&](const Symbol &sym) -> bool {
+            if (sym.symInfo.kind == lsp::SymbolKind::CONSTRUCTOR) {
+                isConstructor = true;
+            }
+            return false;
+        });
+        if (!isConstructor || !HasSymbolReference(rel.subject)) {
+            return false;
+        }
+        found = true;
+        return true;
+    });
+    return found;
+}
+
 } // namespace lsp
 } // namespace ark
 // LCOV_EXCL_STOP
