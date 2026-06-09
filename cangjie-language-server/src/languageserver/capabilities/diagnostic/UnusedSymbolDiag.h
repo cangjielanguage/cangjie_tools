@@ -24,7 +24,7 @@ namespace ark {
 /// Macro names whose decorated class/struct (and all their members)
 /// should be excluded from unused symbol reporting.
 inline const std::unordered_set<std::string> EXCLUDED_MACRO_NAMES = {
-    "Entry", "Component"
+    "Entry", "Component", "Test"
 };
 
 /// Target ASTKinds for unused symbol detection at the index level.

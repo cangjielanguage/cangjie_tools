@@ -1738,11 +1738,17 @@ static bool TryMapParamRange(const FuncParam* funcParam, const Decl* decl, Range
     if (!mappedBegin.IsZero()) {
         deleteRange.start = mappedBegin;
     }
-    if (!mappedEnd.IsZero()) {
+    
+    // If begin was mapped but end was not, calculate end based on the length
+    if (beginMapped && !endMapped) {
+        int length = funcParam->end.column - funcParam->begin.column;
+        deleteRange.end.line = mappedBegin.line;
+        deleteRange.end.column = mappedBegin.column + length;
+    } else if (!mappedEnd.IsZero()) {
         deleteRange.end = mappedEnd;
     }
 
-    return !(beginMapped && !endMapped);
+    return true;
 }
 
 static size_t FindParamIndex(const FuncParam* funcParam, const FuncBody* funcBody, bool& found)
@@ -1799,6 +1805,11 @@ static bool ProcessFuncParamDeleteRange(const FuncParam* funcParam, Range& delet
 
     bool foundIndex = false;
     size_t paramIndex = FindParamIndex(funcParam, funcBody, foundIndex);
+    
+    if (!funcBody || funcBody->paramLists.empty() || !funcBody->paramLists[0]) {
+        return true;
+    }
+    
     auto& params = funcBody->paramLists[0]->params;
     if (!foundIndex || params.size() <= 1) {
         return true;
@@ -1846,13 +1857,10 @@ static void SetDeleteRangeFromAtPos(const Decl* decl, Range& deleteRange)
     auto inv = decl->curMacroCall->GetConstInvocation();
     if (inv && !inv->atPos.IsZero()) {
         deleteRange.start = inv->atPos;
-        deleteRange.end = decl->end;
-        auto mappedEnd = decl->curMacroCall->GetMacroCallPos(deleteRange.end);
-        if (!mappedEnd.IsZero() && mappedEnd != deleteRange.end) {
-            deleteRange.end = mappedEnd;
-        }
+        deleteRange.end = decl->curMacroCall->end;
     } else {
-        deleteRange = {decl->curMacroCall->begin, decl->curMacroCall->end};
+        deleteRange.start = decl->curMacroCall->begin;
+        deleteRange.end = decl->curMacroCall->end;
     }
 }
 
@@ -1867,7 +1875,7 @@ static void SetDeleteRangeStartFromAtPos(const Decl* decl, Range& deleteRange)
             deleteRange.end = mappedEnd;
         }
     } else {
-        deleteRange.start = decl->curMacroCall->begin;
+        deleteRange.start = decl->begin;
     }
 }
 
@@ -2047,29 +2055,85 @@ static bool TryResolveFromIndex(const Decl* decl, const Range& diagRange,
     return TryResolveFromIndexFallback(decl, diagRange, arkAst, deleteRange);
 }
 
+static bool IsAnnotationMacro(const Decl* decl)
+{
+    return !decl->annotations.empty() &&
+           (decl->curMacroCall->begin.line == decl->begin.line) &&
+           (decl->curMacroCall->begin.column < decl->begin.column);
+}
+
+static bool HandleAnnotationMacro(const Decl* decl, Range& deleteRange)
+{
+    auto inv = decl->curMacroCall->GetConstInvocation();
+    if (inv && !inv->atPos.IsZero()) {
+        deleteRange.start = inv->atPos;
+        deleteRange.end = decl->end;
+    } else {
+        deleteRange.start = decl->curMacroCall->begin;
+        deleteRange.end = decl->curMacroCall->end;
+    }
+    return true;
+}
+
+static bool ShouldHandleCurMacroCall(const Decl* decl)
+{
+    return decl->curMacroCall && !decl->isInMacroCall;
+}
+
+static bool ShouldHandleAnnotations(const Decl* decl)
+{
+    return !decl->annotations.empty();
+}
+
+static bool ShouldHandleOuterMacroExpand(const Decl* decl)
+{
+    return decl->outerDecl && decl->outerDecl->astKind == ASTKind::MACRO_EXPAND_DECL;
+}
+
+static bool ShouldHandleParentMacroExpand(const Decl* decl, const MacroExpandDecl* parentMacroExpandDecl)
+{
+    return parentMacroExpandDecl &&
+           (decl->outerDecl == static_cast<const Decl*>(parentMacroExpandDecl) ||
+            (!decl->outerDecl && parentMacroExpandDecl->invocation.decl.get() == decl));
+}
+
+static bool ShouldHandleEnumVariant(const Decl* decl, const ArkAST* arkAst)
+{
+    return decl->outerDecl &&
+           decl->outerDecl->astKind == ASTKind::ENUM_DECL &&
+           (decl->astKind == ASTKind::FUNC_DECL || decl->astKind == ASTKind::VAR_DECL) &&
+           arkAst;
+}
+
+static bool ProcessDeclDeleteRange(const Decl* decl,
+    const MacroExpandDecl* parentMacroExpandDecl, Range& deleteRange, const ArkAST* arkAst)
+{
+    if (ShouldHandleCurMacroCall(decl)) {
+        if (IsAnnotationMacro(decl)) {
+            return HandleAnnotationMacro(decl, deleteRange);
+        } else {
+            HandleCurMacroCall(decl, deleteRange);
+        }
+    } else if (ShouldHandleAnnotations(decl)) {
+        HandleAnnotations(decl, deleteRange);
+    } else if (ShouldHandleOuterMacroExpand(decl)) {
+        HandleOuterMacroExpand(decl, deleteRange);
+    } else if (ShouldHandleParentMacroExpand(decl, parentMacroExpandDecl)) {
+        HandleParentMacroExpand(decl, parentMacroExpandDecl, deleteRange);
+    } else if (ShouldHandleEnumVariant(decl, arkAst)) {
+        HandleEnumVariant(decl, arkAst, deleteRange);
+    }
+    return false;
+}
+
 static void ComputeDeclDeleteRange(const Decl* decl,
     const MacroExpandDecl* parentMacroExpandDecl, Range& deleteRange, const Range& diagRange, const ArkAST* arkAst)
 {
     deleteRange = {decl->begin, decl->end};
-
-    if (decl->curMacroCall && !decl->isInMacroCall) {
-        HandleCurMacroCall(decl, deleteRange);
-    } else if (!decl->annotations.empty()) {
-        HandleAnnotations(decl, deleteRange);
-    } else if (decl->outerDecl && decl->outerDecl->astKind == ASTKind::MACRO_EXPAND_DECL) {
-        HandleOuterMacroExpand(decl, deleteRange);
-    } else if (parentMacroExpandDecl &&
-               (decl->outerDecl == static_cast<const Decl*>(parentMacroExpandDecl) ||
-                (!decl->outerDecl && parentMacroExpandDecl->invocation.decl.get() == decl))) {
-        HandleParentMacroExpand(decl, parentMacroExpandDecl, deleteRange);
-    } else if (decl->outerDecl &&
-               decl->outerDecl->astKind == ASTKind::ENUM_DECL &&
-               (decl->astKind == ASTKind::FUNC_DECL || decl->astKind == ASTKind::VAR_DECL) &&
-               arkAst) {
-        HandleEnumVariant(decl, arkAst, deleteRange);
+    bool skipTryResolveFromIndex = ProcessDeclDeleteRange(decl, parentMacroExpandDecl, deleteRange, arkAst);
+    if (!skipTryResolveFromIndex) {
+        TryResolveFromIndex(decl, diagRange, arkAst, deleteRange);
     }
-
-    TryResolveFromIndex(decl, diagRange, arkAst, deleteRange);
 }
 
 static void AddRemoveUnusedCodeAction(DiagnosticToken &diagnostic,
@@ -2102,18 +2166,39 @@ static void AddRemoveUnusedCodeAction(DiagnosticToken &diagnostic,
     }
 }
 
-void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri)
-{
-    if (!arkAst || !arkAst->file) {
-        return;
-    }
-
-    Range diagRange = TransformFromIDE2Char(diagnostic.range);
-    Range deleteRange = diagRange;
-
+struct UnusedSymbolInfo {
     bool found = false;
     std::string symbolName;
     std::string symbolKindDesc;
+    Range deleteRange;
+};
+
+static bool MatchFuncParamAtPos(const FuncParam* funcParam, const Range& diagRange,
+    const FuncBody* currentFuncBody, UnusedSymbolInfo& info)
+{
+    auto identifierPos = funcParam->GetIdentifierPos();
+    auto outerDecl = funcParam->outerDecl.get();
+    
+    auto comparePos = identifierPos;
+    if (outerDecl && outerDecl->curMacroCall) {
+        auto mappedPos = outerDecl->curMacroCall->GetMacroCallPos(identifierPos);
+        if (!mappedPos.IsZero()) {
+            comparePos = mappedPos;
+        }
+    }
+    
+    if (comparePos.line != diagRange.start.line || comparePos.column != diagRange.start.column) {
+        return false;
+    }
+    
+    info.symbolName = std::string(funcParam->identifier);
+    return ProcessFuncParamDeleteRange(funcParam, info.deleteRange, info.symbolKindDesc, currentFuncBody, outerDecl);
+}
+
+static UnusedSymbolInfo FindUnusedSymbol(const ArkAST* arkAst, const Range& diagRange)
+{
+    UnusedSymbolInfo info;
+    info.deleteRange = diagRange;
     const FuncBody* currentFuncBody = nullptr;
     Ptr<const MacroExpandDecl> parentMacroExpandDecl = nullptr;
 
@@ -2124,6 +2209,14 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
 
         if (auto macroExpand = DynamicCast<const MacroExpandDecl*>(node)) {
             parentMacroExpandDecl = macroExpand;
+        }
+
+        if (auto funcParam = DynamicCast<const FuncParam*>(node)) {
+            if (MatchFuncParamAtPos(funcParam, diagRange, currentFuncBody, info)) {
+                info.found = true;
+                return VisitAction::STOP_NOW;
+            }
+            return VisitAction::WALK_CHILDREN;
         }
 
         auto decl = DynamicCast<const Decl*>(node);
@@ -2137,33 +2230,31 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
             return VisitAction::WALK_CHILDREN;
         }
 
-        symbolName = std::string(decl->identifier);
-
-        if (auto funcParam = DynamicCast<const FuncParam*>(node)) {
-            if (ProcessFuncParamDeleteRange(funcParam, deleteRange, symbolKindDesc, currentFuncBody, decl)) {
-                found = true;
-                return VisitAction::STOP_NOW;
-            } else {
-                // Skip this parameter (invalid delete range)
-                return VisitAction::WALK_CHILDREN;
-            }
-        }
-
-        symbolKindDesc = GetSymbolKindDescription(decl->astKind, decl);
-        ComputeDeclDeleteRange(decl, parentMacroExpandDecl, deleteRange, diagRange, arkAst);
-
-        found = true;
+        info.symbolName = std::string(decl->identifier);
+        info.symbolKindDesc = GetSymbolKindDescription(decl->astKind, decl);
+        ComputeDeclDeleteRange(decl, parentMacroExpandDecl, info.deleteRange, diagRange, arkAst);
+        info.found = true;
         return VisitAction::STOP_NOW;
     };
 
     ConstWalker(arkAst->file, finder).Walk();
+    return info;
+}
 
-    if (!found) {
+void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri)
+{
+    if (!arkAst || !arkAst->file) {
+        return;
+    }
+
+    Range diagRange = TransformFromIDE2Char(diagnostic.range);
+    auto info = FindUnusedSymbol(arkAst, diagRange);
+    if (!info.found) {
         return;
     }
 
     RemoveUnusedContext ctx{arkAst->tokens, *arkAst->file, uri};
-    AddRemoveUnusedCodeAction(diagnostic, ctx, deleteRange, symbolName, symbolKindDesc);
+    AddRemoveUnusedCodeAction(diagnostic, ctx, info.deleteRange, info.symbolName, info.symbolKindDesc);
 }
 
 // LCOV_EXCL_STOP

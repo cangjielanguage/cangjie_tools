@@ -218,21 +218,9 @@ bool UnusedSymbolDiag::ShouldExclude(
         }
     }
 
-    if (excludedMacroDecls.count(symbol.id) > 0) {
+    if ((symbol.kind == ASTKind::CLASS_DECL || symbol.kind == ASTKind::STRUCT_DECL) &&
+        excludedMacroDecls.count(symbol.id) > 0) {
         return true;
-    }
-
-    // For member variables (VAR_DECL) inside @Component/@Entry classes,
-    // do NOT exclude them - we now have proper reference tracking for macro-expanded code.
-    // Only exclude the class/struct itself and other member types (func, prop, etc.)
-    SymbolID containerId = GetContainerID(symbol.id, relations);
-    if (containerId != INVALID_SYMBOL_ID && excludedMacroDecls.count(containerId) > 0) {
-        // Allow VAR_DECL to be checked for unused status
-        if (symbol.kind == ASTKind::VAR_DECL) {
-            // VAR_DECL NOT excluded - will check references
-        } else {
-            return true;
-        }
     }
 
     return false;
@@ -399,11 +387,6 @@ static void CheckUnusedVarDecl(VarDecl* varDecl, Package& package,
     const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
 {
     bool isGlobalOrMember = IsGlobalOrMember(*varDecl);
-    // For macro-expanded declarations (e.g., member variables in @Component/@Entry classes),
-    // also check if they have curMacroCall set and have valid outerDecl
-    if (!isGlobalOrMember && varDecl->curMacroCall && !varDecl->identifier.Empty() && varDecl->outerDecl) {
-        isGlobalOrMember = true;
-    }
     if (!isGlobalOrMember) {
         auto usages = FindDeclUsage(*varDecl, package);
         if (usages.empty()) {
