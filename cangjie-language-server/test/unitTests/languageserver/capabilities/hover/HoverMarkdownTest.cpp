@@ -46,10 +46,10 @@ TEST(HoverMarkdownTest, FormatsAllHoverSections)
         "\n"
         "---\n"
         "\n"
-        "Creates a row layout container.\n"
+        "Creates a row layout container.  \n"
         "\n"
         "\n"
-        "Use it for horizontal layout.\n");
+        "Use it for horizontal layout.  \n");
 }
 
 TEST(HoverMarkdownTest, NormalizesLinuxMacAndWindowsLineEndings)
@@ -109,8 +109,27 @@ TEST(HoverMarkdownTest, EscapesMarkdownOutsideCodeFence)
 
     EXPECT_NE(result.find("Declared in: \\[main\\].cj  \n"), std::string::npos);
     EXPECT_NE(result.find("Package info: test\\_pkg  \n"), std::string::npos);
-    EXPECT_NE(result.find("Use \\*bold\\* \\`code\\` \\[link\\] \\<tag\\> \\# title\\_1\n"), std::string::npos);
+    EXPECT_NE(result.find("Use \\*bold\\* \\`code\\` \\[link\\] \\<tag\\> \\# title\\_1  \n"), std::string::npos);
     EXPECT_NE(result.find("```cangjie\npublic func name(): String\n```\n"), std::string::npos);
+}
+
+TEST(HoverMarkdownTest, PreservesLineBreaksInCommentBlocks)
+{
+    ark::Hover hover = MakeHover({
+        "var xx: Int64",
+        "aaa\nbbb\nccc\n",
+    });
+
+    EXPECT_EQ(ark::BuildHoverMarkdown(hover),
+        "```cangjie\n"
+        "var xx: Int64\n"
+        "```\n"
+        "\n"
+        "---\n"
+        "\n"
+        "aaa  \n"
+        "bbb  \n"
+        "ccc  \n");
 }
 
 TEST(HoverMarkdownTest, FormatsWithoutSourceInfo)
@@ -131,7 +150,7 @@ TEST(HoverMarkdownTest, FormatsWithoutSourceInfo)
         "\n"
         "---\n"
         "\n"
-        "Coordinate getter.\n");
+        "Coordinate getter.  \n");
 }
 
 TEST(HoverMarkdownTest, ClassifiesShortPrefixesAndAtBlocks)
@@ -154,11 +173,11 @@ TEST(HoverMarkdownTest, ClassifiesShortPrefixesAndAtBlocks)
         "\n"
         "---\n"
         "\n"
-        "api\n"
+        "api  \n"
         "\n"
         "\n"
-        "//\n"
+        "//  \n"
         "\n"
         "\n"
-        "Trailing comment.\n");
+        "Trailing comment.  \n");
 }

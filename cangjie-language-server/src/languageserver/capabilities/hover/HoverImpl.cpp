@@ -21,6 +21,28 @@ using namespace CONSTANTS;
 
 std::string HoverImpl::curFilePath = "";
 
+static void CollectCommentText(const CommentGroups &commentGroups, std::vector<std::string> &comments)
+{
+    const auto &leadCommentGroup = commentGroups.leadingComments;
+    const auto &innerCommentGroup = commentGroups.innerComments;
+    const auto &trailCommentGroup = commentGroups.trailingComments;
+    for (const auto &innerComment : innerCommentGroup) {
+        for (const auto &comment : innerComment.cms) {
+            comments.push_back(comment.info.Value());
+        }
+    }
+    for (const auto &leadComment : leadCommentGroup) {
+        for (const auto &comment : leadComment.cms) {
+            comments.push_back(comment.info.Value());
+        }
+    }
+    for (const auto &trailComment : trailCommentGroup) {
+        for (const auto &comment : trailComment.cms) {
+            comments.push_back(comment.info.Value());
+        }
+    }
+}
+
 Decl* HoverImpl::GetRealDecl(const std::vector<Ptr<Decl>> &decls)
 {
     Decl *decl = decls[0];
@@ -143,6 +165,9 @@ void HoverImpl::RemoveBlankAndStar(const std::string &content, std::string &resu
                 line.erase(line.find_last_not_of(" \t\r") + 1);
             }
             RemoveStar(line, result);
+            if (i + 1 < lines.size()) {
+                result += "\n";
+            }
         }
     }
 
@@ -324,16 +349,19 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
         return 0;
     }
     std::vector<std::string> comments;
+    CollectCommentText(decl->comments, comments);
 
-    auto index = CompilerCangjieProject::GetInstance()->GetIndex();
-    if (!index) {
-        return 1;
+    if (comments.empty()) {
+        auto index = CompilerCangjieProject::GetInstance()->GetIndex();
+        if (!index) {
+            return 1;
+        }
+        auto symFromIndex = index->GetAimSymbol(*decl);
+        if (symFromIndex.id == lsp::INVALID_SYMBOL_ID) {
+            return 1;
+        }
+        index->FindComment(symFromIndex, comments);
     }
-    auto symFromIndex = index->GetAimSymbol(*decl);
-    if (symFromIndex.id == lsp::INVALID_SYMBOL_ID) {
-        return 1;
-    }
-    index->FindComment(symFromIndex, comments);
     for (size_t i = 0; i < comments.size(); ++i) {
         CommentKind kind = GetCommentKind(comments[i]);
         const std::string comment = ReplaceNewlines(comments[i]);

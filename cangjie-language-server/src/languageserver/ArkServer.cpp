@@ -139,7 +139,7 @@ void AppendHoverComments(std::ostringstream &markdown, const std::vector<std::st
     }
     markdown << "\n---\n\n";
     for (size_t i = 0; i < comments.size(); ++i) {
-        AppendMarkdownText(markdown, comments[i]);
+        AppendMarkdownText(markdown, comments[i], true);
         if (i + 1 < comments.size()) {
             markdown << "\n\n";
         }
