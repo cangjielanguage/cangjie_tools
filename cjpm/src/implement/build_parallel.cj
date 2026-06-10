@@ -343,7 +343,8 @@ private func initializeEngine(buildConfig: BuildConfig): IncrementalEngine {
         config: EngineConfig(
             incremental: buildConfig.isIncremental,
             // Mostly used for debug purposes, as there's no verbosity levels in `cjpm`
-            verbose: false
+            verbose: false,
+            jobs: maxParallelSize
         )
     )
 }
@@ -1553,24 +1554,28 @@ private class Rebuilder {
     private func runTask(task: ErasedTask, id: TaskId): TaskResult {
         barrier.wait()
 
-        deleteLog(task.logFiles)
-        let depsResult = waitForDependencies(id)
+        try {
+            deleteLog(task.logFiles)
+            let depsResult = waitForDependencies(id)
 
-        let result = withSemaphore(!id.isMonitor) { =>
-            logTaskStart(id)
-            executeTask(task, depsResult)
+            let result = withSemaphore(!id.isMonitor) { =>
+                logTaskStart(id)
+                executeTask(task, depsResult)
+            }
+
+            match (result) {
+                case Fatal => notifyMonitor(id, MonitorNotification.Failed)
+                case Rebuild => notifyMonitor(id, MonitorNotification.FoundCjoFile)
+                case Cached => notifyMonitor(id, MonitorNotification.FoundCjoFile)
+            }
+
+            logger.log(task.logFiles)
+            logTaskEnd(id, result)
+
+            result
+        } finally {
+            logger.release()
         }
-
-        match (result) {
-            case Fatal => notifyMonitor(id, MonitorNotification.Failed)
-            case Rebuild => notifyMonitor(id, MonitorNotification.FoundCjoFile)
-            case Cached => notifyMonitor(id, MonitorNotification.FoundCjoFile)
-        }
-
-        logger.log(task.logFiles)
-        logTaskEnd(id, result)
-
-        result
     }
 
     private func logTaskStart(id: TaskId): Unit {
@@ -1588,7 +1593,6 @@ private class Rebuilder {
             }
             logger.console("[Task] `${id}` ${status}")
         }
-        logger.release()
     }
 
     private func waitForDependencies(id: TaskId): Array<TaskResult> {

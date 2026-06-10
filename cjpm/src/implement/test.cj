@@ -1014,21 +1014,24 @@ func parallelCompileTests(
             DummyTestFile.compile(testConfig, pkgDesc, linkMap)
         }
         testFut.add(spawn { =>
-            let rootPkgName: String = getRootPkgName(swapOrgName(pkgDesc.fqname.value))
-            let outLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.outlog").toString()
-            let errLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.errlog").toString()
-            let pkgInfo = PkgTestInfo(
-                pkgDesc.fqname,
-                pkgDesc.srcDir,
-                linkOptions: linkMap[pkgDesc.fqname],
-                outLogFile: outLogFile,
-                errLogFile: errLogFile
-            )
-            let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
-            sem.release()
-            logger.log((pkgInfo.outLogFile, pkgInfo.errLogFile))
-            logger.release()
-            return flag
+            try {
+                let rootPkgName: String = getRootPkgName(swapOrgName(pkgDesc.fqname.value))
+                let outLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.outlog").toString()
+                let errLogFile = testLogPath.join(rootPkgName).join("${swapOrgName(pkgDesc.fqname.value)}.errlog").toString()
+                let pkgInfo = PkgTestInfo(
+                    pkgDesc.fqname,
+                    pkgDesc.srcDir,
+                    linkOptions: linkMap[pkgDesc.fqname],
+                    outLogFile: outLogFile,
+                    errLogFile: errLogFile
+                )
+                let flag = packageTestIfNeeded(pkgInfo, testConfig, pkgDesc)
+                logger.log((pkgInfo.outLogFile, pkgInfo.errLogFile))
+                return flag
+            } finally {
+                sem.release()
+                logger.release()
+            }
         })
     }
 
@@ -1037,10 +1040,12 @@ func parallelCompileTests(
     testFut.add(
         spawn {
             =>
-            TestRunner.generateSources(testConfig)
-            let flag = TestRunner.compile(testConfig)
-            sem.release()
-            flag
+            try {
+                TestRunner.generateSources(testConfig)
+                return TestRunner.compile(testConfig)
+            } finally {
+                sem.release()
+            }
         })
 
     for (f in testFut) {
