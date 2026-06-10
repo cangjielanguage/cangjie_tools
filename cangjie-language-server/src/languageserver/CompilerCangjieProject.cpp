@@ -2509,8 +2509,8 @@ void CompilerCangjieProject::GetDiagCurEditFile(const std::string &file)
 
 void CompilerCangjieProject::StoreAllPackagesCache()
 {
-    for (auto& [fullPkgName, _]: pkgInfoMap) {
-        StorePackageCache(fullPkgName);
+    for (const auto &pkgInfo : pkgInfoMap) {
+        StorePackageCache(pkgInfo.first);
     }
 }
 // LCOV_EXCL_START
