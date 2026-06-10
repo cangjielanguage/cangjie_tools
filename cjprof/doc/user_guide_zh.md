@@ -194,11 +194,11 @@ cjprof heap -i ~/heap.data
 执行上述命令的效果如下：
 
 ```text
-Object Type           Objects        Shallow Heap   Retained Heap
-====================  =============  =============  =============
-default::AAA                               1            80             400
-default::BBB                               4            32             196
-default::CCC                               2            16              32
+Object Type                                     Objects   Shallow Heap   Retained Heap
+=========================================  ============  =============  ==============
+default::AAA                                          1             80             400
+default::BBB                                          4             32             196
+default::CCC                                          2             16              32
 ```
 
 - 分析堆内存数据，展示仓颉线程栈及对象引用。
@@ -211,13 +211,13 @@ cjprof heap --show-thread
 执行上述命令的效果如下：
 
 ```text
-Object/Stack Frame                   Shallow Heap   Retained Heap
-===================================  =============  =============
+Object/Stack Frame                                Shallow Heap   Retained Heap
+===============================================  =============  ==============
 thread0
   at Func2() (/home/test/test.cj:10)
-    <local> default::AAA @ 0x7f1234567800                80            400
+    <local> default::AAA @ 0x7f1234567800                   80             400
   at Func1() (/home/test/test.cj:20)
-    <local> default::CCC @ 0x7f12345678c0                16             16
+    <local> default::CCC @ 0x7f12345678c0                   16              16
   at main (/home/test/test.cj:30)
 ```
 
@@ -232,14 +232,14 @@ cjprof heap --show-reference="default::AAA;default::BBB"
 
 ```text
 Objects with outgoing references:
-Object Type                          Shallow Heap   Retained Heap
-===================================  =============  =============
-default::AAA @ 0x7f1234567800                            80            400
-  default::BBB @ 0x7f1234567880                          32             48
-    default::CCC @ 0x7f12345678c0                        16             16
-  default::CCC @ 0x7f12345678e0                          16             16
-default::BBB @ 0x7f1234567880                            32             48
-  default::CCC @ 0x7f12345678c0                          16             16
+Object Type                                       Shallow Heap   Retained Heap
+===============================================  =============  ==============
+default::AAA @ 0x7f1234567800                               80             400
+  default::BBB @ 0x7f1234567880                             32              48
+    default::CCC @ 0x7f12345678c0                           16              16
+  default::CCC @ 0x7f12345678e0                             16              16
+default::BBB @ 0x7f1234567880                               32              48
+  default::CCC @ 0x7f12345678c0                             16              16
 ```
 
 - 分析堆内存数据，展示对象的被引用关系。
@@ -253,13 +253,13 @@ cjprof heap --show-reference="default::CCC" --incoming-reference
 
 ```text
 Objects with incoming references:
-Object Type                          Shallow Heap   Retained Heap
-===================================  =============  =============
-default::CCC @ 0x7f12345678c0                            16             16
-  default::BBB @ 0x7f1234567880                          32             48
-    default::AAA @ 0x7f1234567800                        80            400
-default::CCC @ 0x7f12345678e0                            16             16
-  default::AAA @ 0x7f1234567800                        80            400
+Object Type                                       Shallow Heap   Retained Heap
+===============================================  =============  ==============
+default::CCC @ 0x7f12345678c0                               16              16
+  default::BBB @ 0x7f1234567880                             32              48
+    default::AAA @ 0x7f1234567800                           80             400
+default::CCC @ 0x7f12345678e0                               16              16
+  default::AAA @ 0x7f1234567800                             80             400
 ```
 
 #### 堆内存分析报告说明
