@@ -223,6 +223,20 @@ void HeapAnalyzer::ShowReference(const std::string &objNameList, int maxDepth, b
         objNames.emplace(str);
     }
 
+    if (!objNames.empty()) {
+        std::unordered_set<std::string> matchedNames;
+        for (auto obj : m_objects) {
+            if (objNames.count(obj->name) != 0) {
+                matchedNames.insert(obj->name);
+            }
+        }
+        for (const auto& name : objNames) {
+            if (matchedNames.find(name) == matchedNames.end()) {
+                printf("No objects found matching: %s\n", name.c_str());
+            }
+        }
+    }
+
     const auto& locals = m_hprof.GetLocalsRoots();
     const auto& globals = m_hprof.GetGlobalsRoots();
     const auto& unknown = m_hprof.GetUnknownRoots();
