@@ -16,9 +16,9 @@ public:
     enum class InlineVariableError {
         NOT_VAR_DECL_OR_REF = 2,
         NO_INIT_EXPR,
-        VAR_MODIFIED,
         MEMBER_VAR,
-        NO_TARGET
+        NO_TARGET,
+        LEFT_IN_DEC
     };
 
     const std::string Id() const override
