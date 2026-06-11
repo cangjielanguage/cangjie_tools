@@ -689,13 +689,11 @@ public func getCoreCompilerMemInfo(): Float64 {
             try {
                 // Read the process name from /proc/{pid}/comm and check if it matches a target.
                 if (["cjpm", "cjc", "llc", "opt", "ar", "ld"].contains(
-                    String.fromUtf8(readToEnd(File(Path("/proc/${dirName}/comm"), Read))).trimEnd("\n")
+                    String.fromUtf8(File.readFrom("/proc/${dirName}/comm")).trimEnd("\n")
                 )) {
                     // Read RSS from /proc/{pid}/statm (field index 1, unit: pages)
-                    let statmPath = Path("/proc/${dirName}/statm")
-                    let statmFile = File(statmPath, Read)
-                    let statmBuffer = readToEnd(statmFile)
-                    let statmStr = String.fromUtf8(statmBuffer)
+                    let statmStr = String.fromUtf8(File.readFrom("/proc/${dirName}/statm"))
+
                     // format: "size resident shared text lib data dt"
                     let statmArray = statmStr.split(" ")
 
