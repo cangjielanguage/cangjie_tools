@@ -31,7 +31,7 @@ add_library(cjprof-jni SHARED
 )
 
 if (CMAKE_BUILD_TYPE MATCHES Release AND MINGW)
-    target_link_options(cjprof-jni PRIVATE -static -Wl,--allow-multiple-definition)
+    target_link_options(cjprof-jni PRIVATE -static -Wl,--no-insert-timestamp -Wl,--allow-multiple-definition)
 endif ()
 
 set_target_properties(cjprof-jni PROPERTIES
