@@ -341,6 +341,7 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Struct_EmptyBody.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Enum_WithMembers.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_Enum_NoMembers.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_OverrideImplement_OnlyClass_001.test"}}
 
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_String_001.test","id":"7"}}
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_Interface_001.test","id":"9"}}

@@ -185,28 +185,36 @@ void LSPDiagObserver::CollectImplementMembersQuickInfo(Diagnostic &diagnostic, D
     if (!diagToken.diagFix->implementMembers || diagnostic.subDiags.empty() || !diagnostic.node) {
         return;
     }
-    auto curDecl = DynamicCast<Decl>(diagnostic.node);
+    auto curDecl = DynamicCast<InheritableDecl>(diagnostic.node);
     if (!curDecl) {
         return;
     }
+
     auto insertPos = GetImplementMembersInsertPosition(curDecl);
     if (insertPos.IsZero()) {
         return;
     }
     std::string totalInsertText;
     for (auto &diag: diagnostic.subDiags) {
-        totalInsertText += "\n";
         if (auto fd = DynamicCast<FuncDecl>(diag.GetNodeSubDiagAt())) {
+            if (fd->outerDecl == curDecl) {
+                continue;
+            }
+            totalInsertText += "\n";
             auto detail = ResolveFuncDetail(const_cast<FuncDecl*>(fd));
-            FilterModifiers(const_cast<Decl*>(curDecl), detail.modifiers);
+            FilterModifiers(const_cast<InheritableDecl*>(curDecl), detail.modifiers);
             auto signature = detail.ToString();
             auto insertText = signature + " {\n\t" + FUNC_NOT_IMPLEMENTED_EXCEPTION + "\n" + "}";
             totalInsertText += insertText + "\n";
         }
 
         if (auto pd = DynamicCast<PropDecl>(diag.GetNodeSubDiagAt())) {
+            if (pd->outerDecl == curDecl) {
+                continue;
+            }
+            totalInsertText += "\n";
             auto detail = ResolvePropDetail(const_cast<PropDecl*>(pd));
-            FilterModifiers(const_cast<Decl*>(curDecl), detail.modifiers);
+            FilterModifiers(const_cast<InheritableDecl*>(curDecl), detail.modifiers);
             auto signature = detail.ToString();
             std::string getter = "get() {\n\t\t" + PROP_NOT_IMPLEMENTED_EXCEPTION + "\n\t}";
             std::string setter;
@@ -222,11 +230,14 @@ void LSPDiagObserver::CollectImplementMembersQuickInfo(Diagnostic &diagnostic, D
             totalInsertText += insertText + "\n";
         }
     }
+    if (totalInsertText.empty()) {
+        return;
+    }
     auto file = URI::URIFromAbsolutePath(
         diag.GetSourceManager().GetSource(diagnostic.mainHint.range.begin.fileID).path).ToString();
     CodeAction codeAction;
     codeAction.kind = CodeAction::QUICKFIX_IMPLEMENT_MEMBERS;
-    codeAction.title = "Implement Members";
+    codeAction.title = "Implement members";
     WorkspaceEdit edit;
     TextEdit textEdit;
     textEdit.range = TransformFromChar2IDE({insertPos, insertPos});
