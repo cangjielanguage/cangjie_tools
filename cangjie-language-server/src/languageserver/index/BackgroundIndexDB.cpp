@@ -88,6 +88,7 @@ void BackgroundIndexDB::Update(const std::string &curPkgName, IndexFileOut index
         for (const CrossSymbol &crs : *index.crossSymbols) {
             update.InsertCrossSymbol(curPkgName, crs);
         }
+        update.DeleteReExportSymbols(curPkgName);
         for (const ReExportSymbol &res : *index.reExportSymbols) {
             update.InsertReExportSymbol(curPkgName, res);
             for (const auto &completionItem : res.completionItems) {

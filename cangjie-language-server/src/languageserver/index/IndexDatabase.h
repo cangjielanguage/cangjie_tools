@@ -241,6 +241,8 @@ public:
 
         dberr_no InsertReExportSymbol(const std::string &curPkgName, const ReExportSymbol &reExportSym);
 
+        dberr_no DeleteReExportSymbols(const std::string &pkgName);
+
         void DealReExportSymbols(const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms);
 
         dberr_no InsertReExportSymbols(const std::vector<std::tuple<std::string, IDArray, ReExportSymbol>> &reExportSyms);
