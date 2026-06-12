@@ -1592,6 +1592,21 @@ dberr_no IndexDatabase::DBUpdate::InsertCrossSymbols(const std::vector<std::pair
     return true;
 }
 
+dberr_no IndexDatabase::DBUpdate::DeleteReExportSymbols(const std::string &pkgName)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        db.Use(sql::DeleteReExportSymbols)
+            .execute(sqldb::with(pkgName));
+#ifndef NO_EXCEPTIONS
+    } catch (const std::exception &e) {
+        Trace::Log("err in delete reExportSymbols: ", e.what());
+    }
+#endif
+    return true;
+}
+
 dberr_no IndexDatabase::DBUpdate::InsertReExportSymbol(const std::string &curPkgName, const ReExportSymbol &reExportSym)
 {
 #ifndef NO_EXCEPTIONS

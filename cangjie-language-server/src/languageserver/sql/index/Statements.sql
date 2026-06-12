@@ -520,7 +520,7 @@ SQL(SelectCrossSymbolByID,
 );
 
 SQL(InsertReExportSymbol,
-  INSERT OR IGNORE INTO reexport_symbols VALUES(
+  INSERT OR REPLACE INTO reexport_symbols VALUES(
     :CJPackageName,
     :SymbolID,
     :Name,
@@ -531,7 +531,7 @@ SQL(InsertReExportSymbol,
 );
 
 SQL(MultiInsertReExportSymbolsHead,
-  INSERT OR IGNORE INTO reexport_symbols VALUES
+  INSERT OR REPLACE INTO reexport_symbols VALUES
 );
 
 SQL(MultiInsertReExportSymbolsValue,
@@ -549,8 +549,12 @@ SQL(SelectReExportSymbol,
   SELECT * FROM reexport_symbols WHERE CJPackageName = :CJPackageName
 );
 
+SQL(DeleteReExportSymbols,
+  DELETE FROM _reexport_symbols WHERE CJPackageName = :CJPackageName
+);
+
 SQL(InsertReExportCompletion,
-  INSERT OR IGNORE INTO reexport_completions VALUES(
+  INSERT OR REPLACE INTO reexport_completions VALUES(
     :Name,
     :SymbolID,
     :Label,
@@ -559,7 +563,7 @@ SQL(InsertReExportCompletion,
 );
 
 SQL(MultiInsertReExportCompletionsHead,
-  INSERT OR IGNORE INTO reexport_completions VALUES
+  INSERT OR REPLACE INTO reexport_completions VALUES
 );
 
 SQL(MultiInsertReExportCompletionsValue,
