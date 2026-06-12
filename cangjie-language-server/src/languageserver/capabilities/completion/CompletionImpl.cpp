@@ -178,10 +178,11 @@ void CompletionImpl::CodeComplete(const ArkAST &input,
     // For STRING_LITERAL, caculate accurate completino prefix.
     // If cursor isn't in interpolation, no code completion support.
     if (tok.kind == TokenKind::STRING_LITERAL || tok.kind == TokenKind::MULTILINE_STRING
-        || tok.kind == TokenKind::MULTILINE_RAW_STRING) {
+        || tok.kind == TokenKind::MULTILINE_RAW_STRING || tok.kind == TokenKind::RUNE_LITERAL
+        || tok.kind == TokenKind::RUNE_BYTE_LITERAL) {
+        bool isInExpr = false;
         Lexer lexer = Lexer(input.tokens, input.packageInstance->diag, *input.sourceManager);
         auto stringParts = lexer.GetStrParts(tok);
-        bool isInExpr = false;
         for (const auto &str : stringParts) {
             if (str.strKind == Cangjie::StringPart::EXPR) {
                 if (str.begin <= pos && pos <= str.end) {
