@@ -16,18 +16,11 @@ public:
     enum class InlineFunctionError {
         NOT_CALL_EXPR = 2,
         FUNC_DECL_NOT_FOUND,
-        MULTIPLE_RETURN_PATHS,
-        COMPLEX_FUNC_BODY,
-        HAS_SIDE_EFFECT_ARGS,
         IS_GENERIC_FUNC,
-        IS_MEMBER_FUNC,
         IS_EXTEND_FUNC,
         IS_LAMBDA_CALL,
         IS_RECURSIVE_FUNC,
         HAS_PRIVATE_ACCESS,
-        RETURNS_CLOSURE,
-        HAS_NAMED_ARGS,
-        HAS_DEFAULT_ARGS
     };
 
     const std::string Id() const override
@@ -101,6 +94,8 @@ private:
     Range FindInsertPositionFromBlock(Range &callRange, bool &isGlobal, std::string &indent);
 
     Range FindInsertPositionFromToken(std::string &indent);
+
+    std::string GenerateInlineBody(std::string indent);
 
     TextEdit InsertParamDecls();
 
