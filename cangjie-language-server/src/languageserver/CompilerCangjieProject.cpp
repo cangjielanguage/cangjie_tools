@@ -2634,7 +2634,8 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
     // Store the indexs and astdata
     if (isFullCompilation) {
         auto needStoreCache = MessageHeaderEndOfLine::GetIsDeveco()
-                                  ? ci->diag.GetErrorCount() == 0 : ci->macroExpandSuccess;
+                                  ? ci->diag.GetErrorCount() == 0
+                                  : (ci->diag.GetErrorCount() == 0 && ci->macroExpandSuccess);
         if (needStoreCache) {
             StorePackageCache(curPkgName);
         }
