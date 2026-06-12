@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.10)
 project("cjprof")
 
 set(CMAKE_CXX_STANDARD 17)
-set(CJPROF_VERSION_STR "1.2.0-alpha.21")
+set(CJPROF_VERSION_STR "1.2.0-alpha.22")
 set(CMAKE_CXX_FLAGS_RELEASE "-D_FORTIFY_SOURCE=2 -O2")
 set(STRIP_FLAG "-s")
 
