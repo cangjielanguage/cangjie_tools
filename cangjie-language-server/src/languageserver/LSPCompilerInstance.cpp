@@ -294,6 +294,9 @@ bool LSPCompilerInstance::ToImportPackage(const std::string &curModuleName,
     if (curModuleName.empty()) {
         return true;
     }
+    if (!moduleManger) {
+        return false;
+    }
     auto &requireMap = IsBuildScriptContext()
         ? moduleManger->requireAllPackagesInBuild : moduleManger->requireAllPackages;
     auto found = requireMap.find(curModuleName);
@@ -389,7 +392,7 @@ void LSPCompilerInstance::IndexCjoToManager(
  *
  * @param cjoManager Read cjo cache and update cjo cache and state
  * @param graph
- * @param realPkgName Update target package cjo cache, used in common-specific package 
+ * @param realPkgName Update target package cjo cache, used in common-specific package
  * @return true
  * @return false
  */
@@ -605,7 +608,7 @@ bool LSPCompilerInstance::IsBuildScriptContext()
         return false;
     }
     for (const auto &file : packages[0]->files) {
-        if (file && moduleManger->IsBuildScriptFile(file->filePath)) {
+        if (file && moduleManger && moduleManger->IsBuildScriptFile(file->filePath)) {
             return true;
         }
     }
