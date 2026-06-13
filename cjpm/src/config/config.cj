@@ -45,6 +45,14 @@ public let CUR_PARALLEL_SIZE: AtomicInt64 = AtomicInt64(0)
 public var crossCompileTarget: String = ""
 public var targetConfigName: String = ""
 
+public func getCompileTarget(): String {
+    if (crossCompileTarget.isEmpty()) {
+        targetConfigName
+    } else {
+        crossCompileTarget
+    }
+}
+
 // Type for running resolve()
 public const RESOLVE_BUILD: String = "build"
 public const RESOLVE_TEST: String = "test"
@@ -424,8 +432,10 @@ public struct Triple <: ToString {
         _stringValue
     }
 
-    private static func extractApiVersion(value: String): (String, ApiVersion) {
-        assertion { => Regex("^[a-zA-Z][_a-zA-Z0-9]*$").matches(value) }
+    private static func extractApiVersion(value: String): ?(String, ApiVersion) {
+        if (!Regex("^[a-zA-Z][_a-zA-Z0-9]*$").matches(value)) {
+            return None
+        }
 
         var curr = value.size - 1
         while (curr > 0) {
@@ -437,36 +447,56 @@ public struct Triple <: ToString {
         }
 
         if (curr == value.size) {
-            return (value, Option<UInt8>.None)
+            return Some((value, Option<UInt8>.None))
         } else {
-            let version = UInt8.tryParse(value[curr..]) ?? return (value, Option<UInt8>.None)
+            let version = UInt8.tryParse(value[curr..]) ?? return Some((value, Option<UInt8>.None))
             let prefix  = value[..curr]
-            return (prefix, version)
+            return Some((prefix, version))
         }
+    }
+
+    private static func extractAppleOsVersion(value: String): ?(OS, ApiVersion) {
+        if (!value.startsWith("ios")) {
+            let (osName, version) = extractApiVersion(value) ?? return None
+            return Some((OS.parse(osName), version))
+        }
+        let versionSuffix = value["ios".size..]
+        if (versionSuffix.isEmpty() || versionSuffix.contains(".")) {
+            return Some((OS.IOS, None))
+        }
+        let (osName, version) = extractApiVersion(value) ?? return None
+        return Some((OS.parse(osName), version))
+    }
+
+    private static func isValidTripleSegment(segment: String): Bool {
+        !segment.isEmpty() && Regex("^[a-zA-Z][-_a-zA-Z0-9.]*$").matches(segment)
     }
 
     public static func fromString(triple: String): Result<Triple, String> {
         let errmesg = Result<Triple, String>.Err(
             "The target-triple must be of form {ARCH}-{VENDOR}-{SYSTEM}-{ENV} or {ARCH}-{SYSTEM}-{ENV}. Got: ${triple}"
         )
-        if (!Regex("^[a-zA-Z][-_a-zA-Z0-9]*$").matches(triple)) {
-            return errmesg
-        }
         let data = triple.split("-")
         if (data.size != 3 && data.size != 4) {
             return errmesg
         }
+        for (segment in data) {
+            if (!isValidTripleSegment(segment)) {
+                return errmesg
+            }
+        }
 
         if (data[1] == "apple") {
-            // example: arm64-apple-ios11-sim 
+            // example: arm64-apple-ios11-sim
             // example: aarch64-apple-darwin
-            let env = if (data.size == 4) { Env.parse(data[3]) } else { Env.NOT_AVAILABLE } 
-            let (os, version) = extractApiVersion(data[2])
+            // example: aarch64-apple-ios17.5
+            let env = if (data.size == 4) { Env.parse(data[3]) } else { Env.NOT_AVAILABLE }
+            let (os, version) = extractAppleOsVersion(data[2]) ?? return errmesg
             return Ok(Triple(
                 triple,
                 arch: Arch.parse(data[0]),
                 vendor: Vendor.parse(data[1]),
-                os: OS.parse(os),
+                os: os,
                 env: env,
                 apiVersion: version
             ))
@@ -475,7 +505,7 @@ public struct Triple <: ToString {
         let (env, apiVersion) = if (data[data.size - 1] == "mingw32") { 
             (data[data.size - 1], Option<UInt8>.None)
         } else {
-            extractApiVersion(data[data.size - 1])
+            extractApiVersion(data[data.size - 1]) ?? return errmesg
         }
         return Ok(Triple(
             triple,
@@ -1165,59 +1195,6 @@ public class GlobalConfig {
         this.enabledFeatures = globalConfig.enabledFeatures
         this.verifiedEnabledFeatures = globalConfig.verifiedEnabledFeatures
     }
-}
-
-public func linkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
-    let processdLibName = swapOrgName(libName)
-    let res = ArrayList<String>()
-    let ltoFile = Path(libPath).join(makeLtoName(processdLibName)).toString()
-    if (isLto) {
-        if (fileExists(ltoFile)) {
-            res.add(ltoFile)
-            return res
-        }
-    }
-
-    if (fileExists(Path(libPath).join(makeCangjieStaticlibName(processdLibName))) || 
-        fileExists(Path(libPath).join("lib${processdLibName}.so")) || 
-        fileExists(Path(libPath).join("lib${processdLibName}.dll")) || 
-        fileExists(Path(libPath).join("lib${processdLibName}.dylib"))) {
-        res.add(all: ["-L", libPath, "-l${processdLibName}"])
-    } else if (fileExists(ltoFile)) {
-        res.add(ltoFile)
-    }
-
-    return res
-}
-
-public func forcedLinkPackage(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
-    
-    let compileTarget = if (crossCompileTarget.isEmpty()) {
-        targetConfigName
-    } else {
-        crossCompileTarget
-    }
-    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
-        return forcedLinkPackageForMac(libName, libPath, isLto)
-    } else {
-        return forcedLinkPackageForLinuxOrWin(libName, libPath, isLto)
-    }
-}
-
-public func forcedLinkPackageForLinuxOrWin(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
-    return linkPackage(libName, libPath, isLto)
-}
-
-public func forcedLinkPackageForMac(libName: String, libPath: String, isLto: Bool): ArrayList<String> {
-    var res = ArrayList<String>()
-    let staticLibPath = Path(libPath).join(makeCangjieStaticlibName(libName)).toString()
-    let dyLibPath = Path(libPath).join("lib${libName}.dylib").toString()
-    if (fileExists(staticLibPath)) {
-        res.add(staticLibPath)
-    } else if (fileExists(dyLibPath)) {
-        res.add(all: linkPackage(libName, libPath, isLto))
-    }
-    return res
 }
 
 @When[os == "Windows"]

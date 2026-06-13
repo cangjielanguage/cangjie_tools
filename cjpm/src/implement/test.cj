@@ -522,6 +522,30 @@ func appendLinkOption(option: String): Array<String> {
     return []
 }
 
+// Collect bin-dependencies link options for cjpm test (native + cross bin deps).
+func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto: Bool): ArrayList<String> {
+    let binOptions = ArrayList<String>()
+
+    func appendBinDeps(binDeps: HashMap<String, BinDeps>): Unit {
+        for ((_, eachModuleDepMap) in binDeps) {
+            for (depName in eachModuleDepMap.packageRequiresSort) {
+                if (!requires.contains(depName)) {
+                    continue
+                }
+                let info = eachModuleDepMap.packageRequires[depName]
+                if (info.isMacroPackage) {
+                    continue
+                }
+                binOptions.add(all: linkPackage(info.libName, info.libPath, isLto), at: 0)
+            }
+        }
+    }
+
+    appendBinDeps(res.binDeps)
+    appendBinDeps(res.crossBinDeps)
+    return binOptions
+}
+
 func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>,
     testConfig: TestConfig): ArrayList<String> {
     let cLibNameList = HashSet<String>()
@@ -1325,7 +1349,7 @@ func verifyConfigForTest(cfg: TomlInfo, testConfig: TestConfig): Bool {
     }
 
     if (!testConfig.profile.ltoValue.isEmpty()) {
-        testConfig.isLto = supportLto()
+        testConfig.isLto = supportLtoForCurrentTarget()
         testConfig.ltoValue = testConfig.profile.ltoValue
     }
 

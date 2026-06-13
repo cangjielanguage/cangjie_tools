@@ -40,7 +40,7 @@ public class DepAnalysisEngine {
     public var isTest: Bool = false
     public var isDebug: Bool = false
     public var rootModulePath: String = ""
-    public let target: String = if (crossCompileTarget.isEmpty()) { targetConfigName } else { crossCompileTarget }
+    public let target: String = getCompileTarget()
 
     // records of chosen dep-modules for each module name
     public let finalDepMap: HashMap<String, FinalDepModule> = HashMap<String, FinalDepModule>()
