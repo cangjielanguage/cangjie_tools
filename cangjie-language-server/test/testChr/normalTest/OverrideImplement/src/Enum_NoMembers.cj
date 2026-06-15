@@ -7,7 +7,7 @@
 package UnimplementQuickFix
 
 interface EnumNoMemberInterface {
-    func doEnum(): Unit
+    mut func doEnum(): Unit
 }
 
 enum EnumNoMember <: EnumNoMemberInterface {
