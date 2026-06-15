@@ -7,7 +7,7 @@
 package UnimplementQuickFix
 
 interface StructInterface {
-    func doStruct(): Unit
+    mut func doStruct(): Unit
     prop structProp: Int32
 }
 
