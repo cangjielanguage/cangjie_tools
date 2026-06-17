@@ -141,6 +141,8 @@ TextEdit InlineVariable::ReplaceRefWithInitExpr(const Selection &sel, const std:
 {
     TextEdit edit;
     Range refRange = {sel.range.start, sel.range.end};
+    PositionUTF8ToIDE(sel.arkAst->tokens, refRange.start, *sel.arkAst->file);
+    PositionUTF8ToIDE(sel.arkAst->tokens, refRange.end, *sel.arkAst->file);
     refRange = TransformFromChar2IDE(refRange);
     edit.range = refRange;
     edit.newText = initExprCode;

@@ -101,7 +101,7 @@ private:
 
     TextEdit InsertInlineBody();
 
-    TextEdit ReplaceCallWithVar();
+    TextEdit ReplaceCallWithVar(const Selection &sel);
 
     TextEdit ReplaceCallWithEmpty();
 };
