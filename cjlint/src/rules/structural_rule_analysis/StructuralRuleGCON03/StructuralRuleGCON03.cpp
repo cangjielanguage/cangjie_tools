@@ -19,7 +19,8 @@ void StructuralRuleGCON03::OverrideFuncFinder(Ptr<Cangjie::AST::Node> node)
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [this](const FuncDecl& funcDecl) {
-                if (IsOverrideModifier(funcDecl.modifiers) && funcDecl.funcBody->body != nullptr &&
+                if (IsOverrideModifier(funcDecl.modifiers) && funcDecl.funcBody != nullptr &&
+                    funcDecl.funcBody->body != nullptr &&
                     !IsThreadSafe(funcDecl.funcBody->body->body)) {
                     auto classDecl = DynamicCast<ClassDecl*>(funcDecl.outerDecl.get());
                     if (!classDecl) {
@@ -125,7 +126,8 @@ bool StructuralRuleGCON03::CoverDeclToFuncDecl(Ptr<Cangjie::AST::Decl> decl)
 {
     if (decl && decl->astKind == ASTKind::FUNC_DECL) {
         auto funcDecl = As<ASTKind::FUNC_DECL>(decl);
-        if (funcDecl->funcBody->body != nullptr && !IsThreadSafe(funcDecl->funcBody->body->body)) {
+        if (funcDecl->funcBody != nullptr && funcDecl->funcBody->body != nullptr &&
+            !IsThreadSafe(funcDecl->funcBody->body->body)) {
             return false;
         }
     }
@@ -134,6 +136,9 @@ bool StructuralRuleGCON03::CoverDeclToFuncDecl(Ptr<Cangjie::AST::Decl> decl)
 
 bool StructuralRuleGCON03::IsFuncSafe(Ptr<Cangjie::AST::CallExpr> callExpr)
 {
+    if (callExpr->baseFunc == nullptr) {
+        return true;
+    }
     if (callExpr->baseFunc->astKind == ASTKind::REF_EXPR) {
         auto refExpr = As<ASTKind::REF_EXPR>(callExpr->baseFunc.get());
         if (!CoverDeclToFuncDecl(refExpr->ref.target)) {
@@ -151,7 +156,7 @@ bool StructuralRuleGCON03::IsFuncSafe(Ptr<Cangjie::AST::CallExpr> callExpr)
 
 StructuralRuleGCON03::MutexState StructuralRuleGCON03::IsReentrantMutex(Ptr<Cangjie::AST::CallExpr> callExpr)
 {
-    if (callExpr->baseFunc->astKind != AST::ASTKind::MEMBER_ACCESS) {
+    if (callExpr->baseFunc == nullptr || callExpr->baseFunc->astKind != AST::ASTKind::MEMBER_ACCESS) {
         return MutexState::NOT_MUTEX;
     }
     auto memberAccess = As<ASTKind::MEMBER_ACCESS>(callExpr->baseFunc.get());
@@ -160,7 +165,11 @@ StructuralRuleGCON03::MutexState StructuralRuleGCON03::IsReentrantMutex(Ptr<Cang
         return MutexState::NOT_MUTEX;
     }
     auto ref = As<ASTKind::REF_EXPR>(memberAccess->baseExpr.get());
-    if (ref == nullptr || ref->ref.target == nullptr || ref->ref.target->GetTy()->name != "ReentrantMutex") {
+    if (ref == nullptr || ref->ref.target == nullptr) {
+        return MutexState::NOT_MUTEX;
+    }
+    auto targetTy = ref->ref.target->GetTy();
+    if (targetTy == nullptr || targetTy->name != "ReentrantMutex") {
         return MutexState::NOT_MUTEX;
     }
     return memberAccess->field == "lock" ? MutexState::MUTEX_LOCK : MutexState::MUTEX_UNLOCK;
