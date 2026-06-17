@@ -195,6 +195,9 @@ void MemIndex::FindImportSymsOnCompletion(
         }
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
         for (const auto &sym : pkgSyms.second) {
+            if (sym.scope.find(pkgSyms.first) == std::string::npos) {
+                continue;
+            }
             bool isPkgAccess =
                 sym.pkgModifier == Modifier::PUBLIC
                 || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
