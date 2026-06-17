@@ -102,7 +102,7 @@ HoverMarkdownBlocks CollectHoverMarkdownBlocks(const ark::Hover &hover)
             blocks.sourceInfo.push_back(block);
         } else if (StartsWith(block, "apiKey:") || StartsWith(block, "// In ")) {
             blocks.declarations.push_back(block);
-        } else if (!hasPrimaryDeclaration || StartsWith(block, "@")) {
+        } else if (!hasPrimaryDeclaration || StartsWith(block, "@!")) {
             blocks.declarations.push_back(block);
             hasPrimaryDeclaration = true;
         } else {

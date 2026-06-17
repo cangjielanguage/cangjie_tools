@@ -166,9 +166,6 @@ TEST(HoverMarkdownTest, ClassifiesShortPrefixesAndAtBlocks)
     EXPECT_EQ(ark::BuildHoverMarkdown(hover),
         "```cangjie\n"
         "Declared\n"
-        "@Deprecated[\n"
-        "    message: \"use next\"\n"
-        "]\n"
         "```\n"
         "\n"
         "---\n"
@@ -177,6 +174,11 @@ TEST(HoverMarkdownTest, ClassifiesShortPrefixesAndAtBlocks)
         "\n"
         "\n"
         "//  \n"
+        "\n"
+        "\n"
+        "@Deprecated\\[  \n"
+        "    message: \"use next\"  \n"
+        "\\]  \n"
         "\n"
         "\n"
         "Trailing comment.  \n");
