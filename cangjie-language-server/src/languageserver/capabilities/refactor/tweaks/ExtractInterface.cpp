@@ -79,6 +79,7 @@ struct TypeReplacementContext {
     const Tweak::Selection &sel;
     Cangjie::AST::Decl &targetDecl;
     std::string interfaceName;
+    std::string implementationClassName;
     std::string targetPath;
     std::unordered_set<std::string> allowedMemberNames;
     std::map<std::string, std::vector<TextEdit>> &applyEdits;
@@ -96,6 +97,7 @@ struct ApplyContext {
     std::unordered_set<std::string> selectedInheritedTypes;
     bool renameOriginalClass = false;
     bool hasExplicitInterfaceName = false;
+    bool hasSelectedMembersOption = false;
     bool withImplementation = true;
 };
 
@@ -1339,7 +1341,17 @@ bool IsLikelyTypeReferenceText(const ArkAST &ast, const Range &referenceRange)
         return ch == '>' || ch == '&' || ch == ',' || ch == ')' || ch == '=' || ch == '{';
     };
 
-    return isLeftTypeContext(left) || isRightTypeContext(right);
+    return right != '(' && (isLeftTypeContext(left) || isRightTypeContext(right));
+}
+
+bool IsLikelyImplementationClassReferenceText(const ArkAST &ast, const Range &referenceRange)
+{
+    if (!ast.sourceManager || !ast.file) {
+        return false;
+    }
+
+    std::string suffix = ast.sourceManager->GetContentBetween(referenceRange.end, ast.file->GetEnd());
+    return NextNonWhitespaceChar(suffix) == '(';
 }
 // LCOV_EXCL_STOP
 // LCOV_EXCL_BR_START
@@ -1393,6 +1405,53 @@ std::optional<TextEdit> BuildTypeReplacementEditForLocation(const Location &loca
         importEdit = BuildImportInterfaceEditForFile(*refAst->file, normalizedTargetPath, context.interfaceName);
     }
     return TextEdit{location.range, context.interfaceName};
+}
+
+std::optional<TextEdit> BuildImplementationClassReplacementEditForLocation(const Location &location,
+                                                                           const TypeReplacementContext &context)
+{
+    if (context.implementationClassName.empty()) {
+        return std::nullopt;
+    }
+
+    auto *project = CompilerCangjieProject::GetInstance();
+    if (!project) {
+        return std::nullopt;
+    }
+
+    std::string path = FileStore::NormalizePath(URI::Resolve(location.uri.file));
+    SetHeadByFilePath(path);
+    ArkAST *refAst = project->GetArkAST(path);
+    if (!refAst || !refAst->file) {
+        return std::nullopt;
+    }
+
+    Range refRange = TransformFromIDE2Char(location.range);
+    PositionIDEToUTF8(refAst->tokens, refRange.start, *refAst->file);
+    PositionIDEToUTF8(refAst->tokens, refRange.end, *refAst->file);
+    if (!IsLikelyImplementationClassReferenceText(*refAst, refRange)) {
+        return std::nullopt;
+    }
+
+    bool found = false;
+    ConstWalker(refAst->file.get(), [&found, &context, &refRange](Ptr<const Node> node) {
+        if (found || !node) {
+            return VisitAction::STOP_NOW;
+        }
+        if ((node->GetBegin() > refRange.start || refRange.start > node->GetEnd()) &&
+            (node->GetBegin() > refRange.end || refRange.end > node->GetEnd())) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        if (IsMatchingNonTypeReference(*node, context.targetDecl, refRange)) {
+            found = true;
+            return VisitAction::STOP_NOW;
+        }
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
+    if (!found) {
+        return std::nullopt;
+    }
+    return TextEdit{location.range, context.implementationClassName};
 }
 
 std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceManager *sm)
@@ -2389,6 +2448,7 @@ void InitializeApplyContext(ApplyContext &context)
     }
     // LCOV_EXCL_STOP
     context.chosen = ParseSelectedMembers(context.sel.extraOptions);
+    context.hasSelectedMembersOption = context.sel.extraOptions.find("selectedMembers") != context.sel.extraOptions.end();
     context.selectedInheritedTypes = ParseSelectedInheritedMemberTypes(context.chosen);
     context.withImplementation = ParseBoolOption(context.sel.extraOptions, "withImplementation", true);
     if (context.renameOriginalClass) {
@@ -2420,18 +2480,26 @@ void CollectApplyInterfaceInfo(ApplyContext &context)
     }
 }
 
+void FilterMembersBySelection(InterfaceInfo &info,
+                              const std::unordered_set<std::string> &chosen,
+                              bool hasSelectedMembersOption)
+{
+    if (!hasSelectedMembersOption) {
+        return;
+    }
+    std::vector<std::string> filteredMembers;
+    filteredMembers.reserve(info.members.size());
+    for (auto &member : info.members) {
+        if (chosen.count(member) || chosen.count(TweakUtils::NormalizeSignature(member))) {
+            filteredMembers.push_back(member);
+        }
+    }
+    info.members.swap(filteredMembers);
+}
+
 void FilterSelectedMembers(ApplyContext &context)
 {
-    if (!context.chosen.empty()) {
-        std::vector<std::string> filteredMembers;
-        filteredMembers.reserve(context.info.members.size());
-        for (auto &member : context.info.members) {
-            if (context.chosen.count(member) || context.chosen.count(TweakUtils::NormalizeSignature(member))) {
-                filteredMembers.push_back(member);
-            }
-        }
-        context.info.members.swap(filteredMembers);
-    }
+    FilterMembersBySelection(context.info, context.chosen, context.hasSelectedMembersOption);
 }
 
 void AddRenameOriginalClassEdit(ApplyContext &context)
@@ -2530,6 +2598,7 @@ void AddTypeReferenceReplacementEdits(ApplyContext &context)
         context.sel,
         *replacementTarget,
         context.info.name,
+        context.renameOriginalClass ? context.implementationClassName : "",
         context.targetPath.empty() ? context.sel.arkAst->file->filePath : context.targetPath,
         BuildAllowedMemberNames(context.info.members),
         context.effect.applyEdits
@@ -2558,6 +2627,7 @@ std::optional<Tweak::Effect> ExtractInterface::Apply(const Tweak::Selection &sel
         "",
         {},
         {},
+        false,
         false,
         false,
         true
@@ -2657,17 +2727,20 @@ void AddTypeReplacementEditForReference(TypeReplacementContext &context, const L
 {
     std::optional<TextEdit> importEdit;
     auto edit = BuildTypeReplacementEditForLocation(location, context, importEdit);
-    if (!edit.has_value()) {
-        return;
-    }
     auto &edits = context.applyEdits[location.uri.file];
-    if (importEdit.has_value()) {
+    if (edit.has_value() && importEdit.has_value()) {
         if (std::find(edits.begin(), edits.end(), *importEdit) == edits.end()) {
             edits.push_back(std::move(*importEdit));
         }
     }
-    if (std::find(edits.begin(), edits.end(), *edit) == edits.end()) {
+    if (edit.has_value() && std::find(edits.begin(), edits.end(), *edit) == edits.end()) {
         edits.push_back(std::move(*edit));
+    }
+
+    auto implementationEdit = BuildImplementationClassReplacementEditForLocation(location, context);
+    if (implementationEdit.has_value() &&
+        std::find(edits.begin(), edits.end(), *implementationEdit) == edits.end()) {
+        edits.push_back(std::move(*implementationEdit));
     }
 }
 

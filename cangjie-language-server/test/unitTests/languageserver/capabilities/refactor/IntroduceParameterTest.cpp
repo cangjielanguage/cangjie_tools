@@ -26,7 +26,6 @@ void SetFuncParamList(FuncDecl &funcDecl, OwnedPtr<FuncParamList> paramList)
 }
 
 } // namespace
-
 TEST(IntroduceParameterTest, InsertParameter)
 {
     auto emptyParamList = MakeParamList({1, 10, 18});

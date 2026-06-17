@@ -21,11 +21,14 @@ class TweakUtils {
 public:
     static Ptr<Block> FindOuterScopeNode(const ASTContext& ctx, const Expr& expr, bool &isGlobal, Range &range);
 
-    static bool Contain(Cangjie::AST::Node &node, Range &range);
+    static bool Contain(Cangjie::AST::Node &node, const Range &range);
 
     static bool CheckValidExpr(const SelectionTree::SelectionTreeNode &treeNode);
 
     static Range GetCompleteExprRange(const SelectionTree &selectionTree);
+
+    static const SelectionTree::SelectionTreeNode *GetCompleteExprNode(
+        const SelectionTree &selectionTree, const Range &range);
 
     static Ptr<FuncDecl> FindEnclosingFunc(const ArkAST &arkAst, const Range &range);
 
@@ -33,7 +36,7 @@ public:
 
     static std::string GetSelectedExprTypeName(const SelectionTree &selectionTree, const Range &range);
 
-    static Range FindGlobalInsertPos(const File &file, Range &range);
+    static Range FindGlobalInsertPos(const File &file, const Range &range);
 
     static size_t FindTokenBoundaryPos(const std::string &text, const std::string &token);
 

@@ -40,6 +40,11 @@ struct CallSiteContext {
 };
 
 using ArgumentReplacement = std::pair<Range, std::string>;
+static Range GetIntroduceParameterExprRange(const SelectionTree &selectionTree, const Range &selectedRange);
+static Ptr<Cangjie::AST::Expr> GetIntroduceParameterExpr(
+    const SelectionTree &selectionTree, const Range &selectedRange);
+static std::string GetIntroduceParameterExprTypeName(
+    const SelectionTree &selectionTree, const Range &selectedRange);
 // LCOV_EXCL_BR_START
 static bool IsLocalVariableTarget(const Ptr<Cangjie::AST::Node> &target)
 {
@@ -65,7 +70,7 @@ static bool CanBuildArgumentAtCallSites(const Tweak::Selection &sel, Cangjie::AS
     if (!root || !root->node) {
         return false;
     }
-    auto range = TweakUtils::GetCompleteExprRange(sel.selectionTree);
+    auto range = GetIntroduceParameterExprRange(sel.selectionTree, sel.range);
     if (range.start == Position{0, 0, 0} || range.start == range.end) {
         return false;
     }
@@ -98,7 +103,7 @@ static bool HasTargetFunctionLocalVariableReference(const Tweak::Selection &sel,
     if (!root || !root->node) {
         return false;
     }
-    auto range = TweakUtils::GetCompleteExprRange(sel.selectionTree);
+    auto range = GetIntroduceParameterExprRange(sel.selectionTree, sel.range);
     if (range.start == Position{0, 0, 0} || range.start == range.end) {
         return false;
     }
@@ -136,6 +141,103 @@ static bool ShouldIntroduceNamedParameter(Cangjie::AST::FuncDecl &funcDecl);
 static std::string BuildNewParamText(
     Cangjie::AST::FuncDecl &funcDecl, const std::string &paramName, const std::string &typeName);
 
+static bool HasExprBoundary(const SelectionTree::SelectionTreeNode &treeNode, const Position &pos, bool isStart)
+{
+    bool hasBoundary = false;
+    SelectionTree::Walk(&treeNode, [&pos, &isStart, &hasBoundary](const SelectionTree::SelectionTreeNode *node) {
+        if (!node || !node->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (node->node->IsExpr() && (isStart ? node->node->begin == pos : node->node->end == pos)) {
+            hasBoundary = true;
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return hasBoundary;
+}
+
+static Ptr<Cangjie::AST::Expr> GetContainingBinaryExpr(
+    const SelectionTree &selectionTree, const Range &selectedRange)
+{
+    Ptr<Cangjie::AST::Expr> containingExpr = nullptr;
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return nullptr;
+    }
+    SelectionTree::Walk(root, [&selectedRange, &containingExpr](const SelectionTree::SelectionTreeNode *treeNode) {
+        if (!treeNode || !treeNode->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (!treeNode->node->IsExpr() || treeNode->node->begin > selectedRange.start ||
+            treeNode->node->end < selectedRange.end) {
+            return SelectionTree::WalkAction::WALK_CHILDREN;
+        }
+        if (treeNode->node->astKind == ASTKind::BINARY_EXPR && treeNode->node->end == selectedRange.end &&
+            HasExprBoundary(*treeNode, selectedRange.start, true) &&
+            HasExprBoundary(*treeNode, selectedRange.end, false)) {
+            containingExpr = DynamicCast<Cangjie::AST::Expr *>(treeNode->node.get());
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return containingExpr;
+}
+
+static Range GetIntroduceParameterExprRange(const SelectionTree &selectionTree, const Range &selectedRange)
+{
+    Range range;
+    auto exprNode = TweakUtils::GetCompleteExprNode(selectionTree, selectedRange);
+    if (!exprNode || !exprNode->node) {
+        auto binaryExpr = GetContainingBinaryExpr(selectionTree, selectedRange);
+        if (!binaryExpr || !binaryExpr->GetTy() || GetString(*binaryExpr->GetTy()) == "UnknownType") {
+            return range;
+        }
+        return selectedRange;
+    }
+    range.start = exprNode->node->begin;
+    range.end = exprNode->node->end;
+    return range;
+}
+
+static Ptr<Cangjie::AST::Expr> GetIntroduceParameterExpr(const SelectionTree &selectionTree,
+    const Range &selectedRange)
+{
+    auto exprNode = TweakUtils::GetCompleteExprNode(selectionTree, selectedRange);
+    if (exprNode && exprNode->node) {
+        return DynamicCast<Cangjie::AST::Expr *>(exprNode->node.get());
+    }
+    return GetContainingBinaryExpr(selectionTree, selectedRange);
+}
+
+static std::string GetIntroduceParameterExprTypeName(const SelectionTree &selectionTree,
+    const Range &selectedRange)
+{
+    auto exactTypeName = TweakUtils::GetSelectedExprTypeName(selectionTree, selectedRange);
+    if (!exactTypeName.empty()) {
+        return exactTypeName;
+    }
+    auto expr = GetIntroduceParameterExpr(selectionTree, selectedRange);
+    if (!expr || !expr->GetTy() || GetString(*expr->GetTy()) == "UnknownType") {
+        return "";
+    }
+    return GetString(*expr->GetTy());
+}
+
+static std::string GetExplicitTypeName(const Tweak::Selection &sel)
+{
+    auto it = sel.extraOptions.find("typeName");
+    return it == sel.extraOptions.end() ? "" : it->second;
+}
+
+bool IntroducedParameterTypeBreaksPublicSignature(Cangjie::AST::FuncDecl &funcDecl, Ptr<Cangjie::AST::Ty> ty)
+{
+    if (!funcDecl.TestAttr(Attribute::PUBLIC) || !ty) {
+        return false;
+    }
+    auto decl = Ty::GetDeclPtrOfTy(ty);
+    return decl && !decl->IsExportedDecl();
+}
+
 class IntroduceParameterRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
@@ -143,30 +245,33 @@ class IntroduceParameterRule : public TweakRule {
         if (!root || !root->node) {
             return false;
         }
-        if (root->selected != SelectionTree::Selection::Complete || !TweakUtils::CheckValidExpr(*root)) {
+        auto range = GetIntroduceParameterExprRange(sel.selectionTree, sel.range);
+        auto selectedExpr = GetIntroduceParameterExpr(sel.selectionTree, sel.range);
+        if (range.start == Position{0, 0, 0} || range.start == range.end || !selectedExpr) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::FAIL_GET_ROOT_EXPR))));
             return false;
         }
-        if (CANNOT_INTRODUCE_PARAMETER_EXPR.count(root->node->astKind)) {
+        if (CANNOT_INTRODUCE_PARAMETER_EXPR.count(selectedExpr->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_CODE_SEGMENT))));
             return false;
         }
-        if (!root->node->IsExpr()) {
-            extraOptions.insert(std::make_pair("ErrorCode",
-                std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_EXPR))));
-            return false;
-        }
-        if (!IntroduceParameter::GetTargetFunc(sel)) {
+        auto funcDecl = IntroduceParameter::GetTargetFunc(sel);
+        if (!funcDecl) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_SCOPE))));
             return false;
         }
-        auto range = TweakUtils::GetCompleteExprRange(sel.selectionTree);
-        if (TweakUtils::GetSelectedExprTypeName(sel.selectionTree, range).empty()) {
+        if (GetIntroduceParameterExprTypeName(sel.selectionTree, range).empty()) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_TYPE))));
+            return false;
+        }
+        if (selectedExpr && IntroducedParameterTypeBreaksPublicSignature(*funcDecl, selectedExpr->GetTy())) {
+            extraOptions.insert(std::make_pair("ErrorCode",
+                std::to_string(static_cast<int>(
+                    IntroduceParameter::IntroduceParameterError::PUBLIC_DECL_USES_NON_PUBLIC_TYPE))));
             return false;
         }
         return true;
@@ -198,12 +303,15 @@ std::optional<Tweak::Effect> IntroduceParameter::Apply(const Selection &sel)
         paramName = nameIt->second;
     }
 
-    Range range = TweakUtils::GetCompleteExprRange(sel.selectionTree);
+    Range range = GetIntroduceParameterExprRange(sel.selectionTree, sel.range);
     if (range.start == Position{0, 0, 0} || range.start == range.end) {
         return std::nullopt;
     }
 
-    std::string typeName = TweakUtils::GetSelectedExprTypeName(sel.selectionTree, range);
+    std::string typeName = GetIntroduceParameterExprTypeName(sel.selectionTree, sel.range);
+    if (typeName.empty()) {
+        typeName = GetExplicitTypeName(sel);
+    }
     if (typeName.empty()) {
         return std::nullopt;
     }
@@ -237,7 +345,7 @@ std::map<std::string, std::string> IntroduceParameter::ExtraOptions()
 Ptr<Cangjie::AST::FuncDecl> IntroduceParameter::GetTargetFunc(const Selection &sel)
 {
     return TweakUtils::GetTargetFunc(
-        sel.selectionTree, sel.arkAst, TweakUtils::GetCompleteExprRange(sel.selectionTree));
+        sel.selectionTree, sel.arkAst, GetIntroduceParameterExprRange(sel.selectionTree, sel.range));
 }
 
 TextEdit IntroduceParameter::InsertParameter(
@@ -339,10 +447,13 @@ static std::vector<std::size_t> CollectRemovableParamIndices(
         if (!node) {
             return VisitAction::STOP_NOW;
         }
-        if (node->begin < range.start || node->end > range.end) {
+        if (node->end < range.start || node->begin > range.end) {
             return VisitAction::SKIP_CHILDREN;
         }
         if (node->astKind != ASTKind::REF_EXPR) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        if (node->begin < range.start || node->end > range.end) {
             return VisitAction::WALK_CHILDREN;
         }
         auto refExpr = DynamicCast<Cangjie::AST::RefExpr *>(node.get());

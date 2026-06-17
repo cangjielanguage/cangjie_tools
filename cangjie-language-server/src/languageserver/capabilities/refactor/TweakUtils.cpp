@@ -14,7 +14,7 @@ namespace {
 constexpr size_t INDENT_RESERVE_EXTRA_LINES = 2;
 }
 
-bool TweakUtils::Contain(Node &node, Range &range)
+bool TweakUtils::Contain(Node &node, const Range &range)
 {
     return node.begin <= range.start && node.end >= range.end;
 }
@@ -347,6 +347,29 @@ Range TweakUtils::GetCompleteExprRange(const SelectionTree &selectionTree)
     return range;
 }
 
+const SelectionTree::SelectionTreeNode *TweakUtils::GetCompleteExprNode(const SelectionTree &selectionTree,
+    const Range &range)
+{
+    const SelectionTree::SelectionTreeNode *completeExpr = nullptr;
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return nullptr;
+    }
+    SelectionTree::Walk(root, [&completeExpr, &range](const SelectionTree::SelectionTreeNode *treeNode) {
+        if (!treeNode || !treeNode->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr() &&
+            treeNode->node->begin == range.start && treeNode->node->end == range.end &&
+            TweakUtils::CheckValidExpr(*treeNode)) {
+            completeExpr = treeNode;
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return completeExpr;
+}
+
 Ptr<FuncDecl> TweakUtils::FindEnclosingFunc(const ArkAST &arkAst, const Range &range)
 {
     if (!arkAst.file || range.start == Position{0, 0, 0} || range.start == range.end) {
@@ -413,7 +436,7 @@ std::string TweakUtils::GetSelectedExprTypeName(const SelectionTree &selectionTr
     return typeName;
 }
 
-Range TweakUtils::FindGlobalInsertPos(const File &file, Range &range)
+Range TweakUtils::FindGlobalInsertPos(const File &file, const Range &range)
 {
     Range insertRange;
     for (size_t i = 0; i < file.decls.size(); ++i) {
