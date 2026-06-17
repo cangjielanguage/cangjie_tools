@@ -7,6 +7,7 @@
 #include "MemIndex.h"
 #include "../CompilerCangjieProject.h"
 #include "Symbol.h"
+#include <unordered_set>
 
 namespace ark {
 namespace lsp {
@@ -519,5 +520,98 @@ void MemIndex::GetExportSID(IDArray array, std::function<void(const CrossSymbol 
     (void)array;
     (void)callback;
 }
+
+void MemIndex::ForEachFileSymbol(const std::string &pkgName, const std::string &filePath,
+    std::function<bool(const Symbol &)> callback) const
+{
+    auto it = pkgSymsMap.find(pkgName);
+    if (it == pkgSymsMap.end()) {
+        return;
+    }
+    for (const auto &sym : it->second) {
+        bool isTargetFile = (sym.location.fileUri == filePath);
+        if (!isTargetFile) {
+            // Check if this is a .macrocall file corresponding to the target file
+            if (EndsWith(sym.location.fileUri, ".macrocall")) {
+                // Extract source file path from .macrocall path
+                // e.g., "foo.cj.macrocall" -> "foo.cj"
+                std::string macroCallFile = sym.location.fileUri;
+                std::string sourceFile = macroCallFile.substr(0, macroCallFile.length() - 10); // Remove ".macrocall"
+                isTargetFile = (sourceFile == filePath);
+            }
+        }
+        if (isTargetFile) {
+            if (!callback(sym)) {
+                return;
+            }
+        }
+    }
+}
+
+bool MemIndex::HasSymbolReference(SymbolID symId) const
+{
+    for (const auto &pkgRefs : pkgRefsMap) {
+        auto it = pkgRefs.second.find(symId);
+        if (it == pkgRefs.second.end()) {
+            continue;
+        }
+        for (const auto &ref : it->second) {
+            if ((static_cast<uint8_t>(ref.kind) & static_cast<uint8_t>(RefKind::REFERENCE)) != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool MemIndex::IsSymbolOverridden(SymbolID symId) const
+{
+    for (const auto &pkgRelations : pkgRelationsMap) {
+        for (const auto &rel : pkgRelations.second) {
+            if (rel.predicate == RelationKind::RIDDEND_BY && rel.object == symId) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+SymbolID MemIndex::GetSymbolContainerId(SymbolID symId) const
+{
+    for (const auto &pkgRelations : pkgRelationsMap) {
+        for (const auto &rel : pkgRelations.second) {
+            if (rel.predicate == RelationKind::CONTAINED_BY && rel.subject == symId) {
+                return rel.object;
+            }
+        }
+    }
+    return INVALID_SYMBOL_ID;
+}
+
+bool MemIndex::HasReferencedConstructorChild(SymbolID symId) const
+{
+    std::unordered_set<SymbolID> subjects;
+    for (const auto &pkgRelations : pkgRelationsMap) {
+        for (const auto &rel : pkgRelations.second) {
+            if (rel.predicate == RelationKind::CONTAINED_BY && rel.object == symId) {
+                (void)subjects.insert(rel.subject);
+            }
+        }
+    }
+    if (subjects.empty()) {
+        return false;
+    }
+    for (const auto &pkgSyms : pkgSymsMap) {
+        for (const auto &sym : pkgSyms.second) {
+            if (subjects.count(sym.id) > 0 &&
+                sym.symInfo.kind == lsp::SymbolKind::CONSTRUCTOR &&
+                HasSymbolReference(sym.id)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 } // namespace lsp
 } // namespace ark

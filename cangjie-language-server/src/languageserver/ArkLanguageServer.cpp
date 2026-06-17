@@ -1738,7 +1738,7 @@ static bool TryMapParamRange(const FuncParam* funcParam, const Decl* decl, Range
     if (!mappedBegin.IsZero()) {
         deleteRange.start = mappedBegin;
     }
-    
+
     // If begin was mapped but end was not, calculate end based on the length
     if (beginMapped && !endMapped) {
         int length = funcParam->end.column - funcParam->begin.column;
@@ -1805,11 +1805,11 @@ static bool ProcessFuncParamDeleteRange(const FuncParam* funcParam, Range& delet
 
     bool foundIndex = false;
     size_t paramIndex = FindParamIndex(funcParam, funcBody, foundIndex);
-    
+
     if (!funcBody || funcBody->paramLists.empty() || !funcBody->paramLists[0]) {
         return true;
     }
-    
+
     auto& params = funcBody->paramLists[0]->params;
     if (!foundIndex || params.size() <= 1) {
         return true;
@@ -2178,7 +2178,7 @@ static bool MatchFuncParamAtPos(const FuncParam* funcParam, const Range& diagRan
 {
     auto identifierPos = funcParam->GetIdentifierPos();
     auto outerDecl = funcParam->outerDecl.get();
-    
+
     auto comparePos = identifierPos;
     if (outerDecl && outerDecl->curMacroCall) {
         auto mappedPos = outerDecl->curMacroCall->GetMacroCallPos(identifierPos);
@@ -2186,11 +2186,11 @@ static bool MatchFuncParamAtPos(const FuncParam* funcParam, const Range& diagRan
             comparePos = mappedPos;
         }
     }
-    
+
     if (comparePos.line != diagRange.start.line || comparePos.column != diagRange.start.column) {
         return false;
     }
-    
+
     info.symbolName = std::string(funcParam->identifier);
     return ProcessFuncParamDeleteRange(funcParam, info.deleteRange, info.symbolKindDesc, currentFuncBody, outerDecl);
 }
@@ -2246,6 +2246,9 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     if (!arkAst || !arkAst->file) {
         return;
     }
+
+    diagnostic.range.start.fileID = arkAst->fileID;
+    diagnostic.range.end.fileID = arkAst->fileID;
 
     Range diagRange = TransformFromIDE2Char(diagnostic.range);
     auto info = FindUnusedSymbol(arkAst, diagRange);

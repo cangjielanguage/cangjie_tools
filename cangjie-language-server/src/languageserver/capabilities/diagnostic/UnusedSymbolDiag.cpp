@@ -7,6 +7,7 @@
 #include "UnusedSymbolDiag.h"
 #include "../../common/FindDeclUsage.h"
 #include "../../common/Utils.h"
+#include <chrono>
 
 namespace ark {
 using namespace Cangjie;
@@ -20,11 +21,11 @@ namespace {
     // Macro names
     constexpr const char* COMPONENT_MACRO = "Component";
     constexpr const char* ENTRY_MACRO = "Entry";
-    
+
     // Generated variable prefixes
     constexpr const char* STATE_VAR_DECL_PREFIX = "stateVarDecl_";
     constexpr const char* A_P_PREFIX = "A_P_";
-    
+
     // Macro-generated function name patterns
     constexpr const char* GET_PREFIX = "get_";
     constexpr const char* SET_PREFIX = "set_";
@@ -48,7 +49,7 @@ static bool IsMacroGeneratedFuncName(const std::string& funcName)
         ABOUT_TO_DISAPPEAR,
         UPDATE_WITH_VALUE_PARAMS
     };
-    
+
     return exactMatches.count(funcName) > 0 ||
            funcName.find(GET_PREFIX) == 0 ||
            funcName.find(SET_PREFIX) == 0 ||
@@ -56,94 +57,6 @@ static bool IsMacroGeneratedFuncName(const std::string& funcName)
            funcName.find(ABOUT_TO_PREFIX) == 0 ||
            funcName.find(PURGE_PREFIX) == 0 ||
            funcName.find('.') != std::string::npos;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Check if a symbol has any REFERENCE-kind ref
-// ---------------------------------------------------------------------------
-bool UnusedSymbolDiag::HasReference(
-    SymbolID symId,
-    const std::map<SymbolID, std::vector<Ref>>& refs)
-{
-    auto it = refs.find(symId);
-    if (it == refs.end()) {
-        return false;
-    }
-    for (const auto& ref : it->second) {
-        if (static_cast<uint8_t>(ref.kind & RefKind::REFERENCE) != 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Check if a symbol is an override method (RIDDEND_BY as object)
-// ---------------------------------------------------------------------------
-bool UnusedSymbolDiag::IsOverride(
-    SymbolID symId,
-    const std::vector<Relation>& relations)
-{
-    for (const auto& rel : relations) {
-        if (rel.predicate == RelationKind::RIDDEND_BY && rel.object == symId) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Get the SymbolID of the containing (outer) decl for a member symbol
-// from CONTAINED_BY relations.
-// ---------------------------------------------------------------------------
-static SymbolID GetContainerID(
-    SymbolID symId,
-    const std::vector<Relation>& relations)
-{
-    for (const auto& rel : relations) {
-        if (rel.predicate == RelationKind::CONTAINED_BY && rel.subject == symId) {
-            return rel.object;
-        }
-    }
-    return INVALID_SYMBOL_ID;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Check if a relation represents a constructor child with references.
-// ---------------------------------------------------------------------------
-static bool IsReferencedConstructor(
-    const Relation& rel,
-    SymbolID symId,
-    const std::map<SymbolID, std::vector<Ref>>& refs,
-    const std::map<SymbolID, lsp::SymbolKind>& symbolKindMap)
-{
-    if (rel.predicate != RelationKind::CONTAINED_BY || rel.object != symId) {
-        return false;
-    }
-    auto it = symbolKindMap.find(rel.subject);
-    if (it == symbolKindMap.end() || it->second != lsp::SymbolKind::CONSTRUCTOR) {
-        return false;
-    }
-    return UnusedSymbolDiag::HasReference(rel.subject, refs);
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Check if any child constructor of a class/struct has references.
-// Uses CONTAINED_BY relations to find constructor children, then checks refs.
-// Only checks constructors (SymbolKind::CONSTRUCTOR), not other members.
-// ---------------------------------------------------------------------------
-static bool HasConstructorReference(
-    SymbolID symId,
-    const std::vector<Relation>& relations,
-    const std::map<SymbolID, std::vector<Ref>>& refs,
-    const std::map<SymbolID, lsp::SymbolKind>& symbolKindMap)
-{
-    for (const auto& rel : relations) {
-        if (IsReferencedConstructor(rel, symId, refs, symbolKindMap)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +163,7 @@ static bool ShouldExcludeByTypeOrModifier(const Symbol& symbol)
 // ---------------------------------------------------------------------------
 bool UnusedSymbolDiag::ShouldExclude(
     const Symbol& symbol,
-    const std::vector<Relation>& relations,
+    const SymbolIndex& index,
     const std::unordered_set<SymbolID>& excludedMacroDecls)
 {
     if (ShouldExcludeByTypeOrModifier(symbol)) {
@@ -258,7 +171,7 @@ bool UnusedSymbolDiag::ShouldExclude(
     }
 
     if (symbol.kind == ASTKind::FUNC_DECL || symbol.kind == ASTKind::PROP_DECL) {
-        if (IsOverride(symbol.id, relations)) {
+        if (index.IsSymbolOverridden(symbol.id)) {
             return true;
         }
     }
@@ -270,12 +183,12 @@ bool UnusedSymbolDiag::ShouldExclude(
 
     // Skip @Component/@Entry generated internal symbols
     auto symName = symbol.name;
-    
+
     // Skip variables with specific prefixes
     if (symName.find(STATE_VAR_DECL_PREFIX) == 0 || symName.find(A_P_PREFIX) == 0) {
         return true;
     }
-    
+
     // Skip macro-generated functions
     if (symbol.kind == ASTKind::FUNC_DECL && IsMacroGeneratedFuncName(symName)) {
         return true;
@@ -341,74 +254,39 @@ DiagnosticToken UnusedSymbolDiag::CreateUnusedDiag(
 // Main analysis: detect unused global/member symbols from the index
 // ---------------------------------------------------------------------------
 std::vector<DiagnosticToken> UnusedSymbolDiag::Analyze(
-    const std::vector<Symbol>& symbols,
-    const std::map<SymbolID, std::vector<Ref>>& refs,
-    const std::vector<Relation>& relations,
+    const SymbolIndex& index,
+    const std::string& pkgName,
     const std::string& filePath,
     const Package* package)
 {
     std::vector<DiagnosticToken> diagnostics;
 
-    // Collect class/struct SymbolIDs decorated with @Entry/@Component
     auto excludedMacroDecls = CollectExcludedMacroDecls(package);
 
-    // Build SymbolID -> SymbolKind map for constructor reference checking
-    std::map<SymbolID, lsp::SymbolKind> symbolKindMap;
-    for (const auto& sym : symbols) {
-        symbolKindMap[sym.id] = sym.symInfo.kind;
-    }
-
-    for (const auto& sym : symbols) {
-        // 1. Only process symbols defined in the target file
-        // For macro-expanded code, also allow symbols from .macrocall files
-        // that correspond to the target source file
-        bool isTargetFile = (sym.location.fileUri == filePath);
-        if (!isTargetFile) {
-            // Check if this is a .macrocall file corresponding to the target file
-            if (EndsWith(sym.location.fileUri, ".macrocall")) {
-                // Extract source file path from .macrocall path
-                // e.g., "foo.cj.macrocall" -> "foo.cj"
-                std::string macroCallFile = sym.location.fileUri;
-                std::string sourceFile = macroCallFile.substr(0, macroCallFile.length() - 10); // Remove ".macrocall"
-                isTargetFile = (sourceFile == filePath);
-            }
-        }
-        if (!isTargetFile) {
-            continue;
-        }
-
-        // 2. Only process target ASTKinds (func, var, class, struct, enum, interface)
+    index.ForEachFileSymbol(pkgName, filePath, [&](const Symbol& sym) -> bool {
         if (UNUSED_CHECK_KINDS.count(sym.kind) == 0) {
-            continue;
+            return true;
         }
-
-        // 3. Skip symbols at zero locations (implicit/generated)
         if (sym.location.IsZeroLoc()) {
-            continue;
+            return true;
         }
-
-        // 4. Skip invalid symbol IDs
         if (sym.id == INVALID_SYMBOL_ID) {
-            continue;
+            return true;
+        }
+        if (ShouldExclude(sym, index, excludedMacroDecls)) {
+            return true;
         }
 
-        // 5. Apply exclusion rules
-        if (ShouldExclude(sym, relations, excludedMacroDecls)) {
-            continue;
-        }
-
-        // 6. Check if the symbol has any reference (beyond its own definition)
-        bool hasRef = HasReference(sym.id, refs);
-        // For class/struct, also check if any contained constructor is referenced,
-        // since constructor calls store refs under the constructor's SymbolID, not the class/struct's.
+        bool hasRef = index.HasSymbolReference(sym.id);
         if (!hasRef && (sym.kind == ASTKind::CLASS_DECL || sym.kind == ASTKind::STRUCT_DECL)) {
-            hasRef = HasConstructorReference(sym.id, relations, refs, symbolKindMap);
+            hasRef = index.HasReferencedConstructorChild(sym.id);
         }
         if (!hasRef) {
             diagnostics.push_back(CreateUnusedDiag(
                 sym.name, sym.location, GetKindDescription(sym.kind)));
         }
-    }
+        return true;
+    });
 
     return diagnostics;
 }
@@ -459,18 +337,18 @@ static bool IsInComponentMacro(const Node* node)
     if (!node || !node->curMacroCall || node->isInMacroCall) {
         return false;
     }
-    
+
     // Check if the macro is @Component or @Entry
     auto macroCall = node->curMacroCall.get();
     if (!macroCall) {
         return false;
     }
-    
+
     auto invocation = macroCall->GetConstInvocation();
     if (!invocation || !invocation->target) {
         return false;
     }
-    
+
     auto macroName = invocation->target->identifier;
     return macroName == COMPONENT_MACRO || macroName == ENTRY_MACRO;
 }
@@ -485,13 +363,13 @@ static void CheckUnusedVarDecl(VarDecl* varDecl, Package& package,
     if (IsInComponentMacro(varDecl)) {
         return;
     }
-    
+
     // Skip @Component/@Entry generated internal variables
     std::string varName(varDecl->identifier);
     if (varName.find(STATE_VAR_DECL_PREFIX) == 0) {
         return;
     }
-    
+
     bool isGlobalOrMember = IsGlobalOrMember(*varDecl);
     if (!isGlobalOrMember) {
         auto usages = FindDeclUsage(*varDecl, package);
@@ -518,13 +396,13 @@ static bool IsComponentGeneratedParam(const FuncParam* funcParam)
     if (!funcParam || !funcParam->curMacroCall || funcParam->isInMacroCall) {
         return false;
     }
-    
+
     // Check if this is a known @Component/@Entry generated parameter name
     static const std::unordered_set<std::string> componentParams = {
         "elmtId",
         "isInitialRender"
     };
-    
+
     return componentParams.count(std::string(funcParam->identifier)) > 0;
 }
 
@@ -542,7 +420,7 @@ static bool IsInMacroGeneratedFunc(const FuncParam* funcParam)
     if (!outerFunc) {
         return false;
     }
-    
+
     return IsMacroGeneratedFuncName(outerFunc->identifier);
 }
 
@@ -555,19 +433,19 @@ static void CheckUnusedFuncParam(FuncParam* funcParam, Package& package,
     bool isComponentGen = IsComponentGeneratedParam(funcParam);
     bool isInCompMacro = IsInComponentMacro(funcParam);
     bool isInMacroGenFunc = IsInMacroGeneratedFunc(funcParam);
-    
+
     // Skip @Component/@Entry auto-generated parameters
     if (isComponentGen) {
         return;
     }
-    
+
     // Skip parameters in @Component/@Entry macro-expanded code,
     // BUT only if they are in macro-generated methods.
     // User-defined methods (like name(dd:String)) should still be checked.
     if (isInCompMacro && isInMacroGenFunc) {
         return;
     }
-    
+
     auto usages = FindDeclUsage(*funcParam, package);
     if (!usages.empty()) {
         return;
