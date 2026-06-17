@@ -535,10 +535,6 @@ std::string InlineFunction::GenerateInlineBody(std::string indent)
         newText = newText.substr(pos);
     }
 
-    if (baseExpr_) {
-        std::regex thisRegex("\\bthis\\b");
-        newText = std::regex_replace(newText, thisRegex, baseExpr_->ToString());
-    }
     return newText;
 }
 
@@ -564,7 +560,7 @@ TextEdit InlineFunction::InsertInlineBody()
     return edit;
 }
 
-TextEdit InlineFunction::ReplaceCallWithVar()
+TextEdit InlineFunction::ReplaceCallWithVar(const Selection &sel)
 {
     TextEdit edit;
 
@@ -573,6 +569,8 @@ TextEdit InlineFunction::ReplaceCallWithVar()
     }
 
     Range callRange = {callExpr_->begin, callExpr_->end};
+    PositionUTF8ToIDE(sel.arkAst->tokens, callRange.start, *sel.arkAst->file);
+    PositionUTF8ToIDE(sel.arkAst->tokens, callRange.end, *sel.arkAst->file);
     callRange = TransformFromChar2IDE(callRange);
     edit.range = callRange;
     edit.newText = resultVarName_;
@@ -625,19 +623,21 @@ std::string InlineFunction::TransformFunctionBody(Block* block, const std::map<s
         if (!stmt) {
             continue;
         }
-
-        if (stmt->astKind == ASTKind::RETURN_EXPR) {
-            auto returnExpr = DynamicCast<ReturnExpr*>(stmt);
-            std::string returnCode = TransformReturnStatement(returnExpr, paramMap);
-            if (!returnCode.empty()) {
-                bodyCode << returnCode;
-            }
-        } else {
-            AppendStatementCode(bodyCode, stmt, paramMap);
-        }
+        AppendStatementCode(bodyCode, stmt, paramMap);
     }
 
-    return bodyCode.str();
+    std::string result = bodyCode.str();
+    if (hasReturnValue_ || !resultVarName_.empty()) {
+        std::regex paramRegex("\\breturn\\b");
+        result = std::regex_replace(result, paramRegex, resultVarName_ + " =");
+    }
+
+    if (baseExpr_) {
+        std::regex thisRegex("\\bthis\\b");
+        result = std::regex_replace(result, thisRegex, baseExpr_->ToString());
+    }
+
+    return result;
 }
 
 std::string InlineFunction::TransformReturnStatement(ReturnExpr* returnExpr,
@@ -703,7 +703,7 @@ std::optional<Tweak::Effect> InlineFunction::Apply(const Selection &sel)
     }
 
     if (hasReturnValue_) {
-        TextEdit replaceCallEdit = ReplaceCallWithVar();
+        TextEdit replaceCallEdit = ReplaceCallWithVar(sel);
         textEdits.push_back(replaceCallEdit);
     } else {
         TextEdit replaceCallEdit = ReplaceCallWithEmpty();
