@@ -401,11 +401,15 @@ Ptr<FuncDecl> TweakUtils::FindEnclosingFunc(const ArkAST &arkAst, const Range &r
 
 Ptr<FuncDecl> TweakUtils::GetTargetFunc(const SelectionTree &selectionTree, const ArkAST *arkAst, const Range &range)
 {
+    if (arkAst) {
+        auto enclosingFunc = FindEnclosingFunc(*arkAst, range);
+        if (enclosingFunc) {
+            return enclosingFunc;
+        }
+    }
+
     auto targetDecl = selectionTree.TargetDecl();
     auto funcDecl = DynamicCast<FuncDecl *>(targetDecl.get());
-    if (!funcDecl && arkAst) {
-        funcDecl = FindEnclosingFunc(*arkAst, range);
-    }
     if (!funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->body) {
         return nullptr;
     }

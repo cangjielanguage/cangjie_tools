@@ -110,3 +110,15 @@ func bitCompoundAssignSample(): Unit {
     bit &= 0b1111
     bit ^= 0b1111
 }
+
+func outer(a: Int64): Int64 {
+    func inner(b: Int64): Int64 {
+        b * 2
+    }
+    inner(a) + 1
+}
+
+public func testNestedFunction(): Unit {
+    let result = outer(10)
+    println("outer(10) = ${result}")
+}
