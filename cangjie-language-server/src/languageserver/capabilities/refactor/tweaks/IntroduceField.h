@@ -18,7 +18,9 @@ public:
         INVALID_EXPR,
         INVALID_CODE_SEGMENT,
         INVALID_SCOPE,
-        INVALID_TYPE
+        INVALID_TYPE,
+        INVALID_CONST_INITIALIZER,
+        INVALID_LET_PATTERN_DESTRUCTOR
     };
 
     const std::string Id() const override
