@@ -161,14 +161,14 @@ TextEdit IntroduceConstant::ReplaceExprWithVar(const Selection &sel, Range &rang
 {
     TextEdit textEdit;
     textEdit.newText = varName;
-    // deal Unicode
     std::string charContent = sel.arkAst->sourceManager->GetContentBetween(
         {range.start.fileID, range.start.line, 1}, range.start);
-    int size = range.end.column - range.start.column;
     range.start.column = CountUnicodeCharacters(charContent) + 1;
-    if (range.end.line == range.start.line) {
-        range.end.column = range.start.column + size;
-    }
+    
+    std::string endCharContent = sel.arkAst->sourceManager->GetContentBetween(
+        {range.end.fileID, range.end.line, 1}, range.end);
+    range.end.column = CountUnicodeCharacters(endCharContent) + 1;
+    
     textEdit.range = TransformFromChar2IDE(range);
     return textEdit;
 }
