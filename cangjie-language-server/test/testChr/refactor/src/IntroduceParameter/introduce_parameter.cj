@@ -35,3 +35,58 @@ func localOnlyExpression(): Int64 {
     let right = 2
     return left + right
 }
+
+func mixedParams(a: Int64, b!: Int64, c!: Int64): Int64 {
+    a + b + c
+}
+
+public func testMixedParams(): Unit {
+    let r1 = mixedParams(1, b: 10, c: 100)
+    let r2 = mixedParams(2, c: 200, b: 20)
+
+    println("Mixed param test: ${r1}, ${r2}")
+}
+
+
+open class Animal2 {
+    var name: String
+
+    init(name: String) {
+        this.name = name
+    }
+
+    func speak() {
+        println("${this.name} speaks")
+    }
+
+    public open func getInfo(): String {
+        return "Animal: ${this.name}"
+    }
+}
+
+class Dog <: Animal2 {
+    init(name: String) {
+        super(name)
+    }
+
+    public override func getInfo(): String {
+        return "Dog: ${this.name}"
+    }
+}
+
+func main1() {
+    let dog = Dog("??")
+    dog.speak()
+    println(dog.getInfo())
+}
+
+
+func greet(name!: String = "World", greeting!: String = "Hello"): String {
+    "${greeting}, ${name}!"
+    "test" + name
+}
+
+public func testDefaultValue(): Unit {
+    let r1 = greet()
+    let r2 = greet(name: "Cangjie")
+}
