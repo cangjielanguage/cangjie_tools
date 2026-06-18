@@ -254,13 +254,20 @@ class IntroduceParameterRule : public TweakRule {
         }
         if (CANNOT_INTRODUCE_PARAMETER_EXPR.count(selectedExpr->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
-                std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_CODE_SEGMENT))));
+                std::to_string(
+                    static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_CODE_SEGMENT))));
             return false;
         }
         auto funcDecl = IntroduceParameter::GetTargetFunc(sel);
         if (!funcDecl) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_SCOPE))));
+            return false;
+        }
+        if (IntroduceParameter::IsMemberAssignInInit(funcDecl, selectedExpr)) {
+            extraOptions.insert(std::make_pair("ErrorCode",
+                std::to_string(
+                    static_cast<int>(IntroduceParameter::IntroduceParameterError::MEMBER_ASSIGN_IN_CONSTRUCTOR))));
             return false;
         }
         if (GetIntroduceParameterExprTypeName(sel.selectionTree, range).empty()) {
@@ -346,6 +353,23 @@ Ptr<Cangjie::AST::FuncDecl> IntroduceParameter::GetTargetFunc(const Selection &s
 {
     return TweakUtils::GetTargetFunc(
         sel.selectionTree, sel.arkAst, GetIntroduceParameterExprRange(sel.selectionTree, sel.range));
+}
+
+bool IntroduceParameter::IsMemberAssignInInit(Ptr<FuncDecl> func, Ptr<Node> expr)
+{
+    if (!expr || !func || !func->TestAttr(Attribute::CONSTRUCTOR)) {
+        return false;
+    }
+
+    if (auto assign = DynamicCast<AssignExpr>(expr)) {
+        if (auto leftValue = DynamicCast<MemberAccess>(assign->leftValue.get())) {
+            if (auto refExpr = DynamicCast<RefExpr>(leftValue->baseExpr.get())) {
+                return refExpr->isThis;
+            }
+        }
+    }
+
+    return false;
 }
 
 TextEdit IntroduceParameter::InsertParameter(
