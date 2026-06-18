@@ -188,10 +188,12 @@ std::string DataflowRuleGSER03Checker::GetValueIdentifier(const CHIR::Value* val
     }
     if (value->IsLocalVar()) {
         auto localVar = StaticCast<CHIR::LocalVar*>(value);
-        if (localVar->GetExpr()->GetExprKind() == CHIR::ExprKind::GET_ELEMENT_REF) {
-            auto getElementRef = StaticCast<const CHIR::GetElementRef*>(localVar->GetExpr());
-            return CommonFunc::GetChainMemberName(getElementRef);
+        auto expr = localVar->GetExpr();
+        if (!expr || expr->GetExprKind() != CHIR::ExprKind::GET_ELEMENT_REF) {
+            return identifier;
         }
+        auto getElementRef = StaticCast<const CHIR::GetElementRef*>(expr);
+        return CommonFunc::GetChainMemberName(getElementRef);
     }
     return identifier;
 }
@@ -212,12 +214,13 @@ void DataflowRuleGSER03Checker::SetSerInRetToFieldSerMap(
     CHIR::Apply* apply, TypeWithPosition& typeStr, SerialiseMap& serTypeMap)
 {
     auto localVar = DynamicCast<CHIR::LocalVar*>(apply->GetArgs()[0]);
-    if (localVar && localVar->GetExpr()->GetExprKind() == CHIR::ExprKind::LOAD) {
-        auto load = StaticCast<CHIR::Load*>(localVar->GetExpr());
+    auto localVarExpr = localVar ? localVar->GetExpr() : nullptr;
+    if (localVar && localVarExpr && localVarExpr->GetExprKind() == CHIR::ExprKind::LOAD) {
+        auto load = StaticCast<CHIR::Load*>(localVarExpr);
         SetSerInRetToFieldSerMapHelper(load, typeStr, serTypeMap);
     }
-    if (localVar && localVar->GetExpr()->GetExprKind() == CHIR::ExprKind::TYPECAST) {
-        auto typecast = StaticCast<CHIR::TypeCast*>(localVar->GetExpr());
+    if (localVar && localVarExpr && localVarExpr->GetExprKind() == CHIR::ExprKind::TYPECAST) {
+        auto typecast = StaticCast<CHIR::TypeCast*>(localVarExpr);
         localVar = DynamicCast<CHIR::LocalVar*>(typecast->GetSourceValue());
         if (!localVar) {
             return;

@@ -25,6 +25,9 @@ void StructuralRuleGFUN02::FuncParamFinder(Ptr<Node> node)
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [this](const FuncDecl& funcDecl) {
+                if (!funcDecl.funcBody) {
+                    return VisitAction::SKIP_CHILDREN;
+                }
                 std::map<std::string, PositionPair> paramMap;
                 for (auto& paramList : funcDecl.funcBody->paramLists) {
                     for (auto& param : paramList->params) {

@@ -24,7 +24,7 @@ void StructuralRuleGITF01::HasModifiedVar(
             }
             break;
         } else if (auto ma = DynamicCast<const MemberAccess*>(baseExpr); ma) {
-            if (ma->baseExpr && ma->baseExpr->GetTy()->IsClassLike()) {
+            if (ma->baseExpr && ma->baseExpr->GetTy() && ma->baseExpr->GetTy()->IsClassLike()) {
                 // don't check member access of field of class like type, unless it is a member access of this
                 // e.g. let T be a class type with field v
                 // this.a = T() // this is a mutation to this

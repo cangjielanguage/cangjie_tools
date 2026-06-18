@@ -129,9 +129,19 @@ std::string StructuralRuleGERR02::GetExceptionInfo(Ptr<CallExpr> callExpr)
         if (!desugarCallExpr) {
             return "";
         }
-        node = desugarCallExpr->args[0].get()->expr.get();
+        if (!desugarCallExpr || desugarCallExpr->args.empty() || !desugarCallExpr->args[0] ||
+            !desugarCallExpr->args[0]->expr) {
+            return "";
+        }
+        node = desugarCallExpr->args[0]->expr.get();
     } else {
-        node = callExpr->args[0].get()->expr.get();
+        if (!callExpr->args[0] || !callExpr->args[0]->expr) {
+            return "";
+        }
+        node = callExpr->args[0]->expr.get();
+    }
+    if (!node) {
+        return "";
     }
     if (auto litConstExpr = DynamicCast<LitConstExpr*>(node); litConstExpr) {
         infoStr = litConstExpr->stringValue;
@@ -153,6 +163,9 @@ void StructuralRuleGERR02::CheckResult(Ptr<Node> node)
         return match(*node)(
             [this](const ThrowExpr& throwExpr) {
                 if (auto throwCallExpr = DynamicCast<CallExpr*>(throwExpr.expr.get()); throwCallExpr) {
+                    if (!throwCallExpr->GetTy()) {
+                        return VisitAction::SKIP_CHILDREN;
+                    }
                     auto exceptionType = throwCallExpr->GetTy()->name;
                     if (IsSensitiveException(exceptionType)) {
                         exceptionTypeDiag.emplace_back(

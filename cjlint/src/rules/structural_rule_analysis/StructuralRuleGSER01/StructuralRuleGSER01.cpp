@@ -66,10 +66,14 @@ void StructuralRuleGSER01::SerializeHandler(const FuncDecl& funcDecl)
                     return VisitAction::SKIP_CHILDREN;
                 }
 
-                if (baseFunc->field != "add" || baseFunc->baseExpr->GetTy()->name != "DataModelStruct") {
+                if (baseFunc->field != "add" || !baseFunc->baseExpr || !baseFunc->baseExpr->GetTy() ||
+                    baseFunc->baseExpr->GetTy()->name != "DataModelStruct") {
                     return VisitAction::SKIP_CHILDREN;
                 }
 
+                if (callExpr.args.empty() || !callExpr.args[0] || !callExpr.args[0]->expr) {
+                    return VisitAction::SKIP_CHILDREN;
+                }
                 auto arg = As<ASTKind::CALL_EXPR>(callExpr.args[0]->expr.get());
                 if (!arg) {
                     return VisitAction::SKIP_CHILDREN;
@@ -80,9 +84,14 @@ void StructuralRuleGSER01::SerializeHandler(const FuncDecl& funcDecl)
                     return VisitAction::SKIP_CHILDREN;
                 }
 
+                if (arg->args.empty() || !arg->args[0] || !arg->args[0]->expr) {
+                    return VisitAction::SKIP_CHILDREN;
+                }
                 CheckSensitiveInfo(arg->args[0]->expr.get(), CodeCheckDiagKind::G_SER_01_serialize_sensitive_field);
-                CheckSensitiveInfo(arg->args[1]->ToString(), CodeCheckDiagKind::G_SER_01_serialize_sensitive_field,
-                    arg->args[1]->begin, arg->args[1]->end);
+                if (arg->args.size() > 1 && arg->args[1]) {
+                    CheckSensitiveInfo(arg->args[1]->ToString(), CodeCheckDiagKind::G_SER_01_serialize_sensitive_field,
+                        arg->args[1]->begin, arg->args[1]->end);
+                }
 
                 return VisitAction::WALK_CHILDREN;
             },

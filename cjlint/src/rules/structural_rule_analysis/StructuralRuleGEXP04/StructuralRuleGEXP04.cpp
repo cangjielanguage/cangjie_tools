@@ -14,11 +14,11 @@ using namespace Meta;
 static bool CheckRefExpr(Ptr<AST::RefExpr> refExpr)
 {
     auto target = refExpr->ref.target;
-    if (target->astKind == ASTKind::VAR_DECL) {
-        auto varDecl = StaticCast<AST::VarDecl*>(target);
-        return varDecl->IsStaticOrGlobal();
+    if (!target || target->astKind != ASTKind::VAR_DECL) {
+        return false;
     }
-    return false;
+    auto varDecl = StaticCast<AST::VarDecl*>(target);
+    return varDecl->IsStaticOrGlobal();
 }
 
 static bool CheckLeft(Ptr<AST::Expr> expr);
@@ -143,7 +143,13 @@ static bool CheckParamsSequence(Ptr<AST::CallExpr> callExpr)
         return false;
     }
     auto funcDecl = StaticCast<AST::FuncDecl*>(target);
+    if (!funcDecl->funcBody || funcDecl->funcBody->paramLists.empty()) {
+        return false;
+    }
     auto paramList = funcDecl->funcBody->paramLists[0].get();
+    if (!paramList) {
+        return false;
+    }
     for (auto& param : paramList->params) {
         params.emplace_back(param->identifier.Val());
     }
@@ -162,7 +168,7 @@ void StructuralRuleGEXP04::CheckSideEffect(Ptr<Cangjie::AST::Node> node)
                     continue;
                 }
                 auto funcArg = StaticCast<AST::FuncArg*>(arg.get());
-                if (funcArg->GetTy()->IsNothing()) {
+                if (funcArg->GetTy() && funcArg->GetTy()->IsNothing()) {
                     isNothingInArgs = true;
                 }
                 if (!isNothingInArgs && !isNotSameOrder) {
