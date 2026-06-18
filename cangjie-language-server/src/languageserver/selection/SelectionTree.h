@@ -28,12 +28,34 @@ public:
 
     // can only be refact within scope: GLOBAL_VAR/MEMBER_VAR/FUNC_BODY/TYPE_DECL
     enum class Scope {
-        UNKNOWN,
-        GLOBAL_VAR,
-        MEMBER_VAR,
-        FUNC_BODY,
-        TYPE_DECL
+        UNKNOWN = 0,
+        GLOBAL_VAR = 1 << 0,
+        MEMBER_VAR = 1 << 1,
+        FUNC_BODY = 1 << 2,
+        TYPE_DECL = 1 << 3
     };
+
+    friend Scope operator&(Scope lhs, Scope rhs)
+    {
+        return static_cast<Scope>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+    }
+
+    friend Scope operator|(Scope lhs, Scope rhs)
+    {
+        return static_cast<Scope>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+    }
+
+    friend Scope& operator&=(Scope& lhs, Scope rhs)
+    {
+        lhs =  lhs & rhs;
+        return lhs;
+    }
+
+    friend Scope& operator|=(Scope& lhs, Scope rhs)
+    {
+        lhs = lhs | rhs;
+        return lhs;
+    }
 
     struct SelectionTreeNode {
         Ptr<Node> node;
