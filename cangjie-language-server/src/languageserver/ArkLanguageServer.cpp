@@ -2195,50 +2195,130 @@ static bool MatchFuncParamAtPos(const FuncParam* funcParam, const Range& diagRan
     return ProcessFuncParamDeleteRange(funcParam, info.deleteRange, info.symbolKindDesc, currentFuncBody, outerDecl);
 }
 
-static UnusedSymbolInfo FindUnusedSymbol(const ArkAST* arkAst, const Range& diagRange)
+// Structure to hold matched declaration info for unused symbol quickfix
+struct MatchedDecl {
+    const Decl* decl;
+    Ptr<const MacroExpandDecl> parentMacro;
+    bool isUserDecl;   // true if not inside a macro call context
+    bool nameMatches;  // true if name matches the hint
+};
+
+// Select the best matched declaration using priority: name match > user-declared > first match
+static UnusedSymbolInfo SelectBestMatchedDecl(const std::vector<MatchedDecl>& matchedDecls,
+    const Range& diagRange, const ArkAST* arkAst)
 {
     UnusedSymbolInfo info;
     info.deleteRange = diagRange;
+    
+    if (matchedDecls.empty()) {
+        return info;
+    }
+    
+    // First priority: exact name match (from diagnostic message)
+    for (const auto& match : matchedDecls) {
+        if (match.nameMatches) {
+            info.symbolName = std::string(match.decl->identifier);
+            info.symbolKindDesc = GetSymbolKindDescription(match.decl->astKind, match.decl);
+            ComputeDeclDeleteRange(match.decl, match.parentMacro, info.deleteRange, diagRange, arkAst);
+            info.found = true;
+            return info;
+        }
+    }
+    
+    // Second priority: user-declared symbol (not inside macro call)
+    for (const auto& match : matchedDecls) {
+        if (match.isUserDecl) {
+            info.symbolName = std::string(match.decl->identifier);
+            info.symbolKindDesc = GetSymbolKindDescription(match.decl->astKind, match.decl);
+            ComputeDeclDeleteRange(match.decl, match.parentMacro, info.deleteRange, diagRange, arkAst);
+            info.found = true;
+            return info;
+        }
+    }
+    
+    // Fallback: use the first match (macro-generated)
+    const auto& firstMatch = matchedDecls[0];
+    info.symbolName = std::string(firstMatch.decl->identifier);
+    info.symbolKindDesc = GetSymbolKindDescription(firstMatch.decl->astKind, firstMatch.decl);
+    ComputeDeclDeleteRange(firstMatch.decl, firstMatch.parentMacro, info.deleteRange, diagRange, arkAst);
+    info.found = true;
+    
+    return info;
+}
+
+// Context for collecting matching declarations during AST walk
+struct UnusedSymbolWalkContext {
     const FuncBody* currentFuncBody = nullptr;
     Ptr<const MacroExpandDecl> parentMacroExpandDecl = nullptr;
+    std::vector<MatchedDecl> matchedDecls;
+    UnusedSymbolInfo info;
+    bool foundFuncParam = false;
+};
+
+// Process a single node during AST walk for unused symbol search
+static VisitAction ProcessNodeForUnusedSymbol(Ptr<const Node> node, const Range& diagRange,
+    const std::string& symbolNameHint, UnusedSymbolWalkContext& ctx)
+{
+    if (auto funcBody = DynamicCast<const FuncBody*>(node)) {
+        ctx.currentFuncBody = funcBody;
+    }
+
+    if (auto macroExpand = DynamicCast<const MacroExpandDecl*>(node)) {
+        ctx.parentMacroExpandDecl = macroExpand;
+    }
+
+    if (auto funcParam = DynamicCast<const FuncParam*>(node)) {
+        if (MatchFuncParamAtPos(funcParam, diagRange, ctx.currentFuncBody, ctx.info)) {
+            ctx.info.found = true;
+            ctx.foundFuncParam = true;
+            return VisitAction::STOP_NOW;
+        }
+        return VisitAction::WALK_CHILDREN;
+    }
+
+    auto decl = DynamicCast<const Decl*>(node);
+    if (!decl) {
+        return VisitAction::WALK_CHILDREN;
+    }
+
+    auto identifierPos = decl->GetIdentifierPos();
+    bool isUserDecl = !decl->isInMacroCall;
+    bool nameMatches = !symbolNameHint.empty() && decl->identifier == symbolNameHint;
+    
+    auto comparePos = identifierPos;
+    if (!isUserDecl && decl->curMacroCall) {
+        auto mappedPos = decl->curMacroCall->GetMacroCallPos(identifierPos);
+        if (!mappedPos.IsZero()) {
+            comparePos = mappedPos;
+        }
+    }
+    
+    if (comparePos.line != diagRange.start.line ||
+        comparePos.column != diagRange.start.column) {
+        return VisitAction::WALK_CHILDREN;
+    }
+
+    ctx.matchedDecls.push_back({decl, ctx.parentMacroExpandDecl, isUserDecl, nameMatches});
+    return VisitAction::WALK_CHILDREN;
+}
+
+static UnusedSymbolInfo FindUnusedSymbol(const ArkAST* arkAst, const Range& diagRange,
+    const std::string& symbolNameHint = "")
+{
+    UnusedSymbolWalkContext ctx;
+    ctx.info.deleteRange = diagRange;
 
     std::function<VisitAction(Ptr<const Node>)> finder = [&](Ptr<const Node> node) -> VisitAction {
-        if (auto funcBody = DynamicCast<const FuncBody*>(node)) {
-            currentFuncBody = funcBody;
-        }
-
-        if (auto macroExpand = DynamicCast<const MacroExpandDecl*>(node)) {
-            parentMacroExpandDecl = macroExpand;
-        }
-
-        if (auto funcParam = DynamicCast<const FuncParam*>(node)) {
-            if (MatchFuncParamAtPos(funcParam, diagRange, currentFuncBody, info)) {
-                info.found = true;
-                return VisitAction::STOP_NOW;
-            }
-            return VisitAction::WALK_CHILDREN;
-        }
-
-        auto decl = DynamicCast<const Decl*>(node);
-        if (!decl) {
-            return VisitAction::WALK_CHILDREN;
-        }
-
-        auto identifierPos = decl->GetIdentifierPos();
-        if (identifierPos.line != diagRange.start.line ||
-            identifierPos.column != diagRange.start.column) {
-            return VisitAction::WALK_CHILDREN;
-        }
-
-        info.symbolName = std::string(decl->identifier);
-        info.symbolKindDesc = GetSymbolKindDescription(decl->astKind, decl);
-        ComputeDeclDeleteRange(decl, parentMacroExpandDecl, info.deleteRange, diagRange, arkAst);
-        info.found = true;
-        return VisitAction::STOP_NOW;
+        return ProcessNodeForUnusedSymbol(node, diagRange, symbolNameHint, ctx);
     };
 
     ConstWalker(arkAst->file, finder).Walk();
-    return info;
+    
+    if (ctx.foundFuncParam) {
+        return ctx.info;
+    }
+    
+    return SelectBestMatchedDecl(ctx.matchedDecls, diagRange, arkAst);
 }
 
 void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, ArkAST *arkAst, const std::string &uri)
@@ -2251,7 +2331,18 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     diagnostic.range.end.fileID = arkAst->fileID;
 
     Range diagRange = TransformFromIDE2Char(diagnostic.range);
-    auto info = FindUnusedSymbol(arkAst, diagRange);
+    
+    // Extract symbol name from diagnostic message to avoid position mapping issues
+    std::string symbolNameFromDiag;
+    size_t pos1 = diagnostic.message.find("'");
+    if (pos1 != std::string::npos) {
+        size_t pos2 = diagnostic.message.find("'", pos1 + 1);
+        if (pos2 != std::string::npos) {
+            symbolNameFromDiag = diagnostic.message.substr(pos1 + 1, pos2 - pos1 - 1);
+        }
+    }
+    
+    auto info = FindUnusedSymbol(arkAst, diagRange, symbolNameFromDiag);
     if (!info.found) {
         return;
     }
