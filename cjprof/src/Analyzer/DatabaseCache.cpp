@@ -269,8 +269,7 @@ bool DatabaseCache::save(const std::string& heapFilePath,
 
     file.close();
 
-    // Atomic rename
-    std::remove(dbPath.c_str());
+    // Atomic rename (POSIX rename replaces target atomically)
     if (std::rename(tmpPath.c_str(), dbPath.c_str()) != 0) {
         LOG_ERROR("Failed to rename cache file from {} to {}", tmpPath, dbPath);
         std::remove(tmpPath.c_str());
@@ -386,11 +385,17 @@ bool DatabaseCache::load(const std::string& heapFilePath,
             static_cast<std::streamsize>(header.refs_count * sizeof(uint64_t)));
         for (size_t i = 0; i < objects.size(); ++i) {
             const auto& info = objectRefsInfos[i];
-            if (info.refs_count > 0) {
-                objects[i].refs.assign(
-                    flatRefs.begin() + info.refs_offset,
-                    flatRefs.begin() + info.refs_offset + info.refs_count);
+            if (info.refs_count <= 0) {
+                continue;
             }
+            if (info.refs_offset > flatRefs.size() ||
+                info.refs_count > flatRefs.size() - info.refs_offset) {
+                LOG_ERROR("Cache file corrupt: refs offset/count out of bounds");
+                return false;
+            }
+            objects[i].refs.assign(
+                flatRefs.begin() + info.refs_offset,
+                flatRefs.begin() + info.refs_offset + info.refs_count);
         }
     }
 
@@ -436,11 +441,17 @@ bool DatabaseCache::load(const std::string& heapFilePath,
             static_cast<std::streamsize>(header.children_count * sizeof(uint64_t)));
         for (size_t i = 0; i < dominanceNodes.size(); ++i) {
             const auto& info = nodeChildrenInfos[i];
-            if (info.children_count > 0) {
-                dominanceNodes[i].children.assign(
-                    flatChildren.begin() + info.children_offset,
-                    flatChildren.begin() + info.children_offset + info.children_count);
+            if (info.children_count <= 0) {
+                continue;
             }
+            if (info.children_offset > flatChildren.size() ||
+                info.children_count > flatChildren.size() - info.children_offset) {
+                LOG_ERROR("Cache file corrupt: children offset/count out of bounds");
+                return false;
+            }
+            dominanceNodes[i].children.assign(
+                flatChildren.begin() + info.children_offset,
+                flatChildren.begin() + info.children_offset + info.children_count);
         }
     }
 

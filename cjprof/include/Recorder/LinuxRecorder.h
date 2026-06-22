@@ -12,6 +12,7 @@
 #include <mutex>
 #include <queue>
 #include <linux/perf_event.h>
+#include <atomic>
 #include "Data/Hprof.h"
 #include "Symbol/Symbol.h"
 #include "Utility/Singleton.h"
@@ -63,7 +64,7 @@ private:
     bool createDirIfNotExists(const std::string& dirPath);
     void deleteDirIfExists(const std::string& dirPath);
 
-    bool m_stop;
+    std::atomic<bool> m_stop{false};
     std::vector<pid_t> m_pids;
     std::map<pid_t, std::thread> m_sampleThreads;
     std::map<pid_t, bool> m_stopSampleThread;

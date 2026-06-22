@@ -74,10 +74,9 @@ bool HeapAnalyzer::SetData(const std::string &file)
     ifs.seekg(0, ifs.beg);
 
     size_t buf_size = static_cast<size_t>(size);
-    auto buf = new char[buf_size];
-    ifs.read(buf, size);
-    m_data = std::string(buf, buf_size);
-    delete [] buf;
+    std::vector<char> buf(buf_size);
+    ifs.read(buf.data(), buf_size);
+    m_data = std::string(buf.data(), buf_size);
     m_fileSize = buf_size;
     m_filePath = file;
 
