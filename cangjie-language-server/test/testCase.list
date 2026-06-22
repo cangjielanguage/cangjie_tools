@@ -1250,3 +1250,5 @@
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_007.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_008.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_009.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_011.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_012.test","method":"workspace/applyEdit"}}
