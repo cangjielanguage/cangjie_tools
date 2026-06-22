@@ -65,3 +65,10 @@ func LSP_Hover_Comment_Doc_001(param1: Int64, param2: Int64): Int64 { 0 }
  *
  *LSP_Hover_Comment_Line_Block_Doc_001.test_above2 */
 func LSP_Hover_Comment_Line_Block_Doc_001(param1: Int64, param2222222222222222: Int64): Int64 { 0 }
+
+/*
+4. Interface 接口定义
+3. this is a test
+2. cangjie
+*/
+var LSP_Hover_Comment_Block_Ordered_List_001 = 1
