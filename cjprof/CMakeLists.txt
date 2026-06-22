@@ -20,7 +20,7 @@ if (STRIP_LIB_PREFIX)
 endif()
 
 if (NOT APPLE AND NOT WIN32)
-  set(LINK_FLAGS "-pie -rdynamic -Wl,-z,relro,-z,now,-z,noexecstack -Wl,-Bsymbolic -Wl,--no-undefined")
+  set(LINK_FLAGS "-rdynamic -Wl,-z,relro,-z,now,-z,noexecstack -Wl,-Bsymbolic -Wl,--no-undefined")
 endif ()
 
 if (WIN32)
@@ -29,7 +29,7 @@ if (WIN32)
 endif ()
 
 if (APPLE)
-  set(LINK_FLAGS "-pie -rdynamic")
+  set(LINK_FLAGS "-rdynamic")
 endif ()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)

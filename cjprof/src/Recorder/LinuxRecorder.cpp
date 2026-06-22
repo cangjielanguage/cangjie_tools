@@ -284,6 +284,12 @@ void LinuxRecorder::AnalyzeSampleData(Hprof &hprof, std::unique_ptr<char[]> data
         }
 
         auto sample = (const PerfRecordSample *)header;
+        size_t expectedSampleSize = sizeof(PerfRecordSample) + sample->nr * sizeof(uint64_t);
+        if (expectedSampleSize > header->size) {
+            offset += header->size;
+            continue;
+        }
+
         std::vector<std::string> callChain;
         for (size_t i = 0; i < sample->nr; i++) {
             auto addr = sample->ips[i];

@@ -36,10 +36,9 @@ int Report::Execute(int argc, char **argv)
     }
     ifs.seekg(0, ifs.beg);
 
-    auto buf = new char[size];
-    ifs.read(buf, size);
-    auto data = std::string(buf, size);
-    delete [] buf;
+    std::vector<char> buf(size);
+    ifs.read(buf.data(), size);
+    auto data = std::string(buf.data(), size);
 
     Hprof hprof;
     if (!hprof.Parse(data)) {
