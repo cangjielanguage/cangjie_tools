@@ -429,9 +429,9 @@ class IntroduceFieldRule : public TweakRule {
             return false;
         }
         auto memberInitializerTarget = GetMemberInitializerTarget(sel, range);
-        if (sel.selectionTree.SelectedScope() == SelectionTree::Scope::GLOBAL_VAR ||
-            (sel.selectionTree.SelectedScope() == SelectionTree::Scope::MEMBER_VAR && !memberInitializerTarget) ||
-            IsExistingFieldDeclarationSelection(sel, range)) {
+        if ((sel.selectionTree.SelectedScope() & SelectionTree::Scope::GLOBAL_VAR) != SelectionTree::Scope::UNKNOWN ||
+            ((sel.selectionTree.SelectedScope() & SelectionTree::Scope::MEMBER_VAR) != SelectionTree::Scope::UNKNOWN &&
+            !memberInitializerTarget) || IsExistingFieldDeclarationSelection(sel, range)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceField::IntroduceFieldError::INVALID_SCOPE))));
             return false;
