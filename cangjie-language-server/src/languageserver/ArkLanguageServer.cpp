@@ -14,6 +14,7 @@
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
 #include "capabilities/shutdown/Shutdown.h"
+#include "common/Utils.h"
 #include "ArkLanguageServer.h"
 
 namespace ark {
@@ -811,7 +812,13 @@ void ArkLanguageServer::WrapClientWatchedFiles(std::vector<FileWatchedEvent> &ch
         std::vector<std::string> fileVec;
         if (event.type == FileChangeType::DELETED && CheckIsDirectory(file, true) &&
             CheckFileInCangjieProject(filePath)) {
-            fileVec = CompilerCangjieProject::GetInstance()->GetFilesInPkg(file); // multi folder
+            auto res =
+                CompilerCangjieProject::GetInstance()->GetAllFilesUnderPathRecursive(file, true); // multi folder
+            std::for_each(res.begin(), res.end(), [&file, &fileVec] (auto& fp) {
+                if (fp.rfind(file, 0) == 0) {
+                    fileVec.push_back(fp.substr(file.length() + 1));
+                }
+            });
         } else if (event.type == FileChangeType::CREATED && CheckIsDirectory(file) &&
                 CheckFileInCangjieProject(filePath)) {
             fileVec = GetAllFilesUnderCurrentPath(file, CANGJIE_FILE_EXTENSION, false);
@@ -825,24 +832,6 @@ void ArkLanguageServer::WrapClientWatchedFiles(std::vector<FileWatchedEvent> &ch
             }
         }
     }
-}
-
-bool ArkLanguageServer::CheckIsDirectory(const std::string &dirPath, bool isDelete) const
-{
-    if (dirPath.empty()) {
-        return false;
-    }
-
-    struct stat buffer = {};
-    std::string realPath = PathWindowsToLinux(dirPath);
-    std::string file = realPath;
-    if (isDelete) {
-        auto res = realPath.find_last_of('/');
-        if (res != std::string::npos) {
-            file = realPath.substr(0, res);
-        }
-    }
-    return (stat(file.c_str(), &buffer) == 0 && S_ISDIR(buffer.st_mode));
 }
 
 void ArkLanguageServer::OnDidChangeWatchedFiles(const DidChangeWatchedFilesParam &params)
@@ -2209,11 +2198,11 @@ static UnusedSymbolInfo SelectBestMatchedDecl(const std::vector<MatchedDecl>& ma
 {
     UnusedSymbolInfo info;
     info.deleteRange = diagRange;
-    
+
     if (matchedDecls.empty()) {
         return info;
     }
-    
+
     // First priority: exact name match (from diagnostic message)
     for (const auto& match : matchedDecls) {
         if (match.nameMatches) {
@@ -2224,7 +2213,7 @@ static UnusedSymbolInfo SelectBestMatchedDecl(const std::vector<MatchedDecl>& ma
             return info;
         }
     }
-    
+
     // Second priority: user-declared symbol (not inside macro call)
     for (const auto& match : matchedDecls) {
         if (match.isUserDecl) {
@@ -2235,14 +2224,14 @@ static UnusedSymbolInfo SelectBestMatchedDecl(const std::vector<MatchedDecl>& ma
             return info;
         }
     }
-    
+
     // Fallback: use the first match (macro-generated)
     const auto& firstMatch = matchedDecls[0];
     info.symbolName = std::string(firstMatch.decl->identifier);
     info.symbolKindDesc = GetSymbolKindDescription(firstMatch.decl->astKind, firstMatch.decl);
     ComputeDeclDeleteRange(firstMatch.decl, firstMatch.parentMacro, info.deleteRange, diagRange, arkAst);
     info.found = true;
-    
+
     return info;
 }
 
@@ -2284,7 +2273,7 @@ static VisitAction ProcessNodeForUnusedSymbol(Ptr<const Node> node, const Range&
     auto identifierPos = decl->GetIdentifierPos();
     bool isUserDecl = !decl->isInMacroCall;
     bool nameMatches = !symbolNameHint.empty() && decl->identifier == symbolNameHint;
-    
+
     auto comparePos = identifierPos;
     if (!isUserDecl && decl->curMacroCall) {
         auto mappedPos = decl->curMacroCall->GetMacroCallPos(identifierPos);
@@ -2292,7 +2281,7 @@ static VisitAction ProcessNodeForUnusedSymbol(Ptr<const Node> node, const Range&
             comparePos = mappedPos;
         }
     }
-    
+
     if (comparePos.line != diagRange.start.line ||
         comparePos.column != diagRange.start.column) {
         return VisitAction::WALK_CHILDREN;
@@ -2313,11 +2302,11 @@ static UnusedSymbolInfo FindUnusedSymbol(const ArkAST* arkAst, const Range& diag
     };
 
     ConstWalker(arkAst->file, finder).Walk();
-    
+
     if (ctx.foundFuncParam) {
         return ctx.info;
     }
-    
+
     return SelectBestMatchedDecl(ctx.matchedDecls, diagRange, arkAst);
 }
 
@@ -2331,7 +2320,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
     diagnostic.range.end.fileID = arkAst->fileID;
 
     Range diagRange = TransformFromIDE2Char(diagnostic.range);
-    
+
     // Extract symbol name from diagnostic message to avoid position mapping issues
     std::string symbolNameFromDiag;
     size_t pos1 = diagnostic.message.find("'");
@@ -2341,7 +2330,7 @@ void ArkLanguageServer::RemoveUnusedSymbolQuickFix(DiagnosticToken &diagnostic, 
             symbolNameFromDiag = diagnostic.message.substr(pos1 + 1, pos2 - pos1 - 1);
         }
     }
-    
+
     auto info = FindUnusedSymbol(arkAst, diagRange, symbolNameFromDiag);
     if (!info.found) {
         return;

@@ -3093,4 +3093,43 @@ void CompilerCangjieProject::AnalyzeUnusedSymbolsForFile(
 
     (void)unusedSymbolsAnalyzedFileSet.insert(filePath);
 }
+
+std::vector<std::string> CompilerCangjieProject::GetFilesInPkgByPkgInfo(const std::string &pkgPath) const
+{
+    std::vector<std::string> ret;
+    if (pathToFullPkgName.find(pkgPath) == pathToFullPkgName.end()) {
+        return ret;
+    }
+    std::string pkgName = pathToFullPkgName.at(pkgPath);
+    auto it = pkgInfoMap.find(pkgName);
+    if (it == pkgInfoMap.end()) {
+        return ret;
+    }
+    auto& pkgInfo = it->second;
+    if (!pkgInfo) {
+        return ret;
+    }
+    std::lock_guard<std::mutex> lock(pkgInfo->pkgInfoMutex);
+    for (auto& item: pkgInfo->bufferCache) {
+        ret.push_back(item.first);
+    }
+    return ret;
+}
+
+std::vector<std::string> CompilerCangjieProject::GetAllFilesUnderPathRecursive(const std::string &path,
+    bool isDelete) const
+{
+    std::vector<std::string> allFiles;
+    if (!CheckIsDirectory(path, isDelete)) {
+        return allFiles;
+    }
+    for (auto& item: pathToFullPkgName) {
+        if (item.first.rfind(path, 0) == 0) {
+            auto files = GetFilesInPkgByPkgInfo(item.first);
+            allFiles.insert(allFiles.end(),
+                std::make_move_iterator(files.begin()), std::make_move_iterator(files.end()));
+        }
+    }
+    return allFiles;
+}
 } // namespace ark
