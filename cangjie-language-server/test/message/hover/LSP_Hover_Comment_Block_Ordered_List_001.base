@@ -1,0 +1,1 @@
+{"id":"9","jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"Declared in: hover.cj  \nPackage info: default  \n\n```cangjie\ninternal var LSP_Hover_Comment_Block_Ordered_List_001: Int64 = 1\n```\n\n---\n\n4\\. Interface 接口定义  \n3\\. this is a test  \n2\\. cangjie  \n"},"range":{"end":{"character":44,"line":73},"start":{"character":4,"line":73}}}}
