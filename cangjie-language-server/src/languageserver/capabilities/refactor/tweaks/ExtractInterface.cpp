@@ -2413,7 +2413,7 @@ void InitializeApplyContext(ApplyContext &context)
     context.info.genericParams = ResolveTargetGenericParams(context.target);
     context.info.genericWhereClause =
         ResolveTargetGenericWhereClause(context.target, context.sel.arkAst->sourceManager);
-    context.renameOriginalClass = (context.target.kind == TargetKind::CLASS) &&
+    context.renameOriginalClass = context.target.inheritableDecl != nullptr &&
                                   ParseBoolOption(context.sel.extraOptions,
                                       "renameOriginalClassAndUseInterfaceWherePossible", false);
     context.targetPath = NormalizeTargetPath(context.sel.extraOptions);
@@ -2428,7 +2428,7 @@ void InitializeApplyContext(ApplyContext &context)
 
     if (context.renameOriginalClass) {
         context.info.name = context.target.name;
-        context.implementationClassName = ResolveImplementationClassName(context.sel.extraOptions, "");
+        context.implementationClassName = ResolveImplementationClassName(context.sel.extraOptions, requestedName);
         if (context.implementationClassName.empty()) {
             context.implementationClassName = context.target.name + "Impl";
         }
@@ -2463,6 +2463,9 @@ void CollectApplyInterfaceInfo(ApplyContext &context)
     if (context.renameOriginalClass && context.target.classDecl) {
         CollectClassInterfaceInheritedTypesForRename(
             *context.target.classDecl, context.sel, context.info.inheritedTypes);
+    } else if (context.renameOriginalClass && context.target.inheritableDecl) {
+        CollectInterfaceInheritedTypesForExtract(
+            *context.target.inheritableDecl, context.sel, context.selectedInheritedTypes, context.info.inheritedTypes);
     } else if (context.target.classDecl) {
         CollectInterfaceInheritedTypesForExtract(
             *context.target.classDecl, context.sel, context.selectedInheritedTypes, context.info.inheritedTypes);
@@ -2504,15 +2507,15 @@ void FilterSelectedMembers(ApplyContext &context)
 
 void AddRenameOriginalClassEdit(ApplyContext &context)
 {
-    if (!context.renameOriginalClass || !context.target.classDecl) {
+    if (!context.renameOriginalClass || !context.target.inheritableDecl) {
         return;
     }
 
-    auto nameBegin = context.target.classDecl->identifier.Begin();
+    auto nameBegin = context.target.inheritableDecl->identifier.Begin();
     if (nameBegin.IsZero() || context.implementationClassName.empty()) {
         return;
     }
-    auto nameEnd = context.target.classDecl->identifier.End();
+    auto nameEnd = context.target.inheritableDecl->identifier.End();
     Range renameRange{nameBegin, nameEnd};
     renameRange = TransformFromChar2IDE(renameRange);
     context.effect.applyEdits[context.sourceUri].push_back(TextEdit{renameRange, context.implementationClassName});
