@@ -76,3 +76,9 @@ class CommentedMethodFieldCases {
 func topLevelWithComment(): Int64 {
     return 1 * 2
 }
+
+struct Temperature {
+    func outer(a: Int64): Int64 {
+        a+1
+    }
+}
