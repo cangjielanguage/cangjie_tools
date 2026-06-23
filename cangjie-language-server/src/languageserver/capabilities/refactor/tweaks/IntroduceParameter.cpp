@@ -154,6 +154,8 @@ static void UpdateRelatedFunctionCallSites(
 static std::optional<TextEdit> InsertArgumentAtCallSite(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr);
 static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr);
+static std::string BuildCompoundAssignArgumentText(
+    const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr);
 static Ptr<Cangjie::AST::FuncArg> FindCallSiteArgByParam(
     Cangjie::AST::CallExpr &callExpr, Cangjie::AST::FuncParam &param, std::size_t paramIndex);
 static std::string GetArgumentTextForParam(
@@ -197,7 +199,39 @@ static bool HasExprBoundary(const SelectionTree::SelectionTreeNode &treeNode, co
     return hasBoundary;
 }
 
-static Ptr<Cangjie::AST::Expr> GetContainingBinaryExpr(
+static const std::unordered_set<Cangjie::TokenKind> INTRODUCE_PARAMETER_COMPOUND_ASSIGN_OPERATORS = {
+    TokenKind::EXP_ASSIGN, TokenKind::MUL_ASSIGN, TokenKind::DIV_ASSIGN, TokenKind::ADD_ASSIGN,
+    TokenKind::SUB_ASSIGN, TokenKind::MOD_ASSIGN, TokenKind::LSHIFT_ASSIGN, TokenKind::RSHIFT_ASSIGN,
+    TokenKind::AND_ASSIGN, TokenKind::BITXOR_ASSIGN, TokenKind::BITAND_ASSIGN, TokenKind::BITOR_ASSIGN,
+    TokenKind::OR_ASSIGN
+};
+
+static bool IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node)
+{
+    auto assignExpr = DynamicCast<Cangjie::AST::AssignExpr *>(&node);
+    return assignExpr && assignExpr->isCompound &&
+        INTRODUCE_PARAMETER_COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op) > 0;
+}
+
+static std::string GetCompoundAssignFallbackTypeName(const Cangjie::AST::Expr &expr)
+{
+    auto assignExpr = DynamicCast<const Cangjie::AST::AssignExpr *>(&expr);
+    if (!assignExpr || !assignExpr->leftValue || !assignExpr->leftValue->GetTy() ||
+        GetString(*assignExpr->leftValue->GetTy()) == "UnknownType") {
+        return "";
+    }
+    return GetString(*assignExpr->leftValue->GetTy());
+}
+
+static bool HasValidIntroduceParameterExprType(const Cangjie::AST::Expr &expr)
+{
+    if (expr.GetTy() && GetString(*expr.GetTy()) != "UnknownType") {
+        return true;
+    }
+    return IsSupportedCompoundAssignExpr(expr) && !GetCompoundAssignFallbackTypeName(expr).empty();
+}
+
+static Ptr<Cangjie::AST::Expr> GetContainingIntroduceParameterExpr(
     const SelectionTree &selectionTree, const Range &selectedRange)
 {
     Ptr<Cangjie::AST::Expr> containingExpr = nullptr;
@@ -213,7 +247,9 @@ static Ptr<Cangjie::AST::Expr> GetContainingBinaryExpr(
             treeNode->node->end < selectedRange.end) {
             return SelectionTree::WalkAction::WALK_CHILDREN;
         }
-        if (treeNode->node->astKind == ASTKind::BINARY_EXPR && treeNode->node->end == selectedRange.end &&
+        bool isSupportedExpr = treeNode->node->astKind == ASTKind::BINARY_EXPR ||
+            IsSupportedCompoundAssignExpr(*treeNode->node);
+        if (isSupportedExpr && treeNode->node->end == selectedRange.end &&
             HasExprBoundary(*treeNode, selectedRange.start, true) &&
             HasExprBoundary(*treeNode, selectedRange.end, false)) {
             containingExpr = DynamicCast<Cangjie::AST::Expr *>(treeNode->node.get());
@@ -228,8 +264,8 @@ static Range GetIntroduceParameterExprRange(const SelectionTree &selectionTree, 
     Range range;
     auto exprNode = TweakUtils::GetCompleteExprNode(selectionTree, selectedRange);
     if (!exprNode || !exprNode->node) {
-        auto binaryExpr = GetContainingBinaryExpr(selectionTree, selectedRange);
-        if (!binaryExpr || !binaryExpr->GetTy() || GetString(*binaryExpr->GetTy()) == "UnknownType") {
+        auto expr = GetContainingIntroduceParameterExpr(selectionTree, selectedRange);
+        if (!expr || !HasValidIntroduceParameterExprType(*expr)) {
             return range;
         }
         return selectedRange;
@@ -246,17 +282,20 @@ static Ptr<Cangjie::AST::Expr> GetIntroduceParameterExpr(const SelectionTree &se
     if (exprNode && exprNode->node) {
         return DynamicCast<Cangjie::AST::Expr *>(exprNode->node.get());
     }
-    return GetContainingBinaryExpr(selectionTree, selectedRange);
+    return GetContainingIntroduceParameterExpr(selectionTree, selectedRange);
 }
 
 static std::string GetIntroduceParameterExprTypeName(const SelectionTree &selectionTree,
     const Range &selectedRange)
 {
+    auto expr = GetIntroduceParameterExpr(selectionTree, selectedRange);
+    if (expr && IsSupportedCompoundAssignExpr(*expr)) {
+        return GetCompoundAssignFallbackTypeName(*expr);
+    }
     auto exactTypeName = TweakUtils::GetSelectedExprTypeName(selectionTree, selectedRange);
     if (!exactTypeName.empty()) {
         return exactTypeName;
     }
-    auto expr = GetIntroduceParameterExpr(selectionTree, selectedRange);
     if (!expr || !expr->GetTy() || GetString(*expr->GetTy()) == "UnknownType") {
         return "";
     }
@@ -707,7 +746,18 @@ static std::set<Ptr<Cangjie::AST::Decl>> CollectLocalOverrideDecls(
 TextEdit IntroduceParameter::ReplaceExprWithParam(const Selection &sel, Range &range, std::string &paramName)
 {
     TextEdit textEdit;
-    textEdit.newText = paramName;
+    auto selectedExpr = GetIntroduceParameterExpr(sel.selectionTree, range);
+    bool isCompoundAssign = selectedExpr && IsSupportedCompoundAssignExpr(*selectedExpr);
+    textEdit.newText = isCompoundAssign ? "" : paramName;
+    if (isCompoundAssign) {
+        Range deleteLineRange = range;
+        deleteLineRange.start.column = 1;
+        deleteLineRange.end.line += 1;
+        deleteLineRange.end.column = 1;
+        textEdit.range = TransformFromChar2IDE(deleteLineRange);
+        return textEdit;
+    }
+
     std::string charContent = sel.arkAst->sourceManager->GetContentBetween(
         {range.start.fileID, range.start.line, 1}, range.start);
     range.start.column = CountUnicodeCharacters(charContent) + 1;
@@ -1011,6 +1061,10 @@ static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Can
         context.sourceFuncDecl.funcBody->paramLists.empty() || !context.sourceFuncDecl.funcBody->paramLists.front()) {
         return context.argumentText;
     }
+    auto selectedExpr = GetIntroduceParameterExpr(context.sel.selectionTree, context.range);
+    if (selectedExpr && IsSupportedCompoundAssignExpr(*selectedExpr)) {
+        return BuildCompoundAssignArgumentText(context, callExpr);
+    }
 
     auto paramList = context.sourceFuncDecl.funcBody->paramLists.front().get();
     auto replacements = CollectCallSiteArgumentReplacements(context, callExpr, *paramList);
@@ -1021,6 +1075,62 @@ static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Can
         argumentText = ReplaceParameterNamesWithCallArguments(context, callExpr, *paramList);
     }
     return ReplaceThisReceiverAtCallSite(context, callExpr, argumentText);
+}
+
+static std::string GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind)
+{
+    switch (tokenKind) {
+        case TokenKind::EXP_ASSIGN:
+            return "**";
+        case TokenKind::MUL_ASSIGN:
+            return "*";
+        case TokenKind::DIV_ASSIGN:
+            return "/";
+        case TokenKind::ADD_ASSIGN:
+            return "+";
+        case TokenKind::SUB_ASSIGN:
+            return "-";
+        case TokenKind::MOD_ASSIGN:
+            return "%";
+        case TokenKind::LSHIFT_ASSIGN:
+            return "<<";
+        case TokenKind::RSHIFT_ASSIGN:
+            return ">>";
+        case TokenKind::AND_ASSIGN:
+            return "&&";
+        case TokenKind::BITXOR_ASSIGN:
+            return "^";
+        case TokenKind::BITAND_ASSIGN:
+            return "&";
+        case TokenKind::BITOR_ASSIGN:
+            return "|";
+        case TokenKind::OR_ASSIGN:
+            return "||";
+        default:
+            return "";
+    }
+}
+
+static std::string BuildCompoundAssignArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
+{
+    auto selectedExpr = GetIntroduceParameterExpr(context.sel.selectionTree, context.range);
+    auto assignExpr = DynamicCast<Cangjie::AST::AssignExpr *>(selectedExpr.get());
+    if (!assignExpr || !assignExpr->leftValue || !assignExpr->rightExpr || !context.sel.arkAst ||
+        !context.sel.arkAst->sourceManager || !context.sourceFuncDecl.funcBody ||
+        context.sourceFuncDecl.funcBody->paramLists.empty() || !context.sourceFuncDecl.funcBody->paramLists.front()) {
+        return context.argumentText;
+    }
+
+    auto paramList = context.sourceFuncDecl.funcBody->paramLists.front().get();
+    auto replacements = CollectCallSiteArgumentReplacements(context, callExpr, *paramList);
+    std::string leftText = ApplyCallSiteArgumentReplacements(context, std::move(replacements));
+    std::string rightText = context.sel.arkAst->sourceManager->GetContentBetween(
+        assignExpr->rightExpr->begin, assignExpr->rightExpr->end);
+    auto opText = GetCompoundAssignOperatorText(assignExpr->op);
+    if (leftText.empty() || rightText.empty() || opText.empty()) {
+        return context.argumentText;
+    }
+    return ReplaceThisReceiverAtCallSite(context, callExpr, leftText + " " + opText + " " + rightText);
 }
 
 static Ptr<Cangjie::AST::FuncArg> FindCallSiteArgByParam(

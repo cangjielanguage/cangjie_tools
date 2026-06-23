@@ -90,3 +90,23 @@ public func testDefaultValue(): Unit {
     let r1 = greet()
     let r2 = greet(name: "Cangjie")
 }
+
+func compoundAssignSample(a: Int64): Unit {
+    a += 2
+    a -= 2
+    a <<= 2
+    a ^= 2
+}
+
+func callCompoundAssignSample(): Unit {
+    var value: Int64 = 10
+    compoundAssignSample(value)
+}
+
+func bitCompoundAssignSample(): Unit {
+    var bit: Int32 = 0b0001
+    bit >>= 1
+    bit |= 0b1000
+    bit &= 0b1111
+    bit ^= 0b1111
+}
