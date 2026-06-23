@@ -1213,6 +1213,7 @@
 {"codeAction":{"testFile":"ExtractInterface_Constraint_012.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceField_Constraint_001.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceField_Constraint_002.test","id":"10"}}
+{"codeAction":{"testFile":"IntroduceField_Constraint_003.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceParameter_Constraint_001.test","id":"10"}}
 
 {"applyEdit":{"testFile":"ExtractMethod_Apply_003.test","method":"workspace/applyEdit"}}
