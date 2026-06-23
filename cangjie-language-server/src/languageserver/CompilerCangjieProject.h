@@ -184,11 +184,17 @@ public:
         if (it == packageInstanceCache.end() || !it->second || !it->second->package) {
             return ret;
         }
+        // depend on ci cache
         for (auto &file: it->second->package->files) {
             ret.push_back(file->fileName);
         }
         return ret;
     }
+
+    std::vector<std::string> GetFilesInPkgByPkgInfo(const std::string &pkgPath) const;
+
+    std::vector<std::string> GetAllFilesUnderPathRecursive(const std::string &path, bool isDelete = false) const;
+
     // LCOV_EXCL_STOP
     void GetIncDegree(const std::string &pkgName, std::unordered_map<std::string, size_t>& inDegreeMap,
                       std::unordered_map<std::string, bool>& isVisited);

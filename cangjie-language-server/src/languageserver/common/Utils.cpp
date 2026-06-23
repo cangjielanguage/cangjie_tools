@@ -1644,4 +1644,22 @@ Ptr<Decl> GetRealTarget(Ptr<Decl> decl)
     }
     return decl;
 }
+
+bool CheckIsDirectory(const std::string &dirPath, bool isDelete)
+{
+    if (dirPath.empty()) {
+        return false;
+    }
+
+    struct stat buffer = {};
+    std::string realPath = PathWindowsToLinux(dirPath);
+    std::string file = realPath;
+    if (isDelete) {
+        auto res = realPath.find_last_of('/');
+        if (res != std::string::npos) {
+            file = realPath.substr(0, res);
+        }
+    }
+    return (stat(file.c_str(), &buffer) == 0 && S_ISDIR(buffer.st_mode));
+}
 } // namespace ark

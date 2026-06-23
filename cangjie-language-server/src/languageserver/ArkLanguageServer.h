@@ -160,8 +160,6 @@ private:
 
     bool CheckPkgInCangjieProject(const std::string &pkgPath) const;
 
-    bool CheckIsDirectory(const std::string &dirPath, bool isDelete = false) const;
-
     void OnDocumentSymbol(const DocumentSymbolParams &params, nlohmann::json id);
 
     void OnOverrideMethods(const OverrideMethodsParams &params, nlohmann::json id);

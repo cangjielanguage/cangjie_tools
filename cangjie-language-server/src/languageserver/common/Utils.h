@@ -391,5 +391,7 @@ bool IsCommonSpecificSymbol(Ptr<Cangjie::AST::Decl> decl);
 std::string GetRealFilePathInCommonSpecific(Ptr<Cangjie::AST::Decl> decl);
 
 Ptr<Decl> GetRealTarget(Ptr<Decl> decl);
+
+bool CheckIsDirectory(const std::string &dirPath, bool isDelete = false);
 }
 #endif // LSPSERVER_UTILS_H
