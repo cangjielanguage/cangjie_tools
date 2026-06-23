@@ -24,6 +24,8 @@ constexpr const char *CONST_INITIALIZER_MESSAGE =
     "Cannot introduce field from a const initializer because it must remain a compile-time constant expression.";
 constexpr const char *LET_PATTERN_DESTRUCTOR_MESSAGE =
     "Cannot introduce field from a let pattern condition because it is not a standalone expression.";
+constexpr const char *IMMUTABLE_STRUCT_MEMBER_FIELD_ASSIGNMENT_MESSAGE =
+    "Cannot introduce field from an immutable struct function because it needs to modify an instance field.";
 
 struct LocalVarTarget {
     Ptr<Cangjie::AST::VarDecl> decl = nullptr;
@@ -467,6 +469,12 @@ class IntroduceFieldRule : public TweakRule {
                 std::to_string(static_cast<int>(IntroduceField::IntroduceFieldError::INVALID_TYPE))));
             return false;
         }
+        if (!memberInitializerTarget &&
+            IntroduceField::IsImmutableStructMemberFieldAssignment(sel, range, typeName, *funcDecl)) {
+            extraOptions.insert(std::make_pair("ErrorCode", std::to_string(static_cast<int>(
+                IntroduceField::IntroduceFieldError::INVALID_IMMUTABLE_STRUCT_MEMBER_FIELD_ASSIGNMENT))));
+            return false;
+        }
         return true;
     }
 };
@@ -517,6 +525,9 @@ std::optional<Tweak::Effect> IntroduceField::Apply(const Selection &sel)
     auto funcDecl = GetTargetFunc(sel);
     if (!funcDecl || !IsSupportedTargetFunc(*funcDecl)) {
         return std::nullopt;
+    }
+    if (IsImmutableStructMemberFieldAssignment(sel, range, typeName, *funcDecl)) {
+        return Tweak::Effect::ShowMessage(IMMUTABLE_STRUCT_MEMBER_FIELD_ASSIGNMENT_MESSAGE);
     }
     bool useSelectedExprAsInitializer = CanUseAsFieldInitializer(sel, range, *funcDecl) ||
         GetDefaultInitializer(sel, range, typeName).empty();
@@ -588,6 +599,16 @@ bool IntroduceField::IsMemberFieldTarget(Cangjie::AST::FuncDecl &funcDecl)
 bool IntroduceField::IsStaticFieldTarget(Cangjie::AST::FuncDecl &funcDecl)
 {
     return IsMemberFieldTarget(funcDecl) && funcDecl.TestAttr(Attribute::STATIC);
+}
+
+bool IntroduceField::IsImmutableStructMemberFieldAssignment(
+    const Selection &sel, Range &range, const std::string &typeName, Cangjie::AST::FuncDecl &funcDecl)
+{
+    if (!funcDecl.outerDecl || funcDecl.outerDecl->astKind != ASTKind::STRUCT_DECL ||
+        funcDecl.TestAttr(Attribute::MUT) || IsStaticFieldTarget(funcDecl)) {
+        return false;
+    }
+    return !CanUseAsFieldInitializer(sel, range, funcDecl) && !GetDefaultInitializer(sel, range, typeName).empty();
 }
 
 static Position GetDeclarationInsertStart(const Cangjie::AST::Decl &decl)
