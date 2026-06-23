@@ -225,7 +225,7 @@ std::string ItemResolverUtil::ResolveSignatureByNode(const Node &node, Cangjie::
         [&signature](const Cangjie::AST::VarDecl &decl) {
             if (decl.TestAttr(Attribute::ENUM_CONSTRUCTOR) && decl.outerDecl) {
                 return signature + decl.outerDecl->identifier + GetGenericParamByDecl(decl.outerDecl->GetGeneric()) +
-                       CONSTANTS::DOT + decl.identifier;
+                       CONSTANTS::DOT() + decl.identifier;
             }
             return signature + decl.identifier;
         },
@@ -312,7 +312,7 @@ std::string ItemResolverUtil::ResolveSourceByNode(Ptr<Cangjie::AST::Decl> decl, 
         source += fileName;
     }
 
-    source += CONSTANTS::BLANK;
+    source += CONSTANTS::BLANK();
     source += "Package info: ";
     source += decl->fullPackageName;
 

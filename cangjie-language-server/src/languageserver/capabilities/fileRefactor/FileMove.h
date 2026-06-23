@@ -63,10 +63,9 @@ private:
 
     static std::unordered_map<std::string, std::unique_ptr<PackageInstance>> pkgInstanceMap;
 
-    // if moving a folder, store the move dir
-    static std::string moveDirPath;
+    inline static std::string moveDirPath;
 
-    static std::string targetDir;
+    inline static std::string targetDir;
 };
 }
 

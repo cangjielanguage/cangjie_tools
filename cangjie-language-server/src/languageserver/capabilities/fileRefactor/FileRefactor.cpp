@@ -24,8 +24,8 @@ void FileRefactor::AddImport()
     Position insertStart = {0, lastImport.line, 1};
     Range insertRange = {insertStart, insertStart};
     insertRange = TransformFromChar2IDE(insertRange);
-    std::string insertContent = CONSTANTS::IMPORT + CONSTANTS::WHITE_SPACE + newPkg
-                                + CONSTANTS::DOT + sym + "\n";
+    std::string insertContent = CONSTANTS::IMPORT() + CONSTANTS::WHITE_SPACE() + newPkg +
+        CONSTANTS::DOT() + sym + "\n";
     std::string uri = URI::URIFromAbsolutePath(targetPath).ToString();
     result.changes[uri].insert({FileRefactorChangeType::ADD, insertRange, insertContent});
 }
@@ -98,10 +98,10 @@ void FileRefactor::ChangeImport()
         insertRange = TransformFromChar2IDE(insertRange);
         std::ostringstream insertContent;
         if (importSpec.modifier) {
-            insertContent << importSpec.modifier->ToString() << CONSTANTS::WHITE_SPACE;
+            insertContent << importSpec.modifier->ToString() << CONSTANTS::WHITE_SPACE();
         }
-        insertContent << CONSTANTS::IMPORT << CONSTANTS::WHITE_SPACE << newPkg
-                    << CONSTANTS::DOT << sym + "\n";
+        insertContent << CONSTANTS::IMPORT() << CONSTANTS::WHITE_SPACE() << newPkg
+                    << CONSTANTS::DOT() << sym + "\n";
         result.changes[uri].insert({FileRefactorChangeType::ADD, insertRange, insertContent.str()});
     };
 
@@ -114,7 +114,7 @@ void FileRefactor::ChangeImport()
         if (importContent.kind == ImportKind::IMPORT_MULTI) {
             continue;
         }
-        std::string refactorFullSym = refactorPkg + CONSTANTS::DOT + sym;
+        std::string refactorFullSym = refactorPkg + CONSTANTS::DOT() + sym;
         std::string importFullSym = GetImportFullSymWithoutAlias(importContent);
         std::string importFullPkg = GetImportFullPkg(importContent);
         if (importContent.kind == ImportKind::IMPORT_ALL && importFullPkg == refactorPkg) {
@@ -137,13 +137,13 @@ void FileRefactor::ChangeImport()
             insertRange = TransformFromChar2IDE(insertRange);
             std::ostringstream oss;
             if (fileImport->modifier) {
-                oss << fileImport->modifier->ToString() << CONSTANTS::WHITE_SPACE;
+                oss << fileImport->modifier->ToString() << CONSTANTS::WHITE_SPACE();
             }
-            oss << CONSTANTS::IMPORT << CONSTANTS::WHITE_SPACE
-                << newPkg << CONSTANTS::DOT << sym;
+            oss << CONSTANTS::IMPORT() << CONSTANTS::WHITE_SPACE()
+                << newPkg << CONSTANTS::DOT() << sym;
             if (importContent.kind == Cangjie::AST::ImportKind::IMPORT_ALIAS) {
-                oss << CONSTANTS::WHITE_SPACE << CONSTANTS::AS
-                    << CONSTANTS::WHITE_SPACE << importContent.aliasName.Val();
+                oss << CONSTANTS::WHITE_SPACE() << CONSTANTS::AS()
+                    << CONSTANTS::WHITE_SPACE() << importContent.aliasName.Val();
             }
             oss << "\n";
             std::string insertContent = oss.str();
@@ -314,11 +314,11 @@ std::string FileRefactor::GetImportFullPkg(const ImportContent &importContent)
 {
     std::stringstream ss;
     for (const auto &prefix: importContent.prefixPaths) {
-        ss << prefix << CONSTANTS::DOT;
+        ss << prefix << CONSTANTS::DOT();
     }
     if (importContent.kind != ImportKind::IMPORT_MULTI && importContent.kind != ImportKind::IMPORT_ALL
         && !importContent.isDecl) {
-        ss << importContent.identifier << CONSTANTS::DOT;
+        ss << importContent.identifier << CONSTANTS::DOT();
     }
     return ss.str().substr(0, ss.str().size() - 1);
 }
@@ -329,14 +329,14 @@ std::string FileRefactor::GetImportFullSym(const ImportContent &importContent)
     for (size_t i = 0; i < importContent.prefixPaths.size(); ++i) {
         ss << importContent.prefixPaths[i];
         if (i + 1 != importContent.prefixPaths.size()) {
-            ss << CONSTANTS::DOT;
+            ss << CONSTANTS::DOT();
         }
     }
     if (importContent.kind != ImportKind::IMPORT_MULTI) {
-        ss << CONSTANTS::DOT << importContent.identifier.Val();
+        ss << CONSTANTS::DOT() << importContent.identifier.Val();
     }
     if (importContent.kind == ImportKind::IMPORT_ALIAS) {
-        ss << CONSTANTS::WHITE_SPACE << CONSTANTS::AS << CONSTANTS::WHITE_SPACE << importContent.aliasName.Val();
+        ss << CONSTANTS::WHITE_SPACE() << CONSTANTS::AS() << CONSTANTS::WHITE_SPACE() << importContent.aliasName.Val();
     }
     return ss.str();
 }
@@ -347,11 +347,11 @@ std::string FileRefactor::GetImportFullSymWithoutAlias(const ImportContent &impo
     for (size_t i = 0; i < importContent.prefixPaths.size(); ++i) {
         ss << importContent.prefixPaths[i];
         if (i + 1 != importContent.prefixPaths.size()) {
-            ss << CONSTANTS::DOT;
+            ss << CONSTANTS::DOT();
         }
     }
     if (importContent.kind != ImportKind::IMPORT_MULTI) {
-        ss << CONSTANTS::DOT << importContent.identifier.Val();
+        ss << CONSTANTS::DOT() << importContent.identifier.Val();
     }
     return ss.str();
 }
@@ -435,7 +435,7 @@ bool FileRefactor::ContainFullSymImport()
     if (!fileNode) {
         return false;
     }
-    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT + sym;
+    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT() + sym;
     if (kind == FileRefactorKind::RefactorMoveFile) {
         return FileContainFullSymImport(fileNode, true, refactorFullSym);
     }
@@ -491,8 +491,8 @@ bool FileRefactor::ContainFullSymImportForReExport()
         return false;
     }
 
-    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT + sym;
-    std::string originFullSym = reExportedPkg + CONSTANTS::DOT + sym;
+    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT() + sym;
+    std::string originFullSym = reExportedPkg + CONSTANTS::DOT() + sym;
     bool isContain = false;
     for (const auto &f: fileNode->curPackage->files) {
         isContain = FileContainFullSymImportForReExport(f.get(), f->filePath == file,
@@ -628,7 +628,7 @@ void FileRefactor::DeleteRefFileSingleImport(ImportContent &importContent,
     if (importContent.kind == ImportKind::IMPORT_MULTI || importContent.kind == ImportKind::IMPORT_ALL) {
         return;
     }
-    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT + sym;
+    std::string refactorFullSym = refactorPkg + CONSTANTS::DOT() + sym;
     std::string importFullSym = GetImportFullSymWithoutAlias(importContent);
     if (importFullSym != refactorFullSym) {
         return;
@@ -654,8 +654,8 @@ void FileRefactor::DeleteReExportSingleImport(ImportContent &importContent,
     if (importContent.kind == ImportKind::IMPORT_MULTI || importContent.kind == ImportKind::IMPORT_ALL) {
         return;
     }
-    std::string reExportFullSym = refactorPkg + CONSTANTS::DOT + sym;
-    std::string reExportedFullSym = reExportedPkg + CONSTANTS::DOT + sym;
+    std::string reExportFullSym = refactorPkg + CONSTANTS::DOT() + sym;
+    std::string reExportedFullSym = reExportedPkg + CONSTANTS::DOT() + sym;
     std::string importFullSym = GetImportFullSymWithoutAlias(importContent);
     if (importFullSym != reExportFullSym && importFullSym != reExportedFullSym) {
         return;

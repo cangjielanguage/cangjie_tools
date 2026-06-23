@@ -161,13 +161,13 @@ bool FromJSON(const nlohmann::json &params, SignatureHelpContext &reply)
         if (params["activeSignatureHelp"].contains("activeParameter") &&
             !params["activeSignatureHelp"]["activeParameter"].is_null()) {
             reply.activeSignatureHelp.activeParameter =
-                params["activeSignatureHelp"].value("activeParameter", -1);
+                params["activeSignatureHelp"].value("activeParameter", 0u);
         }
         if (params.contains("activeSignatureHelp")
             && params["activeSignatureHelp"].contains("activeSignature")
             && !params["activeSignatureHelp"]["activeSignature"].is_null()) {
             reply.activeSignatureHelp.activeSignature =
-                params["activeSignatureHelp"].value("activeSignature", -1);
+                params["activeSignatureHelp"].value("activeSignature", 0u);
         }
         for (size_t count = 0; count < params["activeSignatureHelp"]["signatures"].size(); count++) {
             Signatures signatures = {};

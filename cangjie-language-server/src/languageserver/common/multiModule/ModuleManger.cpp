@@ -30,7 +30,7 @@ namespace ark {
 void ModuleManager::WorkspaceModeParser(const std::string &workspace)
 {
     if (multiModuleOption.is_null()) {
-        std::string moduleName = CONSTANTS::DEFAULT_ROOT_PACKAGE;
+        std::string moduleName = CONSTANTS::DEFAULT_ROOT_PACKAGE();
         std::string normalizeModulePath = FileStore::NormalizePath(URI::Resolve(workspace));
         duplicateModules[moduleName].push_back(normalizeModulePath);
         moduleInfoMap[normalizeModulePath] = {.moduleName = moduleName, .modulePath = normalizeModulePath,
@@ -44,35 +44,35 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         auto &key = moduleOptItem.key();
         const nlohmann::json &value = multiModuleOption[key];
         std::string path = FileStore::NormalizePath(URI::Resolve(key));
-        std::string name = CONSTANTS::DEFAULT_ROOT_PACKAGE;
-        if (value != nullptr && value.contains(MODULE_JSON_NAME)) {
-            name = value.value(MODULE_JSON_NAME, "");
+        std::string name = CONSTANTS::DEFAULT_ROOT_PACKAGE();
+        if (value != nullptr && value.contains(MODULE_JSON_NAME())) {
+            name = value.value(MODULE_JSON_NAME(), "");
         }
         duplicateModules[name].push_back(path);
         moduleInfoMap[path] = {.moduleName = name, .modulePath = path, .cjoRequiresMap = {}, .srcPath = {},
                                .isCommonSpecificModule = false, .commonSpecificPaths = {}, .sourceSetNames = {}};
-        if (value.contains(SRC_PATH)) {
-            auto srcPath = value.value(SRC_PATH, "");
+        if (value.contains(SRC_PATH())) {
+            auto srcPath = value.value(SRC_PATH(), "");
             moduleInfoMap[path].srcPath = FileStore::NormalizePath(URI::Resolve(srcPath));
-        } else if (value.contains(COMMON_SPECIFIC_PATHS)) {
+        } else if (value.contains(COMMON_SPECIFIC_PATHS())) {
             SetCommonSpecificPath(value, path);
         }
-        if (value.contains(COMBINED)) {
-            combinedMap[name] = value.value(COMBINED, false);
+        if (value.contains(COMBINED())) {
+            combinedMap[name] = value.value(COMBINED(), false);
         }
         (void)requirePackages[name].insert(name);
 
         SetPackageRequires(value, path);
 
-        if (value.contains(REQUIRES)) {
-            for (const auto &item : value[REQUIRES].items()) {
+        if (value.contains(REQUIRES())) {
+            for (const auto &item : value[REQUIRES()].items()) {
                 auto &reqKey = item.key();
-                auto itemPath = value[REQUIRES][reqKey].value(MODULE_JSON_PATH, "");
+                auto itemPath = value[REQUIRES()][reqKey].value(MODULE_JSON_PATH(), "");
                 std::string requirePath = FileStore::NormalizePath(URI::Resolve(itemPath));
                 if (!FileExist(requirePath)) {
                     continue;
                 }
-                bool isScriptDependence = value[REQUIRES][reqKey].value(IS_SCRIPT_DEPENDENCE, false);
+                bool isScriptDependence = value[REQUIRES()][reqKey].value(IS_SCRIPT_DEPENDENCE(), false);
                 if (isScriptDependence) {
                     (void)scriptRequirePackages[name].insert(reqKey);
                 } else {
@@ -85,27 +85,27 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
 
 void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const std::string &modulePath)
 {
-    if (!jsonData.contains(COMMON_SPECIFIC_PATHS) || !jsonData[COMMON_SPECIFIC_PATHS].is_array()) {
+    if (!jsonData.contains(COMMON_SPECIFIC_PATHS()) || !jsonData[COMMON_SPECIFIC_PATHS()].is_array()) {
         return;
     }
     moduleInfoMap[modulePath].isCommonSpecificModule = true;
-    for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS]) {
-        if (!member.is_object() || !member.contains(TYPE) || !member.contains(PATH)) {
+    for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS()]) {
+        if (!member.is_object() || !member.contains(TYPE()) || !member.contains(PATH())) {
             continue;
         }
-        const auto &type = member.value(TYPE, "");
-        const auto &path = member.value(PATH, "");
+        const auto &type = member.value(TYPE(), "");
+        const auto &path = member.value(PATH(), "");
         if (path == "") {
             continue;
         }
-        if (type == COMMON && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
+        if (type == COMMON() && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
             moduleInfoMap[modulePath].commonSpecificPaths.first = FileStore::NormalizePath(URI::Resolve(path));
             moduleInfoMap[modulePath].sourceSetNames.push_back("common");
             continue;
         }
-        if (type == SPECIFIC) {
+        if (type == SPECIFIC()) {
             moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(FileStore::NormalizePath(URI::Resolve(path)));
-            moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME, ""));
+            moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME(), ""));
             continue;
         }
     }
@@ -116,12 +116,12 @@ void ModuleManager::SetPackageRequires(const nlohmann::json &jsonData, const std
     std::string path;
     std::string normalizePath;
     std::string cjoModuleName;
-    if (jsonData.contains(PACKAGES_REQUIRES)) {
-        if (jsonData[PACKAGES_REQUIRES].contains(PACKAGE_OPTION)) {
-            auto items = jsonData[PACKAGES_REQUIRES][PACKAGE_OPTION].items();
+    if (jsonData.contains(PACKAGES_REQUIRES())) {
+        if (jsonData[PACKAGES_REQUIRES()].contains(PACKAGE_OPTION())) {
+            auto items = jsonData[PACKAGES_REQUIRES()][PACKAGE_OPTION()].items();
             for (const auto &item : items) {
                 auto &key = item.key();
-                path = jsonData[PACKAGES_REQUIRES][PACKAGE_OPTION].value(key, "");
+                path = jsonData[PACKAGES_REQUIRES()][PACKAGE_OPTION()].value(key, "");
                 normalizePath = FileStore::NormalizePath(URI::Resolve(path));
                 if (!FileExist(normalizePath)) {
                     continue;
@@ -130,9 +130,9 @@ void ModuleManager::SetPackageRequires(const nlohmann::json &jsonData, const std
                 (void)moduleInfoMap[modulePath].cjoRequiresMap.emplace(cjoModuleName, normalizePath);
             }
         }
-        if (jsonData[PACKAGES_REQUIRES].contains(PATH_OPTION) &&
-            jsonData[PACKAGES_REQUIRES][PATH_OPTION].is_array()) {
-            for (auto &member : jsonData[PACKAGES_REQUIRES][PATH_OPTION]) {
+        if (jsonData[PACKAGES_REQUIRES()].contains(PATH_OPTION()) &&
+            jsonData[PACKAGES_REQUIRES()][PATH_OPTION()].is_array()) {
+            for (auto &member : jsonData[PACKAGES_REQUIRES()][PATH_OPTION()]) {
                 std::string cjoDir = FileStore::NormalizePath(URI::Resolve(member.get<std::string>()));
                 if (!FileExist(cjoDir)) {
                     continue;
@@ -224,7 +224,7 @@ std::string ModuleManager::GetProjectModuleName() const
 bool ModuleManager::IsBuildScriptFile(const std::string &filePath) const
 {
     std::string normalizedFilePath = Normalize(filePath);
-    std::string buildScriptPath = Normalize(JoinPath(projectRootPath, BUILD_SCRIPT_FILE_NAME));
+    std::string buildScriptPath = Normalize(JoinPath(projectRootPath, BUILD_SCRIPT_FILE_NAME()));
     return normalizedFilePath == buildScriptPath;
 }
 

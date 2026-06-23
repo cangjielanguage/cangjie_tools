@@ -100,7 +100,7 @@ bool OverrideCompleter::SetCompletionConfig(Ptr<Decl> decl, const Position& pos)
     FilterModifiers();
     if (decl == nullptr || decl->astKind != ASTKind::FUNC_DECL) {
         additionalPos = pos;
-        additionalPos.column = pos.column - prefix.size() - 1;
+        additionalPos.column = pos.column - static_cast<int>(prefix.size()) - 1;
         additionalPos.line = pos.line - 1;
         hasFuncWord = false;
         return true;
@@ -204,6 +204,9 @@ void OverrideCompleter::ExtractReplace(Ptr<Decl> decl)
             return;
         }
         auto newDetail = ResolveType(inheritedType->GetTy());
+        if (!newDetail) {
+            return;
+        }
         for (auto& item: replace) {
             newDetail->SetIdentifier(item.first, item.second);
         }

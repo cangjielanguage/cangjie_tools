@@ -287,19 +287,19 @@ std::string HoverImpl::GetHoverMessageByOuterDecl(const Decl &node)
     std::string detail;
     return Meta::match(node)(
         [&detail](const Cangjie::AST::ClassDecl &decl) {
-            detail = "// In class " + decl.identifier + CONSTANTS::BLANK;
+            detail = "// In class " + decl.identifier + CONSTANTS::BLANK();
             return detail;
         },
         [&detail](const Cangjie::AST::InterfaceDecl &decl) {
-            detail = "// In interface " + decl.identifier + CONSTANTS::BLANK;
+            detail = "// In interface " + decl.identifier + CONSTANTS::BLANK();
             return detail;
         },
         [&detail](const Cangjie::AST::EnumDecl &decl) {
-            detail = "// In enum " + decl.identifier + CONSTANTS::BLANK;
+            detail = "// In enum " + decl.identifier + CONSTANTS::BLANK();
             return detail;
         },
         [&detail](const Cangjie::AST::StructDecl &decl) {
-            detail = "// In struct " + decl.identifier + CONSTANTS::BLANK;
+            detail = "// In struct " + decl.identifier + CONSTANTS::BLANK();
             return detail;
         },
         [&detail](const Cangjie::AST::ExtendDecl &decl) {
@@ -323,7 +323,7 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
     std::string path = instance->GetPathBySource(curFilePath, decl->identifier.Begin().fileID);
     // get source declared
     std::string source = ItemResolverUtil::ResolveSourceByNode(decl, path);
-    source = (source.empty()) ? source : (source + CONSTANTS::BLANK + CONSTANTS::BLANK);
+    source = (source.empty()) ? source : (source + CONSTANTS::BLANK() + CONSTANTS::BLANK());
     result.markedString.push_back(source);
 
     // get outer message
@@ -333,7 +333,7 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
 
     // get signature
     std::string detail = ItemResolverUtil::ResolveDetailByNode(*decl, ast.sourceManager);
-    detail = (detail.empty()) ? detail : (detail + CONSTANTS::BLANK);
+    detail = (detail.empty()) ? detail : (detail + CONSTANTS::BLANK());
     result.markedString.push_back(detail);
     // get apiKey
     if (MessageHeaderEndOfLine::GetIsDeveco()) {

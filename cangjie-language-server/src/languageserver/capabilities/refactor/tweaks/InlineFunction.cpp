@@ -19,10 +19,20 @@ class InlineFunctionSelectionRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
+        if (!root || !root->node) {
+            extraOptions.insert(std::make_pair("ErrorCode",
+                std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::NOT_CALL_EXPR))));
+            return false;
+        }
 
         auto toBeInline = root->node;
         if (root->node->astKind == ASTKind::FUNC_ARG) {
             auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            if (!funcArg || !funcArg->expr) {
+                extraOptions.insert(std::make_pair("ErrorCode",
+                    std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::NOT_CALL_EXPR))));
+                return false;
+            }
             toBeInline = funcArg->expr;
         }
 
@@ -224,6 +234,9 @@ CallExpr* InlineFunction::GetCallExpr()
     auto toBeInline = root->node;
     if (root->node->astKind == ASTKind::FUNC_ARG) {
         auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+        if (!funcArg || !funcArg->expr) {
+            return nullptr;
+        }
         toBeInline = funcArg->expr;
     }
     if (toBeInline->astKind != ASTKind::CALL_EXPR) {
@@ -683,9 +696,11 @@ std::optional<Tweak::Effect> InlineFunction::Apply(const Selection &sel)
     }
 
     if (funcDecl_->TestAnyAttr(Attribute::IN_CLASSLIKE, Attribute::IN_STRUCT, Attribute::IN_ENUM)
-        && callExpr_->baseFunc->astKind == ASTKind::MEMBER_ACCESS) {
+        && callExpr_->baseFunc && callExpr_->baseFunc->astKind == ASTKind::MEMBER_ACCESS) {
         auto memberAccess = DynamicCast<MemberAccess*>(callExpr_->baseFunc.get());
-        baseExpr_ = memberAccess->baseExpr.get();
+        if (memberAccess && memberAccess->baseExpr) {
+            baseExpr_ = memberAccess->baseExpr.get();
+        }
     }
 
     hasReturnValue_ = HasReturnValue();

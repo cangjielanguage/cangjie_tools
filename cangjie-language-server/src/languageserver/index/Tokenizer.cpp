@@ -79,7 +79,7 @@ struct IdenitifierTokenizer {
     void operator()(std::string_view orig_text, TokenizerCallback callback) const
     {
         std::string tokenBuffer;
-        auto handleToken = [&](std::string token) {
+        auto handleToken = [&tokenBuffer, &callback](std::string token) {
             tokenBuffer.resize(token.size());
             std::transform(token.begin(), token.end(), tokenBuffer.begin(), ToLower);
             callback(tokenBuffer, token.size());

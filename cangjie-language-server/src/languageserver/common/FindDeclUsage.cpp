@@ -160,7 +160,7 @@ Ptr<Node> GetRealNode(Ptr<Node> node)
     Ptr<MemberAccess> ma = dynamic_cast<MemberAccess*>(node.get());
     if (expr && expr->sourceExpr) {
         return expr->sourceExpr;
-    } else if (ma && BUILTIN_OPERATORS.count(ma->field)) {
+    } else if (ma && BUILTIN_OPERATORS().count(ma->field)) {
         if (auto ce = DynamicCast<CallExpr*>(ma->callOrPattern); ce && ce->sourceExpr) {
             return ce->sourceExpr;
         }

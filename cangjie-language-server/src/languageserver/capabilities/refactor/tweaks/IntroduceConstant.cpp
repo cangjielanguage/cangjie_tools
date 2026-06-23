@@ -26,7 +26,7 @@ class IntroduceConstantRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
-        if (root->selected != SelectionTree::Selection::Complete || !TweakUtils::CheckValidExpr(*root)) {
+        if (!root || root->selected != SelectionTree::Selection::Complete || !TweakUtils::CheckValidExpr(*root)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceConstant::IntroduceConstantError::INVALID_EXPR))));
             return false;

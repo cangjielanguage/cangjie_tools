@@ -178,7 +178,7 @@ bool PrepareRename::IsFromMacroCallFile(Ptr<Decl> decl)
     auto symFromIndex = index->GetAimSymbol(*decl);
     if (!symFromIndex.location.fileUri.empty()) {
         auto path = symFromIndex.location.fileUri;
-        if (Cangjie::FileUtil::HasExtension(path, CANGJIE_MACRO_FILE_EXTENSION)) {
+        if (Cangjie::FileUtil::HasExtension(path, CANGJIE_MACRO_FILE_EXTENSION())) {
             return true;
         }
     }

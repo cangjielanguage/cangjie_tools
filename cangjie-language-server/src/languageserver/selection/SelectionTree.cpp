@@ -250,39 +250,39 @@ void SelectionTree::FindTopDecl(Cangjie::AST::Node &node)
         return;
     }
     Meta::match(node)(
-        [&](Cangjie::AST::InterfaceDecl &interfaceDecl) {
+        [this](Cangjie::AST::InterfaceDecl &interfaceDecl) {
             topDecl = &interfaceDecl;
             return;
         },
-        [&](Cangjie::AST::ClassDecl &classDecl) {
+        [this](Cangjie::AST::ClassDecl &classDecl) {
             topDecl = &classDecl;
             return;
         },
-        [&](Cangjie::AST::StructDecl &structDecl) {
+        [this](Cangjie::AST::StructDecl &structDecl) {
             topDecl = &structDecl;
             return;
         },
-        [&](Cangjie::AST::EnumDecl &enumDecl) {
+        [this](Cangjie::AST::EnumDecl &enumDecl) {
             topDecl = &enumDecl;
             return;
         },
-        [&](Cangjie::AST::ExtendDecl &extendDecl) {
+        [this](Cangjie::AST::ExtendDecl &extendDecl) {
             topDecl = &extendDecl;
             return;
         },
-        [&](Cangjie::AST::FuncDecl &funcDecl) {
+        [this](Cangjie::AST::FuncDecl &funcDecl) {
             if (funcDecl.TestAttr(Attribute::GLOBAL)) {
                 topDecl = &funcDecl;
             }
             return;
         },
-        [&](Cangjie::AST::VarDecl &varDecl) {
+        [this](Cangjie::AST::VarDecl &varDecl) {
             if (varDecl.TestAttr(Attribute::GLOBAL)) {
                 topDecl = &varDecl;
             }
             return;
         },
-        [&]() {
+        []() {
             return;
         });
 }

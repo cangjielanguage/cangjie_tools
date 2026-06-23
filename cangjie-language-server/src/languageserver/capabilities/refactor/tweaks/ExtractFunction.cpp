@@ -243,7 +243,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
         bool containExpr = false;
         bool isConstructor = false;
         bool containMemVarAssign = false;
-        if (root->selected == SelectionTree::Selection::Complete && root->node
+        if (root && root->selected == SelectionTree::Selection::Complete && root->node
             && root->node->astKind == ASTKind::EXPR) {
             containExpr = true;
         }
@@ -306,7 +306,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
             return false;
         }
 
-        if (root->selected == SelectionTree::Selection::Complete && root->node
+        if (root && root->selected == SelectionTree::Selection::Complete && root->node
             && root->node->astKind == ASTKind::VAR_DECL) {
             auto decl = dynamic_cast<VarDecl*>(root->node.get());
             if (decl && decl->TestAnyAttr(Attribute::GLOBAL, Attribute::IN_STRUCT,
@@ -805,7 +805,11 @@ void ExtractFunction::CollectGenerics(Ty &ty, std::unordered_set<std::string> &g
 void ExtractFunction::GetFunctionReturnValue(const Tweak::Selection &sel, ExtractedFunction &function)
 {
     auto root = sel.selectionTree.root();
-    if (root->selected == SelectionTree::Selection::Complete && root->node->astKind == ASTKind::RETURN_EXPR) {
+    if (!root) {
+        return;
+    }
+    if (root->selected == SelectionTree::Selection::Complete && root->node
+        && root->node->astKind == ASTKind::RETURN_EXPR) {
         ExtractedFunction::ReturnValue returnValue;
         returnValue.addReturnOnFuncBody = false;
         function.returnValue = std::move(returnValue);
@@ -832,39 +836,47 @@ void ExtractFunction::GetFunctionReturnValue(const Tweak::Selection &sel, Extrac
         }
     }
 
-    SelectionTree::Walk(root, [&sel, &function]
+    SelectionTree::Walk(root, [&sel, &function, this]
         (const SelectionTree::SelectionTreeNode *treeNode) {
-            if (!treeNode->node) {
-                return SelectionTree::WalkAction::STOP_NOW;
-            }
-
-            if (treeNode->selected == SelectionTree::Selection::Complete &&
-                treeNode->node->astKind == ASTKind::VAR_DECL) {
-                auto decl = dynamic_cast<VarDecl*>(treeNode->node.get());
-                if (decl && NeedExtractDecl2ReturnValue(decl, sel)) {
-                    ExtractedFunction::ReturnValue returnValue;
-                    returnValue.addReturnOnFuncBody = true;
-                    returnValue.needDeclVar = true;
-                    returnValue.name = decl->identifier;
-                    function.returnValue = std::move(returnValue);
-                    return SelectionTree::WalkAction::STOP_NOW;
-                }
-            }
-
-            if (treeNode->selected == SelectionTree::Selection::Complete &&
-                treeNode->node->astKind == ASTKind::ASSIGN_EXPR) {
-                auto assignExpr = dynamic_cast<AssignExpr*>(treeNode->node.get());
-                if (assignExpr && NeedExtractAssignExpr2ReturnValue(assignExpr, sel)) {
-                    ExtractedFunction::ReturnValue returnValue;
-                    returnValue.addReturnOnFuncBody = true;
-                    returnValue.name = assignExpr->leftValue->GetTarget()->identifier;
-                    function.returnValue = std::move(returnValue);
-                    return SelectionTree::WalkAction::STOP_NOW;
-                }
-            }
-
-            return SelectionTree::WalkAction::WALK_CHILDREN;
+            return ProcessReturnValueNode(treeNode, sel, function);
         });
+}
+
+SelectionTree::WalkAction ExtractFunction::ProcessReturnValueNode(
+    const SelectionTree::SelectionTreeNode *treeNode,
+    const Tweak::Selection &sel,
+    ExtractedFunction &function)
+{
+    if (!treeNode->node) {
+        return SelectionTree::WalkAction::STOP_NOW;
+    }
+
+    if (treeNode->selected == SelectionTree::Selection::Complete &&
+        treeNode->node->astKind == ASTKind::VAR_DECL) {
+        auto decl = dynamic_cast<VarDecl*>(treeNode->node.get());
+        if (decl && NeedExtractDecl2ReturnValue(decl, sel)) {
+            ExtractedFunction::ReturnValue returnValue;
+            returnValue.addReturnOnFuncBody = true;
+            returnValue.needDeclVar = true;
+            returnValue.name = decl->identifier;
+            function.returnValue = std::move(returnValue);
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+    }
+
+    if (treeNode->selected == SelectionTree::Selection::Complete &&
+        treeNode->node->astKind == ASTKind::ASSIGN_EXPR) {
+        auto assignExpr = dynamic_cast<AssignExpr*>(treeNode->node.get());
+        if (assignExpr && NeedExtractAssignExpr2ReturnValue(assignExpr, sel)) {
+            ExtractedFunction::ReturnValue returnValue;
+            returnValue.addReturnOnFuncBody = true;
+            returnValue.name = assignExpr->leftValue->GetTarget()->identifier;
+            function.returnValue = std::move(returnValue);
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+    }
+
+    return SelectionTree::WalkAction::WALK_CHILDREN;
 }
 
 /**
