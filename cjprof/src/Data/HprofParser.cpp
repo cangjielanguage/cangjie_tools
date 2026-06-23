@@ -137,9 +137,7 @@ void HprofParserV2::ParseStackTrace(bool verbose)
 
     // V2: frames are fixed u4 (regardless of idSize)
     for (size_t i = 0; i < frameNum; i++) {
-        auto frameId = ReadAndSwap<u4>();
-        if (frameId == 0) { break; }
-        m_dataRef.stackTraces[idx].frames.push_back(frameId);
+        m_dataRef.stackTraces[idx].frames.push_back(ReadAndSwap<u4>());
     }
 
     if (verbose) {
