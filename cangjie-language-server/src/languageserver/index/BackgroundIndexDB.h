@@ -90,7 +90,12 @@ public:
         }
     }
 
-    IndexDatabase& GetIndexDatabase() const
+    const IndexDatabase& GetIndexDatabase() const
+    {
+        return db;
+    }
+
+    IndexDatabase& GetIndexDatabase()
     {
         return db;
     }

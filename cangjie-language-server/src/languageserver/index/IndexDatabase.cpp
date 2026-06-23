@@ -73,7 +73,7 @@ uint64_t GetIDFromArray(IDArray info)
     uint64_t bit = 8;
     for (unsigned I = 0; I < info.size(); ++I) {
         result <<= bit;
-        result |= (uint16_t)info[info.size() - I - 1];
+        result |= static_cast<uint16_t>(info[info.size() - I - 1]);
     }
     return result;
 }

@@ -22,7 +22,7 @@ std::string GetFullImportId(const std::vector<std::string> &prefixPaths, const s
 {
     std::string fullIdentifier;
     for (auto const &prefix : prefixPaths) {
-        fullIdentifier += prefix + CONSTANTS::DOT;
+        fullIdentifier += prefix + CONSTANTS::DOT();
     }
     return fullIdentifier + id;
 }

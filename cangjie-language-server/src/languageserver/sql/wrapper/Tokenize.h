@@ -21,7 +21,7 @@ struct Tokenizer {
 template <typename Tokenizer>
 auto &tokenize(Fts5Tokenizer *Tok)
 {
-    return reinterpret_cast<Tokenizer *>(Tok)->Tokenize;
+    return static_cast<Tokenizer *>(static_cast<void *>(Tok))->Tokenize;
 }
 
 template <typename Tokenizer>

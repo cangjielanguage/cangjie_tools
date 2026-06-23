@@ -323,7 +323,7 @@ std::string CompletionImpl::GetChainedName(const ArkAST &input, const Cangjie::P
     auto curLineTokens = GetLineTokens(input.tokens, pos.line);
     if (IsMultiImport(curLineTokens)) {
         chainedName = chainedName.empty() ? GetMultiImportPrefix(curLineTokens)
-                                            : GetMultiImportPrefix(curLineTokens) + CONSTANTS::DOT + chainedName;
+                                            : GetMultiImportPrefix(curLineTokens) + CONSTANTS::DOT() + chainedName;
     }
     return chainedName;
 }

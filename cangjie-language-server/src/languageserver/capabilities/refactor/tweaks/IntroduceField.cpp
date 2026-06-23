@@ -416,6 +416,7 @@ static std::string GetExplicitTypeName(const Tweak::Selection &sel)
     return it == sel.extraOptions.end() ? "" : it->second;
 }
 
+namespace {
 class IntroduceFieldRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
@@ -478,6 +479,7 @@ class IntroduceFieldRule : public TweakRule {
         return true;
     }
 };
+}
 
 bool IntroduceField::Prepare(const Selection &sel)
 {

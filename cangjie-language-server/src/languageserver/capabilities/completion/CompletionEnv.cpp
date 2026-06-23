@@ -13,7 +13,7 @@ using namespace Cangjie::AST;
 namespace {
 std::string TrimSubPkgName(const std::string &subPkgName)
 {
-    auto found = subPkgName.find_first_of(CONSTANTS::DOT);
+    auto found = subPkgName.find_first_of(CONSTANTS::DOT());
     if (found != std::string::npos) {
         return subPkgName.substr(0, found);
     }
@@ -1424,7 +1424,7 @@ void CompletionEnv::AccessibleByString(const std::string &str, const std::string
 
 void CompletionEnv::DotPkgName(const std::string &fullPkgName, const std::string &prePkgName)
 {
-    std::string prefixWithDot = prePkgName + CONSTANTS::DOT;
+    std::string prefixWithDot = prePkgName + CONSTANTS::DOT();
     bool isInvalid = fullPkgName.empty() || fullPkgName.find(prefixWithDot) != 0 ||
                      prePkgName.length() >= fullPkgName.length() || items.count(fullPkgName) > 0 ||
                      !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(this->curPkgName, fullPkgName);

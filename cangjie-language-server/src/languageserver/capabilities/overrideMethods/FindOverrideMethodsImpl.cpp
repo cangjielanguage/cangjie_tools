@@ -25,6 +25,9 @@ const std::string SPACE = " ";
 
 void ApplyReplace(std::unique_ptr<TypeDetail>& detail, const std::unordered_map<std::string, std::string>& replace)
 {
+    if (!detail) {
+        return;
+    }
     for (auto& item: replace) {
         detail->SetIdentifier(item.first, item.second);
     }
@@ -143,31 +146,47 @@ void FilterMemberDecls(Ptr<T> decl, std::vector<FuncDecl*>& implementedMethods,
     }
 }
 
+Ptr<ClassLikeDecl> GetInheritedDeclFromType(const Ptr<Ty>& type)
+{
+    if (auto clsTy = DynamicCast<ClassTy*>(type.get())) {
+        return clsTy->declPtr;
+    }
+    if (auto ifTy = DynamicCast<InterfaceTy*>(type.get())) {
+        return ifTy->declPtr;
+    }
+    return nullptr;
+}
+
 void ExtractReplace(const Ptr<InheritableDecl>& decl, std::unordered_map<Ptr<InheritableDecl>,
                     std::unordered_map<std::string, std::string>>& genericReplaceMap)
 {
-    if (auto inheritableDecl = DynamicCast<InheritableDecl>(decl)) {
-        const auto& inheritedTypes = inheritableDecl->inheritedTypes;
-        std::unordered_map<std::string, std::string> replace{};
-        if (genericReplaceMap.find(decl) != genericReplaceMap.end()) {
-            replace = genericReplaceMap[decl];
+    auto inheritableDecl = DynamicCast<InheritableDecl>(decl);
+    if (!inheritableDecl) {
+        return;
+    }
+
+    const auto& inheritedTypes = inheritableDecl->inheritedTypes;
+    std::unordered_map<std::string, std::string> replace{};
+    if (genericReplaceMap.find(decl) != genericReplaceMap.end()) {
+        replace = genericReplaceMap[decl];
+    }
+
+    for (const auto& inheritedType: inheritedTypes) {
+        auto inheritedDecl = GetInheritedDeclFromType(inheritedType->GetTy());
+        if (!inheritedDecl || !inheritedType->GetTy()) {
+            continue;
         }
-        for (const auto& inheritedType: inheritedTypes) {
-            Ptr<ClassLikeDecl> inheritedDecl = nullptr;
-            if (auto clsTy = DynamicCast<ClassTy*>(inheritedType->GetTy())) {
-                inheritedDecl = clsTy->declPtr;
-            } else if (auto ifTy = DynamicCast<InterfaceTy*>(inheritedType->GetTy())) {
-                inheritedDecl = ifTy->declPtr;
-            }
-            if (inheritedDecl && inheritedType->GetTy()) {
-                auto originalDetail = ResolveType(inheritedDecl->GetTy());
-                auto newDetail = ResolveType(inheritedType->GetTy());
-                ApplyReplace(newDetail, replace);
-                std::unordered_map<std::string, std::string> myReplace;
-                originalDetail->Diff(newDetail, myReplace);
-                genericReplaceMap[inheritedDecl] = myReplace;
-            }
+
+        auto originalDetail = ResolveType(inheritedDecl->GetTy());
+        if (!originalDetail) {
+            continue;
         }
+
+        auto newDetail = ResolveType(inheritedType->GetTy());
+        ApplyReplace(newDetail, replace);
+        std::unordered_map<std::string, std::string> myReplace;
+        originalDetail->Diff(newDetail, myReplace);
+        genericReplaceMap[inheritedDecl] = myReplace;
     }
 }
 

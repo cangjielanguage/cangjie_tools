@@ -317,6 +317,7 @@ bool IntroducedParameterTypeBreaksPublicSignature(Cangjie::AST::FuncDecl &funcDe
     return decl && !decl->IsExportedDecl();
 }
 
+namespace {
 class IntroduceParameterRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
@@ -363,6 +364,7 @@ class IntroduceParameterRule : public TweakRule {
         return true;
     }
 };
+}
 
 bool IntroduceParameter::Prepare(const Selection &sel)
 {

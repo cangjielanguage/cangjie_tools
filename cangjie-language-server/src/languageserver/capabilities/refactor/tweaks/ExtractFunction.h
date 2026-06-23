@@ -122,6 +122,9 @@ private:
 
     void GetFunctionReturnValue(const Tweak::Selection &sel, ExtractedFunction &function);
 
+    SelectionTree::WalkAction ProcessReturnValueNode(const SelectionTree::SelectionTreeNode *treeNode,
+        const Tweak::Selection &sel, ExtractedFunction &function);
+
     void GetFunctionBody(const Tweak::Selection &sel, ExtractedFunction &function);
 
     void GetFunctionModifier(const Tweak::Selection &sel, ExtractedFunction &function);

@@ -738,7 +738,7 @@ void CacheManager::StoreIndexShard(const std::string &curPkgName, const std::str
     IdxFormat::FinishHashedPackageBuffer(builder, hashedPackage);
 
     std::ofstream outFile{FileStore::NormalizePath(idxFilePath).c_str(), std::ios::binary | std::ios::out};
-    (void)outFile.write(reinterpret_cast<char *>(builder.GetBufferPointer()), builder.GetSize());
+    (void)outFile.write(static_cast<char *>(static_cast<void *>(builder.GetBufferPointer())), builder.GetSize());
     outFile.close();
 }
 

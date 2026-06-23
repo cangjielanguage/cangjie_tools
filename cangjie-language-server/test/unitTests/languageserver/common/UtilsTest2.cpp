@@ -303,7 +303,8 @@ TEST(UtilsTest, ConvertCarriageToSpace002) {
 // void GetSingleConditionCompile
 TEST(UtilsTest, GetSingleConditionCompile001)
 {
-    nlohmann::json initOpts = {{CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION, {{".pkg", {{"customKey", "customVal"}}}}}};
+    nlohmann::json initOpts = {{CONSTANTS::SINGLE_CONDITION_COMPILE_OPTION(),
+        {{".pkg", {{"customKey", "customVal"}}}}}};
     std::unordered_map<std::string, std::string> globalConds = {{"g1", "gv1"}};
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> modulesConds = {
         {".pkg", {{"g1", "overwritten"}, {"m2", "modVal2"}}}};

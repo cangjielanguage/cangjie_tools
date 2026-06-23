@@ -12,8 +12,6 @@ namespace ark {
 std::unordered_map<std::string, std::unique_ptr<Cangjie::LSPCompilerInstance>> FileMove::ciMap = {};
 std::unordered_map<std::string, std::unique_ptr<ArkAST>> FileMove::astMap = {};
 std::unordered_map<std::string, std::unique_ptr<PackageInstance>> FileMove::pkgInstanceMap = {};
-std::string FileMove::moveDirPath;
-std::string FileMove::targetDir;
 // LCOV_EXCL_START
 void FileMove::FileMoveRefactor(const ArkAST *ast,
     FileRefactorRespParams &result,
@@ -480,7 +478,7 @@ bool FileMove::IsValidExportSym(const lsp::Symbol &sym, const std::string &expor
     if (sym.location.end.IsZero() && sym.name != "init") {
         return false;
     }
-    if (fullPkgSym == exportedPkg + CONSTANTS::DOT + sym.name) {
+    if (fullPkgSym == exportedPkg + CONSTANTS::DOT() + sym.name) {
         return true;
     }
     auto it = fullPkgSym.find_last_of('.');
@@ -488,7 +486,7 @@ bool FileMove::IsValidExportSym(const lsp::Symbol &sym, const std::string &expor
         return false;
     }
     std::string importSym = fullPkgSym.substr(it + 1);
-    std::string qualifierScope = exportedPkg + CONSTANTS::COMMA + importSym;
+    std::string qualifierScope = exportedPkg + CONSTANTS::COMMA() + importSym;
     if (sym.scope != qualifierScope) {
         return false;
     }

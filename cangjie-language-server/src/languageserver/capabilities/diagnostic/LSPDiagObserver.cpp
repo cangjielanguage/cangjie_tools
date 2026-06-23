@@ -264,14 +264,14 @@ void LSPDiagObserver::AddNoteInfo(Cangjie::Diagnostic &diagnostic,
             relatedInformation.emplace_back(info);
             continue;
         }
-        std::size_t pos = noteFilePath.find_last_of(CONSTANTS::FILE_SEPARATOR);
+        std::size_t pos = noteFilePath.find_last_of(CONSTANTS::FILE_SEPARATOR());
         if (pos != std::string::npos) {
             auto notePackage = noteFilePath.substr(0, pos);
             auto fileName = noteFilePath.substr(pos + 1);
             auto pkgPath = CompilerCangjieProject::GetInstance()->GetPathFromPkg(notePackage);
             if (!pkgPath.empty()) {
                 info.location.uri.file =
-                    URI::URIFromAbsolutePath(pkgPath + CONSTANTS::FILE_SEPARATOR + fileName).ToString();
+                    URI::URIFromAbsolutePath(pkgPath + CONSTANTS::FILE_SEPARATOR() + fileName).ToString();
                 info.location.range = {{noteStart.fileID, noteStart.line - 1, noteStart.column - 1},
                     {noteEnd.fileID, noteEnd.line - 1, noteEnd.column - 1}};
             }

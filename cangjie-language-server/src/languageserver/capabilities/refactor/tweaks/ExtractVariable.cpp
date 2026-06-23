@@ -422,7 +422,7 @@ void ExtractVariable::MatchModifier(Cangjie::AST::Node &node, std::string &modif
 {
     std::string targetModifier;
     Meta::match(node)(
-        [&](Cangjie::AST::AssignExpr &assignExpr) {
+        [&targetModifier, &modifier](Cangjie::AST::AssignExpr &assignExpr) {
             if (!assignExpr.leftValue || !assignExpr.leftValue->GetTarget()) {
                 return;
             }
@@ -436,7 +436,7 @@ void ExtractVariable::MatchModifier(Cangjie::AST::Node &node, std::string &modif
             modifier = targetModifier;
             return;
         },
-        [&](Cangjie::AST::VarDecl &varDecl) {
+        [&targetModifier, &modifier](Cangjie::AST::VarDecl &varDecl) {
             if (varDecl.TestAttr(Attribute::STATIC)) {
                 targetModifier = "static ";
             }
@@ -446,7 +446,7 @@ void ExtractVariable::MatchModifier(Cangjie::AST::Node &node, std::string &modif
             modifier = targetModifier;
             return;
         },
-        [&]() {
+        []() {
             return;
         });
 }

@@ -48,9 +48,9 @@ void SetAfterAT(const ark::ArkAST &input, ark::CompletionEnv& env, int curTokenI
 
 std::string TrimDollonPkgName(const std::string &subPkgName)
 {
-    auto found = subPkgName.find_first_of(CONSTANTS::DOUBLE_COLON);
+    auto found = subPkgName.find_first_of(CONSTANTS::DOUBLE_COLON());
     if (found != std::string::npos) {
-        return subPkgName.substr(found + CONSTANTS::DOUBLE_COLON.size());
+        return subPkgName.substr(found + CONSTANTS::DOUBLE_COLON().size());
     }
     return subPkgName;
 }
@@ -172,7 +172,7 @@ void NormalCompleterByParse::AddImportPkgDecl(const ArkAST &input, CompletionEnv
         } else if (im->IsImportAlias()) {
             std::string candidate;
             for (auto &prefix : im->content.prefixPaths) {
-                candidate += prefix + CONSTANTS::DOT;
+                candidate += prefix + CONSTANTS::DOT();
             }
             candidate += im->content.identifier;
             if (!CompilerCangjieProject::GetInstance()->Denoising(candidate).empty() ||

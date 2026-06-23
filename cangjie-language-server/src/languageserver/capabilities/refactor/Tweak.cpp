@@ -36,6 +36,9 @@ std::optional<std::unique_ptr<Tweak>> Tweak::PrepareTweak(std::string id, const 
             continue;
         }
         auto tweak = TweakRegistry::Create(id);
+        if (!tweak) {
+            return std::nullopt;
+        }
         if (!tweak->Prepare(selection)) {
             return std::nullopt;
         }

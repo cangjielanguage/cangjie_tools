@@ -104,7 +104,7 @@ static std::string PercentDecode(std::string content)
 
 std::string URI::GetAbsolutePath(std::string bodyPath)
 {
-    if (bodyPath.find_first_of(CONSTANTS::SLASH) != 0) {
+    if (bodyPath.find_first_of(CONSTANTS::SLASH()) != 0) {
         return "File scheme: expect body to be an absolute path starting with '/': " + bodyPath;
     }
     // For Windows paths e.g. /X:
@@ -138,7 +138,7 @@ URI URI::URIFromAbsolutePath(const std::string absolutePath)
     std::string uriBody;
     // For Windows paths e.g. X:
     if (path.length() > 1 && path[1] == ':') {
-        uriBody = CONSTANTS::SLASH;
+        uriBody = CONSTANTS::SLASH();
     }
     uriBody += path;
     uriBody = PathToUtf8(uriBody);

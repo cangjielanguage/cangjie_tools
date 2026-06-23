@@ -1107,7 +1107,7 @@ void ArkServer::FindDocumentSymbol(const DocumentSymbolParams &params, const Cal
         auto filePath = FileStore::NormalizePath(URI::Resolve(params.textDocument.uri.file));
         // To avoid queue task in runWithAST crashing
         if (inputAST.ast == nullptr || !CompilerCangjieProject::GetInstance()->FileHasSemaCache(filePath)
-            || Cangjie::FileUtil::HasExtension(filePath, CONSTANTS::CANGJIE_MACRO_FILE_EXTENSION)) {
+            || Cangjie::FileUtil::HasExtension(filePath, CONSTANTS::CANGJIE_MACRO_FILE_EXTENSION())) {
             ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
             reply(value);
             return;
@@ -1148,7 +1148,7 @@ void ArkServer::FindOverrideMethods(const std::string &file,
         nlohmann::json jsonValue;
         for (auto item: result.overrideMethods) {
             nlohmann::json overrideItem;
-            overrideItem["importItem"] = item.package + CONSTANTS::DOT + item.identifier;
+            overrideItem["importItem"] = item.package + CONSTANTS::DOT() + item.identifier;
             overrideItem["fullPackageName"] = item.package;
             overrideItem["identifier"] = item.identifier;
             overrideItem["kind"] = item.kind;

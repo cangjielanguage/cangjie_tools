@@ -17,13 +17,19 @@
 #include "tweaks/ExtractInterface.h"
 
 namespace ark {
+namespace {
+template<typename TweakClass>
+std::unique_ptr<Tweak> CreateTweak()
+{
+    return std::make_unique<TweakClass>();
+}
+}
+
 #define REGISTER_TWEAK(TweakClass) \
     namespace { \
     struct TweakClass##Registrar { \
         TweakClass##Registrar() noexcept { \
-            TweakRegistry::RegisterTweak(#TweakClass, []{ \
-                return std::make_unique<TweakClass>(); \
-            }); \
+            TweakRegistry::RegisterTweak(#TweakClass, &CreateTweak<TweakClass>); \
         } \
     }; \
     [[maybe_unused]] TweakClass##Registrar TweakClass##_registrar; \

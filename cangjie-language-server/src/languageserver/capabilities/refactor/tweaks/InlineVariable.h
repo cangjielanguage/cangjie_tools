@@ -47,8 +47,6 @@ private:
 
     bool NeedsParentheses(Expr* initExpr, const Selection &sel);
 
-    bool IsSimpleExpr(Expr* expr);
-
     TextEdit ReplaceRefWithInitExpr(const Selection &sel, const std::string &initExprCode);
 };
 
