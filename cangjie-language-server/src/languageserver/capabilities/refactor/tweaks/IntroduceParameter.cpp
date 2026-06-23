@@ -912,6 +912,97 @@ static std::optional<TextEdit> ReplaceRemovedCallArguments(
 // LCOV_EXCL_BR_STOP
 }
 
+static std::optional<Position> FindMatchingRightParenFrom(
+    const Tweak::Selection &sel, const Position &leftParenPos, const Position &searchEnd)
+{
+    if (!sel.arkAst || !sel.arkAst->sourceManager || leftParenPos.IsZero() || searchEnd.IsZero() ||
+        searchEnd <= leftParenPos) {
+        return std::nullopt;
+    }
+
+    std::string suffix = sel.arkAst->sourceManager->GetContentBetween(leftParenPos, searchEnd);
+    int depth = 0;
+    for (size_t offset = 0; offset < suffix.size(); ++offset) {
+        if (suffix[offset] == '(') {
+            ++depth;
+            continue;
+        }
+        if (suffix[offset] != ')') {
+            continue;
+        }
+        --depth;
+        if (depth == 0) {
+            return TweakUtils::PositionAtOffset(leftParenPos, suffix, offset);
+        }
+    }
+    return std::nullopt;
+}
+
+static std::string GetCallName(Cangjie::AST::CallExpr &callExpr)
+{
+    if (!callExpr.baseFunc) {
+        return "";
+    }
+    if (auto refExpr = DynamicCast<Cangjie::AST::RefExpr *>(callExpr.baseFunc.get())) {
+        return GetIdentifierText(refExpr->ref.identifier);
+    }
+    if (auto memberAccess = DynamicCast<Cangjie::AST::MemberAccess *>(callExpr.baseFunc.get())) {
+        return memberAccess->field.GetRawText();
+    }
+    return "";
+}
+
+static std::optional<Position> FindCallRightParenByName(
+    const Tweak::Selection &sel, Cangjie::AST::CallExpr &callExpr)
+{
+    if (!sel.arkAst || !sel.arkAst->sourceManager || !callExpr.baseFunc || callExpr.baseFunc->end.IsZero()) {
+        return std::nullopt;
+    }
+    std::string callName = GetCallName(callExpr);
+    if (callName.empty()) {
+        return std::nullopt;
+    }
+    Position lineStart{callExpr.baseFunc->end.fileID, callExpr.baseFunc->end.line, 1};
+    Position lineEnd{callExpr.baseFunc->end.fileID, callExpr.baseFunc->end.line + 1, 1};
+    std::string lineText = sel.arkAst->sourceManager->GetContentBetween(lineStart, lineEnd);
+    std::string needle = callName + "(";
+
+    std::optional<Position> result;
+    size_t cursor = 0;
+    while (cursor < lineText.size()) {
+        size_t pos = lineText.find(needle, cursor);
+        if (pos == std::string::npos) {
+            break;
+        }
+        Position namePos = TweakUtils::PositionAtOffset(lineStart, lineText, pos);
+        if (namePos < callExpr.baseFunc->begin || namePos > callExpr.baseFunc->end) {
+            cursor = pos + needle.size();
+            continue;
+        }
+        Position leftParenPos = TweakUtils::PositionAtOffset(lineStart, lineText, pos + callName.size());
+        if (auto rightParen = FindMatchingRightParenFrom(sel, leftParenPos, lineEnd)) {
+            result = rightParen;
+        }
+        cursor = pos + needle.size();
+    }
+    return result;
+}
+
+static std::optional<Position> ResolveCallArgumentInsertPosition(
+    const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
+{
+    if (!callExpr.leftParenPos.IsZero()) {
+        Position searchEnd = callExpr.end.IsZero() ? callExpr.rightParenPos : callExpr.end;
+        if (auto rightParen = FindMatchingRightParenFrom(context.sel, callExpr.leftParenPos, searchEnd)) {
+            return rightParen;
+        }
+    }
+    if (auto rightParen = FindCallRightParenByName(context.sel, callExpr)) {
+        return rightParen;
+    }
+    return std::nullopt;
+}
+
 // LCOV_EXCL_START
 static TextEdit InsertNewCallArgument(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
@@ -919,7 +1010,8 @@ static TextEdit InsertNewCallArgument(
     TextEdit textEdit;
     bool introduceNamed = ShouldIntroduceNamedParameter(context.funcDecl);
     std::ostringstream insertText;
-    textEdit.range = TransformFromChar2IDE({callExpr.rightParenPos, callExpr.rightParenPos});
+    Position insertPos = ResolveCallArgumentInsertPosition(context, callExpr).value_or(callExpr.rightParenPos);
+    textEdit.range = TransformFromChar2IDE({insertPos, insertPos});
     if (!callExpr.args.empty()) {
         insertText << ", ";
     }
