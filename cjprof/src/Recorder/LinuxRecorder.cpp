@@ -101,7 +101,7 @@ bool LinuxRecorder::createDirIfNotExists(const std::string& dirPath)
         }
     }
 
-    mode_t mode = 0666;
+    mode_t mode = 0755;
     if (mkdir(dirPath.c_str(), mode) == -1) {
         fprintf(stderr, "error: create directory (%s) failed.\n", dirPath.c_str());
         return false;
