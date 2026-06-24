@@ -285,46 +285,7 @@ public class GlobalConfig {
     // isTopLevelTSUnion indicates whether it is the outermost TsUnion type, such as type. The outermost TsUnion is not translated into TsRef(AutogenType***)
     private func scanTypeForUnions(ty: TsType, genericParameters: HashSet<String>, isTopLevelTSUnion!: Bool = false): Option<TsType> {
         match (ty) {
-            case TsUnion(elements) =>
-                for (i in 0..elements.size) { 
-                    if (let Some(v) <- scanTypeForUnions(elements[i], genericParameters)) {
-                        elements[i] = v
-                    }
-                }
-                let nonNullTypes = ArrayList<TsType>()
-                for (e in elements) {
-                    match (e) {
-                        case TsNull | TsUndefined => ()
-                        case _ => nonNullTypes.add(e)
-                    }
-                }
-                let result = ArrayList<String>()
-                for (e in elements) {
-                    if (genericParameters.contains(e.toString())) {
-                        result.add(e.toString())
-                    }
-                }
-                // Only count primitive unions with 2+ members
-                if (nonNullTypes.size > 1) {
-                    let tempName = ty.toString().replace(" ", "")
-                    if (cacheUnions.contains(tempName)) {
-                        return Some(cacheUnions[tempName])
-                    } else {
-                        let paramName = "AutoGenType${count.load()}In${fileName}"
-                        if (!isTopLevelTSUnion) {
-                            requiredUnionMembers.add((paramName, ty, result))
-                        }
-                        count.fetchAdd(1)
-                        let temp = result |> map {item => 
-                            let result = TypeParameter()
-                            result.name = item
-                            result
-                        } |> collectArrayList
-                        cacheUnions[tempName] = TsTypeRef(paramName + getTypeParametersToken(temp).toString())
-                        return Some(TsTypeRef(paramName + getTypeParametersToken(temp).toString()))
-                    }
-                }
-               return TsUnion(elements)
+            case TsUnion(elements) => return processTsUnionElementsForScan(elements, ty, genericParameters, isTopLevelTSUnion)
             case TsArray(elemTy) => 
                 let elementType = if (let Some(v) <- scanTypeForUnions(elemTy, genericParameters)) {
                     v
@@ -369,6 +330,49 @@ public class GlobalConfig {
             case _ => ()
         }
         return None
+    }
+
+    // Process TsUnion elements: recursively scan for nested unions, filter null/undefined,
+    // collect generic parameter names, and register auto-generated union types.
+    private func processTsUnionElementsForScan(elements: ArrayList<TsType>, ty: TsType, genericParameters: HashSet<String>, isTopLevelTSUnion: Bool): Option<TsType> {
+        for (i in 0..elements.size) { 
+            if (let Some(v) <- scanTypeForUnions(elements[i], genericParameters)) {
+                elements[i] = v
+            }
+        }
+        let nonNullTypes = ArrayList<TsType>()
+        for (e in elements) {
+            match (e) {
+                case TsNull | TsUndefined => ()
+                case _ => nonNullTypes.add(e)
+            }
+        }
+        // Only count primitive unions with 2+ members
+        if (nonNullTypes.size > 1) {
+            let result = ArrayList<String>()
+            for (e in elements) {
+                if (genericParameters.contains(e.toString())) {
+                    result.add(e.toString())
+                }
+            }
+            if (cacheUnions.contains(ty.toString().replace(" ", ""))) {
+                return Some(cacheUnions[ty.toString().replace(" ", "")])
+            }
+            let tempName = ty.toString().replace(" ", "")
+            let paramIndex = count.fetchAdd(1)
+            let paramName = "AutoGenType${paramIndex}In${fileName}"
+            if (!isTopLevelTSUnion) {
+                requiredUnionMembers.add((paramName, ty, result))
+            }
+            let temp = result |> map {item => 
+                let tp = TypeParameter()
+                tp.name = item
+                tp
+            } |> collectArrayList
+            cacheUnions[tempName] = TsTypeRef(paramName + getTypeParametersToken(temp).toString())
+            return Some(TsTypeRef(paramName + getTypeParametersToken(temp).toString()))
+        }
+        return TsUnion(elements)
     }
 
     private func scanTypeForAnonymousInterface(ty: TsType, genericParameters!: HashSet<String> = HashSet<String>()): Option<TsType> {
@@ -452,11 +456,12 @@ public class GlobalConfig {
 
                 let tempName = ty.toString().replace(" ", "")
                 if (cacheAnonymousInterfaces.contains(tempName)) {
-                    return Some(cacheUnions[tempName])
+                    return Some(cacheAnonymousInterfaces[tempName])
                 } else {
                     var objectType = ObjectType()
                     objectType.properties = propertiesNew
-                    let paramName = "AutoGenType${count.load()}In${fileName}"
+                    let paramIndex = count.fetchAdd(1)
+                    let paramName = "AutoGenType${paramIndex}In${fileName}"
                     let temp = generics |> map {item => 
                         let result = TypeParameter()
                         result.name = item
@@ -466,7 +471,6 @@ public class GlobalConfig {
                     objectType.name = paramName
                     objectType.typeParameters = temp
                     requiredAnonymousInterfaces.add(objectType)
-                    count.fetchAdd(1)
                     if (arrayGenericTstype.size > 0) {
                         return Some(TsTypeRef(paramName, arrayGenericTstype))
                     }

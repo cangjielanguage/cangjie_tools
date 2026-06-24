@@ -91,7 +91,7 @@ main(args: Array<String>) {
         return 0
     }
     if (!pa.nonOptions.isEmpty()) {
-        println("Error: Unkonwn option: '${pa.nonOptions}'\n")
+        println("Error: Unknown option: '${pa.nonOptions}'\n")
         return 1
     }
     parseCommandLine(pa)
@@ -255,8 +255,9 @@ func parseMultipleFiles(moduleNameTemp: String): Bool {
     let gconfigMap = TreeMap<String, GlobalConfig>()  // TreeMap auto-sorts by key
     
     for (_ in 0..gconfigList.size) {
-        let gconfig = gconfigList.remove().getOrThrow()
-        gconfigMap[gconfig.module] = gconfig
+        if (let Some(gconfig) <- gconfigList.remove()) {
+            gconfigMap[gconfig.module] = gconfig
+        }
     }
 
     // Build sorted gconfigArray from TreeMap for deterministic ordering
@@ -302,7 +303,11 @@ func parseFilesSpawn(f: FileInfo, dir: Path, name: String, gconfigList: Concurre
     let moduleName = f.path.toString().replace("\\", "/")
 
     // Get each file's relative path to input direcotry
-    var relativeFilePath = moduleName.split(basePath)[1]
+    var relativeFilePath = ""
+    let splitResult = moduleName.split(basePath)
+    if (splitResult.size > 1) {
+        relativeFilePath = splitResult[1]
+    }
     if (relativeFilePath != "" && Rune(relativeFilePath[0]) == r'/') {
         relativeFilePath = relativeFilePath[1..relativeFilePath.size - 1]
     }
@@ -311,8 +316,10 @@ func parseFilesSpawn(f: FileInfo, dir: Path, name: String, gconfigList: Concurre
 
     let gconfig: GlobalConfig = GlobalConfig(cla.cjModuleName, cla.is3rd,
         typeDeclFileArg: getTypeDeclFile(f))
+    let parts = moduleName.split("/")
+    let thirdpartyName = if (parts.size >= 1) { parts[parts.size - 1] } else { moduleName }
     parseFile(moduleName, cla.outDir, cla.jsASTPath, gconfig, moduleNameTemp: name,
-        thirdpartyName: moduleName.split("/")[moduleName.split("/").size - 1], relativePathName: relativePathName,
+        thirdpartyName: thirdpartyName, relativePathName: relativePathName,
         tsPath: cla.tsPath)
     let _ = gconfigList.add(gconfig)
 }
@@ -340,19 +347,15 @@ func createDir(dir: String) {
     mtx.unlock()
 }
 
-func getFileName(arkpath: String) {
-    let arkFileName = if (OS == OS_WINDOWS) {
-        let canonicalPath = arkpath.replace("\\", "/")
-        canonicalPath.split("/")[canonicalPath.split("/").size - 1]
-    } else {
-        arkpath.split("/")[arkpath.split("/").size - 1]
-    }
-    return arkFileName
+func getFileName(arkpath: String): String {
+    let normalizedPath = arkpath.replace("\\", "/")
+    let parts = normalizedPath.split("/")
+    return parts[parts.size - 1]
 }
 
 func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: GlobalConfig,
     moduleNameTemp!: String = "", thirdpartyName!: ?String = None, relativePathName!: String = "", tsPath!: String = "") {
-    let isInvalid = !exists(arkpath) || !arkpath.endsWith(".d.ts") && !arkpath.endsWith(".d.ets")
+    let isInvalid = !exists(arkpath) || (!arkpath.endsWith(".d.ts") && !arkpath.endsWith(".d.ets"))
     if (isInvalid) {
         throw IllegalArgumentException("Invalid arkts input: ${arkpath}")
     }
