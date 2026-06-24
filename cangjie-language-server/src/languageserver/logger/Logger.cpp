@@ -10,6 +10,7 @@
 #include <mutex>
 #include <regex>
 #include "../common/Utils.h"
+#include "../common/FileStore.h"
 
 namespace ark {
 std::queue<std::string> Logger::messageQueue;
@@ -73,17 +74,38 @@ void Logger::LogMessage(MessageType type, const std::string &message)
 
 void Logger::SetPath(const std::string &logPath)
 {
+    std::string normalizedPath;
+    
     if (logPath.empty()) {
         char tempBuf[LOG_PATH_MAX] = {0};
-        // get the log path, in the same dir of src
         if (getcwd(tempBuf, sizeof(tempBuf) - 1) == nullptr) {
             Logger::pathBuf = "";
             return;
         }
-        Logger::pathBuf = std::string(tempBuf) + FILE_SEPARATOR;
+        normalizedPath = FileStore::NormalizePath(std::string(tempBuf));
+    } else {
+        if (logPath.length() >= LOG_PATH_MAX) {
+            Logger::pathBuf = "";
+            return;
+        }
+        
+        normalizedPath = FileStore::NormalizePath(logPath);
+        if (normalizedPath.empty() || normalizedPath == logPath) {
+            struct stat pathStat;
+            if (stat(logPath.c_str(), &pathStat) != 0 || !S_ISDIR(pathStat.st_mode)) {
+                Logger::pathBuf = "";
+                return;
+            }
+        }
+    }
+    
+    struct stat finalStat;
+    if (stat(normalizedPath.c_str(), &finalStat) != 0 || !S_ISDIR(finalStat.st_mode)) {
+        Logger::pathBuf = "";
         return;
     }
-    Logger::pathBuf = logPath + FILE_SEPARATOR;
+    
+    Logger::pathBuf = normalizedPath + FILE_SEPARATOR;
 }
 
 void CleanAndLog(std::stringstream &log, const std::string &str)

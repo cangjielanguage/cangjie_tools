@@ -95,9 +95,9 @@ public:
         return db;
     }
 
-    IndexDatabase& GetIndexDatabase()
+    void EraseThreadCache()
     {
-        return db;
+        db.GetDatabaseCache().EraseThreadCache();
     }
 
     void GetFuncByName(const FuncSigRequest &req,

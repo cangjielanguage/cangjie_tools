@@ -318,6 +318,7 @@ bool IntroducedParameterTypeBreaksPublicSignature(Cangjie::AST::FuncDecl &funcDe
 }
 
 namespace {
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class IntroduceParameterRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {

@@ -18,6 +18,7 @@ namespace ark {
         TokenKind::GE, TokenKind::LT, TokenKind::LE, TokenKind::AND, TokenKind::OR,
     };
 
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class InlineVariableSelectionRule : public TweakRule {
     bool ValidateRefExprAndVarDecl(Ptr<Node> toBeInline,
         std::map<std::string, std::string> &extraOptions) const

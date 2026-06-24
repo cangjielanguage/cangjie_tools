@@ -63,8 +63,10 @@ private:
 
     static std::unordered_map<std::string, std::unique_ptr<PackageInstance>> pkgInstanceMap;
 
+    // NOLINTNEXTLINE
     inline static std::string moveDirPath;
 
+    // NOLINTNEXTLINE
     inline static std::string targetDir;
 };
 }

@@ -68,7 +68,7 @@ void ArkASTWorker::Run()
                 if (done && requests.empty()) {
                     return;
                 }
-                Wait(lock, requestsCV, dl);
+                Wait(lock, requestsCV, dl, [this] { return done || !requests.empty(); });
             }
 
             currentRequest = requests.front();
@@ -306,8 +306,7 @@ bool ArkASTWorker::ParseAndInvokeWithASTCache(const std::string &name,
         if (!indexDB) {
             return false;
         }
-        auto &dbCache = indexDB->GetIndexDatabase().GetDatabaseCache();
-        dbCache.EraseThreadCache();
+        indexDB->EraseThreadCache();
     }
     // LCOV_EXCL_STOP
     return true;

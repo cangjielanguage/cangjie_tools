@@ -17,6 +17,7 @@
 namespace ark {
 constexpr long URI_SECOND_POS = 2;
 constexpr unsigned int HEXADECIMAL = 16;
+constexpr unsigned int HEXADECIMAL_SHIFT_BITS = 4;
 class URI {
 public:
     URI(const std::string &scheme, const std::string &authority, const std::string &body);

@@ -25,6 +25,7 @@ std::string GetIndentBeforePosition(const Position &pos)
 }
 
 // LCOV_EXCL_START
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class ExtractVariableRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
