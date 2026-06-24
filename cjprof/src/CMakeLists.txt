@@ -72,6 +72,11 @@ if(NOT WIN32 AND NOT APPLE)
     target_link_libraries(prof pthread)
 endif()
 
-target_link_libraries(cjprof prof cangjie-demangle pthread)
+if(NOT WIN32 AND NOT APPLE)
+    target_link_libraries(cjprof prof cangjie-demangle pthread)
+else()
+    target_link_libraries(cjprof prof pthread)
+endif()
+
 install(TARGETS cjprof RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/static/ DESTINATION config/static)
