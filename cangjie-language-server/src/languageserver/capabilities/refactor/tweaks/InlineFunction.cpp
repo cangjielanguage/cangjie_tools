@@ -49,6 +49,12 @@ class InlineFunctionSelectionRule : public TweakRule {
             return false;
         }
 
+        if (callExpr->callKind != CallKind::CALL_DECLARED_FUNCTION) {
+            extraOptions.insert(std::make_pair("ErrorCode",
+                std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::NOT_CALL_EXPR))));
+            return false;
+        }
+
         if (!callExpr->resolvedFunction) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::FUNC_DECL_NOT_FOUND))));
@@ -56,7 +62,7 @@ class InlineFunctionSelectionRule : public TweakRule {
         }
 
         auto funcDecl = DynamicCast<FuncDecl*>(callExpr->resolvedFunction.get());
-        if (!funcDecl || !funcDecl->funcBody) {
+        if (!funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->body) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(InlineFunction::InlineFunctionError::FUNC_DECL_NOT_FOUND))));
             return false;
@@ -145,15 +151,17 @@ class InlineFunctionNoPrivateAccessRule : public TweakRule {
 
         Walker(funcDecl->funcBody->body.get(),
             nullptr, [&hasPrivateAccess](Ptr<Node> node) -> VisitAction {
-            if (node->astKind == ASTKind::REF_EXPR) {
-                auto refExpr = DynamicCast<RefExpr*>(node.get());
-                if (refExpr && refExpr->GetTarget() && refExpr->GetTarget()->TestAttr(Attribute::PRIVATE)) {
-                    hasPrivateAccess = true;
-                    return VisitAction::STOP_NOW;
+                if (node->astKind == ASTKind::REF_EXPR || node->astKind == ASTKind::MEMBER_ACCESS
+                    || node->astKind == ASTKind::CALL_EXPR) {
+                    auto toBeCheckNode = DynamicCast<Node*>(node.get());
+                    if (toBeCheckNode && toBeCheckNode->GetTarget()
+                        && toBeCheckNode->GetTarget()->TestAttr(Attribute::PRIVATE)) {
+                        hasPrivateAccess = true;
+                        return VisitAction::STOP_NOW;
+                    }
                 }
-            }
-            return VisitAction::WALK_CHILDREN;
-        }).Walk();
+                return VisitAction::WALK_CHILDREN;
+            }).Walk();
 
         if (hasPrivateAccess) {
             extraOptions.insert(std::make_pair("ErrorCode",
@@ -623,23 +631,69 @@ std::string InlineFunction::GetIndent(Position pos)
     return std::string(column > 0 ? column - 1 : 0, ' ');
 }
 
+std::string InlineFunction::RegexReplaceN(const std::string& input, const std::regex& pattern,
+    const std::string& replacement, size_t n)
+{
+    std::string result;
+    auto it = std::sregex_iterator(input.begin(), input.end(), pattern);
+    auto end = std::sregex_iterator();
+    size_t count = 0;
+    size_t lastPos = 0;
+
+    while (it != end && count < n) {
+        const std::smatch& match = *it;
+        result += input.substr(lastPos, match.position() - lastPos);
+        result += replacement;
+        lastPos = match.position() + match.length();
+        ++count;
+        ++it;
+    }
+    result += input.substr(lastPos);
+    return result;
+}
+
 std::string InlineFunction::TransformFunctionBody(Block* block, const std::map<std::string, std::string> &paramMap)
 {
     if (!block) {
         return "";
     }
 
+    std::string scopeName = ScopeManagerApi::GetParentScopeName(funcDecl_->scopeName);
+    std::map<std::string, int> replaceFucntionAndFieldMap;
+
     std::ostringstream bodyCode;
+    Walker(block, nullptr, [&scopeName, &replaceFucntionAndFieldMap, this](Ptr<Node> node) -> VisitAction {
+        if (node->astKind == ASTKind::REF_EXPR || node->astKind == ASTKind::CALL_EXPR) {
+            auto toBeCheckNode = DynamicCast<Node*>(node.get())->GetTarget();
+            std::string decScopeName;
+            if (toBeCheckNode) {
+                decScopeName = ScopeManagerApi::GetParentScopeName(toBeCheckNode->scopeName);
+            }
+            if (decScopeName != scopeName) {
+                return VisitAction::WALK_CHILDREN;
+            }
+            std::string code = GetSourceCode(node);
+            if (!replaceFucntionAndFieldMap[code]) {
+                replaceFucntionAndFieldMap[code] = 1;
+            } else {
+                replaceFucntionAndFieldMap[code]++;
+            }
+        }
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
 
     for (size_t i = 0; i < block->body.size(); ++i) {
         auto stmt = block->body[i].get();
-        if (!stmt) {
-            continue;
-        }
         AppendStatementCode(bodyCode, stmt, paramMap);
     }
 
     std::string result = bodyCode.str();
+
+    for (const auto &[code, times] : replaceFucntionAndFieldMap) {
+        std::regex paramRegex("\\b" + code + "\\b");
+        result = RegexReplaceN(result, paramRegex, "this." + code, times);
+    }
+
     if (hasReturnValue_ || !resultVarName_.empty()) {
         std::regex paramRegex("\\breturn\\b");
         result = std::regex_replace(result, paramRegex, resultVarName_ + " =");
