@@ -24,14 +24,14 @@ class Tweak {
 public:
     // The Input for prepare and apply tweaks.
     struct Selection {
-        Selection(ArkAST &arkAst, Range &range, SelectionTree &&selectionTree,
+        Selection(ArkAST &arkAst, const Range &range, SelectionTree &&selectionTree,
             std::map<std::string, std::string> extraOptions);
 
         // The ArkAst of active file.
         ArkAST *arkAst;
 
         // The range of selected text.
-        Range &range;
+        Range range;
 
         // The AST Tree of were selected.
         SelectionTree selectionTree;
