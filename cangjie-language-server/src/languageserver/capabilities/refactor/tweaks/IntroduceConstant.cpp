@@ -22,6 +22,7 @@ const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_CONST_EXPR = {
  *    or an expression composed of LitConstExpr、global_const_variable's ref or global_const_func's call
  * 3. global_const_func_call's param must is itConstExpr、global_const_variable's ref or global_const_func's call
  */
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class IntroduceConstantRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {

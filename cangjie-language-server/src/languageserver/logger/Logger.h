@@ -22,8 +22,10 @@
 
 namespace ark {
 #ifdef _WIN32
+// NOLINTNEXTLINE
 const std::string FILE_SEPARATOR = "\\";
 #else
+// NOLINTNEXTLINE
 const std::string FILE_SEPARATOR = "/";
 #endif
 const int LOG_FILE_MAX = 10 * 1024 * 1024; // 10M

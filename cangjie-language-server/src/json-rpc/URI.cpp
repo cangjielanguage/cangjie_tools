@@ -61,11 +61,14 @@ static bool IsHexDigit(char c)
     return HexDigitValue(c).has_value();
 }
 
-static uint8_t HexFromNibbles(char msb, char lsb)
+static std::optional<uint8_t> HexFromNibbles(char msb, char lsb)
 {
-    unsigned u1 = HexDigitValue(msb).value();
-    unsigned u2 = HexDigitValue(lsb).value();
-    return static_cast<uint8_t>((u1 << 4) | u2); // Hexadecimal Shift left 4 bits
+    auto opt1 = HexDigitValue(msb);
+    auto opt2 = HexDigitValue(lsb);
+    if (!opt1.has_value() || !opt2.has_value()) {
+        return std::nullopt;
+    }
+    return static_cast<uint8_t>((opt1.value() << HEXADECIMAL_SHIFT_BITS) | opt2.value());
 }
 
 static void PercentEncode(std::string content, std::string &out)
@@ -93,8 +96,13 @@ static std::string PercentDecode(std::string content)
         if (*it == '%' && it + URI_SECOND_POS < e && IsHexDigit(*(it + 1)) &&
             IsHexDigit(*(it + URI_SECOND_POS))) {
             // Get the character on certain position
-            result.push_back(static_cast<char>(HexFromNibbles(*(it + 1), *(it + URI_SECOND_POS))));
-            it += URI_SECOND_POS;
+            auto hexValue = HexFromNibbles(*(it + 1), *(it + URI_SECOND_POS));
+            if (hexValue.has_value()) {
+                result.push_back(static_cast<char>(hexValue.value()));
+                it += URI_SECOND_POS;
+            } else {
+                result.push_back(*it);
+            }
         } else {
             result.push_back(*it);
         }

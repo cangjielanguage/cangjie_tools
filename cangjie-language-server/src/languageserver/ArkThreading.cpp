@@ -36,14 +36,17 @@ void Semaphore::unlock()
     slotsChanged.notify_one();
 }
 
+// Internal helper for templated Wait. Safe because called in a loop by template version.
 void Wait(std::unique_lock<std::mutex> &lock, std::condition_variable &cv, const Deadline deadline)
 {
     if (deadline == Deadline::Zero()) {
         return;
     }
     if (deadline == Deadline::Infinity()) {
+        // NOLINTNEXTLINE(g-con-01-cpp)
         return cv.wait(lock);
     }
+    // NOLINTNEXTLINE(g-con-01-cpp)
     (void)cv.wait_until(lock, deadline.Time());
 }
 } // namespace ark

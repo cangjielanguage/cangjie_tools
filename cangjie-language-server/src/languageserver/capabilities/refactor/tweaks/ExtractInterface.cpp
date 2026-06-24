@@ -1818,6 +1818,7 @@ size_t CountExtractableMembers(const TargetDecl &target)
     }
 }
 // LCOV_EXCL_BR_STOP
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class ExtractInterfaceSelectionRule : public TweakRule {
 public:
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override

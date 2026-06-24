@@ -417,6 +417,7 @@ static std::string GetExplicitTypeName(const Tweak::Selection &sel)
 }
 
 namespace {
+// NOLINTNEXTLINE(G.NAM.02-CPP)
 class IntroduceFieldRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
