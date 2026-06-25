@@ -8,6 +8,7 @@
 #define CANGJIE_LSP_INLINEFUNCTION_H
 
 #include "../Tweak.h"
+#include <regex>
 
 namespace ark {
 
@@ -81,6 +82,9 @@ private:
     void ExtractParams();
 
     std::string GetIndent(Position pos);
+
+    std::string RegexReplaceN(
+        const std::string &input, const std::regex &pattern, const std::string &replacement, size_t n);
 
     std::string TransformFunctionBody(Block* block, const std::map<std::string, std::string> &paramMap);
 
