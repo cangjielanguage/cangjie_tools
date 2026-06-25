@@ -1259,3 +1259,4 @@
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_011.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_012.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_013.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_014.test","method":"workspace/applyEdit"}}
