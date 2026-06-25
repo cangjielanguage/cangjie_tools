@@ -122,3 +122,30 @@ public func testNestedFunction(): Unit {
     let result = outer(10)
     println("outer(10) = ${result}")
 }
+
+enum RGBColor {
+| Red(UInt8)
+| Green(UInt8)
+| Blue(UInt8)
+
+    public func getValue(): UInt8 {
+        var a = 9
+        let color = RGBColor.Red(200)
+        match (this) {
+            case Red(v) => v
+            case Green(v) => v
+            case Blue(v) => v
+        }
+    }
+
+    public func next(base: Int64): Int64 {
+        return base + 8
+    }
+}
+
+func main3() {
+    let color = RGBColor.Red(200)
+    var aa = color.next(8)
+    var aa1 = color.getValue()
+    println("红色值: ${color.getValue()}")
+}

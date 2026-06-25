@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cangjie/AST/Walker.h>
+#include "../../../CompilerCangjieProject.h"
 #include "../../../common/Inherit/InheritDeclUtil.h"
 #include "../../../common/Utils.h"
 #include "../TweakRule.h"
@@ -843,6 +844,29 @@ static bool HasNamedArg(Cangjie::AST::CallExpr &callExpr)
     return false;
 }
 
+static ArkAST *GetCallSiteAst(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
+{
+    if (!callExpr.curFile) {
+        return context.sel.arkAst;
+    }
+    if (context.sel.arkAst && context.sel.arkAst->file &&
+        context.sel.arkAst->file.get() == callExpr.curFile.get()) {
+        return context.sel.arkAst;
+    }
+    return CompilerCangjieProject::GetInstance()->GetArkAST(callExpr.curFile->filePath);
+}
+
+static Range TransformCallSiteRangeToIDE(
+    const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, Range range)
+{
+    auto ast = GetCallSiteAst(context, callExpr);
+    if (ast && ast->file) {
+        PositionUTF8ToIDE(ast->tokens, range.start, callExpr);
+        PositionUTF8ToIDE(ast->tokens, range.end, callExpr);
+    }
+    return TransformFromChar2IDE(range);
+}
+
 static bool IsRemovedCallArg(Ptr<Cangjie::AST::FuncArg> arg, const std::vector<Ptr<Cangjie::AST::FuncArg>> &removedArgs)
 {
     return std::find(removedArgs.begin(), removedArgs.end(), arg) != removedArgs.end();
@@ -882,7 +906,8 @@ static std::optional<TextEdit> ReplaceRemovedCallArguments(
     });
 
     TextEdit textEdit;
-    textEdit.range = TransformFromChar2IDE({removedArgs.front()->begin, removedArgs.back()->end});
+    textEdit.range = TransformCallSiteRangeToIDE(
+        context, callExpr, {removedArgs.front()->begin, removedArgs.back()->end});
     std::ostringstream replacement;
     bool insertedNewArgument = false;
     bool needSeparator = false;
@@ -1012,7 +1037,8 @@ static TextEdit InsertNewCallArgument(
     bool introduceNamed = ShouldIntroduceNamedParameter(context.funcDecl);
     std::ostringstream insertText;
     Position insertPos = ResolveCallArgumentInsertPosition(context, callExpr).value_or(callExpr.rightParenPos);
-    textEdit.range = TransformFromChar2IDE({insertPos, insertPos});
+    textEdit.range = TransformCallSiteRangeToIDE(
+        context, callExpr, {insertPos, insertPos});
     if (!callExpr.args.empty()) {
         insertText << ", ";
     }
