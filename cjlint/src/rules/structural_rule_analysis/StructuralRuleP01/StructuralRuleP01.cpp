@@ -226,6 +226,9 @@ void StructuralRuleP01::FuncHandler(FuncBody &funcBody)
 
 void StructuralRuleP01::LambdaExprHandler(const Cangjie::AST::LambdaExpr &lambdaExpr)
 {
+    if (!lambdaExpr.funcBody || !lambdaExpr.funcBody->body) {
+        return;
+    }
     std::string fileName = (lambdaExpr.curFile != nullptr) ? lambdaExpr.curFile->fileName : "";
     std::string funcName = "lambda_" + fileName + "_" + std::to_string(lambdaExpr.begin.line);
     Walker walker(lambdaExpr.funcBody->body.get(), [this, &funcName](Ptr<Node> node) -> VisitAction {

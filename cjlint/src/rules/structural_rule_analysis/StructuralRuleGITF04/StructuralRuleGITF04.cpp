@@ -25,6 +25,9 @@ void StructuralRuleGITF04::CheckFuncDeclParams(const Cangjie::AST::FuncDecl &fun
 
     for (auto &paramList : funcDecl.funcBody->paramLists) {
         for (auto &param : paramList->params) {
+            if (!param->GetTy()) {
+                continue;
+            }
             if (param->GetTy()->IsInterface()) {
                 Diagnose(param->begin, param->end,
                     CodeCheckDiagKind::G_ITF_04_avoid_directly_using_interfaces_as_types_01, param->identifier.Val());

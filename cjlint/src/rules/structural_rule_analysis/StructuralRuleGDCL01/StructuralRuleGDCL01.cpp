@@ -23,7 +23,7 @@ std::string GenerateKey(FuncDecl& funcDecl, FuncTy* types)
     std::string key;
     key.append(funcDecl.identifier.GetRawText());
     key.append("/");
-    if (funcDecl.funcBody->generic) {
+    if (funcDecl.funcBody && funcDecl.funcBody->generic) {
         auto genericTypeNum = funcDecl.funcBody->generic->typeParameters.size();
         key.append(std::to_string(genericTypeNum));
         key.append("/");

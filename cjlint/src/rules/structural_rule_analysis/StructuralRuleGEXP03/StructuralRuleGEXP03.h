@@ -31,6 +31,10 @@ private:
     void RightOperandFinder(Ptr<Cangjie::AST::Node> node);
     std::string GetOperandName(const Cangjie::AST::AssignExpr &assignExpr);
     void SideEffectChecker(Ptr<Cangjie::AST::Node> node);
+    AST::VisitAction CheckSideEffectAssignExpr(const Cangjie::AST::AssignExpr &assignExpr);
+    AST::VisitAction CheckSideEffectIncOrDecExpr(const Cangjie::AST::IncOrDecExpr &incOrDecExpr);
+    AST::VisitAction CheckSideEffectRefExpr(const Cangjie::AST::RefExpr &refExpr);
+    AST::VisitAction CheckSideEffectBinaryExpr(const Cangjie::AST::BinaryExpr &binaryExpr);
     void SideEffectFuncFinder(Ptr<Cangjie::AST::Node> node);
     void SideEffectExprFinder(Ptr<Cangjie::AST::Node> node, const Cangjie::Position position);
     void GlobalRefChecker(Ptr<Cangjie::AST::Node> node, const Cangjie::Position originFuncPosition,
@@ -40,6 +44,9 @@ private:
     bool AddRefFuncInfo(Ptr<const Cangjie::AST::Node> node, const Cangjie::Position originFuncPosition,
         const Cangjie::Position refFuncPosition);
     void ProcessRefFuncInfo(const AST::RefExpr &refExpr, const Cangjie::Position originFuncPosition);
+    void ProcessRefFuncTarget(Ptr<AST::FuncDecl> func, const Cangjie::Position originFuncPosition,
+        void (StructuralRuleGEXP03::*checker)(Ptr<Cangjie::AST::Node>, const Cangjie::Position,
+            const Cangjie::Position));
     void FindMemberAccess(const AST::MemberAccess &memberAccess);
     void ClassRefCheckerDetail(const AST::RefExpr &refExpr, const Cangjie::Position originFuncPosition);
 };

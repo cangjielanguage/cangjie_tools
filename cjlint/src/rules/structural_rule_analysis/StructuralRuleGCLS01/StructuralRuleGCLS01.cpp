@@ -149,6 +149,9 @@ bool StructuralRuleGCLS01::CheckFuncCallHelper(Ptr<FuncDecl> funcDecl,
 std::pair<std::string, std::vector<std::string>> StructuralRuleGCLS01::GetFuncDecl(Ptr<FuncDecl> funcDecl)
 {
     std::vector<std::string> params;
+    if (!funcDecl->funcBody || funcDecl->funcBody->paramLists.empty()) {
+        return make_pair(funcDecl->identifier, params);
+    }
     for (auto &param : funcDecl->funcBody->paramLists[0]->params) {
         params.emplace_back(param->type->ToString());
     }

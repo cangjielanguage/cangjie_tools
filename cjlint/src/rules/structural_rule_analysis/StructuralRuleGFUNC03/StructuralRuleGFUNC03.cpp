@@ -88,7 +88,7 @@ void StructuralRuleGFUNC03::FileProcessor(Ptr<Node> node)
     for (auto& decl : decls) {
         // The second part of the condition is for checking user code that does not conform to Cangjie syntax,
         // to prevent compilation failure.
-        if (decl->astKind != ASTKind::FUNC_DECL || decl->GetTy()->kind != TypeKind::TYPE_FUNC) {
+        if (decl->astKind != ASTKind::FUNC_DECL || !decl->GetTy() || decl->GetTy()->kind != TypeKind::TYPE_FUNC) {
             continue;
         }
         auto funcDecl = StaticCast<AST::FuncDecl*>(decl.get());

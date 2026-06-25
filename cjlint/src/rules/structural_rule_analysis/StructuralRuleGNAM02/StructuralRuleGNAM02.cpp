@@ -31,6 +31,9 @@ void StructuralRuleGNAM02::CheckNameRule(File &file)
     int pubNum = 0;
     std::string pubName = "";
     for (auto &decl : file.decls) {
+        if (!decl->GetTy()) {
+            continue;
+        }
         if (decl->GetTy()->kind != TypeKind::TYPE_CLASS && decl->GetTy()->kind != TypeKind::TYPE_INTERFACE &&
             decl->GetTy()->kind != TypeKind::TYPE_STRUCT) {
             continue;

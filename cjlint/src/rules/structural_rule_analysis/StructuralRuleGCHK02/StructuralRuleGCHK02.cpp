@@ -64,7 +64,7 @@ bool StructuralRuleGCHK02::IsLogObject(const Cangjie::AST::MemberAccess &memberA
         return true;
     }
     for (auto &item : funcDecl->funcBody->parentClassLike->inheritedTypes) {
-        if (item->GetTy()->name == "Logger") {
+        if (item->GetTy() && item->GetTy()->name == "Logger") {
             return true;
         }
     }

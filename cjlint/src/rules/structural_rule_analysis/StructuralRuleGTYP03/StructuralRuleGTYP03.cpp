@@ -32,6 +32,9 @@ void StructuralRuleGTYP03::CheckBinaryExpr(const BinaryExpr& binaryExpr)
     if (!binaryExpr.leftExpr || !binaryExpr.rightExpr) {
         return;
     }
+    if (!binaryExpr.leftExpr->GetTy() || !binaryExpr.rightExpr->GetTy()) {
+        return;
+    }
     if (!binaryExpr.leftExpr->GetTy()->IsFloating() && !binaryExpr.rightExpr->GetTy()->IsFloating()) {
         return;
     }

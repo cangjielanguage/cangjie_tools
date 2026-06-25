@@ -171,9 +171,12 @@ CommonFunc::PositionPair CommonFunc::GetCodePosition(const CHIR::Value* value)
     auto endPos = Cangjie::Position(loc.GetFileID(), loc.GetEndPos().line, loc.GetEndPos().column);
     if (begPos == Cangjie::Position(0, 0, 0) && value->IsLocalVar()) {
         auto localVar = StaticCast<CHIR::LocalVar*>(value);
-        loc = localVar->GetExpr()->GetDebugLocation();
-        begPos = Cangjie::Position(loc.GetFileID(), loc.GetBeginPos().line, loc.GetBeginPos().column);
-        endPos = Cangjie::Position(loc.GetFileID(), loc.GetEndPos().line, loc.GetEndPos().column);
+        auto expr = localVar->GetExpr();
+        if (expr) {
+            loc = expr->GetDebugLocation();
+            begPos = Cangjie::Position(loc.GetFileID(), loc.GetBeginPos().line, loc.GetBeginPos().column);
+            endPos = Cangjie::Position(loc.GetFileID(), loc.GetEndPos().line, loc.GetEndPos().column);
+        }
     }
     return std::make_pair(begPos, endPos);
 }
@@ -435,13 +438,22 @@ std::string CommonFunc::GetFuncDeclParentTyName(Ptr<const Cangjie::AST::FuncDecl
         return "";
     }
     if (pFuncDecl->funcBody->parentClassLike) {
-        return pFuncDecl->funcBody->parentClassLike->GetTy()->name;
+        auto parentTy = pFuncDecl->funcBody->parentClassLike->GetTy();
+        if (parentTy) {
+            return parentTy->name;
+        }
     }
     if (pFuncDecl->funcBody->parentStruct) {
-        return pFuncDecl->funcBody->parentStruct->GetTy()->name;
+        auto parentTy = pFuncDecl->funcBody->parentStruct->GetTy();
+        if (parentTy) {
+            return parentTy->name;
+        }
     }
     if (pFuncDecl->funcBody->parentEnum) {
-        return pFuncDecl->funcBody->parentEnum->GetTy()->name;
+        auto parentTy = pFuncDecl->funcBody->parentEnum->GetTy();
+        if (parentTy) {
+            return parentTy->name;
+        }
     }
     return "";
 }

@@ -86,15 +86,66 @@ std::string StructuralRuleGEXP03::GetOperandName(const AssignExpr& assignExpr)
      */
     if (!assignExpr.leftValue && desugarExpr && desugarExpr->astKind == ASTKind::ASSIGN_EXPR) {
         auto assignDesugar = StaticCast<AssignExpr*>(desugarExpr.get().get());
+        if (!assignDesugar->leftValue) {
+            return "";
+        }
         name = this->diagEngine->GetSourceManager().GetContentBetween(assignDesugar->leftValue->GetBegin().fileID,
             assignDesugar->leftValue->GetBegin(), assignDesugar->leftValue->GetEnd());
-    } else {
+    } else if (assignExpr.leftValue) {
         name = this->diagEngine->GetSourceManager().GetContentBetween(
             assignExpr.leftValue->GetBegin().fileID, assignExpr.leftValue->GetBegin(), assignExpr.leftValue->GetEnd());
     }
     // Remove trailing whitespace.
     name.erase(name.find_last_not_of(" \t\n\r\f\v") + 1);
     return name;
+}
+
+VisitAction StructuralRuleGEXP03::CheckSideEffectAssignExpr(const AssignExpr& assignExpr)
+{
+    std::string name = GetOperandName(assignExpr);
+    if (assignExpr.desugarExpr == nullptr || assignExpr.desugarExpr->astKind != ASTKind::CALL_EXPR) {
+        Diagnose(assignExpr.begin, assignExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information, name);
+        return VisitAction::SKIP_CHILDREN;
+    }
+
+    auto callExpr = StaticAs<ASTKind::CALL_EXPR>(assignExpr.desugarExpr.get());
+    if (callExpr->resolvedFunction &&
+        sideEffectSet.find(callExpr->resolvedFunction->identifier.Begin()) != sideEffectSet.end()) {
+        Diagnose(assignExpr.begin, assignExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information, name);
+    }
+    return VisitAction::SKIP_CHILDREN;
+}
+
+VisitAction StructuralRuleGEXP03::CheckSideEffectIncOrDecExpr(const IncOrDecExpr& incOrDecExpr)
+{
+    if (incOrDecExpr.desugarExpr != nullptr) {
+        return VisitAction::WALK_CHILDREN;
+    }
+    if (!incOrDecExpr.expr) {
+        return VisitAction::SKIP_CHILDREN;
+    }
+    Diagnose(incOrDecExpr.begin, incOrDecExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information,
+        incOrDecExpr.expr->ToString());
+    return VisitAction::SKIP_CHILDREN;
+}
+
+VisitAction StructuralRuleGEXP03::CheckSideEffectRefExpr(const RefExpr& refExpr)
+{
+    if (refExpr.isBaseFunc && refExpr.ref.target != nullptr &&
+        sideEffectSet.find(refExpr.ref.target->identifier.Begin()) != sideEffectSet.end()) {
+        Diagnose(refExpr.begin, refExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information,
+            refExpr.ref.identifier.Val());
+    }
+    return VisitAction::WALK_CHILDREN;
+}
+
+VisitAction StructuralRuleGEXP03::CheckSideEffectBinaryExpr(const BinaryExpr& binaryExpr)
+{
+    if (binaryExpr.desugarExpr != nullptr) {
+        SideEffectChecker(binaryExpr.desugarExpr.get());
+        return VisitAction::SKIP_CHILDREN;
+    }
+    return VisitAction::WALK_CHILDREN;
 }
 
 /*
@@ -104,53 +155,14 @@ void StructuralRuleGEXP03::SideEffectChecker(Ptr<Node> node)
 {
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
-            // find AssignExpr which can make side effect, throw error. Exp. count += num
-            [this](const AssignExpr& assignExpr) {
-                std::string name = GetOperandName(assignExpr);
-                if (assignExpr.desugarExpr == nullptr || assignExpr.desugarExpr->astKind != ASTKind::CALL_EXPR) {
-                    Diagnose(
-                        assignExpr.begin, assignExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information, name);
-                    return VisitAction::SKIP_CHILDREN;
-                }
-
-                auto callExpr = StaticAs<ASTKind::CALL_EXPR>(assignExpr.desugarExpr.get());
-                if (sideEffectSet.find(callExpr->resolvedFunction->identifier.Begin()) != sideEffectSet.end()) {
-                    Diagnose(
-                        assignExpr.begin, assignExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information, name);
-                }
-                return VisitAction::SKIP_CHILDREN;
-            },
-            // find IncOrDecExpr which can make side effect, throw error. Exp. count++
-            [this](const IncOrDecExpr& incOrDecExpr) {
-                if (incOrDecExpr.desugarExpr != nullptr) {
-                    return VisitAction::WALK_CHILDREN;
-                }
-                Diagnose(incOrDecExpr.begin, incOrDecExpr.end, CodeCheckDiagKind::G_EXP_03_side_effect_information,
-                    incOrDecExpr.expr->ToString());
-                return VisitAction::SKIP_CHILDREN;
-            },
-            // find RefExpr, if it is func and its name in sideEffectSet,throw a error.
-            [this](const RefExpr& refExpr) {
-                if (refExpr.isBaseFunc && refExpr.ref.target != nullptr) {
-                    if (sideEffectSet.find(refExpr.ref.target->identifier.Begin()) != sideEffectSet.end()) {
-                        Diagnose(refExpr.begin, refExpr.end,
-                            CodeCheckDiagKind::G_EXP_03_side_effect_information, refExpr.ref.identifier.Val());
-                    }
-                }
-                return VisitAction::WALK_CHILDREN;
-            },
-            // find memberAccess, if its name in sideEffectSet,throw a error.
+            [this](const AssignExpr& assignExpr) { return CheckSideEffectAssignExpr(assignExpr); },
+            [this](const IncOrDecExpr& incOrDecExpr) { return CheckSideEffectIncOrDecExpr(incOrDecExpr); },
+            [this](const RefExpr& refExpr) { return CheckSideEffectRefExpr(refExpr); },
             [this](const MemberAccess& memberAccess) {
                 FindMemberAccess(memberAccess);
                 return VisitAction::WALK_CHILDREN;
             },
-            [this](const BinaryExpr& binaryExpr) {
-                if (binaryExpr.desugarExpr != nullptr) {
-                    SideEffectChecker(binaryExpr.desugarExpr.get());
-                    return VisitAction::SKIP_CHILDREN;
-                }
-                return VisitAction::WALK_CHILDREN;
-            },
+            [this](const BinaryExpr& binaryExpr) { return CheckSideEffectBinaryExpr(binaryExpr); },
             []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
@@ -167,6 +179,9 @@ void StructuralRuleGEXP03::SideEffectFuncFinder(Ptr<Node> node)
 
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         match (*node)([this](const FuncDecl& funcDecl) {
+            if (!funcDecl.funcBody || !funcDecl.funcBody->body) {
+                return;
+            }
             if (!funcDecl.TestAttr(AST::Attribute::IN_CLASSLIKE) && !funcDecl.TestAttr(AST::Attribute::IN_STRUCT)) {
                 GlobalRefChecker(
                     funcDecl.funcBody->body.get(), funcDecl.identifier.Begin(), funcDecl.identifier.Begin());
@@ -219,19 +234,32 @@ bool StructuralRuleGEXP03::AddRefFuncInfo(Ptr<const Cangjie::AST::Node> node,
     return true;
 }
 
+void StructuralRuleGEXP03::ProcessRefFuncTarget(Ptr<FuncDecl> func, const Position originFuncPosition,
+    void (StructuralRuleGEXP03::*checker)(Ptr<Node>, const Position, const Position))
+{
+    if (!func) {
+        return;
+    }
+    auto funcPos = func->identifier.Begin();
+    if (sideEffectSet.find(funcPos) != sideEffectSet.end()) {
+        (void)sideEffectSet.insert(originFuncPosition);
+        return;
+    }
+    if (checkedFunc.find(funcPos) != checkedFunc.end()) {
+        return;
+    }
+    (void)checkedFunc.insert(funcPos);
+    if (!func->funcBody || !func->funcBody->body) {
+        return;
+    }
+    (this->*checker)(func->funcBody->body.get(), originFuncPosition, funcPos);
+}
+
 void StructuralRuleGEXP03::ProcessRefFuncInfo(const RefExpr& refExpr, const Cangjie::Position originFuncPosition)
 {
     for (auto& item : refExpr.ref.targets) {
-        if (auto func = DynamicCast<FuncDecl*>(item.get()); func) {
-            if (sideEffectSet.find(func->identifier.Begin()) != sideEffectSet.end()) {
-                (void)sideEffectSet.insert(originFuncPosition);
-            } else if (checkedFunc.find(func->identifier.Begin()) != checkedFunc.end()) {
-                continue;
-            } else {
-                (void)checkedFunc.insert(func->identifier.Begin());
-                GlobalRefChecker(func->funcBody->body.get(), originFuncPosition, func->identifier.Begin());
-            }
-        }
+        ProcessRefFuncTarget(DynamicCast<FuncDecl*>(item.get()), originFuncPosition,
+            &StructuralRuleGEXP03::GlobalRefChecker);
     }
 }
 
@@ -266,16 +294,8 @@ void StructuralRuleGEXP03::GlobalRefChecker(
 void StructuralRuleGEXP03::ClassRefCheckerDetail(const RefExpr& refExpr, const Cangjie::Position originFuncPosition)
 {
     for (auto& item : refExpr.ref.targets) {
-        if (auto func = DynamicCast<FuncDecl*>(item.get()); func) {
-            if (sideEffectSet.find(func->identifier.Begin()) != sideEffectSet.end()) {
-                (void)sideEffectSet.insert(originFuncPosition);
-            } else if (checkedFunc.find(func->identifier.Begin()) != checkedFunc.end()) {
-                continue;
-            } else {
-                (void)checkedFunc.insert(func->identifier.Begin());
-                ClassRefChecker(func->funcBody->body.get(), originFuncPosition, func->identifier.Begin());
-            }
-        }
+        ProcessRefFuncTarget(DynamicCast<FuncDecl*>(item.get()), originFuncPosition,
+            &StructuralRuleGEXP03::ClassRefChecker);
     }
 }
 

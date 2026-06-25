@@ -153,7 +153,11 @@ static CHIR::Value *GetClosureMutex(const CHIR::Invoke *invoke)
     if (localVar->GetDebugExpr()) {
         return localVar;
     }
-    return localVar->GetExpr()->GetOperand(0);
+    auto expr = localVar->GetExpr();
+    if (!expr) {
+        return nullptr;
+    }
+    return expr->GetOperand(0);
 }
 
 static CHIR::Type *GetPathInChain(const CHIR::Type *ty, size_t index, std::string &str)
@@ -393,7 +397,11 @@ static CHIR::Function *GetSpawnClosure(const T *apply, AstFuncInfo spawenFunc)
 {
     if (CommonFunc::FindCHIRFunction(apply->GetCallee(), spawenFunc)) {
         auto arg = StaticCast<CHIR::LocalVar *>(apply->GetArgs()[1]);
-        auto func = arg->GetExpr()->GetOperands()[0];
+        auto argExpr = arg->GetExpr();
+        if (!argExpr) {
+            return nullptr;
+        }
+        auto func = argExpr->GetOperands()[0];
         if (func->IsFuncWithBody()) {
             return StaticCast<CHIR::Function *>(func);
         }

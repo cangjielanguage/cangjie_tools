@@ -422,6 +422,9 @@ void DataflowRuleVAR01Check::CheckBasedOnCHIRFunc(CHIR::BlockGroup& body, ClassM
             auto debug = StaticCast<CHIR::Debug*>(&expr);
             auto result = debug->GetResult();
             auto value = debug->GetValue();
+            if (!result || !value) {
+                return CHIR::VisitResult::CONTINUE;
+            }
             auto pos = CommonFunc::GetCodePosition(value);
             if (!result->TestAttr(Attribute::READONLY) && !value->TestAttr(Attribute::READONLY) &&
                 value->IsLocalVar() && !IsInUnSafeBlock(pos.first)) {

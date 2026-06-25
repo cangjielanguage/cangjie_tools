@@ -160,6 +160,9 @@ void StructuralRuleGEXP02::CheckBinaryExpr(const Cangjie::AST::BinaryExpr& binar
     if (!binaryExpr.leftExpr || !binaryExpr.rightExpr) {
         return;
     }
+    if (!binaryExpr.leftExpr->GetTy() || !binaryExpr.rightExpr->GetTy()) {
+        return;
+    }
     if (binaryExpr.leftExpr->GetTy()->IsFloating() && binaryExpr.rightExpr->GetTy()->IsFloating()) {
         Diagnose(binaryExpr.begin, binaryExpr.end, CodeCheckDiagKind::G_EXP_02_not_accurate_float_operation_02,
             TOKENS[static_cast<int>(binaryExpr.op)]);

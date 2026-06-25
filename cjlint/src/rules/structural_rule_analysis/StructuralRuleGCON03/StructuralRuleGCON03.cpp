@@ -175,6 +175,18 @@ StructuralRuleGCON03::MutexState StructuralRuleGCON03::IsReentrantMutex(Ptr<Cang
     return memberAccess->field == "lock" ? MutexState::MUTEX_LOCK : MutexState::MUTEX_UNLOCK;
 }
 
+void StructuralRuleGCON03::CheckBaseClassIfNeeded(const ClassDecl &classDecl)
+{
+    auto isBaseClass = std::any_of(nonThreadSafeOverrideFuncSet.begin(), nonThreadSafeOverrideFuncSet.end(),
+        [&classDecl](const std::pair<std::pair<std::string, std::string>, PositionPair> &pair) {
+            return pair.first.first == classDecl.identifier;
+        });
+    if (!isBaseClass || !classDecl.body) {
+        return;
+    }
+    CheckBaseClassFuncSafe(classDecl.body->decls, classDecl.identifier);
+}
+
 void StructuralRuleGCON03::BaseClassFinder(Ptr<Cangjie::AST::Node> node)
 {
     if (node == nullptr) {
@@ -182,15 +194,7 @@ void StructuralRuleGCON03::BaseClassFinder(Ptr<Cangjie::AST::Node> node)
     }
 
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
-        match (*node)([this](const ClassDecl &classDecl) {
-            auto result = std::any_of(nonThreadSafeOverrideFuncSet.begin(), nonThreadSafeOverrideFuncSet.end(),
-                [&classDecl](const std::pair<std::pair<std::string, std::string>, PositionPair> &pair) {
-                    return pair.first.first == classDecl.identifier;
-                });
-            if (result) {
-                CheckBaseClassFuncSafe(classDecl.body->decls, classDecl.identifier);
-            }
-        });
+        match (*node)([this](const ClassDecl &classDecl) { CheckBaseClassIfNeeded(classDecl); });
         return VisitAction::WALK_CHILDREN;
     });
     walker.Walk();

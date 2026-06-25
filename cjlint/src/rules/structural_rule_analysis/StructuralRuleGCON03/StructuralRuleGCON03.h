@@ -37,6 +37,7 @@ private:
     std::set<Cangjie::Position> checkedFuncSet;
     void OverrideFuncFinder(Ptr<Cangjie::AST::Node> node);
     void BaseClassFinder(Ptr<Cangjie::AST::Node> node);
+    void CheckBaseClassIfNeeded(const Cangjie::AST::ClassDecl &classDecl);
     void CheckBaseClassFuncSafe(std::vector<OwnedPtr<Cangjie::AST::Decl>> &decls, const std::string &className);
     bool CoverDeclToFuncDecl(Ptr<Cangjie::AST::Decl> decl);
     static bool IsOverrideModifier(const std::set<Cangjie::AST::Modifier> &modifiers);

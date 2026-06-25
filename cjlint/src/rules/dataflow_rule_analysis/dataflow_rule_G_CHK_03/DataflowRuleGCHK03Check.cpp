@@ -64,7 +64,7 @@ static CHIR::Debug* GetDebugExpr(CHIR::Value* arg)
         return debug;
     }
     auto expr = localVar->GetExpr();
-    if (expr->GetExprKind() != CHIR::ExprKind::LOAD) {
+    if (!expr || expr->GetExprKind() != CHIR::ExprKind::LOAD) {
         return nullptr;
     }
     auto load = StaticCast<CHIR::Load*>(expr);
