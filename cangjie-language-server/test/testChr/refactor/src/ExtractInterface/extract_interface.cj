@@ -144,3 +144,75 @@ public struct Counter {
         value += 1
     }
 }
+
+open class RedefBaseClass {
+    static var staticField: Int64 = 100
+    static func staticMethod(): Unit {
+        println("RedefBaseClass.staticMethod()")
+    }
+    var name: String
+    init(name: String) {
+        this.name = name
+    }
+}
+
+class RedefDerivedClass <: RedefBaseClass {
+    redef static func staticMethod(): Unit {
+        println("RedefDerivedClass.staticMethod()")
+    }
+    var breed: String
+    init(name: String, breed: String) {
+        super(name)
+        this.breed = breed
+    }
+}
+
+class RedefDerivedClass1 <: RedefBaseClass {
+    var breed: String
+    init(name: String, breed: String) {
+        super(name)
+        this.breed = breed
+    }
+}
+
+/**
+ * Shape implementation.
+ */
+public class Circle {
+    // Line comment for area.
+    public func area(radius: Float64): Float64 {
+        // keep body comment
+        return 3.14 * radius * radius
+    }
+
+    /*
+     * Block comment for diameter.
+     */
+    public func diameter(radius: Float64): Float64 {
+        return radius * 2.0
+    }
+
+    /**
+     * Document comment for debug text.
+     */
+    private func debugText(): String {
+        return "circle"
+    }
+}
+
+sealed abstract class SealedBaseClass {
+    open protected func sealedMethod(): Unit {
+        println("SealedBaseClass: 密封类方法")
+    }
+}
+
+class SealedDerivedClass <: SealedBaseClass {
+    override protected func sealedMethod(): Unit {
+        println("SealedDerivedClass: 继承密封类")
+    }
+}
+
+func sealedName() {
+    let sealedObj: SealedDerivedClass = SealedDerivedClass()
+    sealedObj.sealedMethod()
+}

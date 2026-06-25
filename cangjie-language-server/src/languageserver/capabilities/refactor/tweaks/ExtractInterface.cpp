@@ -171,7 +171,7 @@ std::string ExtractFuncBodyText(const FuncDecl &func, SourceManager *sm)
     return "";
 }
 
-void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup> &groupList)
+void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup> &groupList, bool includeDocComments)
 {
     for (const auto &group : groupList) {
         for (const auto &comment : group.cms) {
@@ -180,7 +180,7 @@ void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup>
                 continue;
             }
             auto first = text.find_first_not_of(" \t\r\n");
-            if (first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
+            if (!includeDocComments && first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
                 DOC_COMMENT_PREFIX) == 0) {
                 continue;
             }
@@ -203,9 +203,9 @@ std::string ExtractDeclCommentText(const Cangjie::AST::Decl &decl)
     }
 
     std::string result;
-    AppendCommentGroupText(result, groups.leadingComments);
-    AppendCommentGroupText(result, groups.innerComments);
-    AppendCommentGroupText(result, groups.trailingComments);
+    AppendCommentGroupText(result, groups.leadingComments, true);
+    AppendCommentGroupText(result, groups.innerComments, true);
+    AppendCommentGroupText(result, groups.trailingComments, true);
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
@@ -783,7 +783,7 @@ std::string NormalizeTargetPath(const std::map<std::string, std::string> &option
 }
 
 std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableLeadingCommentsRange(
-    const Cangjie::AST::Decl &decl)
+    const Cangjie::AST::Decl &decl, bool includeDocComments = false)
 {
     if (decl.comments.leadingComments.empty()) {
         return std::nullopt;
@@ -798,7 +798,7 @@ std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableL
             if (first == std::string::npos) {
                 continue;
             }
-            if (first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
+            if (!includeDocComments && first != std::string::npos && text.compare(first, std::strlen(DOC_COMMENT_PREFIX),
                 DOC_COMMENT_PREFIX) == 0) {
                 continue;
             }
@@ -903,6 +903,50 @@ std::string ResolveTargetPackageName(const std::string &targetPath)
     }
     std::string packageName = project->GetRealPackageName(fullPkgName);
     return IsValidPackageName(packageName) ? packageName : "";
+}
+
+std::string GetTargetFileContent(const std::string &targetPath)
+{
+    if (targetPath.empty()) {
+        return "";
+    }
+    if (auto *project = CompilerCangjieProject::GetInstance()) {
+        std::string content = project->GetContentByFile(targetPath);
+        if (!content.empty()) {
+            return content;
+        }
+    }
+    return GetFileContents(targetPath);
+}
+
+bool TargetFileExists(const std::string &targetPath)
+{
+    return !targetPath.empty() &&
+           (Cangjie::FileUtil::FileExist(targetPath) || !GetTargetFileContent(targetPath).empty());
+}
+
+bool TargetFileHasPackageDeclaration(const std::string &targetPath)
+{
+    if (targetPath.empty()) {
+        return false;
+    }
+    if (auto *project = CompilerCangjieProject::GetInstance()) {
+        if (auto *ast = project->GetArkAST(targetPath); ast && ast->file && ast->file->package) {
+            return true;
+        }
+    }
+    std::string content = GetTargetFileContent(targetPath);
+    auto packagePos = content.find("package ");
+    if (packagePos == std::string::npos) {
+        return false;
+    }
+    auto lineStart = content.rfind('\n', packagePos);
+    if (lineStart == std::string::npos) {
+        lineStart = 0;
+    } else {
+        ++lineStart;
+    }
+    return content.find_first_not_of(" \t\r", lineStart) == packagePos;
 }
 
 void CollectClassInterfaceInheritedTypesForRename(const Cangjie::AST::ClassDecl &decl,
@@ -1477,6 +1521,7 @@ std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceM
     Cangjie::Position headerBegin = func.GetBegin();
     Cangjie::Position nameBegin = func.identifier.Begin();
     std::string header = sm->GetContentBetween(headerBegin, nameBegin);
+    size_t funcPos = TweakUtils::FindTokenBoundaryPos(header, "func");
     size_t pos = header.find("protected");
     if (pos == std::string::npos) {
         return std::nullopt;
@@ -1492,12 +1537,33 @@ std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceM
         return std::nullopt;
     }
 
+    size_t modifierStart = pos;
+    std::string replacement = "public";
+    size_t openPos = TweakUtils::FindTokenBoundaryPos(header, "open");
+    size_t overridePos = TweakUtils::FindTokenBoundaryPos(header, "override");
+    if (openPos != std::string::npos && openPos < pos && (funcPos == std::string::npos || pos < funcPos)) {
+        modifierStart = openPos;
+        endPos = pos + std::string("protected").size();
+        while (endPos < header.size() && std::isspace(static_cast<unsigned char>(header[endPos]))) {
+            ++endPos;
+        }
+        replacement = "public open ";
+    } else if (overridePos != std::string::npos && overridePos < pos &&
+               (funcPos == std::string::npos || pos < funcPos)) {
+        modifierStart = overridePos;
+        endPos = pos + std::string("protected").size();
+        while (endPos < header.size() && std::isspace(static_cast<unsigned char>(header[endPos]))) {
+            ++endPos;
+        }
+        replacement = "public override ";
+    }
+
     Cangjie::Position start = headerBegin;
     size_t offset = 0;
-    while (offset < pos) {
+    while (offset < modifierStart) {
         size_t newline = header.find('\n', offset);
-        if (newline == std::string::npos || newline >= pos) {
-            int advance = static_cast<int>(CountUnicodeCharacters(header.substr(offset, pos - offset)));
+        if (newline == std::string::npos || newline >= modifierStart) {
+            int advance = static_cast<int>(CountUnicodeCharacters(header.substr(offset, modifierStart - offset)));
             start.column += advance;
             break;
         }
@@ -1509,10 +1575,10 @@ std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceM
     }
 
     Cangjie::Position end = start;
-    end.column += static_cast<int>(CountUnicodeCharacters(std::string("protected")));
+    end.column += static_cast<int>(CountUnicodeCharacters(header.substr(modifierStart, endPos - modifierStart)));
     Range range{start, end};
     range = TransformFromChar2IDE(range);
-    return TextEdit{range, "public"};
+    return TextEdit{range, replacement};
 }
 // LCOV_EXCL_BR_STOP
 std::optional<TextEdit> BuildInternalToPublicEdit(const FuncDecl &func, SourceManager *sm)
@@ -1573,6 +1639,36 @@ std::optional<TextEdit> BuildDefaultVisibilityToPublicEdit(const FuncDecl &func,
     Range range{insertPos, insertPos};
     range = TransformFromChar2IDE(range);
     return TextEdit{range, "public "};
+}
+
+std::optional<TextEdit> BuildRedefStaticOrderEdit(const FuncDecl &func, SourceManager *sm)
+{
+    if (!sm) {
+        return std::nullopt;
+    }
+
+    Cangjie::Position headerBegin = func.GetBegin();
+    Cangjie::Position nameBegin = func.identifier.Begin();
+    std::string header = sm->GetContentBetween(headerBegin, nameBegin);
+
+    size_t redefPos = TweakUtils::FindTokenBoundaryPos(header, "redef");
+    size_t staticPos = TweakUtils::FindTokenBoundaryPos(header, "static");
+    size_t funcPos = TweakUtils::FindTokenBoundaryPos(header, "func");
+    if (redefPos == std::string::npos || staticPos == std::string::npos ||
+        funcPos == std::string::npos || redefPos > staticPos || staticPos > funcPos) {
+        return std::nullopt;
+    }
+
+    size_t staticEnd = staticPos + std::string("static").size();
+    while (staticEnd < header.size() && std::isspace(static_cast<unsigned char>(header[staticEnd]))) {
+        ++staticEnd;
+    }
+
+    Cangjie::Position start = TweakUtils::PositionAtOffset(headerBegin, header, redefPos);
+    Cangjie::Position end = TweakUtils::PositionAtOffset(headerBegin, header, staticEnd);
+    Range range{start, end};
+    range = TransformFromChar2IDE(range);
+    return TextEdit{range, "static redef "};
 }
 
 std::optional<TextEdit> BuildRemoveVisibilityEdit(const FuncDecl &func, SourceManager *sm)
@@ -1659,7 +1755,7 @@ std::optional<TextEdit> BuildRedefAfterStaticEdit(const FuncDecl &func, SourceMa
     }
 
     size_t redefPos = TweakUtils::FindTokenBoundaryPos(header, "redef");
-    if (redefPos != std::string::npos && redefPos > staticPos && redefPos < funcPos) {
+    if (redefPos != std::string::npos && redefPos < funcPos) {
         return std::nullopt;
     }
 
@@ -1850,7 +1946,7 @@ public:
 void AddPrivateMemberRemovalEdit(const FuncDecl &func, SourceManager *sm, std::vector<TextEdit> &edits)
 {
     Cangjie::Position begin = func.GetBegin();
-    auto commentRange = FindTransferableLeadingCommentsRange(func);
+    auto commentRange = FindTransferableLeadingCommentsRange(func, true);
     if (commentRange.has_value()) {
         std::string gapText = sm ? sm->GetContentBetween(commentRange->second, func.GetBegin()) : "";
         bool whitespaceOnly = std::all_of(gapText.begin(), gapText.end(), [](unsigned char ch) {
@@ -1892,21 +1988,36 @@ bool AddConcreteVisibilityEdits(const FuncDecl &func,
                                 const SelectedEditsRequest &request,
                                 bool isStatic)
 {
+    auto redefStaticOrderEdit = BuildRedefStaticOrderEdit(func, sm);
     auto protectedEdit = BuildProtectedToPublicEdit(func, sm);
     if (protectedEdit.has_value()) {
         request.edits.push_back(std::move(*protectedEdit));
+        if (redefStaticOrderEdit.has_value()) {
+            request.edits.push_back(std::move(*redefStaticOrderEdit));
+        }
         return false;
     }
 
     auto internalEdit = BuildInternalToPublicEdit(func, sm);
     if (internalEdit.has_value()) {
         request.edits.push_back(std::move(*internalEdit));
+        if (redefStaticOrderEdit.has_value()) {
+            request.edits.push_back(std::move(*redefStaticOrderEdit));
+        }
         return false;
     }
 
     auto defaultVisibilityEdit = BuildDefaultVisibilityToPublicEdit(func, sm);
     if (!defaultVisibilityEdit.has_value()) {
+        if (redefStaticOrderEdit.has_value()) {
+            request.edits.push_back(std::move(*redefStaticOrderEdit));
+        }
         return false;
+    }
+    if (isStatic && redefStaticOrderEdit.has_value()) {
+        redefStaticOrderEdit->newText = "public static redef ";
+        request.edits.push_back(std::move(*redefStaticOrderEdit));
+        return true;
     }
     if (isStatic) {
         defaultVisibilityEdit->newText = "public ";
@@ -1927,11 +2038,23 @@ bool AddVisibilityEdits(const FuncDecl &func,
         return AddConcreteVisibilityEdits(func, sm, request, isStatic);
     }
 
+    auto protectedEdit = BuildProtectedToPublicEdit(func, sm);
+    if (protectedEdit.has_value()) {
+        request.edits.push_back(std::move(*protectedEdit));
+        return false;
+    }
+
+    auto internalEdit = BuildInternalToPublicEdit(func, sm);
+    if (internalEdit.has_value()) {
+        request.edits.push_back(std::move(*internalEdit));
+        return false;
+    }
+
     auto defaultVisibilityEdit = BuildDefaultVisibilityToPublicEdit(func, sm);
     if (!defaultVisibilityEdit.has_value()) {
         return false;
     }
-    defaultVisibilityEdit->newText = "override ";
+    defaultVisibilityEdit->newText = "public override ";
     request.edits.push_back(std::move(*defaultVisibilityEdit));
     return true;
 }
@@ -2439,12 +2562,20 @@ TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
 TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const InterfaceInfo &info)
 {
     TextEdit edit;
-    Range insertRange;
-    insertRange.start = {0, 0, 0};
-    insertRange.end = insertRange.start;
+    Cangjie::Position insertPos{0, 0, 0};
+    std::string packageName = ResolveTargetPackageName(targetPath);
+    if (TargetFileExists(targetPath)) {
+        packageName.clear();
+        std::string content = GetTargetFileContent(targetPath);
+        insertPos = TweakUtils::PositionAtOffset(Cangjie::Position{0, 0, 0}, content, content.size());
+    }
+    if (TargetFileHasPackageDeclaration(targetPath)) {
+        packageName.clear();
+    }
 
+    Range insertRange{insertPos, insertPos};
     edit.range = insertRange;
-    edit.newText = BuildInterfaceDeclText(info, ResolveTargetPackageName(targetPath), true);
+    edit.newText = BuildInterfaceDeclText(info, packageName, true);
     return edit;
 }
 
@@ -2456,11 +2587,13 @@ void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &ta
 
     std::string targetUri = URI::URIFromAbsolutePath(targetPath).ToString();
 
-    CreateFile createFile;
-    createFile.uri = targetUri;
-    nlohmann::json createFileJson;
-    ToJSON(createFile, createFileJson);
-    effect.documentChanges.push_back(std::move(createFileJson));
+    if (!TargetFileExists(targetPath)) {
+        CreateFile createFile;
+        createFile.uri = targetUri;
+        nlohmann::json createFileJson;
+        ToJSON(createFile, createFileJson);
+        effect.documentChanges.push_back(std::move(createFileJson));
+    }
 
     TextDocumentEdit textDocumentEdit;
     textDocumentEdit.textDocument.uri.file = targetUri;
@@ -2634,8 +2767,7 @@ void AddSelectedMemberEdits(ApplyContext &context)
 
 void AddInterfaceImplementorMemberEdits(ApplyContext &context)
 {
-    if (context.target.kind != TargetKind::INTERFACE || context.chosen.empty() || !context.sel.arkAst ||
-        !context.sel.arkAst->file || !context.target.interfaceDecl) {
+    if (context.chosen.empty() || !context.sel.arkAst || !context.sel.arkAst->file) {
         return;
     }
 
@@ -2645,11 +2777,20 @@ void AddInterfaceImplementorMemberEdits(ApplyContext &context)
         context.effect.applyEdits[context.sourceUri],
         false
     };
+    const Decl *targetDecl = nullptr;
+    if (context.target.interfaceDecl) {
+        targetDecl = context.target.interfaceDecl;
+    } else if (context.target.inheritableDecl) {
+        targetDecl = context.target.inheritableDecl;
+    }
+    if (!targetDecl) {
+        return;
+    }
     for (auto &decl : context.sel.arkAst->file->decls) {
         if (!decl) {
             continue;
         }
-        CollectSelectedEditsFromInterfaceImplementor(*decl.get(), *context.target.interfaceDecl, request);
+        CollectSelectedEditsFromInterfaceImplementor(*decl.get(), *targetDecl, request);
     }
 }
 
