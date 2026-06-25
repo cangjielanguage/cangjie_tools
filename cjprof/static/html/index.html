@@ -955,20 +955,21 @@
                     borderWidth: 1,
                     textStyle: { color: '#eee', fontSize: 12 },
                     padding: [10, 14],
+                    extraCssText: 'max-width: 400px; white-space: normal; word-break: break-all;',
                     formatter: function(params) {
                         var d = params.data;
                         // Center node (sole top-level node spanning 360°): show name and back hint
                         if (sunburstCenterNodeId !== null && d.nodeId === sunburstCenterNodeId) {
                             var backHint = sunburstParentStack.length > 0 ?
                                 '<div style="color:#888;font-size:11px;">Click to go back</div>' : '';
-                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(centerName) + '</div>' +
+                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + escapeHtml(centerName) + '</div>' +
                                    '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                    '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>' +
                                    backHint;
                         }
-                        var instanceInfo = d.instance_count > 1 ?
+                        var instanceInfo = (sunburstGranularity === 'type' && d.instance_count >= 1) ?
                             '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
-                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
                                instanceInfo +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
@@ -1028,19 +1029,20 @@
                     borderWidth: 1,
                     textStyle: { color: '#eee', fontSize: 12 },
                     padding: [10, 14],
+                    extraCssText: 'max-width: 400px; white-space: normal; word-break: break-all;',
                     formatter: function(params) {
                         var d = params.data;
                         if (sunburstCenterNodeId !== null && d.nodeId === sunburstCenterNodeId) {
                             var backHint = sunburstParentStack.length > 0 ?
                                 '<div style="color:#888;font-size:11px;">Click to go back</div>' : '';
-                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(renderData.centerName) + '</div>' +
+                            return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + escapeHtml(renderData.centerName) + '</div>' +
                                    '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                    '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>' +
                                    backHint;
                         }
-                        var instanceInfo = d.instance_count > 1 ?
+                        var instanceInfo = (sunburstGranularity === 'type' && d.instance_count >= 1) ?
                             '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>' : '';
-                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
+                        return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + escapeHtml(d.name || d.class_name || 'Object') + '</div>' +
                                instanceInfo +
                                '<div>Retained: <span style="color:#00d9ff;">' + formatBytes(d.retained_size || 0) + '</span></div>' +
                                '<div>Shallow: <span style="color:#00d9ff;">' + formatBytes(d.shallow_size || 0) + '</span></div>';
@@ -1503,7 +1505,7 @@
                         var name = d.class_name || 'Object';
                         name = escapeHtml(name);
                         var extra = '';
-                        if (d.is_clustered && d.instance_count > 1) {
+                        if (currentGranularity === 'type' && d.instance_count >= 1) {
                             extra = '<div>Instances: <span style="color:#ff9f43;">' + d.instance_count + '</span></div>';
                         }
                         return '<div style="font-weight:bold;color:#e94560;margin-bottom:4px;word-break:break-all;">' + name + '</div>' +
@@ -1540,7 +1542,7 @@
                             var d = params.data;
                             var name = d.class_name || ('obj' + d.id);
                             // Show instance count for clustered nodes
-                            if (d.is_clustered && d.instance_count > 1) {
+                            if (currentGranularity === 'type' && d.instance_count >= 1) {
                                 name = name + ' (' + d.instance_count + ')';
                             }
                             // Show expand indicator
