@@ -29,11 +29,8 @@ public:
 };
 std::string GetVisibility(const Cangjie::AST::Decl &decl);
 std::string EscapeJsonString(const std::string &input);
-void AppendCommentGroupText(std::string &result, const std::vector<CommentGroup> &groupList);
 std::optional<Location> ParseSelectedTypeReferenceEntry(const nlohmann::json &entry);
 bool IsSameSelectedTypeReference(const Location &lhs, const Location &rhs);
-std::optional<std::pair<Cangjie::Position, Cangjie::Position>> FindTransferableLeadingCommentsRange(
-    const Cangjie::AST::Decl &decl);
 std::optional<TextEdit> BuildImportInterfaceEditForFile(const File &sourceFile, const std::string &targetPath,
     const std::string &interfaceName);
 std::optional<Range> GetNameReferenceRange(const NameReferenceExpr &refExpr);
@@ -77,18 +74,6 @@ void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &ta
 } // namespace ark
 
 using namespace ark;
-
-namespace {
-CommentGroup MakeCommentGroup(const std::vector<std::tuple<std::string, Cangjie::Position, Cangjie::Position>> &items)
-{
-    CommentGroup group;
-    for (const auto &[text, begin, end] : items) {
-        group.cms.push_back(Comment{CommentStyle::LEAD_LINE, CommentKind::LINE,
-            Cangjie::Token(Cangjie::TokenKind::COMMENT, text, begin, end)});
-    }
-    return group;
-}
-} // namespace
 
 TEST(ExtractInterfaceTest, VisibilityOptionsAndNames)
 {
@@ -169,36 +154,6 @@ TEST(ExtractInterfaceTest, SelectedMembersAndTypes)
     EXPECT_EQ(NormalizeTypeNameForCompare(" pkg.Base<Int64> "), "Base");
     EXPECT_EQ(NormalizeTypeNameForCompare("Simple"), "Simple");
     EXPECT_EQ(NormalizeTypeNameForCompare(""), "");
-}
-
-TEST(ExtractInterfaceTest, CommentsSkipDocCommentsAndKeepTransferableRange)
-{
-    std::vector<CommentGroup> groups = {
-        MakeCommentGroup({
-            {"", {1, 1, 1}, {1, 1, 1}},
-            {"  /** doc comment */", {1, 2, 1}, {1, 2, 20}},
-            {"// line comment", {1, 3, 1}, {1, 3, 16}},
-            {"/* block comment */", {1, 4, 1}, {1, 4, 20}},
-        })
-    };
-
-    std::string text = "prefix";
-    AppendCommentGroupText(text, groups);
-    EXPECT_EQ(text, "prefix\n// line comment\n/* block comment */\n");
-
-    Decl decl;
-    EXPECT_FALSE(FindTransferableLeadingCommentsRange(decl).has_value());
-    decl.comments.leadingComments = groups;
-    auto range = FindTransferableLeadingCommentsRange(decl);
-    ASSERT_TRUE(range.has_value());
-    EXPECT_EQ(range->first.line, 3);
-    EXPECT_EQ(range->first.column, 1);
-    EXPECT_EQ(range->second.line, 4);
-    EXPECT_EQ(range->second.column, 20);
-
-    Decl docOnly;
-    docOnly.comments.leadingComments = {MakeCommentGroup({{"\t/** doc only */", {1, 6, 1}, {1, 6, 17}}})};
-    EXPECT_FALSE(FindTransferableLeadingCommentsRange(docOnly).has_value());
 }
 
 TEST(ExtractInterfaceTest, ParseSelectedTypeReferenceEntryAndCompareLocation)
