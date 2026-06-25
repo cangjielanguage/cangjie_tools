@@ -2098,6 +2098,10 @@ static bool ShouldHandleEnumVariant(const Decl* decl, const ArkAST* arkAst)
 static bool ProcessDeclDeleteRange(const Decl* decl,
     const MacroExpandDecl* parentMacroExpandDecl, Range& deleteRange, const ArkAST* arkAst)
 {
+    if (ShouldHandleEnumVariant(decl, arkAst)) {
+        HandleEnumVariant(decl, arkAst, deleteRange);
+    }
+    
     if (ShouldHandleCurMacroCall(decl)) {
         if (IsAnnotationMacro(decl)) {
             return HandleAnnotationMacro(decl, deleteRange);
@@ -2110,8 +2114,6 @@ static bool ProcessDeclDeleteRange(const Decl* decl,
         HandleOuterMacroExpand(decl, deleteRange);
     } else if (ShouldHandleParentMacroExpand(decl, parentMacroExpandDecl)) {
         HandleParentMacroExpand(decl, parentMacroExpandDecl, deleteRange);
-    } else if (ShouldHandleEnumVariant(decl, arkAst)) {
-        HandleEnumVariant(decl, arkAst, deleteRange);
     }
     return false;
 }
