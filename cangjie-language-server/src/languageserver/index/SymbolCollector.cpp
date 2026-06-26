@@ -1915,6 +1915,32 @@ void SymbolCollector::CreateNamedArgRef(const CallExpr &ce)
     }
 }
 
+void SymbolCollector::CreateResolvedFunctionRef(const CallExpr& ce, const std::string& filePath)
+{
+    auto funcDecl = DynamicCast<FuncDecl*>(ce.resolvedFunction.get());
+    if (!funcDecl || !funcDecl->outerDecl || !ce.curFile) {
+        return;
+    }
+    // Only create reference for constructor's outer class to fix unused class diagnostic
+    if ((funcDecl->TestAttr(Attribute::CONSTRUCTOR) || funcDecl->TestAttr(Attribute::PRIMARY_CONSTRUCTOR)) &&
+        IsGlobalOrMemberOrItsParam(*funcDecl->outerDecl)) {
+        auto begin = ce.GetBegin();
+        auto uri = ce.curFile->filePath;
+        if (begin.fileID != ce.begin.fileID && !ce.curFile->macroCallFilePath.empty()) {
+            uri = ce.curFile->macroCallFilePath;
+        }
+        if (uri.empty()) {
+            return;
+        }
+        auto classId = GetDeclSymbolID(*funcDecl->outerDecl);
+        if (classId != INVALID_SYMBOL_ID) {
+            SymbolLocation loc{begin, begin + CountUnicodeCharacters(funcDecl->outerDecl->identifier), uri};
+            Ref refInfo{.location = loc, .kind = RefKind::REFERENCE, .container = GetContextID()};
+            (void)symbolRefMap[classId].emplace_back(refInfo);
+        }
+    }
+}
+
 void SymbolCollector::CollectRelations(
     const std::unordered_set<Ptr<InheritableDecl>> &inheritableDecls)
 {
@@ -2171,6 +2197,9 @@ void SymbolCollector::CollectNode(Ptr<Node> node, const std::string& filePath, A
         CreateRef(*ref, filePath);
     } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
         CreateNamedArgRef(*ce);
+        if (ce->resolvedFunction && ce->curFile) {
+            CreateResolvedFunctionRef(*ce, filePath);
+        }
     } else if (auto type = DynamicCast<Type *>(node)) {
         CreateTypeRef(*type, filePath);
     }

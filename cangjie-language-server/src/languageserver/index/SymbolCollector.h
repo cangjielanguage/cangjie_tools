@@ -180,6 +180,8 @@ private:
 
     void CreateNamedArgRef(const CallExpr& ce);
 
+    void CreateResolvedFunctionRef(const CallExpr& ce, const std::string& filePath);
+
     void CreateImportRef(const File &fileNode);
 
     void CollectReExportSymbol(const File &file);
