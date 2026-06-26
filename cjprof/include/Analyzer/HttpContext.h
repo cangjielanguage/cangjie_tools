@@ -11,6 +11,7 @@
 #include <vector>
 #include <unordered_map>
 #include "Analyzer/Types.h"
+#include <nlohmann/json.hpp>
 
 namespace cjprof {
 
@@ -45,6 +46,12 @@ struct HttpContext
     std::unordered_map<uint64_t, const DominanceNode*> objectIdToDominanceNode;
     // classNameToDominanceNodes: class_name -> vector of DominanceNode pointers, for O(matches) lookup by type
     std::unordered_map<std::string, std::vector<const DominanceNode*>> classNameToDominanceNodes;
+
+    // Lazily-built type tree cache, shared between /dominance/tree-by-type and
+    // /dominance/children-by-type to guarantee Sunburst and Tree views see the same tree.
+    mutable bool typeTreeBuilt = false;
+    mutable std::string typeTreeJson;
+    mutable std::unordered_map<std::string, std::vector<nlohmann::json>> typeTreeChildrenByParentId;
 };
 
 } // namespace cjprof
