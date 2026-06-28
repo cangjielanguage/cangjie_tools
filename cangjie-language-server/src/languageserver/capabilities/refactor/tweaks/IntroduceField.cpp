@@ -57,7 +57,7 @@ static bool CanUseAsFieldInitializer(const Tweak::Selection &sel, const Range &r
 {
     (void)funcDecl;
     auto expr = GetIntroduceFieldExpr(sel.selectionTree, range);
-    return expr && expr->astKind == ASTKind::LIT_CONST_EXPR;
+    return expr && expr->astKind == ASTKind::LIT_CONST_EXPR && !IntroduceField::IsStringInterpolationLiteral(expr);
 }
 
 static std::string GetDefaultInitializer(const std::string &typeName)
@@ -602,6 +602,12 @@ bool IntroduceField::IsMemberFieldTarget(Cangjie::AST::FuncDecl &funcDecl)
 bool IntroduceField::IsStaticFieldTarget(Cangjie::AST::FuncDecl &funcDecl)
 {
     return IsMemberFieldTarget(funcDecl) && funcDecl.TestAttr(Attribute::STATIC);
+}
+
+bool IntroduceField::IsStringInterpolationLiteral(Ptr<Cangjie::AST::Expr> expr)
+{
+    auto litConstExpr = expr ? DynamicCast<Cangjie::AST::LitConstExpr *>(expr.get()) : nullptr;
+    return litConstExpr && litConstExpr->siExpr;
 }
 
 bool IntroduceField::IsImmutableStructMemberFieldAssignment(

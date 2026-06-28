@@ -130,6 +130,15 @@ TEST(IntroduceFieldTest, StaticOnlyAppliesToSupportedMemberFunctions)
     ExpectTarget(structStaticFunc, true, true, true);
 }
 
+TEST(IntroduceFieldTest, DetectsStringInterpolationLiteral)
+{
+    auto literal = MakeOwner<LitConstExpr>();
+    EXPECT_FALSE(IntroduceField::IsStringInterpolationLiteral(literal.get()));
+
+    literal->siExpr = MakeOwner<StrInterpolationExpr>();
+    EXPECT_TRUE(IntroduceField::IsStringInterpolationLiteral(literal.get()));
+}
+
 TEST(IntroduceFieldTest, ExtraOptionsReturnStoredOptions)
 {
     IntroduceField introduceField;
