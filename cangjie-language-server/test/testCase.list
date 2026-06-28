@@ -872,7 +872,6 @@
 {"rename":{"testFile":"LSP_Rename_Config_Src.test","id":"7"}}
 {"rename":{"testFile":"LSP_Rename_InterplationString_001.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_InterplationString_002.test","id":"9"}}
-{"rename":{"testFile":"LSP_Rename_2025072323710.test","id":"7","useDB":true}}
 {"rename":{"testFile":"LSP_Rename_Common_Specific.test","id":"9"}}
 
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_String_001.test","id":"7"}}
