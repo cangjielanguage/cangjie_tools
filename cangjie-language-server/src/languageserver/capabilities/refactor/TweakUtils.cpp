@@ -7,11 +7,19 @@
 #include "TweakUtils.h"
 #include <algorithm>
 #include <cctype>
+#include <unordered_set>
 #include <cangjie/AST/Walker.h>
 // LCOV_EXCL_START
 namespace ark {
 namespace {
 constexpr size_t INDENT_RESERVE_EXTRA_LINES = 2;
+
+const std::unordered_set<Cangjie::TokenKind> COMPOUND_ASSIGN_OPERATORS = {
+    TokenKind::EXP_ASSIGN, TokenKind::MUL_ASSIGN, TokenKind::DIV_ASSIGN, TokenKind::ADD_ASSIGN,
+    TokenKind::SUB_ASSIGN, TokenKind::MOD_ASSIGN, TokenKind::LSHIFT_ASSIGN, TokenKind::RSHIFT_ASSIGN,
+    TokenKind::AND_ASSIGN, TokenKind::BITXOR_ASSIGN, TokenKind::BITAND_ASSIGN, TokenKind::BITOR_ASSIGN,
+    TokenKind::OR_ASSIGN
+};
 }
 
 bool TweakUtils::Contain(Node &node, const Range &range)
@@ -98,6 +106,46 @@ std::string TweakUtils::IndentTextBlock(const std::string &text, const std::stri
         start = end + 1;
     }
     return indented;
+}
+
+bool TweakUtils::IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node)
+{
+    auto assignExpr = DynamicCast<Cangjie::AST::AssignExpr *>(&node);
+    return assignExpr && assignExpr->isCompound && COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op) > 0;
+}
+
+std::string TweakUtils::GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind)
+{
+    switch (tokenKind) {
+        case TokenKind::EXP_ASSIGN:
+            return "**";
+        case TokenKind::MUL_ASSIGN:
+            return "*";
+        case TokenKind::DIV_ASSIGN:
+            return "/";
+        case TokenKind::ADD_ASSIGN:
+            return "+";
+        case TokenKind::SUB_ASSIGN:
+            return "-";
+        case TokenKind::MOD_ASSIGN:
+            return "%";
+        case TokenKind::LSHIFT_ASSIGN:
+            return "<<";
+        case TokenKind::RSHIFT_ASSIGN:
+            return ">>";
+        case TokenKind::AND_ASSIGN:
+            return "&&";
+        case TokenKind::BITXOR_ASSIGN:
+            return "^";
+        case TokenKind::BITAND_ASSIGN:
+            return "&";
+        case TokenKind::BITOR_ASSIGN:
+            return "|";
+        case TokenKind::OR_ASSIGN:
+            return "||";
+        default:
+            return "";
+    }
 }
 
 Ptr<Block> TweakUtils::FindOuterScopeNode(const ASTContext &ctx, const Expr &expr, bool &isGlobal, Range &range)
