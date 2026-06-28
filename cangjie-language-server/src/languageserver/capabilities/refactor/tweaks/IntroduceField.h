@@ -55,6 +55,8 @@ public:
 
     static bool IsStaticFieldTarget(Cangjie::AST::FuncDecl &funcDecl);
 
+    static bool IsStringInterpolationLiteral(Ptr<Cangjie::AST::Expr> expr);
+
     static bool IsImmutableStructMemberFieldAssignment(
         const Selection &sel, Range &range, const std::string &typeName, Cangjie::AST::FuncDecl &funcDecl);
 

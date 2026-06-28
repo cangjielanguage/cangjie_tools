@@ -1248,6 +1248,7 @@
 {"applyEdit":{"testFile":"IntroduceField_Apply_007.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_008.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_009.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_010.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_003.test","method":"workspace/applyEdit"}}

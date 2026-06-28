@@ -82,3 +82,23 @@ struct Temperature {
         a+1
     }
 }
+
+public func testStringType(): Unit {
+    let s1: String = "Hello Cangjie"
+    let s2 = "World"
+
+    // Interpolation string
+    let name = "Alice"
+    let age = 30
+    let greeting = "Hello, ${name}! You are ${age} years old."
+
+    // Multiline raw string
+    let raw = #"""
+        Line 1
+        Line 2
+        Line 3
+        """#
+
+    // Convert string to Rune array
+    let runes = "nihao".toRuneArray()
+}
