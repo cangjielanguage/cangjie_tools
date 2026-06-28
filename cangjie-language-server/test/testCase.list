@@ -1213,6 +1213,7 @@
 {"codeAction":{"testFile":"IntroduceField_Constraint_001.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceField_Constraint_002.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceField_Constraint_003.test","id":"10"}}
+{"codeAction":{"testFile":"IntroduceField_Constraint_004.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceParameter_Constraint_001.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceParameter_Constraint_002.test","id":"10"}}
 
@@ -1249,6 +1250,9 @@
 {"applyEdit":{"testFile":"IntroduceField_Apply_008.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_009.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_010.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_011.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_012.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_013.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_003.test","method":"workspace/applyEdit"}}

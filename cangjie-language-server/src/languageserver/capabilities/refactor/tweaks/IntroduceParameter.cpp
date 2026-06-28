@@ -201,20 +201,6 @@ static bool HasExprBoundary(const SelectionTree::SelectionTreeNode &treeNode, co
     return hasBoundary;
 }
 
-static const std::unordered_set<Cangjie::TokenKind> INTRODUCE_PARAMETER_COMPOUND_ASSIGN_OPERATORS = {
-    TokenKind::EXP_ASSIGN, TokenKind::MUL_ASSIGN, TokenKind::DIV_ASSIGN, TokenKind::ADD_ASSIGN,
-    TokenKind::SUB_ASSIGN, TokenKind::MOD_ASSIGN, TokenKind::LSHIFT_ASSIGN, TokenKind::RSHIFT_ASSIGN,
-    TokenKind::AND_ASSIGN, TokenKind::BITXOR_ASSIGN, TokenKind::BITAND_ASSIGN, TokenKind::BITOR_ASSIGN,
-    TokenKind::OR_ASSIGN
-};
-
-static bool IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node)
-{
-    auto assignExpr = DynamicCast<Cangjie::AST::AssignExpr *>(&node);
-    return assignExpr && assignExpr->isCompound &&
-        INTRODUCE_PARAMETER_COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op) > 0;
-}
-
 static std::string GetCompoundAssignFallbackTypeName(const Cangjie::AST::Expr &expr)
 {
     auto assignExpr = DynamicCast<const Cangjie::AST::AssignExpr *>(&expr);
@@ -230,7 +216,7 @@ static bool HasValidIntroduceParameterExprType(const Cangjie::AST::Expr &expr)
     if (expr.GetTy() && GetString(*expr.GetTy()) != "UnknownType") {
         return true;
     }
-    return IsSupportedCompoundAssignExpr(expr) && !GetCompoundAssignFallbackTypeName(expr).empty();
+    return TweakUtils::IsSupportedCompoundAssignExpr(expr) && !GetCompoundAssignFallbackTypeName(expr).empty();
 }
 
 static Ptr<Cangjie::AST::Expr> GetContainingIntroduceParameterExpr(
@@ -250,7 +236,7 @@ static Ptr<Cangjie::AST::Expr> GetContainingIntroduceParameterExpr(
             return SelectionTree::WalkAction::WALK_CHILDREN;
         }
         bool isSupportedExpr = treeNode->node->astKind == ASTKind::BINARY_EXPR ||
-            IsSupportedCompoundAssignExpr(*treeNode->node);
+            TweakUtils::IsSupportedCompoundAssignExpr(*treeNode->node);
         if (isSupportedExpr && treeNode->node->end == selectedRange.end &&
             HasExprBoundary(*treeNode, selectedRange.start, true) &&
             HasExprBoundary(*treeNode, selectedRange.end, false)) {
@@ -312,7 +298,7 @@ static std::string GetIntroduceParameterExprTypeName(const SelectionTree &select
     const Range &selectedRange)
 {
     auto expr = GetIntroduceParameterExpr(selectionTree, selectedRange);
-    if (expr && IsSupportedCompoundAssignExpr(*expr)) {
+    if (expr && TweakUtils::IsSupportedCompoundAssignExpr(*expr)) {
         return GetCompoundAssignFallbackTypeName(*expr);
     }
     auto exactTypeName = TweakUtils::GetSelectedExprTypeName(selectionTree, selectedRange);
@@ -838,7 +824,7 @@ TextEdit IntroduceParameter::ReplaceExprWithParam(const Selection &sel, Range &r
 {
     TextEdit textEdit;
     auto selectedExpr = GetIntroduceParameterExpr(sel.selectionTree, range);
-    bool isCompoundAssign = selectedExpr && IsSupportedCompoundAssignExpr(*selectedExpr);
+    bool isCompoundAssign = selectedExpr && TweakUtils::IsSupportedCompoundAssignExpr(*selectedExpr);
     textEdit.newText = isCompoundAssign ? "" : paramName;
     if (isCompoundAssign) {
         Range deleteLineRange = range;
@@ -1270,7 +1256,7 @@ static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Can
         return context.argumentText;
     }
     auto selectedExpr = GetIntroduceParameterExpr(context.sel.selectionTree, context.range);
-    if (selectedExpr && IsSupportedCompoundAssignExpr(*selectedExpr)) {
+    if (selectedExpr && TweakUtils::IsSupportedCompoundAssignExpr(*selectedExpr)) {
         return BuildCompoundAssignArgumentText(context, callExpr);
     }
 
@@ -1283,40 +1269,6 @@ static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Can
         argumentText = ReplaceParameterNamesWithCallArguments(context, callExpr, *paramList);
     }
     return ReplaceThisReceiverAtCallSite(context, callExpr, argumentText);
-}
-
-static std::string GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind)
-{
-    switch (tokenKind) {
-        case TokenKind::EXP_ASSIGN:
-            return "**";
-        case TokenKind::MUL_ASSIGN:
-            return "*";
-        case TokenKind::DIV_ASSIGN:
-            return "/";
-        case TokenKind::ADD_ASSIGN:
-            return "+";
-        case TokenKind::SUB_ASSIGN:
-            return "-";
-        case TokenKind::MOD_ASSIGN:
-            return "%";
-        case TokenKind::LSHIFT_ASSIGN:
-            return "<<";
-        case TokenKind::RSHIFT_ASSIGN:
-            return ">>";
-        case TokenKind::AND_ASSIGN:
-            return "&&";
-        case TokenKind::BITXOR_ASSIGN:
-            return "^";
-        case TokenKind::BITAND_ASSIGN:
-            return "&";
-        case TokenKind::BITOR_ASSIGN:
-            return "|";
-        case TokenKind::OR_ASSIGN:
-            return "||";
-        default:
-            return "";
-    }
 }
 
 static std::string BuildCompoundAssignArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
@@ -1334,7 +1286,7 @@ static std::string BuildCompoundAssignArgumentText(const CallSiteContext &contex
     std::string leftText = ApplyCallSiteArgumentReplacements(context, std::move(replacements));
     std::string rightText = context.sel.arkAst->sourceManager->GetContentBetween(
         assignExpr->rightExpr->begin, assignExpr->rightExpr->end);
-    auto opText = GetCompoundAssignOperatorText(assignExpr->op);
+    auto opText = TweakUtils::GetCompoundAssignOperatorText(assignExpr->op);
     if (leftText.empty() || rightText.empty() || opText.empty()) {
         return context.argumentText;
     }

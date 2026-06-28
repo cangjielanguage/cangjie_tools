@@ -36,6 +36,10 @@ public:
 
     static std::string GetSelectedExprTypeName(const SelectionTree &selectionTree, const Range &range);
 
+    static bool IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node);
+
+    static std::string GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind);
+
     static Range FindGlobalInsertPos(const File &file, const Range &range);
 
     static size_t FindTokenBoundaryPos(const std::string &text, const std::string &token);

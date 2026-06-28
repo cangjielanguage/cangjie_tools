@@ -20,13 +20,6 @@ const std::unordered_set<Cangjie::AST::ASTKind> CANNOT_INTRODUCE_FIELD_EXPR = {
     ASTKind::BLOCK, ASTKind::STR_INTERPOLATION_EXPR, ASTKind::INTERPOLATION_EXPR
 };
 constexpr int BLANK_LINE_NEWLINE_COUNT = 2;
-constexpr const char *CONST_INITIALIZER_MESSAGE =
-    "Cannot introduce field from a const initializer because it must remain a compile-time constant expression.";
-constexpr const char *LET_PATTERN_DESTRUCTOR_MESSAGE =
-    "Cannot introduce field from a let pattern condition because it is not a standalone expression.";
-constexpr const char *IMMUTABLE_STRUCT_MEMBER_FIELD_ASSIGNMENT_MESSAGE =
-    "Cannot introduce field from an immutable struct function because it needs to modify an instance field.";
-
 struct LocalVarTarget {
     Ptr<Cangjie::AST::VarDecl> decl = nullptr;
     Range declarationRange;
@@ -35,6 +28,7 @@ struct LocalVarTarget {
 struct MemberInitializerTarget {
     Ptr<Cangjie::AST::VarDecl> decl = nullptr;
     Ptr<Cangjie::AST::InheritableDecl> owner = nullptr;
+    bool isGlobal = false;
 };
 
 static TextEdit InsertDefaultFieldDeclaration(const Tweak::Selection &sel, Range &range, std::string &fieldName,
@@ -129,6 +123,28 @@ static bool IsLetPatternDestructorSelection(const SelectionTree &selectionTree, 
         return SelectionTree::WalkAction::WALK_CHILDREN;
     });
     return isLetPatternDestructor;
+}
+
+static bool IsSelectionInLambdaExpr(const Tweak::Selection &sel, const Range &range)
+{
+    bool isInLambda = false;
+    if (!sel.arkAst || !sel.arkAst->file) {
+        return false;
+    }
+    ConstWalker(sel.arkAst->file, [&range, &isInLambda](Ptr<const Cangjie::AST::Node> node) {
+        if (!node || isInLambda) {
+            return VisitAction::STOP_NOW;
+        }
+        if (node->begin > range.start || node->end < range.end) {
+            return VisitAction::SKIP_CHILDREN;
+        }
+        if (node->astKind == ASTKind::LAMBDA_EXPR) {
+            isInLambda = true;
+            return VisitAction::STOP_NOW;
+        }
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
+    return isInLambda;
 }
 
 static Ptr<Cangjie::AST::RefExpr> GetSelectedRefExpr(const SelectionTree &selectionTree, const Range &range)
@@ -297,6 +313,16 @@ static std::optional<LocalVarTarget> GetLocalVarTarget(
 static std::optional<MemberInitializerTarget> GetMemberInitializerTarget(const Tweak::Selection &sel,
     const Range &range)
 {
+    auto selectedDecl = DynamicCast<Cangjie::AST::VarDecl *>(sel.selectionTree.TargetDecl().get());
+    if (selectedDecl && IsFieldLikeVarDecl(*selectedDecl) && IsMemberInitializerSelection(*selectedDecl, range)) {
+        if (selectedDecl->TestAttr(Attribute::GLOBAL)) {
+            return MemberInitializerTarget{selectedDecl, nullptr, true};
+        }
+        auto owner = FindMemberOwner(sel, *selectedDecl);
+        if (owner && IsClassOrStructDecl(*owner)) {
+            return MemberInitializerTarget{selectedDecl, owner, false};
+        }
+    }
     if (!sel.arkAst || !sel.arkAst->file) {
         return std::nullopt;
     }
@@ -310,15 +336,21 @@ static std::optional<MemberInitializerTarget> GetMemberInitializerTarget(const T
             return VisitAction::WALK_CHILDREN;
         }
         auto mutableDecl = const_cast<Cangjie::AST::VarDecl *>(varDecl);
+        if (mutableDecl->TestAttr(Attribute::GLOBAL)) {
+            target.decl = mutableDecl;
+            target.isGlobal = true;
+            return VisitAction::STOP_NOW;
+        }
         auto owner = FindMemberOwner(sel, *mutableDecl);
         if (!owner || !IsClassOrStructDecl(*owner)) {
             return VisitAction::WALK_CHILDREN;
         }
         target.decl = mutableDecl;
         target.owner = owner;
+        target.isGlobal = false;
         return VisitAction::STOP_NOW;
     }).Walk();
-    if (!target.decl || !target.owner) {
+    if (!target.decl || (!target.owner && !target.isGlobal)) {
         return std::nullopt;
     }
     return target;
@@ -433,7 +465,8 @@ class IntroduceFieldRule : public TweakRule {
             return false;
         }
         auto memberInitializerTarget = GetMemberInitializerTarget(sel, range);
-        if ((sel.selectionTree.SelectedScope() & SelectionTree::Scope::GLOBAL_VAR) != SelectionTree::Scope::UNKNOWN ||
+        if (((sel.selectionTree.SelectedScope() & SelectionTree::Scope::GLOBAL_VAR) != SelectionTree::Scope::UNKNOWN &&
+            !memberInitializerTarget) ||
             ((sel.selectionTree.SelectedScope() & SelectionTree::Scope::MEMBER_VAR) != SelectionTree::Scope::UNKNOWN &&
             !memberInitializerTarget) || IsExistingFieldDeclarationSelection(sel, range)) {
             extraOptions.insert(std::make_pair("ErrorCode",
@@ -443,6 +476,11 @@ class IntroduceFieldRule : public TweakRule {
         if (CANNOT_INTRODUCE_FIELD_EXPR.count(selectedExpr->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceField::IntroduceFieldError::INVALID_CODE_SEGMENT))));
+            return false;
+        }
+        if (TweakUtils::IsSupportedCompoundAssignExpr(*selectedExpr)) {
+            extraOptions.insert(std::make_pair("ErrorCode", std::to_string(static_cast<int>(
+                IntroduceField::IntroduceFieldError::INVALID_COMPOUND_ASSIGNMENT))));
             return false;
         }
         auto funcDecl = IntroduceField::GetTargetFunc(sel);
@@ -504,15 +542,6 @@ std::optional<Tweak::Effect> IntroduceField::Apply(const Selection &sel)
     }
 
     Range range = GetIntroduceFieldExprRange(sel.selectionTree, sel.range);
-    if (range.start == Position{0, 0, 0} || range.start == range.end) {
-        return std::nullopt;
-    }
-    if (IsLetPatternDestructorSelection(sel.selectionTree, range)) {
-        return Tweak::Effect::ShowMessage(LET_PATTERN_DESTRUCTOR_MESSAGE);
-    }
-    if (IsConstInitializerSelection(sel, range)) {
-        return Tweak::Effect::ShowMessage(CONST_INITIALIZER_MESSAGE);
-    }
     std::string typeName = GetIntroduceFieldTypeName(sel.selectionTree, range);
     if (typeName.empty()) {
         typeName = GetExplicitTypeName(sel);
@@ -521,16 +550,14 @@ std::optional<Tweak::Effect> IntroduceField::Apply(const Selection &sel)
         return std::nullopt;
     }
     auto memberInitializerTarget = GetMemberInitializerTarget(sel, range);
-    if (memberInitializerTarget && memberInitializerTarget->decl && memberInitializerTarget->owner) {
+    if (memberInitializerTarget && memberInitializerTarget->decl &&
+        (memberInitializerTarget->owner || memberInitializerTarget->isGlobal)) {
         return BuildMemberInitializerEffect(sel, range, fieldName, typeName, *memberInitializerTarget);
     }
 
     auto funcDecl = GetTargetFunc(sel);
     if (!funcDecl || !IsSupportedTargetFunc(*funcDecl)) {
         return std::nullopt;
-    }
-    if (IsImmutableStructMemberFieldAssignment(sel, range, typeName, *funcDecl)) {
-        return Tweak::Effect::ShowMessage(IMMUTABLE_STRUCT_MEMBER_FIELD_ASSIGNMENT_MESSAGE);
     }
     bool useSelectedExprAsInitializer = CanUseAsFieldInitializer(sel, range, *funcDecl) ||
         GetDefaultInitializer(sel, range, typeName).empty();
@@ -548,7 +575,7 @@ std::optional<Tweak::Effect> IntroduceField::Apply(const Selection &sel)
         return std::move(effect);
     }
     textEdits.push_back(InsertFieldDeclaration(sel, range, fieldName, typeName, *funcDecl));
-    if (!useSelectedExprAsInitializer) {
+    if (!useSelectedExprAsInitializer && !IsSelectionInLambdaExpr(sel, range)) {
         textEdits.push_back(InsertFieldAssignment(sel, range, fieldName, *funcDecl));
     }
     textEdits.push_back(ReplaceExprWithField(sel, range, fieldName, *funcDecl));
@@ -575,7 +602,8 @@ bool IntroduceField::IsSupportedTargetFunc(Cangjie::AST::FuncDecl &funcDecl)
     if (!funcDecl.outerDecl) {
         return true;
     }
-    return funcDecl.outerDecl->astKind == ASTKind::CLASS_DECL || funcDecl.outerDecl->astKind == ASTKind::STRUCT_DECL;
+    return funcDecl.outerDecl->astKind == ASTKind::CLASS_DECL || funcDecl.outerDecl->astKind == ASTKind::STRUCT_DECL ||
+        funcDecl.outerDecl->astKind == ASTKind::FUNC_DECL;
 }
 
 Ptr<Cangjie::AST::InheritableDecl> IntroduceField::GetOwnerDecl(const Selection &sel)
@@ -687,10 +715,10 @@ static Position GetLeadingCommentStart(
 // LCOV_EXCL_BR_STOP
 }
 
-static Position GetMethodInsertStart(
-    const Tweak::Selection &sel, const Position &searchStart, Cangjie::AST::FuncDecl &funcDecl)
+static Position GetDeclInsertStart(
+    const Tweak::Selection &sel, const Position &searchStart, Cangjie::AST::Decl &decl)
 {
-    Position codeBegin = GetCodeBegin(sel, funcDecl);
+    Position codeBegin = GetCodeBegin(sel, decl);
     return GetLeadingCommentStart(sel, searchStart, codeBegin);
 }
 
@@ -753,15 +781,23 @@ static Position GetTopLevelInsertStart(const Tweak::Selection &sel, Cangjie::AST
     if (!sel.arkAst || !sel.arkAst->file) {
         return GetDeclarationInsertStart(funcDecl);
     }
+    auto *topLevelDecl = DynamicCast<Cangjie::AST::Decl *>(&funcDecl);
+    while (topLevelDecl && topLevelDecl->outerDecl) {
+        topLevelDecl = topLevelDecl->outerDecl.get();
+    }
+    auto referenceDecl = topLevelDecl ? topLevelDecl : DynamicCast<Cangjie::AST::Decl *>(&funcDecl);
+    if (!referenceDecl) {
+        return GetDeclarationInsertStart(funcDecl);
+    }
     Position previousDeclEnd = sel.arkAst->file->package ? sel.arkAst->file->package->GetEnd() :
-        Position{funcDecl.begin.fileID, 1, 1};
+        Position{referenceDecl->begin.fileID, 1, 1};
     for (auto &decl : sel.arkAst->file->decls) {
-        if (!decl || decl->begin >= funcDecl.begin) {
+        if (!decl || decl->begin >= referenceDecl->begin) {
             break;
         }
         previousDeclEnd = decl->end;
     }
-    return GetMethodInsertStart(sel, previousDeclEnd, funcDecl);
+    return GetDeclInsertStart(sel, previousDeclEnd, *referenceDecl);
 }
 
 static Position GetOwnerInsertStart(
@@ -942,14 +978,14 @@ static std::optional<Tweak::Effect> BuildMemberInitializerEffect(const Tweak::Se
     Range insertRange{{target.decl->begin.fileID, target.decl->begin.line, 1},
         {target.decl->begin.fileID, target.decl->begin.line, 1}};
     declarationEdit.range = TransformFromChar2IDE(insertRange);
-    std::string indent = GetLineIndent(sel, target.decl->begin.line);
+    std::string indent = target.isGlobal ? "" : GetLineIndent(sel, target.decl->begin.line);
     if (indent.empty()) {
         indent = GetLeadingIndentBefore(sel, target.decl->begin);
     }
     std::string initializer = sel.arkAst->sourceManager->GetContentBetween(range.start, range.end);
     std::ostringstream declarationText;
     declarationText << indent << "private ";
-    if (target.decl->TestAttr(Attribute::STATIC)) {
+    if (!target.isGlobal && target.decl->TestAttr(Attribute::STATIC)) {
         declarationText << "static ";
     }
     declarationText << "var " << fieldName << ": " << typeName << " = " << initializer << "\n\n";
