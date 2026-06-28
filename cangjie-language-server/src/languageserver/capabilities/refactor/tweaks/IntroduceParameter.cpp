@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <sstream>
 #include <unordered_set>
@@ -258,6 +259,27 @@ static Ptr<Cangjie::AST::Expr> GetContainingIntroduceParameterExpr(
         return SelectionTree::WalkAction::WALK_CHILDREN;
     });
     return containingExpr;
+}
+
+static Ptr<Cangjie::AST::Expr> GetSelectedExpr(const SelectionTree &selectionTree, const Range &range)
+{
+    Ptr<Cangjie::AST::Expr> selectedExpr = nullptr;
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return nullptr;
+    }
+    SelectionTree::Walk(root, [&range, &selectedExpr](const SelectionTree::SelectionTreeNode *node) {
+        if (!node || !node->node) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        if (node->selected == SelectionTree::Selection::Complete && node->node->IsExpr() &&
+            node->node->begin == range.start && node->node->end == range.end) {
+            selectedExpr = DynamicCast<Cangjie::AST::Expr *>(node->node.get());
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return selectedExpr;
 }
 
 static Range GetIntroduceParameterExprRange(const SelectionTree &selectionTree, const Range &selectedRange)
@@ -598,26 +620,91 @@ static std::vector<TextEdit> BuildPartialParameterRemovalEdits(
     std::size_t replacedIndex)
 {
     std::vector<TextEdit> edits;
-    for (auto it = removedParamIndices.rbegin(); it != removedParamIndices.rend(); ++it) {
-        if (*it == replacedIndex || *it >= paramList.params.size() || !paramList.params[*it]) {
+    std::vector<std::size_t> indices;
+    for (auto index : removedParamIndices) {
+        if (index == replacedIndex || index >= paramList.params.size() || !paramList.params[index]) {
             continue;
         }
+        indices.push_back(index);
+    }
+    if (indices.empty()) {
+        return edits;
+    }
+
+    std::sort(indices.begin(), indices.end(), std::greater<std::size_t>());
+    for (std::size_t i = 0; i < indices.size();) {
+        std::size_t segmentEnd = indices[i];
+        std::size_t segmentStart = segmentEnd;
+        while (i + 1 < indices.size() && indices[i + 1] + 1 == segmentStart) {
+            ++i;
+            segmentStart = indices[i];
+        }
+
         Range removeRange;
-        if (!GetParamRemovalRange(paramList, *paramList.params[*it], removeRange)) {
+        if (segmentEnd + 1 < paramList.params.size() && paramList.params[segmentEnd + 1]) {
+            removeRange = {paramList.params[segmentStart]->begin, paramList.params[segmentEnd + 1]->begin};
+        } else if (segmentStart > 0 && paramList.params[segmentStart - 1]) {
+            removeRange = {paramList.params[segmentStart - 1]->end, paramList.params[segmentEnd]->end};
+        } else if (paramList.params[segmentStart]) {
+            removeRange = {paramList.params[segmentStart]->begin, paramList.params[segmentEnd]->end};
+        } else {
+            ++i;
             continue;
         }
         TextEdit textEdit;
         textEdit.range = TransformFromChar2IDE(removeRange);
         edits.push_back(textEdit);
+        ++i;
     }
     return edits;
 }
 // LCOV_EXCL_STOP
+static std::optional<Position> ResolveParamListRightParen(
+    const Tweak::Selection *sel, Cangjie::AST::FuncDecl *funcDecl, Cangjie::AST::FuncParamList &paramList)
+{
+    if (!sel || !sel->arkAst || !sel->arkAst->sourceManager || paramList.params.empty() || !paramList.params.front()) {
+        return std::nullopt;
+    }
+    auto searchEnd = paramList.rightParenPos;
+    if (searchEnd.IsZero() || searchEnd <= paramList.params.front()->begin) {
+        searchEnd = paramList.params.back() ? paramList.params.back()->end : searchEnd;
+    }
+    if (funcDecl && funcDecl->funcBody && funcDecl->funcBody->body &&
+        funcDecl->funcBody->body->begin > paramList.params.front()->begin) {
+        searchEnd = funcDecl->funcBody->body->begin;
+    }
+    if (searchEnd.IsZero() || searchEnd <= paramList.params.front()->begin) {
+        return std::nullopt;
+    }
+
+    auto searchStart = paramList.params.front()->begin;
+    std::string text = sel->arkAst->sourceManager->GetContentBetween(searchStart, searchEnd);
+    int depth = 0;
+    for (size_t offset = 0; offset < text.size(); ++offset) {
+        if (text[offset] == '(') {
+            ++depth;
+            continue;
+        }
+        if (text[offset] != ')') {
+            continue;
+        }
+        if (depth == 0) {
+            return TweakUtils::PositionAtOffset(searchStart, text, offset);
+        }
+        --depth;
+    }
+    return std::nullopt;
+}
+
 static std::vector<TextEdit> BuildAllParameterReplacementEdit(
-    Cangjie::AST::FuncParamList &paramList, const std::string &newParamText)
+    Cangjie::AST::FuncParamList &paramList,
+    const std::string &newParamText,
+    const Tweak::Selection *sel = nullptr,
+    Cangjie::AST::FuncDecl *funcDecl = nullptr)
 {
     TextEdit textEdit;
-    Range replaceRange = {paramList.params.front()->begin, paramList.params.back()->end};
+    auto rightParen = ResolveParamListRightParen(sel, funcDecl, paramList);
+    Range replaceRange = {paramList.params.front()->begin, rightParen.value_or(paramList.params.back()->end)};
     textEdit.range = TransformFromChar2IDE(replaceRange);
     textEdit.newText = newParamText;
     return {textEdit};
@@ -641,7 +728,7 @@ static std::vector<TextEdit> RemoveReplacedParameters(const ParamRemovalContext 
     std::string newParamText = BuildNewParamText(context.funcDecl, context.paramName, context.typeName);
     if (context.removedParamIndices.size() == paramList->params.size()) {
         context.insertedParameter = true;
-        return BuildAllParameterReplacementEdit(*paramList, newParamText);
+        return BuildAllParameterReplacementEdit(*paramList, newParamText, &context.sel, &context.funcDecl);
     }
 
     std::size_t replacedIndex = context.removedParamIndices.front();

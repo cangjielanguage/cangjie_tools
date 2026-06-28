@@ -13,6 +13,10 @@ func introduceParameterSample(base: Int64) {
     var value = base + 1
 }
 
+func multiParamSum(a: Int64, b: Int64, c: Int64, d: Int64, e: Int64): Int64 {
+    a + 1 + b + c + d + e + 7
+}
+
 func callIntroduceParameterSample() {
     introduceParameterSample(10)
 }

@@ -1213,6 +1213,32 @@ bool IsMatchingNonTypeReference(const Node &node, const Decl &targetDecl, const 
     return exprRange.has_value() && exprRange->start == referenceRange.start && exprRange->end == referenceRange.end;
 }
 
+bool IsConstructorReferenceTarget(Ptr<const Decl> target, const Decl &targetDecl)
+{
+    for (auto decl = target; decl; decl = decl->outerDecl) {
+        if (CheckDeclEqual(*decl, targetDecl)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::optional<Range> GetImplementationClassReferenceRange(const RefExpr &refExpr, const Decl &targetDecl)
+{
+    auto target = refExpr.ref.target;
+    if (!target || refExpr.ref.identifier.Val() != targetDecl.identifier.Val() ||
+        !IsConstructorReferenceTarget(target, targetDecl)) {
+        return std::nullopt;
+    }
+    Position begin = refExpr.GetIdentifierPos();
+    if (begin.IsZero()) {
+        return std::nullopt;
+    }
+    Range range{begin, begin};
+    range.end.column += static_cast<int>(CountUnicodeCharacters(refExpr.ref.identifier));
+    return range;
+}
+
 bool IsReferenceRangeTypeOnly(const Node &node, const Decl &targetDecl, const Range &referenceRange)
 {
     bool foundTypeMatch = false;
@@ -1510,6 +1536,31 @@ std::optional<TextEdit> BuildImplementationClassReplacementEditForLocation(const
         return std::nullopt;
     }
     return TextEdit{location.range, context.implementationClassName};
+}
+
+void AddImplementationClassConstructorEditsInFile(TypeReplacementContext &context, ArkAST &refAst, const std::string &uri)
+{
+    if (context.implementationClassName.empty() || !refAst.file) {
+        return;
+    }
+
+    auto &edits = context.applyEdits[uri];
+    ConstWalker(refAst.file.get(), [&context, &refAst, &edits](Ptr<const Node> node) {
+        auto refExpr = DynamicCast<const RefExpr*>(node.get());
+        if (!refExpr) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        auto refRange = GetImplementationClassReferenceRange(*refExpr, context.targetDecl);
+        if (!refRange.has_value() || !IsLikelyImplementationClassReferenceText(refAst, *refRange)) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        Range ideRange = TransformFromChar2IDE(*refRange);
+        TextEdit edit{ideRange, context.implementationClassName};
+        if (std::find(edits.begin(), edits.end(), edit) == edits.end()) {
+            edits.push_back(std::move(edit));
+        }
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
 }
 
 std::optional<TextEdit> BuildProtectedToPublicEdit(const FuncDecl &func, SourceManager *sm)
@@ -2575,10 +2626,14 @@ TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const In
     TextEdit edit;
     Cangjie::Position insertPos{0, 0, 0};
     std::string packageName = ResolveTargetPackageName(targetPath);
+    std::string appendPrefix;
     if (TargetFileExists(targetPath)) {
         packageName.clear();
         std::string content = GetTargetFileContent(targetPath);
         insertPos = TweakUtils::PositionAtOffset(Cangjie::Position{0, 0, 0}, content, content.size());
+        if (!content.empty()) {
+            appendPrefix = content.back() == '\n' ? "\n" : "\n\n";
+        }
     }
     if (TargetFileHasPackageDeclaration(targetPath)) {
         packageName.clear();
@@ -2586,7 +2641,7 @@ TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const In
 
     Range insertRange{insertPos, insertPos};
     edit.range = insertRange;
-    edit.newText = BuildInterfaceDeclText(info, packageName, true);
+    edit.newText = appendPrefix + BuildInterfaceDeclText(info, packageName, true);
     return edit;
 }
 
@@ -3009,6 +3064,8 @@ void CollectTypeReferenceReplacementEdits(TypeReplacementContext &context)
         }
         AddTypeReplacementEditForReference(context, normalizedLocation);
     }
+    AddImplementationClassConstructorEditsInFile(context, *context.sel.arkAst,
+        URI::URIFromAbsolutePath(context.sel.arkAst->file->filePath).ToString());
 }
 // LCOV_EXCL_BR_STOP
 
