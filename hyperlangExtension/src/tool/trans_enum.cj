@@ -37,6 +37,9 @@ public class TransEnum {
         var lastGivenNum: Int64 = -1
         for (i in 0..n) {
             let tmp = enumType.keyValues[i].replace(" ", "").split("=")
+            if (tmp.size == 0) {
+                continue
+            }
             let k = tmp[0]
             let v = if (tmp.size == 1) {
                 "" //未指定值

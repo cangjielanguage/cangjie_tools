@@ -63,7 +63,7 @@ public let ShapeComponent: Array<String> = ["Circle", "Line", "Path", "Rect", "S
 
 // 记录用户自定义的类型名称（定义类、接口、枚举、泛型类型时更新）
 private let userDefinedNamesLock: Mutex = Mutex()
-private let userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callbac21ArgumentWithReturn", "Callback3ArgumentWithReturn", "Context", "BaseContext", "UIAbilityContext"])
+private let userDefinedNames: HashSet<String> = HashSet<String>([i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64, bool, str, unit, byteArr, "HashMap", "AsyncCallback", "Callback", "Callback0Argument", "Callback1Argument", "Callback2Argument", "Callback3Argument", "Callback4Argument", "CallbackWithReturn", "Callback1ArgumentWithReturn", "Callback2ArgumentWithReturn", "Callback3ArgumentWithReturn", "Context", "BaseContext", "UIAbilityContext"])
 
 public func addUserDefinedName(name: String): Unit {
     synchronized(userDefinedNamesLock) {
@@ -799,7 +799,11 @@ public class UnionType {
             (x, y)
         } else {
             let x = Token(TokenKind.IDENTIFIER, genIdentifier(t) + "(x)")
-            let y = ty.toJSValue(gconfig.getOrThrow(), quote(x), quote($(ctxToken)))
+            let y = if (let Some(config) <- gconfig) {
+                ty.toJSValue(config, quote(x), quote($(ctxToken)))
+            } else {
+                Tokens()
+            }
             (x, y)
         }
     }

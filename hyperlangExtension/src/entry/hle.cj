@@ -37,8 +37,11 @@ public class A2CJ {
         }
 
         let templateFile = File.create(file)
-        templateFile.write(content.toArray())
-        templateFile.close()
+        try {
+            templateFile.write(content.toArray())
+        } finally {
+            templateFile.close()
+        }
     }
 
     public func transfer(): Unit {
@@ -54,11 +57,15 @@ public class A2CJ {
             parseNamespaces(i, outToken)
         }
 
-        file.write(outToken.toString().toArray())
+        try {
+            file.write(outToken.toString().toArray())
+        } finally {
+            file.close()
+        }
 
         mtx.lock()
         generateTemplateFile("${outSrcDir}/ark_api_call_async.cj", createArkAPICallAsync(gconfig))
-        generateTemplateFile("${outSrcDir}/business_exception.cj", createBusinessExceptioinKit(gconfig))
+        generateTemplateFile("${outSrcDir}/business_exception.cj", createBusinessExceptionKit(gconfig))
         generateTemplateFile("${outSrcDir}/callback_manager.cj", createCallbackManager(gconfig))
         mtx.unlock()
     }

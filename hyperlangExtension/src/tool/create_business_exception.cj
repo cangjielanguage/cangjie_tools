@@ -8,10 +8,17 @@ package hle.tool
 
 import std.time.DateTime
 
-public func createBusinessExceptioinKit(gconfig: GlobalConfig): String {
+public func createBusinessExceptionKit(gconfig: GlobalConfig): String {
     let moduleName = gconfig.cjModuleName
+    getBusinessExceptionContent(moduleName)
+}
 
-    let content = """
+private func getBusinessExceptionContent(moduleName: String): String {
+    getBusinessExceptionHeader(moduleName) + getBusinessExceptionBody()
+}
+
+private func getBusinessExceptionHeader(moduleName: String): String {
+"""
 // Copyright (c) Huawei Technologies Co., Ltd. ${DateTime.nowUTC().year}. All rights reserved.
 // This source file is part of the Cangjie project, licensed under Apache-2.0
 // with Runtime Library Exception.
@@ -26,14 +33,14 @@ import ohos.labels.APILevel
 protected const ERR_NO_PERMISSION: Int32 = 201
 protected const ERR_NOT_SYSTEM_APP: Int32 = 202
 protected const ERR_PARAMETER_ERROR: Int32 = 401
-protected const ERR_NOT_SUPPOERTED: Int32 = 801
+protected const ERR_NOT_SUPPORTED: Int32 = 801
 protected let UNIVERSAL_ERROR_MAP = HashMap<Int32, String>(
     [
         (ERR_NO_PERMISSION,
             "Permission verification failed. The application does not have the permission required to call the API."),
         (ERR_NOT_SYSTEM_APP, "Permission verification failed. A non-system application calls a system API."),
         (ERR_PARAMETER_ERROR, "Parameter error. Parameter verification failed."),
-        (ERR_NOT_SUPPOERTED, "Capability not supported. Failed to call the API due to limited device capabilities.")
+        (ERR_NOT_SUPPORTED, "Capability not supported. Failed to call the API due to limited device capabilities.")
     ]
 )
 
@@ -41,6 +48,11 @@ protected func getUniversalErrorMsg(code: Int32): ?String {
     UNIVERSAL_ERROR_MAP.get(code)
 }
 
+"""
+}
+
+private func getBusinessExceptionBody(): String {
+"""
 /**
  * Defines the exception interface.
  */
@@ -107,5 +119,4 @@ public class BusinessException <: Exception {
  */
 public type AsyncCallback<T> = (Option<BusinessException>, Option<T>) -> Unit
 """
-    return content
 }

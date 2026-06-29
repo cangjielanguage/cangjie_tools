@@ -295,13 +295,13 @@ public class TransObject {
     private func genSuperCallWithArktsObject(totalProperties: ArrayList<Property>, fromJSValueItem: Tokens) {
         for (i in 0..totalProperties.size) {
             let arkProp = totalProperties[i]
-            var proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
             let tsType = arkProp.typeNode
             let ctxToken = Tokens(Token(TokenKind.IDENTIFIER, "getMainContext()"))
 
             let isLast = i >= totalProperties.size - 1
             // generate fromJS statement for this field
             if (arkProp.isOptional) {
+                let proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
                 fromJSValueItem.append(quote($(proName): ))
             }
             let fromJs = tsType.fromJSValue(gconfig, quote(arkts_object[$(arkProp.propKey)]), ctxToken,
@@ -314,13 +314,7 @@ public class TransObject {
         }
     }
 
-    private func generateTokenWithoutArktsObject(modifiersTokens: Tokens, templateClassNameToken: Token, parent: Tokens,
-        classConstraintsToken: Tokens): Tokens {
-        let property = Tokens()
-        let jsValueConvertToken = Tokens()
-
-        genPropWithOutArktsObject(property, jsValueConvertToken, templateClassNameToken)
-
+    private func buildPropertyVarDeclare(): Tokens {
         let varDeclare = Tokens()
         for (arkProp in arkProperties) {
             let prefix = if (arkProp.isReadOnly()) {
@@ -328,26 +322,39 @@ public class TransObject {
             } else {
                 Token(TokenKind.IDENTIFIER, "var")
             }
-            var proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
-            let propType = arkProp.typeNode.toCJTypeTokens()
             if (arkProp.isOptional) {
+                let proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
                 let (typeToken, defToken) = if (let Some(def) <- arkProp.defValue) {
-                    (propType, Token(TokenKind.IDENTIFIER, def))
+                    (arkProp.typeNode.toCJTypeTokens(), Token(TokenKind.IDENTIFIER, def))
                 } else {
-                    (Tokens(Token(TokenKind.IDENTIFIER, "Option<${propType}>")), noneToken)
+                    (Tokens(Token(TokenKind.IDENTIFIER, "Option<${arkProp.typeNode.toCJTypeTokens()}>")), noneToken)
                 }
                 varDeclare.append(quote(public $(prefix) $(proName): $(typeToken) = $(defToken)))
             } else {
-                varDeclare.append(quote(public $(prefix) $(proName): $(propType)))
+                let proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
+                varDeclare.append(quote(public $(prefix) $(proName): $(arkProp.typeNode.toCJTypeTokens())))
             }
             varDeclare.append(nl)
         }
+        varDeclare
+    }
+
+    private func appendPropAssignment(assignment: Tokens, arkProp: Property): Unit {
+        let proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
+        assignment.append(quote(this.$(proName) = $(proName)))
+        assignment.append(nl)
+    }
+
+    private func generateTokenWithoutArktsObject(modifiersTokens: Tokens, templateClassNameToken: Token, parent: Tokens,
+        classConstraintsToken: Tokens): Tokens {
+        let property = Tokens()
+        let jsValueConvertToken = Tokens()
+
+        genPropWithOutArktsObject(property, jsValueConvertToken, templateClassNameToken)
 
         let assignment = Tokens()
         for (arkProp in arkProperties) {
-            var proName = Token(TokenKind.IDENTIFIER, arkProp.cjKey)
-            assignment.append(quote(this.$(proName) = $(proName)))
-            assignment.append(nl)
+            appendPropAssignment(assignment, arkProp)
         }
 
         tokens.append(quote(
@@ -358,6 +365,7 @@ public class TransObject {
            tokens.append(declareCallbackManager())
         }
         if (!arkProperties.isEmpty()) {
+            let varDeclare = buildPropertyVarDeclare()
             tokens.append(varDeclare)
         }
         if (arkProperties.size == 0 || arkProperties.size == 1) {

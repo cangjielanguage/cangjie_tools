@@ -12,14 +12,14 @@ import ohos.labels.APILevel
 protected const ERR_NO_PERMISSION: Int32 = 201
 protected const ERR_NOT_SYSTEM_APP: Int32 = 202
 protected const ERR_PARAMETER_ERROR: Int32 = 401
-protected const ERR_NOT_SUPPOERTED: Int32 = 801
+protected const ERR_NOT_SUPPORTED: Int32 = 801
 protected let UNIVERSAL_ERROR_MAP = HashMap<Int32, String>(
     [
         (ERR_NO_PERMISSION,
             "Permission verification failed. The application does not have the permission required to call the API."),
         (ERR_NOT_SYSTEM_APP, "Permission verification failed. A non-system application calls a system API."),
         (ERR_PARAMETER_ERROR, "Parameter error. Parameter verification failed."),
-        (ERR_NOT_SUPPOERTED, "Capability not supported. Failed to call the API due to limited device capabilities.")
+        (ERR_NOT_SUPPORTED, "Capability not supported. Failed to call the API due to limited device capabilities.")
     ]
 )
 
