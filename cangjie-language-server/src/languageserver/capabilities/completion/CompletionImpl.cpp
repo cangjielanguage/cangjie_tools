@@ -199,7 +199,15 @@ void CompletionImpl::CodeComplete(const ArkAST &input,
 
     auto curLineTokens = GetLineTokens(input.tokens, pos.line);
     if (IsMultiImport(curLineTokens)) {
-        prefix = '.';
+        // When the cursor is on an identifier right after a dot inside multi-import braces
+        // (e.g., import std.{math.a), keep the original prefix so the dedicated multi-import
+        // branch in FasterComplete can extract the intra-brace chain correctly.
+        bool isIdentAfterDot = index > 0 &&
+            input.tokens[static_cast<unsigned int>(index - 1)].kind == TokenKind::DOT &&
+            input.tokens[static_cast<unsigned int>(index)].kind == TokenKind::IDENTIFIER;
+        if (!isIdentAfterDot) {
+            prefix = '.';
+        }
     }
 
     // If input.semaCache is not nullptr, it's parse complete
@@ -278,6 +286,26 @@ void CompletionImpl::FasterComplete(
         auto chainedName = GetChainedName(input, pos, index, firstTokIdxInLine);
         dotCompleter.Complete(input, pos, chainedName);
         return;
+    }
+
+    // Multi-import with identifier after dot: import std.{math.a}
+    // Extract the chain inside braces via GetChainedNameComplex, then concatenate
+    // with the multi-import prefix (the part before '{') to form the full package path.
+    if (prevTokOfPrefix.kind == TokenKind::DOT && index > 1) {
+        auto multiImportTokens = GetLineTokens(input.tokens, pos.line);
+        if (IsMultiImport(multiImportTokens)) {
+            pos.column = prevTokOfPrefix.Begin().column + 1;
+            pos.line = prevTokOfPrefix.Begin().line;
+            int possibleChainedBegin = GetChainedPossibleBegin(input, firstTokIdxInLine);
+            auto chainedName = GetChainedNameComplex(input, possibleChainedBegin, index - 2);
+            if (!chainedName.empty()) {
+                chainedName = GetMultiImportPrefix(multiImportTokens) + CONSTANTS::DOT() + chainedName;
+            } else {
+                chainedName = GetMultiImportPrefix(multiImportTokens);
+            }
+            dotCompleter.Complete(input, pos, chainedName);
+            return;
+        }
     }
 
     // Import Spec: import pkg.v[item]
