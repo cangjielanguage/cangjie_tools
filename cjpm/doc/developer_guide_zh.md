@@ -219,8 +219,8 @@ Use "cjpm [subcommand] --help" for more information about a command.
   target-dir = "" # 指定产物存放路径，非必需
   script-dir = "" # 指定构建脚本产物存放路径，非必需
   package-configuration = {} # 单包配置选项，非必需
-  include = ["src"] # 指定打包范围，非必需
-  exclude = ["*.txt"] # 指定打包排除范围，非必需
+  include = ["src"] # 指定打包范围（gitignore 风格 glob），非必需
+  exclude = ["*.txt"] # 指定打包排除范围（gitignore 风格 glob），非必需
 
   # 中心仓制品展示相关字段
   authors = ["Tom", "Joan"] # 作者 ID 列表，非必需
