@@ -196,6 +196,7 @@ void MemIndex::FindImportSymsOnCompletion(
         }
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
         for (const auto &sym : pkgSyms.second) {
+            // filter symbols that not in correct package
             if (sym.scope.find(pkgSyms.first) == std::string::npos) {
                 continue;
             }
@@ -223,7 +224,7 @@ void MemIndex::FindImportSymsOnCompletion(
                 continue;
             }
             // filter not top decl
-            if (sym.scope.find(':') != std::string::npos) {
+            if (sym.scope.find(':') != std::string::npos && sym.scope != pkgSyms.first) {
                 continue;
             }
             // filter by modifier
@@ -452,7 +453,7 @@ void MemIndex::FindImportSymsOnQuickFix(const SymbolSearchContext &context,
                 continue;
             }
             // filter not top decl
-            if (sym.scope.find(':') != std::string::npos) {
+            if (sym.scope.find(':') != std::string::npos && sym.scope != pkgSyms.first) {
                 continue;
             }
             // filter by modifier
