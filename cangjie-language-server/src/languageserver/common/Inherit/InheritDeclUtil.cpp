@@ -107,6 +107,9 @@ void InheritDeclUtil::HandleRelatedFuncDeclsFromTopLevel(Ptr<Decl> topLevel, boo
     } else if (ark::Is<EnumDecl>(topLevel.get())) {
         auto enumDecl = dynamic_cast<EnumDecl*>(topLevel.get());
         HandleDeclBody(enumDecl);
+    } else if (ark::Is<ExtendDecl>(topLevel.get())) {
+        auto extendDecl = DynamicCast<ExtendDecl>(topLevel);
+        HandleDeclBody(extendDecl);
     } else {
         auto interfaceDecl = dynamic_cast<InterfaceDecl*>(topLevel.get());
         if (!interfaceDecl || !interfaceDecl->body) {
@@ -141,23 +144,6 @@ void InheritDeclUtil::HandleFuncDecl(bool isDocumentHighlight)
     }
     classLikeOrStructDecl = dynamic_cast<InheritableDecl*>(inDecl->outerDecl.get());
     if (!classLikeOrStructDecl) { return; }
-    // deal funcDecl in Extend
-    if (inDecl->outerDecl->astKind == Cangjie::AST::ASTKind::EXTEND_DECL) {
-        for (auto &item: classLikeOrStructDecl->inheritedTypes) {
-            // LCOV_EXCL_START
-            if (item->GetTy()->kind == TypeKind::TYPE_CLASS) {
-                auto superDecl = dynamic_cast<ClassTy *>(item->GetTy().get())->decl;
-                auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
-                HandleRelatedFuncDeclsFromTopLevel(realDecl, !isDocumentHighlight);
-            } else if (item->GetTy()->kind == TypeKind::TYPE_INTERFACE) {
-                auto superDecl = dynamic_cast<InterfaceTy *>(item->GetTy().get())->decl;
-                auto realDecl = CompilerCangjieProject::GetInstance()->GetDeclInPkgByNode(superDecl, editPkgPath);
-                HandleRelatedFuncDeclsFromTopLevel(realDecl, !isDocumentHighlight);
-            }
-            // LCOV_EXCL_STOP
-        }
-        if (isDocumentHighlight) { return; }
-    }
 
     // DocumentHighlight just find parentDecl
     if (isDocumentHighlight) {
