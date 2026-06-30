@@ -148,41 +148,39 @@ public:
         std::stringstream log;
         Logger& logger = Logger::Instance();
         Callback<nlohmann::json> replyHandler = nullptr;
-        auto intID = id.get<int>();
-        if (intID != 0) {
-            std::lock_guard<std::mutex> mutex(callMutex);
-            // Find a corresponding callback for the request ID;
-            for (size_t index = 0; index < replyCallbacks.size(); ++index) {
-                if (replyCallbacks[index].first == intID) {
-                    replyHandler = std::move(replyCallbacks[index].second);
-                    // remove the entry
-                    (void)replyCallbacks.erase(replyCallbacks.begin() + static_cast<long long>(index));
-                    break;
-                }
+#ifndef NO_EXCEPTIONS
+        try {
+#endif
+            auto intID = id.get<int>();
+            replyHandler = TakeReplyCallback(intID);
+            if (!replyHandler) {
+                // No callback being found, use a default log callback.
+                CleanAndLog(log, "received a reply with ID:" + std::to_string(id.get<int>()) +
+                                     ", but there was no such call");
+                logger.LogMessage(MessageType::MSG_WARNING, log.str());
+                return LSPRet::SUCCESS;
             }
-        }
-
-        if (!replyHandler) {
-            // No callback being found, use a default log callback.
-            CleanAndLog(log, "received a reply with ID:" + std::to_string(id.get<int>()) +
-                                 ", but there was no such call");
-            logger.LogMessage(MessageType::MSG_WARNING, log.str());
+            // LCOV_EXCL_START
+            // Log and run the reply handler.
+            if (result.type == ValueOrErrorCheck::VALUE) {
+                CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", success");
+                logger.LogMessage(MessageType::MSG_INFO, log.str());
+                replyHandler(std::move(result.jsonValue));
+            } else {
+                CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", error:" +
+                    std::to_string(static_cast<int>(result.errorInfo.code)) +
+                            "," + result.errorInfo.message);
+                logger.LogMessage(MessageType::MSG_WARNING, log.str());
+            }
+            // LCOV_EXCL_STOP
             return LSPRet::SUCCESS;
-        }
-        // LCOV_EXCL_START
-        // Log and run the reply handler.
-        if (result.type == ValueOrErrorCheck::VALUE) {
-            CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", success");
-            logger.LogMessage(MessageType::MSG_INFO, log.str());
-            replyHandler(std::move(result.jsonValue));
-        } else {
-            CleanAndLog(log, "<-- reply:" + std::to_string(id.get<int>()) + ", error:" +
-                std::to_string(static_cast<int>(result.errorInfo.code)) +
-                        "," + result.errorInfo.message);
+#ifndef NO_EXCEPTIONS
+        } catch (const std::exception &e) {
+            CleanAndLog(log, "Invalid reply: " + std::string(e.what()));
             logger.LogMessage(MessageType::MSG_WARNING, log.str());
+            return LSPRet::ABNORMAL_EXIT;
         }
-        // LCOV_EXCL_STOP
-        return LSPRet::SUCCESS;
+#endif
     }
 
     // Bind an LSP method name to a call.
@@ -247,6 +245,24 @@ public:
     void SetInitialized(bool beInitialized)
     {
         this->isInitialized = beInitialized;
+    }
+
+    Callback<nlohmann::json> TakeReplyCallback(int intID)
+    {
+        if (intID == 0) {
+            return nullptr;
+        }
+        std::lock_guard<std::mutex> mutex(callMutex);
+        // Find a corresponding callback for the request ID;
+        for (size_t index = 0; index < replyCallbacks.size(); ++index) {
+            if (replyCallbacks[index].first == intID) {
+                auto handler = std::move(replyCallbacks[index].second);
+                // remove the entry
+                (void)replyCallbacks.erase(replyCallbacks.begin() + static_cast<long long>(index));
+                return handler;
+            }
+        }
+        return nullptr;
     }
 
 private:
