@@ -428,6 +428,7 @@
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_MultiLineArg.test","id":"7"}}
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_Func_Overload_001.test","id":"7"}}
 {"documentHighlight":{"testFile":"LSP_DocumentHighlight_Func_Overload_002.test","id":"7"}}
+{"documentHighlight":{"testFile":"LSP_DocumentHighlight_ExtendDocHighLight_001.test","id":"7"}}
 
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_String_001.test","id":"7"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Interface_001.test","id":"110"}}
