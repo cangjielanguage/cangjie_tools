@@ -364,6 +364,10 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
         if (curPkgName == symPackage) {
             return true;
         }
+        // filter symbols that not in correct package
+        if (sym.scope.find(symPackage) == std::string::npos) {
+            return true;
+        }
         // filter symbols that not dependent by curModule
         if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
             return true;
@@ -389,7 +393,7 @@ void BackgroundIndexDB::FindImportSymsOnCompletion(
             return true;
         }
         // filter not top decl
-        if (sym.scope.find(':') != std::string::npos) {
+        if (sym.scope.find(':') != std::string::npos && sym.scope != symPackage) {
             return true;
         }
         // filter by modifier
@@ -433,6 +437,10 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const SymbolSearchContext &cont
         if (curPkgName == symPackage) {
             return true;
         }
+        // filter symbols that not in correct package
+        if (sym.scope.find(symPackage) == std::string::npos) {
+            return true;
+        }
         // filter symbols that not dependent by curModule
         if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
             return true;
@@ -453,7 +461,7 @@ void BackgroundIndexDB::FindImportSymsOnQuickFix(const SymbolSearchContext &cont
             return true;
         }
         // filter not top decl
-        if (sym.scope.find(':') != std::string::npos) {
+        if (sym.scope.find(':') != std::string::npos && sym.scope != symPackage) {
             return true;
         }
         // filter by modifier

@@ -247,27 +247,6 @@ static Ptr<Cangjie::AST::Expr> GetContainingIntroduceParameterExpr(
     return containingExpr;
 }
 
-static Ptr<Cangjie::AST::Expr> GetSelectedExpr(const SelectionTree &selectionTree, const Range &range)
-{
-    Ptr<Cangjie::AST::Expr> selectedExpr = nullptr;
-    auto root = selectionTree.root();
-    if (!root || !root->node) {
-        return nullptr;
-    }
-    SelectionTree::Walk(root, [&range, &selectedExpr](const SelectionTree::SelectionTreeNode *node) {
-        if (!node || !node->node) {
-            return SelectionTree::WalkAction::STOP_NOW;
-        }
-        if (node->selected == SelectionTree::Selection::Complete && node->node->IsExpr() &&
-            node->node->begin == range.start && node->node->end == range.end) {
-            selectedExpr = DynamicCast<Cangjie::AST::Expr *>(node->node.get());
-            return SelectionTree::WalkAction::STOP_NOW;
-        }
-        return SelectionTree::WalkAction::WALK_CHILDREN;
-    });
-    return selectedExpr;
-}
-
 static Range GetIntroduceParameterExprRange(const SelectionTree &selectionTree, const Range &selectedRange)
 {
     Range range;
@@ -523,33 +502,8 @@ static bool IsFuncParamUsedOutsideRange(Cangjie::AST::FuncDecl &funcDecl, Cangji
     return isUsed;
 }
 // LCOV_EXCL_BR_STOP
-// LCOV_EXCL_START
-static bool GetParamRemovalRange(Cangjie::AST::FuncParamList &paramList, Cangjie::AST::FuncParam &param, Range &range)
-{
-    for (std::size_t index = 0; index < paramList.params.size(); ++index) {
-        if (!paramList.params[index] || paramList.params[index].get() != &param) {
-            continue;
-        }
-        if (paramList.params.size() == 1) {
-            range.start = param.begin;
-            range.end = param.end;
-            return true;
-        }
-        if (index + 1 < paramList.params.size() && paramList.params[index + 1]) {
-            range.start = param.begin;
-            range.end = paramList.params[index + 1]->begin;
-            return true;
-        }
-        if (index > 0 && paramList.params[index - 1]) {
-            range.start = paramList.params[index - 1]->end;
-            range.end = param.end;
-            return true;
-        }
-        return false;
-    }
-    return false;
-}
 
+// LCOV_EXCL_START
 static std::vector<std::size_t> CollectRemovableParamIndices(
     const Tweak::Selection &sel, Cangjie::AST::FuncDecl &funcDecl, Cangjie::AST::FuncParamList &paramList, Range &range)
 {
@@ -838,11 +792,11 @@ TextEdit IntroduceParameter::ReplaceExprWithParam(const Selection &sel, Range &r
     std::string charContent = sel.arkAst->sourceManager->GetContentBetween(
         {range.start.fileID, range.start.line, 1}, range.start);
     range.start.column = CountUnicodeCharacters(charContent) + 1;
-    
+
     std::string endCharContent = sel.arkAst->sourceManager->GetContentBetween(
         {range.end.fileID, range.end.line, 1}, range.end);
     range.end.column = CountUnicodeCharacters(endCharContent) + 1;
-    
+
     textEdit.range = TransformFromChar2IDE(range);
     return textEdit;
 }
@@ -1444,7 +1398,7 @@ static std::string ReplaceThisReceiverAtCallSite(
     }
 
     std::string receiverText;
-    
+
     if (callExpr.baseFunc && callExpr.baseFunc->astKind == ASTKind::MEMBER_ACCESS) {
         auto memberAccess = DynamicCast<Cangjie::AST::MemberAccess *>(callExpr.baseFunc.get());
         if (memberAccess && memberAccess->baseExpr) {

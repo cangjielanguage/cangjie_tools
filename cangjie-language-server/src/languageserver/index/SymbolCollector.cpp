@@ -1915,7 +1915,7 @@ void SymbolCollector::CreateNamedArgRef(const CallExpr &ce)
     }
 }
 
-void SymbolCollector::CreateResolvedFunctionRef(const CallExpr& ce, const std::string& filePath)
+void SymbolCollector::CreateResolvedFunctionRef(const CallExpr& ce)
 {
     auto funcDecl = DynamicCast<FuncDecl*>(ce.resolvedFunction.get());
     if (!funcDecl || !funcDecl->outerDecl || !ce.curFile) {
@@ -2198,7 +2198,7 @@ void SymbolCollector::CollectNode(Ptr<Node> node, const std::string& filePath, A
     } else if (auto ce = DynamicCast<CallExpr *>(node); ce && !ce->desugarExpr) {
         CreateNamedArgRef(*ce);
         if (ce->resolvedFunction && ce->curFile) {
-            CreateResolvedFunctionRef(*ce, filePath);
+            CreateResolvedFunctionRef(*ce);
         }
     } else if (auto type = DynamicCast<Type *>(node)) {
         CreateTypeRef(*type, filePath);
