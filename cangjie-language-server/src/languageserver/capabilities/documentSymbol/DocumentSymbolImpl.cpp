@@ -247,6 +247,8 @@ void DocumentSymbolImpl::FindDocumentSymbols(const ArkAST &ast, std::vector<Docu
     if (ast.file == nullptr || ast.file->decls.empty()) {
         return;
     }
+
+    std::unordered_set<Ptr<Node>> visitedMacroExpandDecls{nullptr};
     for (auto &toplevelDecl : ast.file->decls) {
         if (!toplevelDecl) {
             continue;
@@ -255,14 +257,16 @@ void DocumentSymbolImpl::FindDocumentSymbols(const ArkAST &ast, std::vector<Docu
         auto astKind = toplevelDecl->astKind;
         // just need no macroExpand Node
         if (astKind == ASTKind::MACRO_EXPAND_DECL) {
-            auto macroExpandDecl = dynamic_cast< MacroExpandDecl *>(toplevelDecl.get().get());
-            if (macroExpandDecl && macroExpandDecl->invocation.decl) {
+            auto macroExpandDecl = DynamicCast<MacroExpandDecl>(toplevelDecl.get().get());
+            if (visitedMacroExpandDecls.count(macroExpandDecl) == 0 && macroExpandDecl->invocation.decl) {
+                visitedMacroExpandDecls.insert(macroExpandDecl);
                 aimDecl = macroExpandDecl->invocation.decl.get();
                 astKind = aimDecl->astKind;
             }
         } else if (toplevelDecl->curMacroCall && !toplevelDecl->isInMacroCall) {
-            auto *macroExpandDecl = dynamic_cast<MacroExpandDecl *>(toplevelDecl->curMacroCall.get());
-            if (macroExpandDecl && macroExpandDecl->invocation.decl) {
+            auto macroExpandDecl = DynamicCast<MacroExpandDecl>(toplevelDecl->curMacroCall.get());
+            if (visitedMacroExpandDecls.count(macroExpandDecl) == 0 && macroExpandDecl->invocation.decl) {
+                visitedMacroExpandDecls.insert(macroExpandDecl);
                 aimDecl = macroExpandDecl->invocation.decl.get();
                 astKind = aimDecl->astKind;
             }
