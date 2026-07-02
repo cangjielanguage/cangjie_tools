@@ -336,8 +336,31 @@ func isBinary(fileInfo: FileInfo): Bool {
 }
 
 /*
- * Verify if a file path match a rule for include/exclude
- * 'path' should always be a file, and has already been transfered into relative path, with '\' replaced by '/'
+ * Normalize bundle include/exclude rules before pattern matching.
+ * Path.normalize() collapses redundant separators, removes '.' segments,
+ * and resolves '..' without io; glob metacharacters are kept as literal path
+ * characters. Trailing '/' is restored when the original rule had one, since
+ * normalize() strips trailing separators.
+ */
+func normalizeBundleRule(rule: String): String {
+    let trimmed = rule.trimAscii()
+    if (trimmed.isEmpty()) {
+        return trimmed
+    }
+
+    let hadTrailingSlash = trimmed.endsWith("/")
+    var normalized = Path(trimmed.replace("\\", "/")).normalize().toString().replace("\\", "/")
+
+    if (hadTrailingSlash && !normalized.endsWith("/")) {
+        normalized += "/"
+    }
+    return normalized
+}
+
+/*
+ * Check whether a relative file path matches an include/exclude glob rule.
+ * 'path' must use forward slashes; the rule is normalized before glob-to-regex
+ * conversion.
  */
 func isPathIncluded(path: String, rule: String): Bool {
     if (rule.isEmpty() || rule.startsWith("#")) {
@@ -345,7 +368,7 @@ func isPathIncluded(path: String, rule: String): Bool {
     }
 
     var regexRule = ""
-    var processedpattern = rule.trimAscii()
+    var processedpattern = normalizeBundleRule(rule)
 
     // process rules start with '/'
     if (processedpattern.startsWith("/")) {
@@ -358,6 +381,11 @@ func isPathIncluded(path: String, rule: String): Bool {
         }
     } else {
         regexRule = "^(.*/)?"
+    }
+
+    // Rules like "./", "././" normalize to empty or "." and mean the entire project tree.
+    if (processedpattern.isEmpty() || processedpattern == ".") {
+        return Regex("^.*$").matches(path)
     }
 
     // start running pattern-process
