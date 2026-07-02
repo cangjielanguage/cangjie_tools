@@ -51,7 +51,7 @@ protected func getUniversalErrorMsg(code: Int32): ?String {
 """
 }
 
-private func getBusinessExceptionBody(): String {
+private func getBusinessExceptionClassFields(): String {
 """
 /**
  * Defines the exception interface.
@@ -86,6 +86,11 @@ public class BusinessException <: Exception {
         }
     }
 
+"""
+}
+
+private func getBusinessExceptionClassMethods(): String {
+"""
     protected init(code: Int32, msg: String, data!: ?Any = None) {
         super(msg)
         this.code = code
@@ -114,6 +119,12 @@ public class BusinessException <: Exception {
     }
 }
 
+"""
+}
+
+private func getBusinessExceptionBody(): String {
+    getBusinessExceptionClassFields() + getBusinessExceptionClassMethods() +
+"""
 /**
  * Defines the basic async callback.
  */
