@@ -244,6 +244,8 @@ private:
     SyscapCheck syscap;
 
     bool inIfAvailable = false;
+
+    unsigned int semaCurFileID = 0;
 };
 
 using FindFunc = void (ark::DotCompleterByParse::*)(

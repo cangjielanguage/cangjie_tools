@@ -454,8 +454,8 @@ void CompletionEnv::DealMatchExpr(Ptr<Node> node, const Position pos)
     }
     if (pMatchExpr->selector) {
         auto selPosition = pMatchExpr->selector->GetBegin();
-        std::string query = "_ = (" + std::to_string(pos.fileID) + ", " + std::to_string(selPosition.line) + ", " +
-                            std::to_string(selPosition.column) + ")";
+        std::string query = "_ = (" + std::to_string(parserAst->semaCache->fileID) + ", " +
+            std::to_string(selPosition.line) + ", " + std::to_string(selPosition.column) + ")";
         auto symbols = SearchContext(cache->packageInstance->ctx, query);
         if (auto target = Ty::GetDeclPtrOfTy(symbols[0]->node->GetTy())) {
             matchSelector = target->identifier;
