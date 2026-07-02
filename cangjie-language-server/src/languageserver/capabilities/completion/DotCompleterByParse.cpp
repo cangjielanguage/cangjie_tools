@@ -57,6 +57,7 @@ void DotCompleterByParse::Complete(const ArkAST &input,
                                    const Position &pos,
                                    const std::string &prefix)
 {
+    this->semaCurFileID = input.semaCache->fileID;
     CompletionEnv env;
     if (!context) {
         env.OutputResult(result);
@@ -437,7 +438,7 @@ Ptr<Decl> DotCompleterByParse::FindTopDecl(const ArkAST &input, const std::strin
                                            CompletionEnv &env, const Position &pos)
 {
     Ptr<Decl> topDecl = nullptr;
-    std::string query = "_ = (" + std::to_string(pos.fileID) + ", " + std::to_string(pos.line) +
+    std::string query = "_ = (" + std::to_string(semaCurFileID) + ", " + std::to_string(pos.line) +
                         ", " + std::to_string(pos.column - 1) + ")";
     auto posSyms = SearchContext(context, query);
     if (posSyms.empty()) {
@@ -785,7 +786,7 @@ void DotCompleterByParse::FindVarPattern(Ptr<Node> node, const Position &pos, st
     auto pVarPattern = dynamic_cast<VarPattern*>(node.get());
     if (!pVarPattern) { return; }
     if (pVarPattern->varDecl) {
-        std::string query = "_ = (" + std::to_string(pos.fileID) + ", " +
+        std::string query = "_ = (" + std::to_string(semaCurFileID) + ", " +
                             std::to_string(pVarPattern->varDecl->begin.line) + ", " +
                             std::to_string(pVarPattern->varDecl->begin.column) + ")";
         auto posSyms = SearchContext(context, query);
@@ -1474,7 +1475,7 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
 std::string DotCompleterByParse::QueryByPos(Ptr<Node> node, const Position pos)
 {
     if (!node) { return ""; }
-    std::string query = "_ = (" + std::to_string(pos.fileID) + ", "+
+    std::string query = "_ = (" + std::to_string(semaCurFileID) + ", "+
                         std::to_string(node->begin.line) + ", " +
                         std::to_string(node->begin.column) + ")";
     auto posSyms = SearchContext(context, query);

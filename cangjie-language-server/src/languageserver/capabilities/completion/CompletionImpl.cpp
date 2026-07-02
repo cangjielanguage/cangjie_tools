@@ -578,7 +578,7 @@ IfImportInfo CompletionImpl::GetIfImportInfo(const ArkAST &input, Position pos, 
     }
 
     pos.column -= prefix.size();
-    std::string query = "_ = (" + std::to_string(pos.fileID) + ", " +
+    std::string query = "_ = (" + std::to_string(input.semaCache->fileID) + ", " +
         std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
 
     auto syms = SearchContext(input.semaCache->packageInstance->ctx, query);
