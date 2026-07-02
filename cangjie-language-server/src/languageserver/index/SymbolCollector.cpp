@@ -1650,7 +1650,7 @@ void SymbolCollector::CreateReExportSymbolFromSingleImport(const File &file,
         return;
     }
     auto importContent = importSpec->content;
-    std::string importedPkgName = Utils::JoinStrings(importContent.prefixPaths, ".");
+    std::string importedPkgName = importContent.GetImportedPackageNameWithIsDecl();
     auto importedPkg = importMgr.GetPackageDecl(importedPkgName);
     if (!importedPkg) {
         return;
@@ -1699,7 +1699,7 @@ void SymbolCollector::CreateReExportSymbolFromAliasImport(const File &file,
         return;
     }
     auto importContent = importSpec->content;
-    std::string importedPkgName = Utils::JoinStrings(importContent.prefixPaths, ".");
+    std::string importedPkgName = importContent.GetImportedPackageNameWithIsDecl();
     auto importedPkg = importMgr.GetPackageDecl(importedPkgName);
     if (!importedPkg) {
         return;
@@ -1745,7 +1745,7 @@ void SymbolCollector::CreateReExportSymbolFromAllImport(const File &file,
         return;
     }
     auto importContent = importSpec->content;
-    std::string importedPkgName = Utils::JoinStrings(importContent.prefixPaths, ".");
+    std::string importedPkgName = importContent.GetImportedPackageNameWithIsDecl();
     auto importedPkg = importMgr.GetPackageDecl(importedPkgName);
     if (!importedPkg) {
         return;

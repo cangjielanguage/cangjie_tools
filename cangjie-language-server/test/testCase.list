@@ -266,6 +266,7 @@
 {"completion":{"testFile":"LSP_Completion_RuneLiteral_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_ReExport_001.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_ReExport_Alias_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_OrgAutoComplete_001.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_MultiImport_001.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
