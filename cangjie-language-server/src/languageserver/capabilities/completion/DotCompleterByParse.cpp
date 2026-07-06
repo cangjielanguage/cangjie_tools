@@ -783,6 +783,7 @@ void DotCompleterByParse::FindMatchExpr(Ptr<Node> node, const Position &pos, std
 
 void DotCompleterByParse::FindVarPattern(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
+    (void)pos;
     auto pVarPattern = dynamic_cast<VarPattern*>(node.get());
     if (!pVarPattern) { return; }
     if (pVarPattern->varDecl) {
@@ -1475,6 +1476,7 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
 std::string DotCompleterByParse::QueryByPos(Ptr<Node> node, const Position pos)
 {
     if (!node) { return ""; }
+    (void)pos;
     std::string query = "_ = (" + std::to_string(semaCurFileID) + ", "+
                         std::to_string(node->begin.line) + ", " +
                         std::to_string(node->begin.column) + ")";
