@@ -40,7 +40,7 @@ void AddImportSpecs(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource&
         return;
     }
 
-    if (file.package) {
+    if (file.package || file.feature) {
         doc.members.emplace_back(DocType::SEPARATE, level, "");
         doc.members.emplace_back(DocType::SEPARATE, level, "");
     }
@@ -51,6 +51,30 @@ void AddImportSpecs(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource&
             doc.members.emplace_back(DocType::LINE, level, "");
         }
         doc.members.emplace_back(astToFormatSource.ASTToDoc(importSpec, level));
+    }
+}
+
+bool HasHeader(const Cangjie::AST::File& file)
+{
+    return file.feature || file.package || !file.imports.empty();
+}
+
+void AddFileHeader(Doc& doc, const Cangjie::AST::File& file, ASTToFormatSource& astToFormatSource, int level)
+{
+    if (file.feature) {
+        doc.members.emplace_back(astToFormatSource.ASTToDoc(file.feature.get(), level));
+    }
+
+    if (file.feature && file.package) {
+        doc.members.emplace_back(DocType::LINE, level, "");
+    }
+
+    AddPackageSpec(doc, file, astToFormatSource, level);
+    AddImportSpecs(doc, file, astToFormatSource, level);
+
+    if (HasHeader(file)) {
+        doc.members.emplace_back(DocType::SEPARATE, level, "");
+        doc.members.emplace_back(DocType::SEPARATE, level, "");
     }
 }
 
@@ -135,16 +159,11 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
 {
     doc.type = DocType::CONCAT;
     doc.indent = level;
-    AddPackageSpec(doc, file, astToFormatSource, level);
-    AddImportSpecs(doc, file, astToFormatSource, level);
+    AddFileHeader(doc, file, astToFormatSource, level);
 
     std::unordered_map<Cangjie::Position, int, PositionHasher> modifierOrAnnoToPosMap;
     SetModifierOrAnnoToPosMap(file, modifierOrAnnoToPosMap);
 
-    if (file.package || !file.imports.empty()) {
-        doc.members.emplace_back(DocType::SEPARATE, level, "");
-        doc.members.emplace_back(DocType::SEPARATE, level, "");
-    }
     auto preDeclIsVar = false;
     int notComplierAddNum = 0;
     auto mapCopy(modifierOrAnnoToPosMap);
