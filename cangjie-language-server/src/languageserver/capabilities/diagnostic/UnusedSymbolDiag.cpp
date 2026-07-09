@@ -467,8 +467,15 @@ static void CheckUnusedFuncParam(FuncParam* funcParam, Package& package,
 // (without associated values), both stored in EnumDecl::constructors.
 // ---------------------------------------------------------------------------
 static void CheckUnusedEnumVariantCommon(Decl& decl, Package& package,
-    const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
+    const std::string& filePath, std::vector<DiagnosticToken>& diagnostics,
+    const SymbolIndex* index)
 {
+    if (index != nullptr) {
+        auto symId = GetDeclSymbolID(decl);
+        if (symId != INVALID_SYMBOL_ID && index->HasSymbolReference(symId)) {
+            return;
+        }
+    }
     auto usages = FindDeclUsage(decl, package);
     bool hasExternalUsage = false;
     for (auto& usage : usages) {
@@ -522,7 +529,8 @@ static void HandleFuncParam(FuncParam* funcParam, Package& package,
 }
 
 static void HandleEnumDecl(Ptr<Node> node, Package& package,
-    const std::string& filePath, std::vector<DiagnosticToken>& diagnostics)
+    const std::string& filePath, std::vector<DiagnosticToken>& diagnostics,
+    const SymbolIndex* index)
 {
     auto enumDecl = DynamicCast<EnumDecl*>(node);
     if (!enumDecl) {
@@ -530,7 +538,7 @@ static void HandleEnumDecl(Ptr<Node> node, Package& package,
     }
     for (auto& ctor : enumDecl->constructors) {
         if (ctor && !ctor->isInMacroCall) {
-            CheckUnusedEnumVariantCommon(*ctor, package, filePath, diagnostics);
+            CheckUnusedEnumVariantCommon(*ctor, package, filePath, diagnostics, index);
         }
     }
 }
@@ -539,7 +547,8 @@ static VisitAction CollectUnusedLocalDiags(
     Ptr<Node> node,
     Package& package,
     const std::string& filePath,
-    std::vector<DiagnosticToken>& diagnostics)
+    std::vector<DiagnosticToken>& diagnostics,
+    const SymbolIndex* index)
 {
     auto decl = DynamicCast<Decl*>(node);
     if (!decl) {
@@ -555,7 +564,7 @@ static VisitAction CollectUnusedLocalDiags(
 
     HandleVarDecl(node, package, filePath, diagnostics);
     HandleFuncParam(funcParam, package, filePath, diagnostics);
-    HandleEnumDecl(node, package, filePath, diagnostics);
+    HandleEnumDecl(node, package, filePath, diagnostics, index);
 
     return VisitAction::WALK_CHILDREN;
 }
@@ -565,7 +574,8 @@ static VisitAction CollectUnusedLocalDiags(
 // ---------------------------------------------------------------------------
 std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
     const File& file,
-    Package& package)
+    Package& package,
+    const SymbolIndex* index)
 {
     std::vector<DiagnosticToken> diagnostics;
 
@@ -575,7 +585,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
 
     std::function<VisitAction(Ptr<Node>)> collector =
         [&](Ptr<Node> node) -> VisitAction {
-            return CollectUnusedLocalDiags(node, package, file.filePath, diagnostics);
+            return CollectUnusedLocalDiags(node, package, file.filePath, diagnostics, index);
         };
 
     Walker(const_cast<File*>(&file), collector).Walk();

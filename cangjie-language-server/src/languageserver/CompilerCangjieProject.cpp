@@ -2598,7 +2598,6 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
                 std::unique_lock<std::recursive_mutex> lock(fileCacheMtx);
                 astMap[absName] = std::move(arkAST);
             }
-            (void)unusedSymbolsAnalyzedFileSet.erase(filePath);
         }
     }
 
@@ -2627,6 +2626,8 @@ void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstanc
         (void) memIndex->pkgReExportSymsMap.insert_or_assign(curPkgName, *sc.GetReExportSymbolMap());
         indexLock.unlock();
     }
+
+    unusedSymbolsAnalyzedFileSet.clear();
 
 #ifndef TEST_FLAG
     // Store the indexs and astdata
@@ -3076,6 +3077,8 @@ void CompilerCangjieProject::AnalyzeUnusedSymbolsForFile(
         return;
     }
 
+    callback->RemoveUnusedDiagsOfCurFile(filePath);
+
     auto* index = GetIndex();
     if (index) {
         std::string pkgName = GetFullPkgName(filePath);
@@ -3086,7 +3089,7 @@ void CompilerCangjieProject::AnalyzeUnusedSymbolsForFile(
     }
 
     auto localDiags = UnusedSymbolDiag::AnalyzeLocalSymbols(
-        astFile, const_cast<Cangjie::AST::Package&>(package));
+        astFile, const_cast<Cangjie::AST::Package&>(package), index);
     for (auto& diag : localDiags) {
         callback->UpdateDiagnostic(filePath, diag);
     }

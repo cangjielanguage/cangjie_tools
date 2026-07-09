@@ -40,6 +40,8 @@ public:
 
     void RemoveDiagOfCurFile(const std::string &filePath) override;
 
+    void RemoveUnusedDiagsOfCurFile(const std::string &filePath) override;
+
     std::vector<DiagnosticToken> GetDiagsOfCurFile(std::string) override;
 
     void UpdateDiagnostic(std::string file, DiagnosticToken diagToken) override;
