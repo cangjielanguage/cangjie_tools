@@ -10,6 +10,7 @@
 #include <mutex>
 #include <utility>
 #include <cctype>
+#include <algorithm>
 
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "capabilities/semanticHighlight/SemanticTokensAdaptor.h"
@@ -1268,6 +1269,25 @@ void ArkLanguageServer::RemoveDiagOfCurFile(const std::string& filePath)
     std::lock_guard<std::mutex> lock(fixItsMutex);
     std::string normalizeFilePath = NormalizePath(filePath);
     (void)fixItsMap.erase(normalizeFilePath);
+}
+
+void ArkLanguageServer::RemoveUnusedDiagsOfCurFile(const std::string& filePath)
+{
+    std::lock_guard<std::mutex> lock(fixItsMutex);
+    auto it = fixItsMap.find(filePath);
+    if (it == fixItsMap.end()) {
+        return;
+    }
+    auto& diagSet = it->second;
+    for (auto setIt = diagSet.begin(); setIt != diagSet.end();) {
+        bool isUnused = std::find(setIt->tags.begin(), setIt->tags.end(), 1) != setIt->tags.end() &&
+            setIt->diagFix.has_value() && setIt->diagFix->removeUnusedSymbol;
+        if (isUnused) {
+            setIt = diagSet.erase(setIt);
+        } else {
+            ++setIt;
+        }
+    }
 }
 
 void ArkLanguageServer::UpdateDiagnostic(std::string file, DiagnosticToken diagToken)

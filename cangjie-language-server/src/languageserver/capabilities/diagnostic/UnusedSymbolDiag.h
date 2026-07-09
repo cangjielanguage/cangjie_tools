@@ -66,11 +66,15 @@ public:
      *
      * @param file      The AST File node
      * @param package   The AST Package node (used as root for FindDeclUsage)
+     * @param index     Optional symbol index for cross-package reference check.
+     *                  When non-null, enum variants are also checked against the
+     *                  index to avoid false positives from cross-package usage.
      * @return vector of DiagnosticToken for unused local symbols
      */
     static std::vector<DiagnosticToken> AnalyzeLocalSymbols(
         const Cangjie::AST::File& file,
-        Cangjie::AST::Package& package
+        Cangjie::AST::Package& package,
+        const lsp::SymbolIndex* index = nullptr
     );
 
     /// Create an "unused" DiagnosticToken with HINT severity and Unnecessary tag.
