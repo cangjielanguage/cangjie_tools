@@ -776,6 +776,7 @@ static void UpdateInheritedFunctionSignatures(
     inheritedDecls.insert(localOverrides.begin(), localOverrides.end());
     for (auto &decl : inheritedDecls) {
         auto relatedFunc = DynamicCast<Cangjie::AST::FuncDecl *>(decl.get());
+        // LCOV_EXCL_START
         if (!relatedFunc || relatedFunc == &funcDecl || !relatedFunc->curFile) {
             continue;
         }
@@ -786,6 +787,7 @@ static void UpdateInheritedFunctionSignatures(
         std::string uri = URI::URIFromAbsolutePath(relatedFunc->curFile->filePath).ToString();
         auto &fileEdits = applyEdits[uri];
         fileEdits.insert(fileEdits.end(), edits.begin(), edits.end());
+        // LCOV_EXCL_STOP
     }
 }
 

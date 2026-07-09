@@ -2593,7 +2593,7 @@ TextEdit InsertImplementationInterfaceClause(Cangjie::AST::InheritableDecl &decl
     if (!sel.arkAst) {
         return TextEdit{};
     }
-    return BuildGeneralImplementsClauseEdit(decl, sel.arkAst->sourceManager, info);
+    return BuildClassImplementsClauseEdit(decl, sel.arkAst->sourceManager, info);
 }
 
 TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
