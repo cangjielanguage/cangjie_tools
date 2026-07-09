@@ -79,17 +79,11 @@ public:
                     cjoMap[package].isDocChange = isDocChange;
                 }
                 if (cjoMap[package].status == DataStatus::STALE && status == DataStatus::WEAKSTALE) {
-                    Trace::Log("package status is stale, cann't change to weak stale", package);
                     continue;
                 }
                 cjoMap[package].status = status;
-                if (status == DataStatus::STALE) {
-                    Trace::Log(package + "'s cjo cache is stale");
-                } else if (status == DataStatus::WEAKSTALE) {
-                    Trace::Log(package + "'s cjo cache is weak stale");
-                } else {
+                if (status == DataStatus::FRESH) {
                     cjoMap[package].isDocChange = false;
-                    Trace::Log(package + "'s cjo cache is fresh");
                 }
             }
         }
