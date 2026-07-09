@@ -63,7 +63,7 @@ def download_boundscheck():
         print(line.decode("ascii", "ignore").rstrip())
 
 def download_runtime():
-    cmd = ["git", "clone", "-b", "dev", "https://gitcode.com/Cangjie/cangjie_runtime.git", "runtime"]
+    cmd = ["git", "clone", "-b", "main", "https://gitcode.com/Cangjie/cangjie_runtime.git", "runtime"]
     output = subprocess.Popen(cmd, cwd=THIRDPARTY_DIR, stdout=PIPE)
     for line in output.stdout:
         print(line.decode("ascii", "ignore").rstrip())
@@ -164,35 +164,45 @@ def generate_cmake_defs(args):
     def bool_to_opt(value):
         return "ON" if value else "OFF"
 
+    build_type = BuildType.debug.value if args.code_coverage else args.build_type.value
+    coverage_defs = []
+    if args.code_coverage:
+        coverage_defs = [
+            "-DCMAKE_CXX_FLAGS=-fprofile-arcs -ftest-coverage",
+            "-DCMAKE_C_FLAGS=-fprofile-arcs -ftest-coverage",
+        ]
+
     if args.target == "windows-x86_64":
         return [
-            "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
+            "-DCMAKE_BUILD_TYPE=" + build_type,
             "-DCMAKE_SYSTEM_NAME=" + "Windows",
             "-DCMAKE_C_COMPILER=" + "x86_64-w64-mingw32-gcc",
             "-DCMAKE_CXX_COMPILER=" + "x86_64-w64-mingw32-g++",
             "-DSTRIP_LIB_PREFIX=" + "ON",
             "-DUSE_CXX17_FEATURES=" + "ON",
-        ] + [arg for arg in args.cmake_args if arg != "--"]
+        ] + coverage_defs + [arg for arg in args.cmake_args if arg != "--"]
 
     if IS_MAC:
         return [
-            "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
+            "-DCMAKE_BUILD_TYPE=" + build_type,
             "-DUSE_CXX17_FEATURES=" + "ON",
-        ] + [arg for arg in args.cmake_args if arg != "--"]
+        ] + coverage_defs + [arg for arg in args.cmake_args if arg != "--"]
 
     if IS_WINDOWS:
         return [
-            "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
+            "-DCMAKE_BUILD_TYPE=" + build_type,
             "-DSTRIP_LIB_PREFIX=" + "ON",
             "-DUSE_CXX17_FEATURES=" + "ON",
-        ] + [arg for arg in args.cmake_args if arg != "--"]
+        ] + coverage_defs + [arg for arg in args.cmake_args if arg != "--"]
 
     return [
-        "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
-    ] + [arg for arg in args.cmake_args if arg != "--"]
+        "-DCMAKE_BUILD_TYPE=" + build_type,
+    ] + coverage_defs + [arg for arg in args.cmake_args if arg != "--"]
 
 
 def build(args):
+    if args.code_coverage:
+        args.build_type = BuildType.debug
     if args.build_type is None:
         LOG.error(
             "please specify the build type. Supported options are: release and debug."
@@ -334,7 +344,9 @@ def main():
         help="select target build type",
     )
     parser_build.add_argument(
-        "--code-coverage", action="store_true", help="do code coverage"
+        "--code-coverage",
+        action="store_true",
+        help="build with gcov instrumentation (-fprofile-arcs -ftest-coverage) and force Debug",
     )
     parser_build.add_argument(
         "--target",
