@@ -1244,6 +1244,7 @@
 {"applyEdit":{"testFile":"ExtractInterface_Apply_017.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_019.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_020.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"ExtractInterface_Apply_021.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_003.test","method":"workspace/applyEdit"}}
@@ -1257,6 +1258,10 @@
 {"applyEdit":{"testFile":"IntroduceField_Apply_011.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_012.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_013.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_014.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_015.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_016.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceField_Apply_017.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_003.test","method":"workspace/applyEdit"}}
@@ -1273,3 +1278,10 @@
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_013.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_014.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_015.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_016.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_017.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_018.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_019.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_020.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_021.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_022.test","method":"workspace/applyEdit"}}

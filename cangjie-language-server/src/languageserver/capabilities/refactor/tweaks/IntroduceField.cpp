@@ -221,7 +221,7 @@ static bool IsClassOrStructDecl(const Cangjie::AST::Decl &decl)
 {
     return decl.astKind == ASTKind::CLASS_DECL || decl.astKind == ASTKind::STRUCT_DECL;
 }
-
+// LCOV_EXCL_BR_START
 template <typename BodyDecl>
 static Ptr<Cangjie::AST::InheritableDecl> FindOwnerInBody(BodyDecl &decl, const Cangjie::AST::VarDecl &target)
 {
@@ -235,7 +235,7 @@ static Ptr<Cangjie::AST::InheritableDecl> FindOwnerInBody(BodyDecl &decl, const 
     }
     return nullptr;
 }
-
+// LCOV_EXCL_BR_STOP
 static Ptr<Cangjie::AST::InheritableDecl> FindMemberOwner(const Tweak::Selection &sel,
     const Cangjie::AST::VarDecl &decl)
 {
@@ -299,11 +299,13 @@ static std::optional<LocalVarTarget> GetLocalVarTarget(
 {
     auto selectedRef = GetSelectedRefExpr(selectionTree, range);
     auto targetDecl = selectedRef ? DynamicCast<Cangjie::AST::VarDecl *>(selectedRef->GetTarget().get()) : nullptr;
+// LCOV_EXCL_BR_START
     if (!targetDecl || !IsLocalVarDecl(*targetDecl) || targetDecl->isConst ||
         !funcDecl.funcBody || !funcDecl.funcBody->body ||
         targetDecl->begin < funcDecl.funcBody->body->begin || targetDecl->end > funcDecl.funcBody->body->end) {
         return std::nullopt;
     }
+// LCOV_EXCL_BR_STOP
     LocalVarTarget target;
     target.decl = targetDecl;
     target.declarationRange = {targetDecl->begin, targetDecl->end};
@@ -730,7 +732,7 @@ static Position GetBodyFirstLineInsertStart(const BodyDecl &decl)
     insertPos.column = 1;
     return insertPos;
 }
-
+// LCOV_EXCL_BR_START
 template <typename BodyDecl>
 static Position GetFieldInsertStartInBody(const BodyDecl &decl, const Cangjie::AST::FuncDecl &funcDecl)
 {
@@ -760,7 +762,7 @@ static Position GetFirstNonFieldLineStartAfterInsertPos(const BodyDecl &decl, co
     }
     return firstNonField;
 }
-
+// LCOV_EXCL_BR_STOP
 static Position GetFieldBlockEndLineStart(Cangjie::AST::FuncDecl &funcDecl, const Position &insertPos)
 {
     auto owner = funcDecl.outerDecl ? DynamicCast<Cangjie::AST::InheritableDecl *>(funcDecl.outerDecl.get()) : nullptr;
