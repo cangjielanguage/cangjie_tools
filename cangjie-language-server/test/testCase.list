@@ -268,6 +268,7 @@
 {"completion":{"testFile":"LSP_Completion_ReExport_Alias_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_OrgAutoComplete_001.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_MultiImport_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_script_dependencies_build_only_001.test","id":"9"}}
 
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tuple_001.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Operator_001.test"}}
@@ -594,6 +595,7 @@
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific.test","id":"9"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_001.test","id":"9"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_002.test","id":"9"}}
+{"goToDefinition":{"testFile":"LSP_GoToDefinition_script_dependencies_switch_root_001.test","id":"9"}}
 
 {"hover":{"testFile":"LSP_Hover_String_001.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Interface_001.test","id":"110"}}
@@ -678,6 +680,7 @@
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_006.test","id":"5"}}
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_007.test","id":"5"}}
 {"hover":{"testFile":"LSP_Hover_IncrementCompile_008.test","id":"5","useDB":true}}
+{"hover":{"testFile":"LSP_Hover_script_dependencies_switch_root_001.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Common_Specific.test","id":"9"}}
 {"hover":{"testFile":"LSP_Hover_Unused_Symbol_001.test","id":"14"}}
 {"hover":{"testFile":"LSP_Hover_Unused_Symbol_002.test","id":"227"}}

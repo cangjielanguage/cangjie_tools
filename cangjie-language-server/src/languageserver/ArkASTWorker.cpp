@@ -322,12 +322,13 @@ void ArkASTWorker::DoCompletionWithASTCache(
         ParseInputs(file, this->callback->GetContentsByFile(file), this->callback->GetVersionByFile(file));
     std::string absName = Cangjie::FileUtil::Normalize(file);
     auto fullPkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(file);
-    bool shouldIncrementCompile = !CompilerCangjieProject::GetInstance()->pLRUCache->HasCache(fullPkgName);
+    auto cacheKey = CompilerCangjieProject::GetInstance()->GetCacheKeyForFile(file);
+    bool shouldIncrementCompile = !CompilerCangjieProject::GetInstance()->pLRUCache->HasCache(cacheKey);
     if (shouldIncrementCompile) {
         CompilerCangjieProject::GetInstance()->IncrementOnePkgCompile(absName, inputs.contents);
     }
 
-    if (!IsFromCIMap(fullPkgName) && !IsFromCIMapNotInSrc(fullPkgName)) {
+    if (!IsFromCIMap(fullPkgName) && !IsFromCIMapNotInSrc(cacheKey)) {
         return;
     }
     int fileID = GetFileIDForCompletion(file);

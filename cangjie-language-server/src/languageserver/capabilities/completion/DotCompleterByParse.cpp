@@ -198,6 +198,9 @@ void DotCompleterByParse::CompleteByExpandDecl(const ArkAST &input, const Positi
 
     // Compile the file that use before file content of enter "."
     auto ci = CompilerCangjieProject::GetInstance()->GetCIForDotComplete(filePath, pos, content);
+    if (!ci || ci->GetSourcePackages().empty() || !ci->GetSourcePackages()[0]) {
+        return;
+    }
     OwnedPtr<Decl> targetDecl{};
     for (auto &file : ci->GetSourcePackages()[0]->files) {
         if (file->filePath != filePath) {

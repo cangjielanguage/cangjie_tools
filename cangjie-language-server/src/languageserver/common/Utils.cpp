@@ -563,6 +563,11 @@ void SetHeadByFilePath(const std::string &filePath)
     if (!instance) {
         return;
     }
+    auto cacheKey = instance->GetCacheKeyForFile(filePath);
+    if (instance->PkgHasSemaCache(cacheKey)) {
+        instance->SetHead(cacheKey);
+        return;
+    }
     auto fullPkgName = instance->GetFullPkgName(filePath);
     if (instance->PkgHasSemaCache(fullPkgName)) {
         instance->SetHead(fullPkgName);
