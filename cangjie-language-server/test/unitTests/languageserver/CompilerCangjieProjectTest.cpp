@@ -138,7 +138,7 @@ TEST_F(CompilerCangjieProjectTest, GetDependencyGraphTest) {
 
 TEST_F(CompilerCangjieProjectTest, CheckNeedCompilerTest) {
     std::string fileName = "test_file.cj";
-    bool needCompile = CompilerCangjieProject::GetInstance()->CheckNeedCompiler(fileName);
+    EXPECT_FALSE(CompilerCangjieProject::GetInstance()->CheckNeedCompiler(fileName));
 }
 
 TEST_F(CompilerCangjieProjectTest, IncrementOnePkgCompileTest) {

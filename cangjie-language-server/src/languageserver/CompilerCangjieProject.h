@@ -365,11 +365,15 @@ public:
     void ParseOneFile(const std::string &file, const std::string &contents, Position pos = {0, 0, 0},
         const std::string &taskName = "");
 
+    std::string GetCacheKeyForFile(const std::string &filePath) const;
+
 private:
     void HandleOnlyParse(const std::string &name, const std::string &absName, const std::string &contents,
                          Position pos, CangjieFileKind fileKind);
 
     std::string GetNotInSrcCacheKey(const std::string &filePath) const;
+
+    PkgInfo *EnsureNotInSrcPkgInfo(const std::string &filePath);
 
     void HandleFileNotInSource(const std::string &absName, const std::string &contents);
 
@@ -516,6 +520,12 @@ public:
                 return buffer->second;
             }
         }
+        auto notInSrcCacheKey = GetNotInSrcCacheKey(filePath);
+        if (auto found = pkgInfoMapNotInSrc.find(notInSrcCacheKey); found != pkgInfoMapNotInSrc.end()) {
+            if (auto buffer = found->second->bufferCache.find(filePath); buffer != found->second->bufferCache.end()) {
+                return buffer->second;
+            }
+        }
         return {};
     }
 
@@ -635,7 +645,7 @@ private:
                           const std::string &contents);
 
     void IncrementCompileForCompleteNotInSrc(const std::string &name,
-        const std::string &filePath, const std::string &contents = "");
+        const std::string &filePath, Position pos, const std::string &contents = "");
 
     bool InitPackage(const std::string &packagePath, const std::string &fullPackageName,
                      const ModuleInfo &moduleInfo, PkgType pkgType);
