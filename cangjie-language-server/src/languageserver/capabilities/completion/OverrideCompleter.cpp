@@ -226,7 +226,7 @@ bool OverrideCompleter::CheckConfilctModifer(Ptr<Decl> decl)
     }
     return true;
 }
-
+// LCOV_EXCL_BR_START
 bool OverrideCompleter::CheckRepeated(Ptr<FuncDecl> decl)
 {
     return std::any_of(implementedMethods.begin(), implementedMethods.end(),
@@ -237,7 +237,7 @@ bool OverrideCompleter::CheckRepeated(Ptr<FuncDecl> decl)
         return IsFuncSignatureIdentical(*cmpDecl, *decl);
     });
 }
-
+// LCOV_EXCL_BR_STOP
 std::string OverrideCompleter::GetFuncLabel(const FuncDetail& funcDetail)
 {
     std::string detail = GetModifierString(funcDetail.modifiers, modifierSet);

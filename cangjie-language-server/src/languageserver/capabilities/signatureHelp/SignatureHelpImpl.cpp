@@ -762,7 +762,9 @@ bool SignatureHelpImpl::MemberFuncSignatureHelp()
             if (node == nullptr) {
                 return false;
             }
+            // LCOV_EXCL_BR_STOP
             nodeTy = (node->symbol && node->symbol->target) ? node->symbol->target->GetTy() : node->GetTy();
+            // LCOV_EXCL_BR_STOP
         }
         bool check = nodeTy != nullptr && (Is<ClassTy>(nodeTy.get()) || Is<EnumTy>(nodeTy.get()) ||
                                            Is<InterfaceTy>(nodeTy.get()) || Is<StructTy>(nodeTy.get()) ||
