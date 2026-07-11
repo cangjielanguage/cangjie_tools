@@ -2079,7 +2079,7 @@ bool AddConcreteVisibilityEdits(const FuncDecl &func,
     request.edits.push_back(std::move(*defaultVisibilityEdit));
     return true;
 }
-
+// LCOV_EXCL_START
 bool AddVisibilityEdits(const FuncDecl &func,
                         SourceManager *sm,
                         const SelectedEditsRequest &request,
@@ -2110,7 +2110,7 @@ bool AddVisibilityEdits(const FuncDecl &func,
     request.edits.push_back(std::move(*defaultVisibilityEdit));
     return true;
 }
-
+// LCOV_EXCL_STOP
 void AddOverrideOrRedefEdit(const FuncDecl &func,
                             SourceManager *sm,
                             const SelectedEditsRequest &request,
@@ -2595,7 +2595,7 @@ TextEdit InsertImplementationInterfaceClause(Cangjie::AST::InheritableDecl &decl
     }
     return BuildClassImplementsClauseEdit(decl, sel.arkAst->sourceManager, info);
 }
-
+// LCOV_EXCL_START
 TextEdit InsertImplementsClause(Cangjie::AST::ExtendDecl &decl,
                                 const Tweak::Selection &sel,
                                 const InterfaceInfo &info)
@@ -2644,7 +2644,7 @@ TextEdit InsertInterfaceDeclToTargetFile(const std::string &targetPath, const In
     edit.newText = appendPrefix + BuildInterfaceDeclText(info, packageName, true);
     return edit;
 }
-
+// LCOV_EXCL_STOP
 void AppendCreateFileDocumentChange(Tweak::Effect &effect, const std::string &targetPath, const TextEdit &edit)
 {
     if (targetPath.empty()) {

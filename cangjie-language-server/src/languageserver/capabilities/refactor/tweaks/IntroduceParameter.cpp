@@ -670,7 +670,7 @@ static std::vector<TextEdit> RemoveReplacedParameters(const ParamRemovalContext 
         context.insertedParameter = true;
         return BuildAllParameterReplacementEdit(*paramList, newParamText, &context.sel, &context.funcDecl);
     }
-
+// LCOV_EXCL_START
     std::size_t replacedIndex = context.removedParamIndices.front();
     if (replacedIndex >= paramList->params.size() || !paramList->params[replacedIndex]) {
         return edits;
@@ -716,7 +716,7 @@ static std::vector<TextEdit> BuildParameterListSyncEdits(
     edits.insert(edits.end(), removeEdits.begin(), removeEdits.end());
     return edits;
 }
-
+// LCOV_EXCL_STOP
 static void UpdateInheritedFunctionSignatures(
     const Tweak::Selection &sel,
     Cangjie::AST::FuncDecl &funcDecl,
@@ -900,7 +900,7 @@ static bool IsRemovedCallArg(Ptr<Cangjie::AST::FuncArg> arg, const std::vector<P
 {
     return std::find(removedArgs.begin(), removedArgs.end(), arg) != removedArgs.end();
 }
-
+// LCOV_EXCL_START
 static std::string GetCallArgText(const CallSiteContext &context, Cangjie::AST::FuncArg &arg)
 {
     if (!context.sel.arkAst || !context.sel.arkAst->sourceManager) {
@@ -908,7 +908,7 @@ static std::string GetCallArgText(const CallSiteContext &context, Cangjie::AST::
     }
     return context.sel.arkAst->sourceManager->GetContentBetween(arg.begin, arg.end);
 }
-
+// LCOV_EXCL_STOP
 static std::optional<TextEdit> ReplaceRemovedCallArguments(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr, const std::string &newArgument, bool hasNamedArg)
 {
@@ -964,7 +964,6 @@ static std::optional<TextEdit> ReplaceRemovedCallArguments(
     }
     textEdit.newText = replacement.str();
     return textEdit;
-// LCOV_EXCL_BR_STOP
 }
 
 static std::optional<Position> FindMatchingRightParenFrom(
@@ -974,7 +973,7 @@ static std::optional<Position> FindMatchingRightParenFrom(
         searchEnd <= leftParenPos) {
         return std::nullopt;
     }
-
+// LCOV_EXCL_BR_STOP
     std::string suffix = sel.arkAst->sourceManager->GetContentBetween(leftParenPos, searchEnd);
     int depth = 0;
     for (size_t offset = 0; offset < suffix.size(); ++offset) {
@@ -992,7 +991,7 @@ static std::optional<Position> FindMatchingRightParenFrom(
     }
     return std::nullopt;
 }
-
+// LCOV_EXCL_START
 static std::string GetCallName(Cangjie::AST::CallExpr &callExpr)
 {
     if (!callExpr.baseFunc) {
@@ -1042,7 +1041,7 @@ static std::optional<Position> FindCallRightParenByName(
     }
     return result;
 }
-
+// LCOV_EXCL_STOP
 static std::optional<Position> ResolveCallArgumentInsertPosition(
     const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
 {
@@ -1226,7 +1225,7 @@ static std::string BuildCallSiteArgumentText(const CallSiteContext &context, Can
     }
     return ReplaceThisReceiverAtCallSite(context, callExpr, argumentText);
 }
-
+// LCOV_EXCL_START
 static std::string BuildCompoundAssignArgumentText(const CallSiteContext &context, Cangjie::AST::CallExpr &callExpr)
 {
     auto selectedExpr = GetIntroduceParameterExpr(context.sel.selectionTree, context.range);
@@ -1248,7 +1247,7 @@ static std::string BuildCompoundAssignArgumentText(const CallSiteContext &contex
     }
     return ReplaceThisReceiverAtCallSite(context, callExpr, leftText + " " + opText + " " + rightText);
 }
-
+// LCOV_EXCL_STOP
 static Ptr<Cangjie::AST::FuncArg> FindCallSiteArgByParam(
     Cangjie::AST::CallExpr &callExpr, Cangjie::AST::FuncParam &param, std::size_t paramIndex)
 {

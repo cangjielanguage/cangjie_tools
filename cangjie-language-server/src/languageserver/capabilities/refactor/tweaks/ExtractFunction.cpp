@@ -252,7 +252,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
         sel.selectionTree.TargetDecl() && sel.selectionTree.TargetDecl()->TestAttr(Attribute::CONSTRUCTOR)) {
             isConstructor = true;
         }
-        SelectionTree::Walk(root, [&root, &extraOptions, &isValid, &containExpr, &containMemVarAssign]
+        SelectionTree::Walk(root, [&sel, &root, &extraOptions, &isValid, &containExpr, &containMemVarAssign]
             (const SelectionTree::SelectionTreeNode *treeNode) {
             if (!treeNode->node) {
                 isValid = false;
@@ -266,6 +266,14 @@ class ExtractFunctionSelectionRule : public TweakRule {
                     std::to_string(static_cast<int>(ExtractFunction::ExtractFunctionError::PARTIAL_SELECTION))));
                 isValid = false;
                 return SelectionTree::WalkAction::STOP_NOW;
+            }
+
+            if ((sel.selectionTree.SelectedScope() & SelectionTree::Scope::TYPE_DECL) !=
+                    SelectionTree::Scope::UNKNOWN &&
+                (sel.selectionTree.SelectedScope() & SelectionTree::Scope::FUNC_BODY) ==
+                    SelectionTree::Scope::UNKNOWN &&
+                treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsDecl()) {
+                return SelectionTree::WalkAction::SKIP_CHILDREN;
             }
 
             if (treeNode->selected == SelectionTree::Selection::Complete && treeNode->node->IsExpr()) {
