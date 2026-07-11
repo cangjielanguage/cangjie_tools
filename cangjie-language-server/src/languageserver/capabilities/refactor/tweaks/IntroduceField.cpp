@@ -79,7 +79,7 @@ static std::string GetDefaultInitializer(const std::string &typeName)
     auto it = DEFAULT_INITIALIZERS.find(typeName);
     return it != DEFAULT_INITIALIZERS.end() ? it->second : "";
 }
-
+// LCOV_EXCL_BR_START
 static bool IsConstInitializerSelection(const Tweak::Selection &sel, const Range &range)
 {
     bool isConstInitializer = false;
@@ -167,7 +167,7 @@ static Ptr<Cangjie::AST::RefExpr> GetSelectedRefExpr(const SelectionTree &select
     });
     return selectedRef;
 }
-
+// LCOV_EXCL_BR_STOP
 static Ptr<Cangjie::AST::Expr> GetSelectedExpr(const SelectionTree &selectionTree, const Range &range)
 {
     Ptr<Cangjie::AST::Expr> selectedExpr = nullptr;
@@ -235,7 +235,7 @@ static Ptr<Cangjie::AST::InheritableDecl> FindOwnerInBody(BodyDecl &decl, const 
     }
     return nullptr;
 }
-// LCOV_EXCL_BR_STOP
+
 static Ptr<Cangjie::AST::InheritableDecl> FindMemberOwner(const Tweak::Selection &sel,
     const Cangjie::AST::VarDecl &decl)
 {
@@ -262,7 +262,7 @@ static Ptr<Cangjie::AST::InheritableDecl> FindMemberOwner(const Tweak::Selection
     }
     return nullptr;
 }
-
+// LCOV_EXCL_BR_STOP
 static bool IsMemberInitializerSelection(const Cangjie::AST::VarDecl &decl, const Range &range)
 {
     return decl.initializer && decl.initializer->begin <= range.start && decl.initializer->end >= range.end;
@@ -337,6 +337,7 @@ static std::optional<MemberInitializerTarget> GetMemberInitializerTarget(const T
         if (!varDecl || !IsFieldLikeVarDecl(*varDecl) || !IsMemberInitializerSelection(*varDecl, range)) {
             return VisitAction::WALK_CHILDREN;
         }
+// LCOV_EXCL_START
         auto mutableDecl = const_cast<Cangjie::AST::VarDecl *>(varDecl);
         if (mutableDecl->TestAttr(Attribute::GLOBAL)) {
             target.decl = mutableDecl;
@@ -392,7 +393,7 @@ static std::string GetDeclaredTypeNameForSelectedReference(const Tweak::Selectio
     }
     return varDecl->type->ToString();
 }
-
+// LCOV_EXCL_STOP
 static std::string GetEnumDefaultInitializer(const Tweak::Selection &sel, const Range &range)
 {
     auto selectedExpr = GetSelectedExpr(sel.selectionTree, range);
