@@ -202,7 +202,8 @@ void PopulateReExportSymbol(const sqldb::Result &row, ReExportSymbol &reExportSy
     IDArray idArray;
     std::string pkgName;
 
-    row.store(pkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.signature);
+    row.store(pkgName, idArray, reExportSym.name, reExportSym.modifier,
+        reExportSym.kind, reExportSym.signature, reExportSym.isCjoSym);
     reExportSym.id = GetIDFromArray(idArray);
 }
 
@@ -928,7 +929,7 @@ dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkg
                 IDArray idArray;
                 std::string cjPkgName;
                 Row.store(cjPkgName, idArray, reExportSym.name, reExportSym.modifier, reExportSym.kind,
-                    reExportSym.signature, completionItem.label, completionItem.insertText);
+                    reExportSym.signature, reExportSym.isCjoSym, completionItem.label, completionItem.insertText);
                 reExportSym.id = GetIDFromArray(idArray);
                 callback(reExportSym, completionItem);
                 return true;
@@ -936,6 +937,31 @@ dberr_no IndexDatabase::GetReExportSymbolsWithCompletions(const std::string &pkg
 #ifndef NO_EXCEPTIONS
     } catch (std::exception &ex) {
         std::cerr << "getReExportSymbolsWithCompletions fail due to " << ex.what() << "\n";
+    }
+#endif
+    return true;
+}
+
+dberr_no IndexDatabase::GetReExportSymbolsByName(const std::string &name,
+    std::function<void(const std::string &, const ReExportSymbol &)> callback)
+{
+#ifndef NO_EXCEPTIONS
+    try {
+#endif
+        Use(sql::SelectReExportSymbolsByName).execute(sqldb::with(name),
+            [&](sqldb::Result Row) {
+                ReExportSymbol reExportSym;
+                std::string cjPkgName;
+                IDArray idArray;
+                Row.store(cjPkgName, idArray, reExportSym.name, reExportSym.modifier,
+                    reExportSym.kind, reExportSym.signature, reExportSym.isCjoSym);
+                reExportSym.id = GetIDFromArray(idArray);
+                callback(cjPkgName, reExportSym);
+                return true;
+        });
+#ifndef NO_EXCEPTIONS
+    } catch (std::exception &ex) {
+        std::cerr << "getReExportSymbolsByName fail due to " << ex.what() << "\n";
     }
 #endif
     return true;
@@ -1614,7 +1640,7 @@ dberr_no IndexDatabase::DBUpdate::InsertReExportSymbol(const std::string &curPkg
 #endif
         db.Use(sql::InsertReExportSymbol)
             .execute(sqldb::with(curPkgName, GetArrayFromID(reExportSym.id), reExportSym.name,
-                     reExportSym.modifier, reExportSym.kind, reExportSym.signature));
+                     reExportSym.modifier, reExportSym.kind, reExportSym.signature, reExportSym.isCjoSym));
 #ifndef NO_EXCEPTIONS
     } catch (const std::exception &e) {
         Trace::Log("err in insert reExportSymbol: ", e.what());
@@ -1645,7 +1671,7 @@ void IndexDatabase::DBUpdate::DealReExportSymbols(const std::vector<std::tuple<s
             const auto &idArray = std::get<1>(reExportSyms[i]);
             const auto &reExportSym = std::get<2>(reExportSyms[i]);
             const auto &bind = sqldb::with(curPkgName, idArray, reExportSym.name,
-                reExportSym.modifier, reExportSym.kind, reExportSym.signature);
+                reExportSym.modifier, reExportSym.kind, reExportSym.signature, reExportSym.isCjoSym);
             BindValue(bind, stmt.GetStmt(), Index);
             if (++i % MUTI_INSERT_MAX_SIZE == 0) {
                 Index = 0;
@@ -1671,7 +1697,7 @@ void IndexDatabase::DBUpdate::DealReExportSymbols(const std::vector<std::tuple<s
         const auto &idArray = std::get<1>(reExportSyms[j]);
         const auto &reExportSym = std::get<2>(reExportSyms[j]);
         const auto &bind = sqldb::with(curPkgName, idArray, reExportSym.name,
-            reExportSym.modifier, reExportSym.kind, reExportSym.signature);
+            reExportSym.modifier, reExportSym.kind, reExportSym.signature, reExportSym.isCjoSym);
         BindValue(bind, stmt.GetStmt(), Index);
     }
     stmt.execute();

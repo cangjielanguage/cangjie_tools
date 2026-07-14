@@ -135,6 +135,7 @@ table ReExportSymbol {
   kind:uint16;
   signature:string;
   completion_items:[CompletionItem];
+  is_cjo_sym:bool;
 }
 
 file_extension "idx";

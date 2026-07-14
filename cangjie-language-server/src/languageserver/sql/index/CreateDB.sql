@@ -9,7 +9,7 @@
 #include "../Prologue.inc.sql"
 
 #define DATABASE_MAGIC 0xDB2012
-#define DATABASE_VERSION 13
+#define DATABASE_VERSION 14
 
 
 #define LINE(Location) ((Location) >> 12)
@@ -754,6 +754,7 @@ SQL(
     Modifier INTEGER,
     Kind INTEGER NOT NULL,
     Signature TEXT,
+    IsCjoSym INTEGER,
     PRIMARY KEY(
       CJPackageName,
       SymbolID,
@@ -772,7 +773,8 @@ SQL(
     Name,
     Modifier,
     Kind,
-    Signature
+    Signature,
+    IsCjoSym
   )
   AS SELECT
     CJPackageName,
@@ -780,7 +782,8 @@ SQL(
     Name,
     Modifier,
     Kind,
-    Signature
+    Signature,
+    IsCjoSym
   FROM _reexport_symbols;
 
   DROP TRIGGER IF EXISTS reexport_symbols_instead_of_insert;
@@ -794,7 +797,8 @@ SQL(
       NEW.Name,
       NEW.Modifier,
       NEW.Kind,
-      NEW.Signature
+      NEW.Signature,
+      NEW.IsCjoSym
     );
   END;
 )

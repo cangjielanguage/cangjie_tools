@@ -1684,6 +1684,7 @@ void SymbolCollector::CreateReExportSymbolFromSingleImport(const File &file,
     reExportSym.modifier = GetImportSpecModifier(importSpec);
     reExportSym.kind = refDecl->astKind;
     reExportSym.signature = ItemResolverUtil::ResolveSignatureByNode(*refDecl);
+    reExportSym.isCjoSym = isCjoPkg;
     CollectReExportCompletionItem(*refDecl, reExportSym);
     reExportSymsMap.emplace_back(reExportSym);
     addedReExportSymbols.insert({identifier, id});
@@ -1730,6 +1731,7 @@ void SymbolCollector::CreateReExportSymbolFromAliasImport(const File &file,
     reExportSym.modifier = GetImportSpecModifier(importSpec);
     reExportSym.kind = refDecl->astKind;
     reExportSym.signature = ItemResolverUtil::ResolveSignatureByNode(*refDecl);
+    reExportSym.isCjoSym = isCjoPkg;
     CollectReExportCompletionItem(*refDecl, reExportSym);
     reExportSymsMap.emplace_back(reExportSym);
     addedReExportSymbols.insert({identifier, id});
@@ -1770,9 +1772,10 @@ void SymbolCollector::CreateReExportSymbolFromAllImport(const File &file,
             reExportSym.id = id;
             reExportSym.name = identifier;
             reExportSym.modifier = GetImportSpecModifier(importSpec);
-            reExportSym.kind = decl->astKind;
-            reExportSym.signature = ItemResolverUtil::ResolveSignatureByNode(*decl);
-            CollectReExportCompletionItem(*decl, reExportSym);
+    reExportSym.kind = decl->astKind;
+    reExportSym.signature = ItemResolverUtil::ResolveSignatureByNode(*decl);
+    reExportSym.isCjoSym = isCjoPkg;
+    CollectReExportCompletionItem(*decl, reExportSym);
             reExportSymsMap.emplace_back(reExportSym);
             addedReExportSymbols.insert({identifier, id});
             decl->identifier = rawId;

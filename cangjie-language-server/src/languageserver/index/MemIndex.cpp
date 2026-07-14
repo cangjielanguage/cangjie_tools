@@ -229,11 +229,10 @@ void MemIndex::FindImportSymsOnCompletion(
             }
             // filter by modifier
             bool isAccessible =
-                sym.modifier == ark::lsp::Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (sym.modifier == ark::lsp::Modifier::INTERNAL
-                                                          || sym.modifier == ark::lsp::Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
+                sym.modifier == ark::lsp::Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (sym.modifier == ark::lsp::Modifier::INTERNAL || sym.modifier == ark::lsp::Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
             // filter root pkg symbols if cur module is combined
             if (isAccessible
                 && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgSyms.first)) {
@@ -273,12 +272,10 @@ void MemIndex::FindExtendSymsOnCompletion(const SymbolID &dotCompleteSym,
         }
         auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
             bool isAccessible =
-                modifier == Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (modifier == Modifier::INTERNAL
-                                                        || modifier == Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE &&
-                    modifier == Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
+                modifier == Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (modifier == Modifier::INTERNAL || modifier == Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && modifier == Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
             return isAccessible;
         };
         for (const auto &extendSlab : extendSyms.second) {
@@ -336,12 +333,10 @@ void MemIndex::FindExtendSymsOnCompletionBatch(
 
         auto checkAccessible = [&relation](const Modifier& modifier) -> bool {
             bool isAccessible =
-                modifier == Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (modifier == Modifier::INTERNAL
-                                                        || modifier == Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE &&
-                    modifier == Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
+                modifier == Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (modifier == Modifier::INTERNAL || modifier == Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && modifier == Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && modifier == Modifier::PROTECTED);
             return isAccessible;
         };
 
@@ -390,13 +385,19 @@ void MemIndex::FindImportReExportSymsOnCompletion(
             continue;
         }
         auto relation = GetPackageRelation(curPkgName, pkgReExportSymbols.first);
+        // module name for dependency check
+        std::string symModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+            "", pkgReExportSymbols.first);
         for (const auto &sym: pkgReExportSymbols.second) {
+            // filter symbols that not dependent by curModule
+            if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
+                continue;
+            }
             bool isAccessiable =
-                sym.modifier == Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (sym.modifier == Modifier::INTERNAL
-                                                              || sym.modifier == Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
+                sym.modifier == Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (sym.modifier == Modifier::INTERNAL || sym.modifier == Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
             if (!isAccessiable || sym.id == INVALID_SYMBOL_ID) {
                 continue;
             }
@@ -409,6 +410,51 @@ void MemIndex::FindImportReExportSymsOnCompletion(
             for (const auto &completionItem : sym.completionItems) {
                 callback(pkgReExportSymbols.first, sym, completionItem);
             }
+        }
+    }
+}
+
+void MemIndex::FindImportReExportSymsOnQuickFix(const SymbolSearchContext &context,
+    const std::unordered_set<SymbolID> &importDeclSyms,
+    const std::string &identifier,
+    const std::function<void(const std::string &, const ReExportSymbol &)>& callback)
+{
+    const auto &curPkgName = context.curPkgName;
+    const auto &curModule = context.curModule;
+    std::unordered_set<std::string> curModuleDeps =
+        CompilerCangjieProject::GetInstance()->GetOneModuleDirectDeps(curModule, context.includeScriptRequire);
+    for (const auto &pkgReExportSymbols: pkgReExportSymsMap) {
+        if (pkgReExportSymbols.first == curPkgName ||
+            !CompilerCangjieProject::GetInstance()->IsVisibleForPackage(curPkgName, pkgReExportSymbols.first) ||
+            CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgReExportSymbols.first)) {
+            continue;
+        }
+        // module name for dependency check
+        std::string symModule = CompilerCangjieProject::GetInstance()->GetModuleNameByFile(
+            "", pkgReExportSymbols.first);
+        auto relation = GetPackageRelation(curPkgName, pkgReExportSymbols.first);
+        for (const auto &sym: pkgReExportSymbols.second) {
+            // filter diff name - exact match
+            if (sym.name != identifier) {
+                continue;
+            }
+            // filter symbols that not dependent by curModule
+            if (!sym.isCjoSym && !curModuleDeps.count(symModule)) {
+                continue;
+            }
+            bool isAccessible =
+                sym.modifier == Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (sym.modifier == Modifier::INTERNAL || sym.modifier == Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && sym.modifier == Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && sym.modifier == Modifier::PROTECTED);
+            if (!isAccessible || sym.id == INVALID_SYMBOL_ID) {
+                continue;
+            }
+            // filter already imported syms
+            if (importDeclSyms.count(sym.id)) {
+                continue;
+            }
+            callback(pkgReExportSymbols.first, sym);
         }
     }
 }
@@ -431,11 +477,10 @@ void MemIndex::FindImportSymsOnQuickFix(const SymbolSearchContext &context,
         auto relation = GetPackageRelation(curPkgName, pkgSyms.first);
         for (const auto &sym : pkgSyms.second) {
             bool isPkgAccess =
-                sym.pkgModifier == Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (sym.pkgModifier == Modifier::INTERNAL
-                                                              || sym.pkgModifier == Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
+                sym.pkgModifier == Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (sym.pkgModifier == Modifier::INTERNAL || sym.pkgModifier == Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && sym.pkgModifier == Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && sym.pkgModifier == Modifier::PROTECTED);
             if (!isPkgAccess) {
                 break;
             }
@@ -458,11 +503,10 @@ void MemIndex::FindImportSymsOnQuickFix(const SymbolSearchContext &context,
             }
             // filter by modifier
             bool isAccessible =
-                sym.modifier == ark::lsp::Modifier::PUBLIC
-                || (relation == PackageRelation::CHILD && (sym.modifier == ark::lsp::Modifier::INTERNAL
-                                                              || sym.modifier == ark::lsp::Modifier::PROTECTED))
-                || (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED)
-                || (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
+                sym.modifier == ark::lsp::Modifier::PUBLIC || (relation == PackageRelation::CHILD &&
+                    (sym.modifier == ark::lsp::Modifier::INTERNAL || sym.modifier == ark::lsp::Modifier::PROTECTED)) ||
+                    (relation == PackageRelation::SAME_MODULE && sym.modifier == ark::lsp::Modifier::PROTECTED) ||
+                    (relation == PackageRelation::PARENT && sym.modifier == ark::lsp::Modifier::PROTECTED);
             // filter root pkg symbols if cur module is combined
             if (isAccessible
                 && !CompilerCangjieProject::GetInstance()->IsCombinedSym(curModule, curPkgName, pkgSyms.first)) {
