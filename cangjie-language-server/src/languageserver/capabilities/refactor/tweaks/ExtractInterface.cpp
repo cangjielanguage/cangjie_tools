@@ -949,30 +949,6 @@ bool TargetFileHasPackageDeclaration(const std::string &targetPath)
     return content.find_first_not_of(" \t\r", lineStart) == packagePos;
 }
 
-void CollectClassInterfaceInheritedTypesForRename(const Cangjie::AST::ClassDecl &decl,
-                                                  const Tweak::Selection &sel,
-                                                  std::vector<std::string> &inheritedTypes)
-{
-    SourceManager *sm = sel.arkAst ? sel.arkAst->sourceManager : nullptr;
-    if (!sm) {
-        return;
-    }
-
-    std::unordered_set<std::string> seen;
-    for (const auto &inherited : decl.inheritedTypes) {
-        if (!IsInterfaceInheritedType(inherited)) {
-            continue;
-        }
-        std::string typeName = ResolveInheritedTypeText(inherited, sm);
-        if (typeName.empty()) {
-            continue;
-        }
-        if (seen.insert(typeName).second) {
-            inheritedTypes.push_back(std::move(typeName));
-        }
-    }
-}
-
 void CollectInterfaceInheritedTypesForExtract(const Cangjie::AST::InheritableDecl &decl,
                                               const Tweak::Selection &sel,
                                               const std::unordered_set<std::string> &selectedInheritedTypes,
@@ -1480,8 +1456,12 @@ std::optional<TextEdit> BuildTypeReplacementEditForLocation(const Location &loca
     if (!found && !IsLikelyTypeReferenceText(*refAst, refRange)) {
         return std::nullopt;
     }
-    if (shouldExclude) {
+    if (shouldExclude && context.implementationClassName.empty()) {
         return std::nullopt;
+    }
+
+    if (!context.implementationClassName.empty()) {
+        return TextEdit{location.range, context.implementationClassName};
     }
 
     std::string normalizedTargetPath = FileStore::NormalizePath(context.targetPath);
@@ -2722,10 +2702,7 @@ void CollectApplyInterfaceInfo(ApplyContext &context)
 {
     CollectMembersFromTarget(context.target, context.sel, context.info);
 
-    if (context.renameOriginalClass && context.target.classDecl) {
-        CollectClassInterfaceInheritedTypesForRename(
-            *context.target.classDecl, context.sel, context.info.inheritedTypes);
-    } else if (context.renameOriginalClass && context.target.inheritableDecl) {
+    if (context.renameOriginalClass && context.target.inheritableDecl) {
         CollectInterfaceInheritedTypesForExtract(
             *context.target.inheritableDecl, context.sel, context.selectedInheritedTypes, context.info.inheritedTypes);
     } else if (context.target.classDecl) {
