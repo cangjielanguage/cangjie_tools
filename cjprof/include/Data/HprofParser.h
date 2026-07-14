@@ -143,7 +143,6 @@ public:
 
     // ReadId and WriteId are based on m_idSize, implemented in base class
     ID ReadId();
-    void WriteId(ID id);
 
     // Template helper: read, swap endian, advance position in one call
     template <typename T>

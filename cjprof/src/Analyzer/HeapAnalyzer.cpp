@@ -670,74 +670,6 @@ RawHeapSnapshot HeapAnalyzer::GetRawHeapSnapshot()
     return data;
 }
 
-void RawHeapSnapshot::PrintSummary() {
-    size_t totalSize = 0;
-    int objectCount = 0, arrayCount = 0, stringCount = 0;
-
-    for (const auto& node : nodes) {
-        totalSize += node.selfSize;
-        // 节点类型名称
-        // 类型值    类型名                  说明
-        // 0        hidden                  隐藏节点（内部使用）
-        // 1        array                   数组
-        // 2        string                  字符串
-        // 3        object                  普通对象
-        // 4        code                    代码对象
-        // 5        closure                 闭包
-        // 6        regexp                  正则表达式
-        // 7        number                  数字
-        // 8        native                  原生对象
-        // 9        synthetic               合成对象
-        // 10       concatenated string     拼接字符串
-        // 11       sliced string           切片字符串
-        // 12       symbol                  Symbol
-        // 13       bigint                  BigInt
-        switch (node.type) {
-            case NodeType::ARRAY: arrayCount++; break;
-            case NodeType::STRING: stringCount++; break;
-            case NodeType::OBJECT: objectCount++; break;
-        }
-        // 边类型：edge.type
-        // 类型值        类型名             说明
-        // 0            context            上下文引用
-        // 1            element            数组元素
-        // 2            property           对象属性
-        // 3            internal           内部引用
-        // 4            hidden             隐藏引用
-        // 5            shortcut           快捷引用
-        // 6            weak               弱引用
-    }
-
-    std::stringstream ss;
-    ss << "================================================================================\n";
-    ss << "RawHeapSnapshot data, filePath: " << filePath << ", id: " << hashid << ", hashid: " << hashid << "\n";
-    ss << "RawHeapSnapshot data, nodeCount: " << nodeCount << ", edgeCount: " << edgeCount
-            << ", startTime: " << startTime << ", fileSize: " << fileSize << "\n";
-    ss << "\n=== Heap Snapshot Summary ===" << "\n";
-    ss << "Total nodes: " << nodes.size() << "\n";
-    ss << "Total size: " << totalSize << " bytes" << "\n";
-    ss << "  Arrays: " << arrayCount << "\n";
-    ss << "  Objects: " << objectCount << "\n";
-    ss << "  Strings: " << stringCount << "\n";
-    for (const auto& node : nodes) {
-        ss << "RawHeapSnapshot node"
-            << ", id: " << node.id << ", type: " <<node.TypeString() << ", rootType: " << node.RootString()
-            << ", self_size: " << node.selfSize <<", arraylen: " << node.arrayLen << ", edge_count: " << node.edgeCount
-            << ", name_index: " << node.nameIndex <<", name: " << strings[node.nameIndex] << "\n";
-    }
-    for (auto th : threads) {
-        for (auto fr : th.frames) {
-            for (auto nodeid : fr.locals) {
-                auto node = nodes[nodeid];
-                ss << "RawHeapSnapshot threads obj" << ", id: " << node.id
-                    << ", name_index: " << node.nameIndex << ", name: " << strings[node.nameIndex] << "\n";
-            }
-        }
-    }
-    ss << "================================================================================\n";
-    printf("%s\n", ss.str().c_str());
-}
-
 #include "Analyzer/Types.h"
 #include "Analyzer/HttpContext.h"
 #include "Analyzer/HttpServer.h"
@@ -1000,113 +932,6 @@ static std::vector<cjprof::DominanceNode> BuildDominanceNodesFromHprof(const Hpr
     return nodes;
 }
 
-static std::vector<cjprof::DominanceNode> BuildDominanceNodes(const RawHeapSnapshot& rhs)
-{
-    using namespace cjprof;
-    size_t n = rhs.nodes.size();
-    if (n == 0) {
-        return {};
-    }
-
-    // Build children (succs) and parents (preds) from edges
-    std::vector<std::vector<size_t>> succs(n);
-    std::vector<std::vector<size_t>> preds(n);
-    size_t edgeIndex = 0;
-    for (size_t i = 0; i < n; ++i) {
-        for (uint32_t j = 0; j < rhs.nodes[i].edgeCount && edgeIndex < rhs.edges.size(); ++j) {
-            size_t to = rhs.edges[edgeIndex++].toNode;
-            if (to < n) {
-                succs[i].push_back(to);
-                preds[to].push_back(i);
-            }
-        }
-    }
-
-    // Identify GC Roots
-    std::vector<size_t> gcRoots;
-    for (size_t i = 0; i < n; ++i) {
-        if (preds[i].empty() || rhs.nodes[i].IsRoot() || rhs.nodes[i].isPinned) {
-            gcRoots.push_back(i);
-        }
-    }
-
-    if (gcRoots.empty()) {
-        return {};
-    }
-
-    // Reuse the project's Cooper algorithm via ComputeDominanceTree
-    auto result = Cjprof::ComputeDominanceTree(n, succs, preds, gcRoots);
-    const auto& dom = result.dom;
-    const auto& domTree = result.domTree;
-    size_t entry = 0;
-
-    // Compute retainedSize recursively
-    std::vector<uint64_t> retainedSizes(n, 0);
-    std::function<uint64_t(size_t)> computeRetainedSize = [&](size_t node) -> uint64_t {
-        size_t originalIdx = node - 1;
-        uint64_t size = rhs.nodes[originalIdx].selfSize;
-        for (size_t child : domTree[node]) {
-            size += computeRetainedSize(child);
-        }
-        retainedSizes[originalIdx] = size;
-        return size;
-    };
-    for (size_t v = 1; v <= n; ++v) {
-        if (dom[v] == entry) {
-            computeRetainedSize(v);
-        }
-    }
-
-    // unreachable nodes: retained = shallow
-    for (size_t i = 0; i < n; ++i) {
-        if (dom[i + 1] == result.noEntry) {
-            retainedSizes[i] = rhs.nodes[i].selfSize;
-        }
-    }
-
-    // Compute depth via BFS from roots
-    std::vector<uint32_t> depth(n, UINT32_MAX);
-    std::queue<size_t> bfs;
-    for (size_t i = 0; i < n; ++i) {
-        if (dom[i + 1] == entry) {
-            depth[i] = 0;
-            bfs.push(i);
-        }
-    }
-    while (!bfs.empty()) {
-        size_t idx = bfs.front();
-        bfs.pop();
-        for (size_t childOrdinal : domTree[idx + 1]) {
-            size_t childIdx = childOrdinal - 1;
-            if (depth[childIdx] == UINT32_MAX || depth[childIdx] > depth[idx] + 1) {
-                depth[childIdx] = depth[idx] + 1;
-                bfs.push(childIdx);
-            }
-        }
-    }
-
-    // Build DominanceNode array
-    std::vector<DominanceNode> nodes;
-    nodes.reserve(n);
-    for (size_t i = 0; i < n; ++i) {
-        DominanceNode dn;
-        dn.object_id = rhs.nodes[i].id;
-        dn.shallow_size = rhs.nodes[i].selfSize;
-        dn.retained_size = retainedSizes[i];
-        dn.depth = depth[i] == UINT32_MAX ? 0 : depth[i];
-        size_t parentOrdinal = dom[i + 1];
-        if (parentOrdinal == result.noEntry) {
-            dn.parent_id = 0;
-        } else {
-            dn.parent_id = (parentOrdinal > 0 && parentOrdinal <= n) ? rhs.nodes[parentOrdinal - 1].id : 0;
-        }
-        dn.instance_count = 1;
-        dn.is_class_clustered = false;
-        nodes.push_back(dn);
-    }
-    return nodes;
-}
-
 std::chrono::steady_clock::time_point g_startTime;
 
 void HeapAnalyzer::SetProgramStartTime()
@@ -1340,8 +1165,8 @@ bool HeapAnalyzer::StartReportServer(int port)
             context->childrenByParentId[node.parent_id].push_back(&node);
         }
     }
-    // Build object_id -> class_name index (reuse buildObjectIdToClassMap logic inline)
-    // Also build className -> DominanceNode* index for by-type handlers
+    // Build object_id -> class_name index inline (ctx.objectIdToClassName),
+    // and className -> DominanceNode* index for by-type handlers.
     {
         std::unordered_map<uint64_t, std::string> classIdToNameMap;
         if (context->classes) {

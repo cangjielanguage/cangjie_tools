@@ -39,54 +39,6 @@ static std::string getClassName(const HttpContext& ctx, uint64_t objectId)
     return "unknown";
 }
 
-// Build object_id -> class_name map for ALL objects in one pass (O(N))
-// NOTE: This is now only used by HeapAnalyzer::StartReportServer() to build ctx.objectIdToClassName.
-// Individual handlers should use ctx.objectIdToClassName directly via getClassName().
-static std::unordered_map<uint64_t, std::string> buildObjectIdToClassMap(const HttpContext& ctx)
-{
-    // If the pre-built index exists, just return it (avoid rebuilding)
-    if (!ctx.objectIdToClassName.empty()) {
-        return ctx.objectIdToClassName;
-    }
-
-    std::unordered_map<uint64_t, std::string> objectIdToClassMap;
-    if (!ctx.objects) return objectIdToClassMap;
-
-    // Build class_id -> class_name map for O(1) lookup
-    std::unordered_map<uint64_t, std::string> classIdToNameMap;
-    if (ctx.classes) {
-        for (const auto& cls : *ctx.classes) {
-            if (!cls.class_name.empty()) {
-                classIdToNameMap[cls.class_id] = cls.class_name;
-            }
-        }
-    }
-
-    // Build object_id -> class_name map in one pass
-    for (const auto& obj : *ctx.objects) {
-        std::string className;
-        if (!obj.name.empty()) {
-            className = obj.name;
-        } else if (obj.class_id == 0) {
-            switch (obj.category) {
-                case ObjectCategory::PRIMITIVE_ARRAY: className = "PRIMITIVE_ARRAY"; break;
-                case ObjectCategory::OBJECT_ARRAY: className = "OBJECT_ARRAY"; break;
-                case ObjectCategory::STRUCT_ARRAY: className = "STRUCT_ARRAY"; break;
-                case ObjectCategory::PINNED_OBJECT: className = "PINNED_OBJECT"; break;
-                case ObjectCategory::LARGE_OBJECT: className = "LARGE_OBJECT"; break;
-                case ObjectCategory::UNMOVABLE_OBJECT: className = "UNMOVABLE_OBJECT"; break;
-                default: className = "unknown"; break;
-            }
-        } else {
-            auto it = classIdToNameMap.find(obj.class_id);
-            className = (it != classIdToNameMap.end()) ? it->second : "unknown";
-        }
-        objectIdToClassMap[obj.object_id] = className;
-    }
-
-    return objectIdToClassMap;
-}
-
 /**
  * Cluster result containing the node, its class name, and original instance IDs.
  */

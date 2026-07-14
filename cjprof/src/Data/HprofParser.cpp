@@ -30,16 +30,6 @@ HprofParserBase::ID HprofParserBase::ReadId()
     }
     return 0;
 }
-
-void HprofParserBase::WriteId(ID id)
-{
-    if (m_dataRef.idSize == 4) {
-        WriteAs(SwapEndian(static_cast<u4>(id)));
-    } else if (m_dataRef.idSize == 8) {
-        WriteAs(SwapEndian(static_cast<u8>(id)));
-    }
-}
-
 // ============================================================================
 // HprofParserV2 Implementation (Format 1.0.2)
 // ============================================================================

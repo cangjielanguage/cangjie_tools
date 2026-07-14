@@ -147,7 +147,6 @@ public:
     std::string filePath;
     std::vector<Thread> threads;
     uint32_t fileSize;
-    void PrintSummary();
 };
 
 class HeapAnalyzer : public Singleton<HeapAnalyzer> {
