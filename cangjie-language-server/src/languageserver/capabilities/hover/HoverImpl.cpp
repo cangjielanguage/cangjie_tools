@@ -43,6 +43,80 @@ static void CollectCommentText(const CommentGroups &commentGroups, std::vector<s
     }
 }
 
+// 宏展开后新生成 Decl 的 comments 字段会丢失（inputTokens 重新解析时注释 token 不再绑定到节点）。
+// 原始注释仍保留在 curMacroCall 保存的原始 AST 中。下面三个辅助函数按
+// (identifier, begin, end) 在原始 AST 中找回注释，供 Hover 展示。
+static Ptr<const Node> GetCurMacroCall(const Decl &decl)
+{
+    if (decl.curMacroCall) {
+        return decl.curMacroCall;
+    }
+    Ptr<const Decl> tmp = &decl;
+    while (tmp->outerDecl) {
+        tmp = tmp->outerDecl;
+        if (tmp->curMacroCall) {
+            return tmp->curMacroCall;
+        }
+    }
+    return nullptr;
+}
+
+static CommentGroups FindCommentsInMacroCall(const Ptr<const Decl> target, Ptr<const Node> curCall)
+{
+    if (!target || !curCall) {
+        return {};
+    }
+    CommentGroups found;
+    const std::string id = target->identifier;
+    const auto begin = target->GetBegin();
+    const auto end = target->GetEnd();
+    ConstWalker walker(curCall, [&](Ptr<const Node> cur) -> VisitAction {
+        Meta::match(*cur)([&](const Decl &d) {
+            if (d.identifier == id && d.GetBegin() == begin &&
+                d.GetEnd() == end && !d.comments.IsEmpty()) {
+                found = d.comments;
+            }
+        });
+        return found.IsEmpty() ? VisitAction::WALK_CHILDREN : VisitAction::STOP_NOW;
+    });
+    walker.Walk();
+    return found;
+}
+
+// 将 walker 回调中处理 Decl 的逻辑提取为独立函数，降低 ResolveDeclComments 的嵌套深度。
+static void TryFillCommentsFromMacro(const Decl &d, CommentGroups &found)
+{
+    if (!found.IsEmpty()) {
+        return;
+    }
+    if (auto call = GetCurMacroCall(d)) {
+        auto c = FindCommentsInMacroCall(&d, call);
+        if (!c.IsEmpty()) {
+            found = std::move(c);
+        }
+    }
+}
+
+static VisitAction CollectCommentsVisitFunc(Ptr<const Node> cur, CommentGroups &found)
+{
+    Meta::match(*cur)([&](const Decl &d) { TryFillCommentsFromMacro(d, found); });
+    return VisitAction::SKIP_CHILDREN;
+}
+
+static CommentGroups ResolveDeclComments(const Decl &decl)
+{
+    if (!decl.comments.IsEmpty()) {
+        return decl.comments;
+    }
+    CommentGroups found;
+    auto visit = [&found](Ptr<const Node> cur) -> VisitAction {
+        return CollectCommentsVisitFunc(cur, found);
+    };
+    ConstWalker walker(&decl, visit);
+    walker.Walk();
+    return found;
+}
+
 Decl* HoverImpl::GetRealDecl(const std::vector<Ptr<Decl>> &decls)
 {
     Decl *decl = decls[0];
@@ -349,7 +423,9 @@ int HoverImpl::GetHoverMessage(Ptr<Decl> decl, Hover &result, const ArkAST &ast)
         return 0;
     }
     std::vector<std::string> comments;
-    CollectCommentText(decl->comments, comments);
+    // 属性宏（如 @Foo）修饰的函数内部的局部变量，在宏展开后 decl->comments 为空，
+    // 需通过 ResolveDeclComments 从 curMacroCall 原始 AST 中恢复注释（如 // demo）。
+    CollectCommentText(ResolveDeclComments(*decl), comments);
 
     if (comments.empty()) {
         auto index = CompilerCangjieProject::GetInstance()->GetIndex();
