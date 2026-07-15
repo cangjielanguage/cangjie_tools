@@ -88,6 +88,13 @@ private:
 
     std::string TransformFunctionBody(Block* block, const std::map<std::string, std::string> &paramMap);
 
+    bool NeedsThisPrefix();
+
+    void CollectSameScopeRefs(Block* block, std::map<std::string, int> &outMap);
+
+    void ApplyResultTransforms(std::string &result, const std::map<std::string, int> &replaceMap,
+        bool needsThisPrefix);
+
     std::string TransformReturnStatement(ReturnExpr* returnExpr, const std::map<std::string, std::string> &paramMap);
 
     void AppendStatementCode(std::ostringstream &bodyCode, Node* stmt,
