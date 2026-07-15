@@ -287,7 +287,7 @@ static std::string GetIntroduceParameterExprTypeName(const SelectionTree &select
     if (!expr || !expr->GetTy() || GetString(*expr->GetTy()) == "UnknownType") {
         return "";
     }
-    return GetString(*expr->GetTy());
+    return TweakUtils::GetTypeName(*expr->GetTy());
 }
 
 static std::string GetExplicitTypeName(const Tweak::Selection &sel)
@@ -327,13 +327,23 @@ class IntroduceParameterRule : public TweakRule {
                     static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_CODE_SEGMENT))));
             return false;
         }
+        if (TweakUtils::IsSelectionInConstInitializer(sel.arkAst, range)) {
+            extraOptions.insert(std::make_pair("ErrorCode", std::to_string(static_cast<int>(
+                IntroduceParameter::IntroduceParameterError::INVALID_CONST_INITIALIZER))));
+            return false;
+        }
+        if (TweakUtils::IsIfLetSelection(sel.selectionTree, range)) {
+            extraOptions.insert(std::make_pair("ErrorCode", std::to_string(static_cast<int>(
+                IntroduceParameter::IntroduceParameterError::INVALID_IF_LET_EXPRESSION))));
+            return false;
+        }
         auto funcDecl = IntroduceParameter::GetTargetFunc(sel);
         if (!funcDecl) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_SCOPE))));
             return false;
         }
-        if (IntroduceParameter::IsMemberAssignInInit(funcDecl, selectedExpr)) {
+        if (TweakUtils::IsMemberAssignInInit(funcDecl, selectedExpr)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(
                     static_cast<int>(IntroduceParameter::IntroduceParameterError::MEMBER_ASSIGN_IN_CONSTRUCTOR))));
@@ -424,23 +434,6 @@ Ptr<Cangjie::AST::FuncDecl> IntroduceParameter::GetTargetFunc(const Selection &s
 {
     return TweakUtils::GetTargetFunc(
         sel.selectionTree, sel.arkAst, GetIntroduceParameterExprRange(sel.selectionTree, sel.range));
-}
-
-bool IntroduceParameter::IsMemberAssignInInit(Ptr<FuncDecl> func, Ptr<Node> expr)
-{
-    if (!expr || !func || !func->TestAttr(Attribute::CONSTRUCTOR)) {
-        return false;
-    }
-
-    if (auto assign = DynamicCast<AssignExpr>(expr)) {
-        if (auto leftValue = DynamicCast<MemberAccess>(assign->leftValue.get())) {
-            if (auto refExpr = DynamicCast<RefExpr>(leftValue->baseExpr.get())) {
-                return refExpr->isThis;
-            }
-        }
-    }
-
-    return false;
 }
 
 TextEdit IntroduceParameter::InsertParameter(

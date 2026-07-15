@@ -1220,6 +1220,8 @@
 {"codeAction":{"testFile":"IntroduceField_Constraint_004.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceParameter_Constraint_001.test","id":"10"}}
 {"codeAction":{"testFile":"IntroduceParameter_Constraint_002.test","id":"10"}}
+{"codeAction":{"testFile":"IntroduceParameter_Constraint_003.test","id":"10"}}
+{"codeAction":{"testFile":"IntroduceParameter_Constraint_004.test","id":"10"}}
 
 {"applyEdit":{"testFile":"ExtractMethod_Apply_003.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractVariable_Apply_001.test","method":"workspace/applyEdit"}}
@@ -1285,3 +1287,4 @@
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_020.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_021.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_022.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"IntroduceParameter_Apply_023.test","method":"workspace/applyEdit"}}

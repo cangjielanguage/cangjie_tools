@@ -7,6 +7,7 @@
 #include "TweakUtils.h"
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <unordered_set>
 #include <cangjie/AST/Walker.h>
 // LCOV_EXCL_START
@@ -112,6 +113,86 @@ bool TweakUtils::IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node)
 {
     auto assignExpr = DynamicCast<Cangjie::AST::AssignExpr *>(&node);
     return assignExpr && assignExpr->isCompound && COMPOUND_ASSIGN_OPERATORS.count(assignExpr->op) > 0;
+}
+
+bool TweakUtils::IsMemberAssignInInit(Ptr<FuncDecl> func, Ptr<Node> expr)
+{
+    if (!expr || !func || !func->TestAttr(Attribute::CONSTRUCTOR)) {
+        return false;
+    }
+
+    if (auto assign = DynamicCast<AssignExpr>(expr)) {
+        if (auto leftValue = DynamicCast<MemberAccess>(assign->leftValue.get())) {
+            if (auto refExpr = DynamicCast<RefExpr>(leftValue->baseExpr.get())) {
+                return refExpr->isThis;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool TweakUtils::IsSelectionInConstInitializer(const ArkAST *arkAst, const Range &range)
+{
+    if (!arkAst || !arkAst->file) {
+        return false;
+    }
+    bool found = false;
+    ConstWalker(arkAst->file, [&range, &found](Ptr<const Node> node) {
+        if (!node || found) {
+            return VisitAction::STOP_NOW;
+        }
+        auto varDecl = DynamicCast<const VarDeclAbstract *>(node.get());
+        if (varDecl && varDecl->isConst && varDecl->initializer &&
+            varDecl->initializer->begin <= range.start && varDecl->initializer->end >= range.end) {
+            found = true;
+            return VisitAction::STOP_NOW;
+        }
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
+    return found;
+}
+
+bool TweakUtils::IsIfLetSelection(const SelectionTree &selectionTree, const Range &range)
+{
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return false;
+    }
+    bool found = false;
+    SelectionTree::Walk(root, [&range, &found](const SelectionTree::SelectionTreeNode *node) {
+        if (!node || !node->node || found) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        auto ifExpr = DynamicCast<const IfExpr *>(node->node.get());
+        bool isIfLetExpr = ifExpr && ifExpr->sugarKind == Expr::SugarKind::IF_LET;
+        bool isLetPattern = node->node->astKind == ASTKind::LET_PATTERN_DESTRUCTOR;
+        if (node->selected == SelectionTree::Selection::Complete && (isIfLetExpr || isLetPattern) &&
+            node->node->begin == range.start && node->node->end == range.end) {
+            found = true;
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        return SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return found;
+}
+
+std::string TweakUtils::GetTypeName(const Ty &ty)
+{
+    auto tupleTy = dynamic_cast<const TupleTy *>(&ty);
+    if (!tupleTy) {
+        return GetString(ty);
+    }
+    std::ostringstream typeName;
+    typeName << "(";
+    for (size_t i = 0; i < tupleTy->typeArgs.size(); ++i) {
+        if (i > 0) {
+            typeName << ", ";
+        }
+        typeName << GetTypeName(*tupleTy->typeArgs[i]);
+    }
+    typeName << ")";
+    return typeName.str();
 }
 
 std::string TweakUtils::GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind)
@@ -479,7 +560,7 @@ std::string TweakUtils::GetSelectedExprTypeName(const SelectionTree &selectionTr
             treeNode->node->begin == range.start && treeNode->node->end == range.end) {
             auto expr = DynamicCast<Expr *>(treeNode->node.get());
             if (expr && expr->GetTy() && GetString(*expr->GetTy()) != "UnknownType") {
-                typeName = GetString(*expr->GetTy());
+                typeName = GetTypeName(*expr->GetTy());
             }
             return SelectionTree::WalkAction::STOP_NOW;
         }

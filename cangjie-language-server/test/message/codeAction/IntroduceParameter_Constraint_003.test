@@ -1,0 +1,7 @@
+{"caseFolder":"refactor"}
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"processId":5248,"rootPath":"d:\\Test\\refactor","rootUri":"file:///d%3A/Test/refactor","capabilities":{"workspace":{"applyEdit":true},"textDocument":{"codeAction":{}}},"initializationOptions":{"multiModuleOption":{"file:///d%3A/Test/refactor":{"name":"default","requires":{}}}}}}
+{"jsonrpc":"2.0","method":"initialized","params":{}}
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///d%3A/Test/refactor/src/IntroduceParameter/introduce_parameter_const.cj","languageId":"Cangjie","version":1,"text":"// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.\n// This source file is part of the Cangjie project, licensed under Apache-2.0\n// with Runtime Library Exception.\n//\n// See https://cangjie-lang.cn/pages/LICENSE for license information.\n\npackage demo\n\nfunc constSample(): Unit {\n    const value = 1 + 2\n}\n"}}}
+{"jsonrpc":"2.0","id":"10","method":"textDocument/codeAction","params":{"textDocument":{"uri":"file:///d%3A/Test/refactor/src/IntroduceParameter/introduce_parameter_const.cj"},"range":{"start":{"line":9,"character":18},"end":{"line":9,"character":23}},"context":{"diagnostics":[]}}}
+{"jsonrpc":"2.0","id":"4","method":"shutdown","params":{}}
+{"jsonrpc":"2.0","method":"exit","params":{}}

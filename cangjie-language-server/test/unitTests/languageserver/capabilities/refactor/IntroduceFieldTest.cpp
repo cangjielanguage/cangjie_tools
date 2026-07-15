@@ -141,6 +141,8 @@ TEST(IntroduceFieldTest, DetectsStringInterpolationLiteral)
 
 TEST(IntroduceFieldTest, ExtraOptionsReturnStoredOptions)
 {
+    EXPECT_EQ(static_cast<int>(IntroduceField::IntroduceFieldError::MEMBER_ASSIGN_IN_CONSTRUCTOR), 11);
+
     IntroduceField introduceField;
     EXPECT_TRUE(introduceField.ExtraOptions().empty());
 

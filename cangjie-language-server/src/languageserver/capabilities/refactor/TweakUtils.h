@@ -38,6 +38,14 @@ public:
 
     static bool IsSupportedCompoundAssignExpr(const Cangjie::AST::Node &node);
 
+    static bool IsMemberAssignInInit(Ptr<FuncDecl> func, Ptr<Node> expr);
+
+    static bool IsSelectionInConstInitializer(const ArkAST *arkAst, const Range &range);
+
+    static bool IsIfLetSelection(const SelectionTree &selectionTree, const Range &range);
+
+    static std::string GetTypeName(const Ty &ty);
+
     static std::string GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind);
 
     static Range FindGlobalInsertPos(const File &file, const Range &range);

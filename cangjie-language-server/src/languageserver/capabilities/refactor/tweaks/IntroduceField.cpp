@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cangjie/AST/Walker.h>
@@ -80,51 +79,6 @@ static std::string GetDefaultInitializer(const std::string &typeName)
     return it != DEFAULT_INITIALIZERS.end() ? it->second : "";
 }
 // LCOV_EXCL_BR_START
-static bool IsConstInitializerSelection(const Tweak::Selection &sel, const Range &range)
-{
-    bool isConstInitializer = false;
-    if (!sel.arkAst || !sel.arkAst->file) {
-        return false;
-    }
-    ConstWalker(sel.arkAst->file, [&range, &isConstInitializer](Ptr<const Cangjie::AST::Node> node) {
-        if (!node || isConstInitializer) {
-            return VisitAction::STOP_NOW;
-        }
-        auto varDecl = DynamicCast<const Cangjie::AST::VarDeclAbstract *>(node.get());
-        if (!varDecl || !varDecl->isConst || !varDecl->initializer) {
-            return VisitAction::WALK_CHILDREN;
-        }
-        if (varDecl->initializer->begin <= range.start && varDecl->initializer->end >= range.end) {
-            isConstInitializer = true;
-            return VisitAction::STOP_NOW;
-        }
-        return VisitAction::WALK_CHILDREN;
-    }).Walk();
-    return isConstInitializer;
-}
-
-static bool IsLetPatternDestructorSelection(const SelectionTree &selectionTree, const Range &range)
-{
-    auto root = selectionTree.root();
-    if (!root || !root->node) {
-        return false;
-    }
-    bool isLetPatternDestructor = false;
-    SelectionTree::Walk(root, [&range, &isLetPatternDestructor](const SelectionTree::SelectionTreeNode *node) {
-        if (!node || !node->node || isLetPatternDestructor) {
-            return SelectionTree::WalkAction::STOP_NOW;
-        }
-        if (node->selected == SelectionTree::Selection::Complete &&
-            node->node->astKind == ASTKind::LET_PATTERN_DESTRUCTOR &&
-            node->node->begin == range.start && node->node->end == range.end) {
-            isLetPatternDestructor = true;
-            return SelectionTree::WalkAction::STOP_NOW;
-        }
-        return SelectionTree::WalkAction::WALK_CHILDREN;
-    });
-    return isLetPatternDestructor;
-}
-
 static bool IsSelectionInLambdaExpr(const Tweak::Selection &sel, const Range &range)
 {
     bool isInLambda = false;
@@ -195,6 +149,9 @@ static Range GetIntroduceFieldExprRange(const SelectionTree &selectionTree, cons
     if (exprNode && exprNode->node) {
         return {exprNode->node->begin, exprNode->node->end};
     }
+    if (GetSelectedExpr(selectionTree, selectedRange)) {
+        return selectedRange;
+    }
     return TweakUtils::GetCompleteExprRange(selectionTree);
 }
 
@@ -203,6 +160,9 @@ static Ptr<Cangjie::AST::Expr> GetIntroduceFieldExpr(const SelectionTree &select
     auto exprNode = TweakUtils::GetCompleteExprNode(selectionTree, selectedRange);
     if (exprNode && exprNode->node) {
         return DynamicCast<Cangjie::AST::Expr *>(exprNode->node.get());
+    }
+    if (auto selectedExpr = GetSelectedExpr(selectionTree, selectedRange)) {
+        return selectedExpr;
     }
     return GetSelectedExpr(selectionTree, TweakUtils::GetCompleteExprRange(selectionTree));
 }
@@ -420,28 +380,8 @@ static std::string GetDefaultInitializer(const Tweak::Selection &sel, const Rang
     return GetEnumDefaultInitializer(sel, range);
 }
 
-static std::string BuildTupleTypeName(Cangjie::AST::TupleTy &tupleTy)
-{
-    std::ostringstream typeName;
-    typeName << "(";
-    for (size_t i = 0; i < tupleTy.typeArgs.size(); ++i) {
-        if (i > 0) {
-            typeName << ", ";
-        }
-        typeName << GetString(*tupleTy.typeArgs[i]);
-    }
-    typeName << ")";
-    return typeName.str();
-}
-
 static std::string GetIntroduceFieldTypeName(const SelectionTree &selectionTree, const Range &range)
 {
-    auto selectedExpr = GetIntroduceFieldExpr(selectionTree, range);
-    auto tupleTy = selectedExpr && selectedExpr->GetTy() ?
-        dynamic_cast<Cangjie::AST::TupleTy *>(selectedExpr->GetTy().get()) : nullptr;
-    if (tupleTy) {
-        return BuildTupleTypeName(*tupleTy);
-    }
     return TweakUtils::GetSelectedExprTypeName(selectionTree, range);
 }
 
@@ -492,13 +432,18 @@ class IntroduceFieldRule : public TweakRule {
                 std::to_string(static_cast<int>(IntroduceField::IntroduceFieldError::INVALID_SCOPE))));
             return false;
         }
-        if (IsLetPatternDestructorSelection(sel.selectionTree, range)) {
+        if (!memberInitializerTarget && TweakUtils::IsMemberAssignInInit(funcDecl, selectedExpr)) {
+            extraOptions.insert(std::make_pair("ErrorCode", std::to_string(static_cast<int>(
+                IntroduceField::IntroduceFieldError::MEMBER_ASSIGN_IN_CONSTRUCTOR))));
+            return false;
+        }
+        if (TweakUtils::IsIfLetSelection(sel.selectionTree, range)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(
                     IntroduceField::IntroduceFieldError::INVALID_LET_PATTERN_DESTRUCTOR))));
             return false;
         }
-        if (IsConstInitializerSelection(sel, range)) {
+        if (TweakUtils::IsSelectionInConstInitializer(sel.arkAst, range)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(IntroduceField::IntroduceFieldError::INVALID_CONST_INITIALIZER))));
             return false;
