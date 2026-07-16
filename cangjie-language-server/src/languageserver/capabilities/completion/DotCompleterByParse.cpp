@@ -929,6 +929,15 @@ void DotCompleterByParse::FindTryExpr(Ptr<Node> node, const Position &pos, std::
 {
     auto pTryExpr = dynamic_cast<TryExpr*>(node.get());
     if (!pTryExpr) { return; }
+
+    for (const auto &resource : pTryExpr->resourceSpec) {
+        if (resource && resource->begin <= pos && pos <= resource->end) {
+            scopeName = QueryByPos(resource.get(), pos);
+            DeepFind(resource.get(), pos, scopeName, isInclude);
+            return;
+        }
+    }
+
     if (pTryExpr->tryBlock && Contain(pTryExpr->tryBlock.get(), pos)) {
         DeepFind(pTryExpr->tryBlock.get(), pos, scopeName, isInclude);
     }

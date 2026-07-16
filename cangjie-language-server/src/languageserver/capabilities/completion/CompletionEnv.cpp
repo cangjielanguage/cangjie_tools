@@ -349,7 +349,21 @@ void CompletionEnv::DealTryExpr(Ptr<Node> node, const Position pos)
 {
     auto *pTryExpr = dynamic_cast<TryExpr*>(node.get());
     if (!pTryExpr) { return; }
+
+    for (const auto &resource : pTryExpr->resourceSpec) {
+        if (resource && resource->GetBegin() <= pos && pos <= resource->GetEnd()) {
+            DeepComplete(resource->initializer.get(), pos);
+            return;
+        }
+    }
+
     if (Contain(pTryExpr->tryBlock.get(), pos)) {
+        // Resource names have the same scope depth as declarations in the try body.
+        scopeDepth++;
+        for (const auto &resource : pTryExpr->resourceSpec) {
+            CompleteNode(resource.get());
+        }
+        scopeDepth--;
         DeepComplete(pTryExpr->tryBlock.get(), pos);
     } else if (Contain(pTryExpr->finallyBlock.get(), pos)) {
         DeepComplete(pTryExpr->finallyBlock.get(), pos);
