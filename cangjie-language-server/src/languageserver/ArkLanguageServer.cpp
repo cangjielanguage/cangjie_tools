@@ -1600,6 +1600,32 @@ void ArkLanguageServer::HandleAddImportQuickFix(DiagnosticToken &diagnostic, con
             codeAction.edit = edit;
             actions.push_back(codeAction);
         });
+    index->FindImportReExportSymsOnQuickFix(
+        context, importedSyms, identifier,
+        [&actions, &fixSet, &textEditRange, uri, this](const std::string &pkg, const lsp::ReExportSymbol &sym) {
+            std::string fullSymName = pkg + ":" + sym.name;
+            if (fixSet.count(fullSymName)) {
+                return;
+            } else {
+                fixSet.insert(fullSymName);
+            }
+            if (CompletionImpl::externalImportSym.count(fullSymName)) {
+                lsp::Symbol tmpSym;
+                tmpSym.name = sym.name;
+                ArkLanguageServer::HandleExternalImportSym(actions, pkg, tmpSym, textEditRange, uri);
+                return;
+            }
+            CodeAction codeAction;
+            codeAction.kind = CodeAction::QUICKFIX_ADD_IMPORT;
+            codeAction.title = "import " + pkg + "." + sym.name;
+            WorkspaceEdit edit;
+            ark::TextEdit textEdit;
+            textEdit.range = textEditRange;
+            textEdit.newText = "import " + pkg + "." + sym.name + "\n";
+            edit.changes[uri].push_back(textEdit);
+            codeAction.edit = edit;
+            actions.push_back(codeAction);
+        });
     diagnostic.codeActions = actions;
 }
 
@@ -2137,7 +2163,7 @@ static bool ProcessDeclDeleteRange(const Decl* decl,
     if (ShouldHandleEnumVariant(decl, arkAst)) {
         HandleEnumVariant(decl, arkAst, deleteRange);
     }
-    
+
     if (ShouldHandleCurMacroCall(decl)) {
         if (IsAnnotationMacro(decl)) {
             return HandleAnnotationMacro(decl, deleteRange);

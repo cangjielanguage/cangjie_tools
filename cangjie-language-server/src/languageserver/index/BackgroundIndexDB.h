@@ -133,6 +133,11 @@ public:
         const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
         std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback) override;
 
+    void FindImportReExportSymsOnQuickFix(const SymbolSearchContext &context,
+        const std::unordered_set<SymbolID> &importDeclSyms,
+        const std::string &identifier,
+        const std::function<void(const std::string &, const ReExportSymbol &)>& callback) override;
+
     void FindComment(const Symbol &sym, std::vector<std::string> &comments) override;
 
     void FindCrossSymbolByName(const std::string &packageName, const std::string &symName, bool isComebined,

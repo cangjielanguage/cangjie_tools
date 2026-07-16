@@ -275,6 +275,7 @@ void ReadReExportSymbol(ReExportSymbol &reExportSymbol, const IdxFormat::ReExpor
             reExportSymbol.completionItems.push_back({label, insert});
         }
     }
+    reExportSymbol.isCjoSym = res->is_cjo_sym();
 }
 
 flatbuffers::Offset<IdxFormat::CommentGroups> CreateFBCommentGroups(
@@ -404,7 +405,7 @@ auto StoreReExportSymbol(flatbuffers::FlatBufferBuilder &builder, const ReExport
     }
     auto completion_items = builder.CreateVector(completion_vec);
     return IdxFormat::CreateReExportSymbol(builder, res.id, name, static_cast<uint8_t>(res.modifier),
-        static_cast<uint16_t>(res.kind), signature, completion_items);
+        static_cast<uint16_t>(res.kind), signature, completion_items, res.isCjoSym);
 }
 } // namespace
 

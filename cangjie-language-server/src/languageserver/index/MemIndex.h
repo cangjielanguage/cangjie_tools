@@ -159,6 +159,11 @@ public:
         const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
         std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback) = 0;
 
+    virtual void FindImportReExportSymsOnQuickFix(const SymbolSearchContext &context,
+        const std::unordered_set<SymbolID> &importDeclSyms,
+        const std::string &identifier,
+        const std::function<void(const std::string &, const ReExportSymbol &)>& callback) = 0;
+
     virtual void FindComment(const Symbol &sym, std::vector<std::string> &comments) = 0;
 
     virtual void RefsFindReference(const RefsRequest &req, Ref &definition,
@@ -223,6 +228,11 @@ public:
         const std::pair<std::unordered_set<SymbolID>, std::unordered_set<SymbolID>>& filterSyms,
         const std::string &curPkgName, const std::string &curModule, const std::string &prefix,
         std::function<void(const std::string &, const ReExportSymbol &, const CompletionItem &)> callback) override;
+
+    void FindImportReExportSymsOnQuickFix(const SymbolSearchContext &context,
+        const std::unordered_set<SymbolID> &importDeclSyms,
+        const std::string &identifier,
+        const std::function<void(const std::string &, const ReExportSymbol &)>& callback) override;
 
     void RefsFindReference(const RefsRequest &req, Ref &definition,
         std::function<void(const Ref &)> callback) const override;
