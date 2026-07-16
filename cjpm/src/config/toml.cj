@@ -239,40 +239,25 @@ public class TomlInfo <: Serializable<TomlInfo> {
     }
 
     public func replaceTargetConfig(path: String, targetName: String, debug: Bool, isTest: Bool): Bool {
-        if (!this.targetConfigMap.contains(targetName)) {
-            return true
-        }
+        // Adapt the package configuration to TargetInfo so the shared target merge logic can update it.
+        // Dependency maps are shared objects; only the merged string options need to be copied back below.
+        let currentInfo = TargetInfo()
+        currentInfo.compileOption = this.pkg.compileOption
+        currentInfo.overrideCompileOption = this.pkg.overrideCompileOption
+        currentInfo.linkOption = this.pkg.linkOption
+        currentInfo.dependencies = this.dependencies
+        currentInfo.testDependencies = this.testDependencies
+        currentInfo.scriptDependencies = this.scriptDependencies
+        currentInfo.replaceDeps = this.replaceDeps
 
-        var targetInfo: TargetInfo = this.targetConfigMap[targetName].commonTargetInfo
-        if (debug) {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].debugTargetInfo, targetName,
-                isTest)) {
-                return false
-            }
-        } else {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].releaseTargetInfo, targetName,
-                isTest)) {
-                return false
-            }
-        }
-
-        this.pkg.compileOption = combineOptionString(this.pkg.compileOption, targetInfo.compileOption)
-        this.pkg.overrideCompileOption = combineOptionString(this.pkg.overrideCompileOption,
-            targetInfo.overrideCompileOption)
-        this.pkg.linkOption = combineOptionString(this.pkg.linkOption, targetInfo.linkOption)
-        if (!combineDependencies(path, this.dependencies, targetInfo.dependencies, targetName)) {
-            return false
-        }
-        if (isTest && !combineDependencies(path, this.testDependencies, targetInfo.testDependencies, targetName)) {
-            return false
-        }
-        if (!combineDependencies(path, this.scriptDependencies, targetInfo.scriptDependencies, targetName)) {
-            return false
-        }
-        if (!combineDependencies(path, this.replaceDeps, targetInfo.replaceDeps, targetName)) {
+        // Package test dependencies are merged only when processing a test build.
+        if (!mergeTargetConfig(path, currentInfo, this.targetConfigMap, targetName, debug, isTest, isTest)) {
             return false
         }
 
+        this.pkg.compileOption = currentInfo.compileOption
+        this.pkg.overrideCompileOption = currentInfo.overrideCompileOption
+        this.pkg.linkOption = currentInfo.linkOption
         return true
     }
 
@@ -519,4 +504,3 @@ func verifyAll<T>(location: String, checkList: T): Bool where T <: Iterable<((St
 
     return result
 }
-

@@ -229,6 +229,41 @@ public func replaceTargetInfo(path: String, oriInfo: TargetInfo, newInfo: Target
     return true
 }
 
+// Merge the common target configuration with the selected debug/release configuration.
+// The Bool reports whether the merge succeeded; None means that targetName has no configuration.
+func resolveTargetInfo(path: String, targetConfigMap: HashMap<String, TargetConfig>, targetName: String,
+    isDebug: Bool, isTest: Bool): (Bool, ?TargetInfo) {
+    if (!targetConfigMap.contains(targetName)) {
+        return (true, None)
+    }
+
+    let targetConfig = targetConfigMap[targetName]
+    let targetInfo = targetConfig.commonTargetInfo
+    let profileTargetInfo = if (isDebug) {
+        targetConfig.debugTargetInfo
+    } else {
+        targetConfig.releaseTargetInfo
+    }
+    if (!replaceTargetInfo(path, targetInfo, profileTargetInfo, targetName, isTest)) {
+        return (false, None)
+    }
+    return (true, Some(targetInfo))
+}
+
+// Apply a resolved target configuration to the current module/workspace configuration.
+// isTest controls whether profile-specific test dependencies enter the resolved target,
+// while mergeTestDependencies controls whether those dependencies are copied into oriInfo.
+// Keeping them separate preserves the different behavior required by TomlInfo and CommonInfo.
+func mergeTargetConfig(path: String, oriInfo: TargetInfo, targetConfigMap: HashMap<String, TargetConfig>,
+    targetName: String, isDebug: Bool, isTest: Bool, mergeTestDependencies: Bool): Bool {
+    let (success, resolvedTargetInfo) = resolveTargetInfo(path, targetConfigMap, targetName, isDebug, isTest)
+    if (!success) {
+        return false
+    }
+    let targetInfo = resolvedTargetInfo ?? return true
+    return replaceTargetInfo(path, oriInfo, targetInfo, targetName, mergeTestDependencies)
+}
+
 public func verifyTargetConfig(targetConfigMap: HashMap<String, TargetConfig>, path: String, configFilePath: String,
     isTest!: Bool = false): Bool {
     if (targetConfigMap.contains(targetConfigName) && (!verifyTargetInfo(

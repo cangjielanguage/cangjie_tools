@@ -6,53 +6,33 @@
 
 package cjpm.implement
 
-import std.fs.exists as fs_exists
 import std.collection.*
 import std.fs.*
 
-func directoryExists(path: String): Bool {
-    if (!exists(path)) {
-        return false
-    } else if (FileInfo(path).isDirectory()) {
-        return true
-    } else if (FileInfo(path).isSymbolicLink()) {
-        return FileInfo(canonicalize(path)).isDirectory()
+// Walk path once and collect entries accepted by predicate.
+// If path is a symbolic link, walk its canonical target to preserve the existing behavior.
+func getEntryList(path: String, predicate: (FileInfo) -> Bool): ArrayList<FileInfo> {
+    let entries = ArrayList<FileInfo>()
+    // Handle symbolic links: resolve to real path first
+    let realPath = if (FileInfo(Path(path)).isSymbolicLink()) {
+        canonicalize(Path(path)).toString()
+    } else {
+        path
     }
-    return false
+    Directory.walk(realPath) {
+        info =>
+        if (predicate(info)) {
+            entries.add(info)
+        }
+        true
+    }
+    return entries
 }
 
 func getFileList(path: String): ArrayList<FileInfo> {
-    let files = ArrayList<FileInfo>()
-    // Handle symbolic links: resolve to real path first
-    let realPath = if (FileInfo(Path(path)).isSymbolicLink()) {
-        canonicalize(Path(path)).toString()
-    } else {
-        path
-    }
-    Directory.walk(realPath) {
-        info =>
-        if (info.isRegular()) {
-            files.add(info)
-        }
-        true
-    }
-    return files
+    return getEntryList(path) { info => info.isRegular() }
 }
 
 func getDirectoryList(path: String): ArrayList<FileInfo> {
-    let files = ArrayList<FileInfo>()
-    // Handle symbolic links: resolve to real path first
-    let realPath = if (FileInfo(Path(path)).isSymbolicLink()) {
-        canonicalize(Path(path)).toString()
-    } else {
-        path
-    }
-    Directory.walk(realPath) {
-        info =>
-        if (info.isDirectory()) {
-            files.add(info)
-        }
-        true
-    }
-    return files
+    return getEntryList(path) { info => info.isDirectory() }
 }
