@@ -658,40 +658,60 @@ std::string InlineFunction::TransformFunctionBody(Block* block, const std::map<s
         return "";
     }
 
-    std::string scopeName = ScopeManagerApi::GetParentScopeName(funcDecl_->scopeName);
+    bool needsThisPrefix = NeedsThisPrefix();
     std::map<std::string, int> replaceFucntionAndFieldMap;
+    if (needsThisPrefix) {
+        CollectSameScopeRefs(block, replaceFucntionAndFieldMap);
+    }
 
     std::ostringstream bodyCode;
-    Walker(block, nullptr, [&scopeName, &replaceFucntionAndFieldMap, this](Ptr<Node> node) -> VisitAction {
-        if (node->astKind == ASTKind::REF_EXPR || node->astKind == ASTKind::CALL_EXPR) {
-            auto toBeCheckNode = DynamicCast<Node*>(node.get())->GetTarget();
-            std::string decScopeName;
-            if (toBeCheckNode) {
-                decScopeName = ScopeManagerApi::GetParentScopeName(toBeCheckNode->scopeName);
-            }
-            if (decScopeName != scopeName) {
-                return VisitAction::WALK_CHILDREN;
-            }
-            std::string code = GetSourceCode(node);
-            if (!replaceFucntionAndFieldMap[code]) {
-                replaceFucntionAndFieldMap[code] = 1;
-            } else {
-                replaceFucntionAndFieldMap[code]++;
-            }
-        }
-        return VisitAction::WALK_CHILDREN;
-    }).Walk();
-
     for (size_t i = 0; i < block->body.size(); ++i) {
-        auto stmt = block->body[i].get();
-        AppendStatementCode(bodyCode, stmt, paramMap);
+        AppendStatementCode(bodyCode, block->body[i].get(), paramMap);
     }
 
     std::string result = bodyCode.str();
+    ApplyResultTransforms(result, replaceFucntionAndFieldMap, needsThisPrefix);
+    return result;
+}
 
-    for (const auto &[code, times] : replaceFucntionAndFieldMap) {
-        std::regex paramRegex("\\b" + code + "\\b");
-        result = RegexReplaceN(result, paramRegex, "this." + code, times);
+bool InlineFunction::NeedsThisPrefix()
+{
+    bool isClassMember = funcDecl_->TestAnyAttr(
+        Attribute::IN_CLASSLIKE, Attribute::IN_STRUCT, Attribute::IN_ENUM);
+    bool isStaticMember = funcDecl_->TestAttr(Attribute::STATIC);
+    // Skip this. prefix for free functions and unqualified static calls.
+    return isClassMember && !(isStaticMember && !baseExpr_);
+}
+
+void InlineFunction::CollectSameScopeRefs(Block* block, std::map<std::string, int> &outMap)
+{
+    std::string scopeName = ScopeManagerApi::GetParentScopeName(funcDecl_->scopeName);
+    Walker(block, nullptr, [&scopeName, &outMap, this](Ptr<Node> node) -> VisitAction {
+        if (node->astKind != ASTKind::REF_EXPR && node->astKind != ASTKind::CALL_EXPR) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        auto toBeCheckNode = DynamicCast<Node*>(node.get())->GetTarget();
+        std::string decScopeName;
+        if (toBeCheckNode) {
+            decScopeName = ScopeManagerApi::GetParentScopeName(toBeCheckNode->scopeName);
+        }
+        if (decScopeName != scopeName) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        std::string code = GetSourceCode(node);
+        outMap[code] = outMap[code] ? outMap[code] + 1 : 1;
+        return VisitAction::WALK_CHILDREN;
+    }).Walk();
+}
+
+void InlineFunction::ApplyResultTransforms(std::string &result, const std::map<std::string, int> &replaceMap,
+    bool needsThisPrefix)
+{
+    if (needsThisPrefix) {
+        for (const auto &[code, times] : replaceMap) {
+            std::regex paramRegex("\\b" + code + "\\b");
+            result = RegexReplaceN(result, paramRegex, "this." + code, times);
+        }
     }
 
     if (hasReturnValue_ || !resultVarName_.empty()) {
@@ -703,8 +723,6 @@ std::string InlineFunction::TransformFunctionBody(Block* block, const std::map<s
         std::regex thisRegex("\\bthis\\b");
         result = std::regex_replace(result, thisRegex, baseExpr_->ToString());
     }
-
-    return result;
 }
 
 std::string InlineFunction::TransformReturnStatement(ReturnExpr* returnExpr,
