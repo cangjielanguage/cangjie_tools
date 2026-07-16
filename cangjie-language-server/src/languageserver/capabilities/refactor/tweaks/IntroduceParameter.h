@@ -49,7 +49,7 @@ public:
 
     static TextEdit InsertParameter(Cangjie::AST::FuncDecl &funcDecl, std::string &paramName, std::string &typeName);
 
-    static TextEdit ReplaceExprWithParam(const Selection &sel, Range &range, std::string &paramName);
+    static TextEdit ReplaceExprWithParam(const Selection &sel, Range range, std::string &paramName);
 };
 } // namespace ark
 
