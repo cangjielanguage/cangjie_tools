@@ -1291,3 +1291,5 @@
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_021.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_022.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceParameter_Apply_023.test","method":"workspace/applyEdit"}}
+{"completion":{"testFile":"LSP_Completion_TryResource_Normal_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_TryResource_Dot_001.test","id":"9"}}
