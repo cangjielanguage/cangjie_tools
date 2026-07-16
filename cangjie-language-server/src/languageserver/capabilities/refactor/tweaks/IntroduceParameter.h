@@ -19,7 +19,9 @@ public:
         INVALID_SCOPE,
         INVALID_TYPE,
         PUBLIC_DECL_USES_NON_PUBLIC_TYPE,
-        MEMBER_ASSIGN_IN_CONSTRUCTOR
+        MEMBER_ASSIGN_IN_CONSTRUCTOR,
+        INVALID_CONST_INITIALIZER,
+        INVALID_IF_LET_EXPRESSION
     };
 
     const std::string Id() const override
@@ -44,8 +46,6 @@ public:
     std::map<std::string, std::string> ExtraOptions() override;
 
     static Ptr<Cangjie::AST::FuncDecl> GetTargetFunc(const Selection &sel);
-
-    static bool IsMemberAssignInInit(Ptr<FuncDecl> func, Ptr<Node> expr);
 
     static TextEdit InsertParameter(Cangjie::AST::FuncDecl &funcDecl, std::string &paramName, std::string &typeName);
 

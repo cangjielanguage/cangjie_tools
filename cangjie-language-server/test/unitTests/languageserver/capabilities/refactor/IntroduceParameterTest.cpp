@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "capabilities/refactor/tweaks/IntroduceParameter.h"
+#include "capabilities/refactor/TweakUtils.h"
 #include "gtest/gtest.h"
 
 using namespace ark;
@@ -26,6 +27,18 @@ void SetFuncParamList(FuncDecl &funcDecl, OwnedPtr<FuncParamList> paramList)
 }
 
 } // namespace
+
+TEST(IntroduceParameterTest, BuildsTupleTypeName)
+{
+    PrimitiveTy intType(TypeKind::TYPE_INT64);
+    PrimitiveTy boolType(TypeKind::TYPE_BOOLEAN);
+    TupleTy tupleType({&intType, &boolType});
+
+    EXPECT_EQ(TweakUtils::GetTypeName(tupleType), "(Int64, Bool)");
+    EXPECT_EQ(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_CONST_INITIALIZER), 9);
+    EXPECT_EQ(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_IF_LET_EXPRESSION), 10);
+}
+
 TEST(IntroduceParameterTest, InsertParameter)
 {
     auto emptyParamList = MakeParamList({1, 10, 18});
