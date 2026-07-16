@@ -180,7 +180,8 @@ public func fileExists(path: Path): Bool {
     return false
 }
 
-func directoryExists(path: String): Bool {
+// Check whether path is an existing directory, following symbolic links when necessary.
+public func directoryExists(path: String): Bool {
     if (!exists(path)) {
         return false
     } else if (FileInfo(path).isDirectory()) {

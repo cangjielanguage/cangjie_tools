@@ -40,21 +40,12 @@ public class CommonInfo {
     public var crossPkgMap: HashMap<String, RequiresPackagesInfo> = HashMap<String, RequiresPackagesInfo>()
 
     public func getNativeOverrideOption(path: String, targetName: String, isDebug: Bool): Bool {
-        if (!this.targetConfigMap.contains(targetName)) {
-            return true
+        // Native override only needs the compile option from the resolved target configuration.
+        let (success, resolvedTargetInfo) = resolveTargetInfo(path, this.targetConfigMap, targetName, isDebug, false)
+        if (!success) {
+            return false
         }
-        var targetInfo: TargetInfo = this.targetConfigMap[targetName].commonTargetInfo
-        if (isDebug) {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].debugTargetInfo,
-                targetName, false)) {
-                return false
-            }
-        } else {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].releaseTargetInfo, targetName,
-                false)) {
-                return false
-            }
-        }
+        let targetInfo = resolvedTargetInfo ?? return true
         this.nativeOverrideCompileOption = combineOptionString(this.overrideCompileOption,
             targetInfo.overrideCompileOption)
         return true
@@ -66,39 +57,25 @@ public class CommonInfo {
         }
         this.isReplaced = true
 
-        if (!this.targetConfigMap.contains(targetName)) {
-            return true
-        }
+        // Adapt the aggregated workspace configuration to TargetInfo for the shared merge path.
+        // Dependency maps are shared objects; merged string options are copied back after success.
+        let currentInfo = TargetInfo()
+        currentInfo.compileOption = this.compileOption
+        currentInfo.overrideCompileOption = this.overrideCompileOption
+        currentInfo.linkOption = this.linkOption
+        currentInfo.dependencies = this.dependencies
+        currentInfo.testDependencies = this.testDependencies
+        currentInfo.scriptDependencies = this.scriptDependencies
+        currentInfo.replaceDeps = this.replaceDeps
 
-        var targetInfo: TargetInfo = this.targetConfigMap[targetName].commonTargetInfo
-        if (isDebug) {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].debugTargetInfo, targetName,
-                isTest)) {
-                return false
-            }
-        } else {
-            if (!replaceTargetInfo(path, targetInfo, this.targetConfigMap[targetName].releaseTargetInfo, targetName,
-                isTest)) {
-                return false
-            }
-        }
-
-        this.compileOption = combineOptionString(this.compileOption, targetInfo.compileOption)
-        this.overrideCompileOption = combineOptionString(this.overrideCompileOption, targetInfo.overrideCompileOption)
-        this.linkOption = combineOptionString(this.linkOption, targetInfo.linkOption)
-        if (!combineDependencies(path, this.dependencies, targetInfo.dependencies, targetName)) {
-            return false
-        }
-        if (!combineDependencies(path, this.testDependencies, targetInfo.testDependencies, targetName)) {
-            return false
-        }
-        if (!combineDependencies(path, this.scriptDependencies, targetInfo.scriptDependencies, targetName)) {
-            return false
-        }
-        if (!combineDependencies(path, this.replaceDeps, targetInfo.replaceDeps, targetName)) {
+        // Preserve workspace behavior: carry target test dependencies even for a non-test build.
+        if (!mergeTargetConfig(path, currentInfo, this.targetConfigMap, targetName, isDebug, isTest, true)) {
             return false
         }
 
+        this.compileOption = currentInfo.compileOption
+        this.overrideCompileOption = currentInfo.overrideCompileOption
+        this.linkOption = currentInfo.linkOption
         return true
     }
 }

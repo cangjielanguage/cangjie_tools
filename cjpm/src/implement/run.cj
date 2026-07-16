@@ -163,7 +163,3 @@ func addLibEnvConfig(envBuilder: EnvironmentBuilder, targetDir: String, nativeDi
     let ldPath = getLdPathConfig(targetDir, nativeDir, resInfo)
     envBuilder.prepend(LD_PATH, ldPath)
 }
-
-func getExecPair(filePath: String, _: String, _: String): (String, ArrayList<String>) {
-    return (filePath, ArrayList<String>())
-}
