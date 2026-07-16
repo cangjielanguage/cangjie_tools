@@ -769,7 +769,7 @@ static std::set<Ptr<Cangjie::AST::Decl>> CollectLocalOverrideDecls(
     return decls;
 }
 
-TextEdit IntroduceParameter::ReplaceExprWithParam(const Selection &sel, Range &range, std::string &paramName)
+TextEdit IntroduceParameter::ReplaceExprWithParam(const Selection &sel, Range range, std::string &paramName)
 {
     TextEdit textEdit;
     auto selectedExpr = GetIntroduceParameterExpr(sel.selectionTree, range);
