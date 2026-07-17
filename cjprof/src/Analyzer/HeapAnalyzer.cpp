@@ -11,6 +11,7 @@
 #include <set>
 #include <queue>
 #include <iostream>
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include "Analyzer/HeapAnalyzer.h"
@@ -940,6 +941,10 @@ void HeapAnalyzer::SetProgramStartTime()
     g_phaseBreakdown.clear();
 }
 
+std::atomic<bool> g_covServerRunning{true};
+namespace cjprof { class HttpServer; }
+cjprof::HttpServer* g_covServerPtr = nullptr;
+
 bool HeapAnalyzer::StartReportServer(int port)
 {
     using namespace cjprof;
@@ -1224,6 +1229,7 @@ bool HeapAnalyzer::StartReportServer(int port)
     HttpServer server(actualPort);
     server.setContext(context);
     server.start();
+    g_covServerPtr = &server;
 
     // Background cache save (does not block ready time)
     if (!cacheLoaded) {
@@ -1264,10 +1270,11 @@ bool HeapAnalyzer::StartReportServer(int port)
     LOG_INFO("Press Ctrl+C to stop");
     PrintPhaseBreakdown(elapsedMs);
 
-    // Keep running until Ctrl+C
-    while (true) {
+    while (g_covServerRunning.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    LOG_INFO("Shutting down HTTP server...");
+    g_covServerPtr->stop();
 
     return true;
 }

@@ -6,11 +6,34 @@
 
 #include <iostream>
 #include <set>
+#include <csignal>
+#include <atomic>
 #include "Commands/Command.h"
 #include "Commands/Heap.h"
 #if defined(__linux__)
 #include "Commands/Record.h"
 #include "Commands/Report.h"
+#endif
+
+#if defined(COVERAGE_BUILD) && defined(__linux__)
+extern std::atomic<bool> g_covServerRunning;
+static void GcovFlushHandler(int sig)
+{
+    (void)sig;
+    g_covServerRunning.store(false, std::memory_order_relaxed);
+}
+
+static void InstallGcovFlushHandler()
+{
+    struct sigaction sa;
+    sa.sa_handler = GcovFlushHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
+}
+#else
+static void InstallGcovFlushHandler() {}
 #endif
 
 
@@ -47,6 +70,7 @@ static void PrintVersion()
 
 int main(int argc, char **argv)
 {
+    InstallGcovFlushHandler();
     if ((argc <= 1) || (std::string(argv[1]) == "--help")) {
         PrintHelp();
         return 0;
