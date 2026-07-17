@@ -168,7 +168,7 @@ def generate_cmake_defs(args):
     coverage_defs = []
     if args.code_coverage:
         coverage_defs = [
-            "-DCMAKE_CXX_FLAGS=-fprofile-arcs -ftest-coverage",
+            "-DCMAKE_CXX_FLAGS=-fprofile-arcs -ftest-coverage -DCOVERAGE_BUILD",
             "-DCMAKE_C_FLAGS=-fprofile-arcs -ftest-coverage",
         ]
 
