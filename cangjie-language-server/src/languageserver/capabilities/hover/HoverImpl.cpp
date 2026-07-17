@@ -99,7 +99,7 @@ static void TryFillCommentsFromMacro(const Decl &d, CommentGroups &found)
 
 static VisitAction CollectCommentsVisitFunc(Ptr<const Node> cur, CommentGroups &found)
 {
-    Meta::match(*cur)([&](const Decl &d) { TryFillCommentsFromMacro(d, found); });
+    Meta::match(*cur)([&found](const Decl &d) { TryFillCommentsFromMacro(d, found); });
     return VisitAction::SKIP_CHILDREN;
 }
 
