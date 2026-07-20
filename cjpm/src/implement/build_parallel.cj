@@ -1085,12 +1085,7 @@ private class IncrementalEngine {
     }
 
     private func processAskedTasks() {
-        let graph = if (askAllFlag) {
-            taskContext.taskGraphBuilder.finish()
-        } else {
-            let ids = askedTasks.toArray()
-            taskContext.taskGraphBuilder.finish().incomingClosure(ids)
-        }
+        let graph = taskContext.taskGraphBuilder.finish()
 
         for (id in graph.roots where !dirtyTasks.contains(id)) {
             assertion { !id.isMonitor && !id.isGenerated }

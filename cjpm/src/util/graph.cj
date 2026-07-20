@@ -157,60 +157,9 @@ public class DAG<K, V> where K <: Hashable & Equatable<K> {
         let _data = _data.iterator().map { it => (it[0], transform(it[0], it[1]))} |> collectHashMap
         DAG<K, U>(graph, _roots, toposort, _data)
     }
-
-    public func traverse(from: K, onEntry: (K) -> Unit): Unit {
-        traverse(from, { _ => true }, onEntry)
-    }
-
-
-    public func traverse(from: K, entryCondition: (K) -> Bool, onEntry: (K) -> Unit): Unit {
-        let stack = ArrayDeque<K>()
-        let visited = HashSet<K>()
-        stack.addFirst(from)
-        while (let Some(from) <- stack.removeFirst()) {
-            visited.add(from)
-            onEntry(from)
-            for (item in graph[from].outdeg) {
-                if (!visited.contains(item) && entryCondition(item)) {
-                    stack.addLast(item)
-                }
-            }
-        }
-    }
-
-    public func traverseReverse(from: K, onEntry: (K) -> Unit): Unit {
-        traverseReverse(from, { _ => true }, onEntry)
-    }
-
-
-    public func traverseReverse(from: K, entryCondition: (K) -> Bool, onEntry: (K) -> Unit): Unit {
-        let stack = ArrayDeque<K>()
-        let visited = HashSet<K>()
-        stack.addFirst(from)
-        while (let Some(from) <- stack.removeFirst()) {
-            visited.add(from)
-            onEntry(from)
-            for (item in graph[from].indeg) {
-                if (!visited.contains(item) && entryCondition(item)) {
-                    stack.addLast(item)
-                }
-            }
-        }
-    }
 }
 
 extend <K, V> DAG<K, V> {
-    /**
-     * Provides transitive closure of DAG by incoming edges starting from given
-     */
-    public func incomingClosure(ids: Array<K>): DAG<K, V> {
-        let asked = HashSet<K>()
-        for (id in ids) {
-            traverseReverse(id) { it => asked.add(it) }
-        }
-        this.filterGraph { it: K, _ => asked.contains(it) }
-    }
-
     public func incoming(id: K): Array<K> {
         graph[id].indeg
     }
