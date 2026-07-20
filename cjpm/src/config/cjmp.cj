@@ -534,22 +534,6 @@ sealed interface ConfigTable<T> <: ConfigObject<T> where T <: ConfigTable<T> {
     static func parse(ctx: ParseContext<T>, tobj: TomlObject): Result<T, Array<CJMPError>>
 }
 
-extend Int64 <: ConfigObject<Int64> {
-    public static func isOptional(): Bool {
-        false
-    }
-    public static func typename(): String {
-        "number"
-    }
-    public static func parse(ctx: ParseContext<Int64>, tv: ?TomlValue): Result<Int64, Array<CJMPError>> {
-        if (let Some(v) <- tv && let Some(tint) <- (v as TomlInteger)) {
-            Ok(tint.value)
-        } else {
-            Err([TypeError(ctx.location, Int64.typename())])
-        }
-    }
-}
-
 extend Bool <: ConfigObject<Bool> {
     public static func isOptional(): Bool {
         false
