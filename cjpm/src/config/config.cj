@@ -10,9 +10,13 @@ import std.collection.*
 import std.fs.*
 import std.sync.*
 import std.env.*
-import std.deriving.Derive
+import std.deriving.*
+import std.convert.Parsable
+import std.regex.Regex
+
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
+
 
 import cjpm.util.*
 import cjpm.toml.*
@@ -40,91 +44,6 @@ public var maxParallelSize: Int64 = getCpus()
 public let CUR_PARALLEL_SIZE: AtomicInt64 = AtomicInt64(0)
 public var crossCompileTarget: String = ""
 public var targetConfigName: String = ""
-private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
-    [
-        ("static", Static),
-        ("dynamic", Dynamic),
-        ("executable", Exe),
-        ("chir", Chir),
-        ("obj", Obj)
-    ]
-)
-
-@Derive[Equatable, Hashable]
-public enum OutputType <: Serializable<OutputType> & ToString {
-    | Static
-    | Dynamic
-    | Exe
-    | Chir
-    | Obj
-    | Unknown(String)
-
-    // output type is considered valid if it can be used in public API by the user
-    // e.g. `package.output-type` field in `cjpm.toml` or `cjpm init --type=<output-type>`
-    public prop isValid: Bool {
-        get() {
-            match (this) {
-                case Static | Dynamic | Exe => true
-                case Chir => false // This output type is currently for internal usage only
-                case Obj => false // This output type is currently for internal usage only
-                case Unknown(_) => false
-            }
-        }
-    }
-
-    public prop isLib: Bool {
-        get() {
-            match (this) {
-                case Static | Dynamic => true
-                case Exe | Chir | Obj | Unknown(_) => false
-            }
-        }
-    }
-
-    public func toString(): String {
-        match (this) {
-            case Static => "static"
-            case Dynamic => "dynamic"
-            case Exe => "executable"
-            case Chir => "chir"
-            case Obj => "obj"
-            case Unknown(s) => s
-        }
-    }
-
-    public prop asCompilerArg: String {
-        get() {
-            match (this) {
-                case Static => "staticlib"
-                case Dynamic => "dylib"
-                case Exe => "exe"
-                case Chir => "chir"
-                case Obj => "obj"
-                case Unknown(s) => s
-            }
-        }
-    }
-
-    public static func fromString(s: String): OutputType {
-        if (let Some(res) <- outputTypeToEnum.get(s)) {
-            return res
-        }
-        return Unknown(s)
-    }
-
-    public func serialize(): DataModel {
-        this.toString().serialize()
-    }
-
-    public static func deserialize(dm: DataModel): OutputType {
-        var dmstr = match (dm) {
-            case data: DataModelString => data
-            case _: DataModelNull => DataModelString("")
-            case _ => throw CliFailError("tried to deserialize OutputType not from the DataModelString")
-        }
-        return fromString(dmstr.getValue())
-    }
-}
 
 // Type for running resolve()
 public const RESOLVE_BUILD: String = "build"
@@ -143,101 +62,6 @@ public const SPLIT_ENV: String = ":"
 public const WHICH: String = "which"
 @When[os == "Windows"]
 public const WHICH: String = "where.exe"
-
-public func getTargetConfigName(): Option<String> {
-    let (flag, output, errlog) = execWithOutput("cjc", ArrayList<String>(["-v"]))
-    if (!flag) {
-        eprintln(errlog)
-        eprintln("Error: failed to run 'cjc -v'")
-        return Option.None
-    }
-    if (!output.contains("Target: ")) {
-        eprintln("Error: no target info in output of command 'cjc -v':")
-        eprintln(output)
-        return Option.None
-    }
-    return output.split("Target: ")[1].split(NEW_LINE)[0]
-}
-
-public class CpmState {
-    private var __cjcInfo: ?CjcInfo = None
-    private var __cjcPath: ?String = None
-    private var __isExperimental: ?Bool = None
-
-    init() {}
-
-    public prop cjcInfo: CjcInfo {
-        get() {
-            match (__cjcInfo) {
-                case None =>
-                    let info = CjcInfo.findCjc()
-                    __cjcInfo = info
-                    info
-                case Some(info) => info
-            }
-        }
-    }
-
-    public prop cjcPath: String {
-        get() {
-            match (__cjcPath) {
-                case None =>
-                    let info = initCjcPath()
-                    __cjcPath = info
-                    info
-                case Some(info) => info
-            }
-        }
-    }
-
-    public prop isExperimental: Bool {
-        get() {
-            match (__isExperimental) {
-                case None =>
-                    let value = checkExperimental()
-                    __isExperimental = value
-                    value
-                case Some(value) => value
-            }
-        }
-    }
-
-    private static func checkExperimental(): Bool {
-        let tomlFile = Path(DIR_CURRENT).join(CONFIG_FILE_NAME).toString()
-        if (!fileExists(tomlFile)) {
-            return false
-        }
-        var isExperimental = false
-        try (file = File(tomlFile, Read)) {
-            let de = DecoderToml(file)
-            let to = de.decode()
-            let dms = (DataModel.fromToml(to) as DataModelStruct) ?? throw Exception()
-            isExperimental = match (dms.accessDeep(["profile", "experimental"]) as DataModelBool) {
-                case Some(dmbool) => dmbool.getValue()
-                case _ => false
-            }
-        } catch (e: Exception) {
-            isExperimental = false
-        }
-        return isExperimental
-    }
-
-    @When[os == "macOS"]
-    private static func initCjcPath(): String {
-        let (success, output, _) = execWithOutput(WHICH, ArrayList<String>(["cjc"]))
-        if (success) {
-            return output.trimAscii()
-        }
-        throw CliFailError(output)
-    }
-
-    @When[os != "macOS"]
-    private static func initCjcPath(): String {
-        throw CliFailError("cjcPath variable should only be used for macOS functions")
-    }
-}
-
-public let state: CpmState = CpmState()
 @When[os == "Linux" || os == "macOS"]
 public const MOVE_COMMAND: String = "mv"
 @When[os == "Linux" || os == "macOS"]
@@ -422,6 +246,436 @@ public let SHOW_CACHE: ArrayList<PkgInfo> = ArrayList<PkgInfo>()
 public let CJPM_COMPILE_INFO: HashMap<String, Float64> = HashMap<String, Float64>()
 public let CACHE_MUTEX: Mutex = Mutex()
 public var memProcess: Future<Thread> = spawn { => return Thread.currentThread}
+
+// Struct which stores information about used 'cjc' binary
+// 
+// Use this structure instead of @When to implement platform depentent functionality
+public struct CjcInfo {
+    private static let versionPrefix = "Cangjie Compiler: "
+    private static let targetPrefix = "Target: "
+
+    private CjcInfo(
+        public let version: String,
+        public let target: Triple
+    ) {}
+
+    // specified in $PATH.
+    // Parser result of 'cjc -v' to figure out:
+    //    - Compiler version
+    //    - Target triple information: {arch}-{vendor}-{os}-{env}
+    static func findCjc(): CjcInfo {
+        let (flag, output, errlog) = execWithOutput(COMPILE_TOOL, ArrayList<String>(["-v"]))
+        if (!flag) {
+            throw CliFailError([errlog, "Error: failed to run 'cjc -v'"])
+        }
+        if (!output.contains(versionPrefix)) {
+            throw CliFailError(["Error: no target info in output of command 'cjc -v':", output])
+        }
+        if (!output.contains(targetPrefix)) {
+            throw CliFailError(["Error: no target info in output of command 'cjc -v':", output])
+        }
+
+        let version = output.split(versionPrefix)[1].trimAscii().split(' ', 1, removeEmpty: true)[0]
+        let targetString = output.split(targetPrefix)[1].trimAscii()
+        let target = Triple.fromString(targetString).getOrThrow { err => CliFailError([err]) }
+        CjcInfo(version, target)
+    }
+}
+
+// Enum of known architectures specified in target triple
+@Derive[Hashable, Equatable]
+public enum Arch <: ToString & Parsable<Arch> {
+    | X64
+    | AARCH64
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case X64        => "x86_64"
+            case AARCH64    => "aarch64"
+            case Unknown(arch) => arch
+        }
+    }
+
+    public static func parse(value: String): Arch {
+        match (value) {
+            case "x86_64"  => X64
+            case "aarch64" => AARCH64
+            case "arm64"   => AARCH64
+            case _         => Unknown(value)
+        }
+    }
+
+    public static func tryParse(value: String): ?Arch {
+        parse(value)
+    }
+}
+
+// Enum of known environments specified in target triple
+@Derive[Hashable, Equatable]
+public enum Vendor <: ToString & Parsable<Vendor> {
+    | APPLE
+    | UNKNOWN
+
+    public func toString(): String {
+        match (this) {
+            case APPLE => "apple"
+            case UNKNOWN => "unknown"
+        }
+    }
+
+    public static func parse(value: String): Vendor {
+        match (value) {
+            case "apple" => APPLE
+            case _       => UNKNOWN
+        }
+    }
+
+    public static func tryParse(value: String): ?Vendor {
+        parse(value)
+    }
+}
+
+// Enum of known operational systems specified in target triple
+@Derive[Hashable, Equatable]
+public enum OS <: ToString & Parsable<OS> {
+    | LINUX
+    | DARWIN
+    | IOS
+    | WINDOWS
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case LINUX      => "linux"
+            case DARWIN     => "darwin"
+            case IOS        => "ios"
+            case WINDOWS    => "w64"
+            case Unknown(os) => os
+        }
+    }
+
+    public static func parse(value: String): OS {
+        match (value) {
+            case "linux"   => LINUX
+            case "darwin"  => DARWIN
+            case "ios"     => IOS
+            case "windows" => WINDOWS
+            case "w64"     => WINDOWS
+            case _         => Unknown(value)
+        }
+    }
+
+    public static func tryParse(os: String): ?OS {
+        parse(os)
+    }
+}
+
+// Enum of known environments specified in target triple
+@Derive[Hashable, Equatable]
+public enum Env <: ToString & Parsable<Env> {
+    | GNU
+    | ANDROID
+    | MINGW32
+    | OHOS
+    | NOT_AVAILABLE
+    | Unknown(String)
+
+    public func toString(): String {
+        match (this) {
+            case GNU => "gnu"
+            case ANDROID => "android"
+            case MINGW32 => "mingw32"
+            case OHOS => "ohos"
+            case NOT_AVAILABLE => ""
+            case Unknown(s) => s
+        }
+    }
+
+    public static func parse(value: String): Env {
+        match {
+            case value.startsWith("gnu") => GNU
+            case value.startsWith("android") => ANDROID
+            case value.startsWith("mingw32") => MINGW32
+            case value.startsWith("ohos") => OHOS
+            case _ => Unknown(value)
+        }
+    }
+
+    public static func tryParse(value: String): ?Env {
+        parse(value)
+    }
+}
+
+public type ApiVersion = ?UInt8
+
+@Derive[Hashable, Equatable]
+public struct Triple <: ToString {
+    private Triple(
+        @DeriveExclude private let _stringValue: String,
+        public let arch!: Arch,
+        public let vendor!: Vendor = UNKNOWN,
+        public let os!: OS,
+        public let env!: Env,
+        public let apiVersion!: ApiVersion
+    ) {}
+
+    public init(
+        arch!: Arch,
+        vendor!: Vendor = UNKNOWN,
+        os!: OS,
+        env!: Env,
+        apiVersion!: ApiVersion
+    ) {
+        this(
+            toStringFromTriple(arch, vendor, os, env, apiVersion),
+            arch: arch,
+            vendor: vendor,
+            os: os,
+            env: env,
+            apiVersion: apiVersion
+        )
+    }
+
+    private static func toStringFromTriple(arch: Arch, vendor: Vendor, os: OS, env: Env, apiVersion: ApiVersion): String {
+        let versionStr = apiVersion?.toString() ?? ""
+        let envStr = if (env != Env.NOT_AVAILABLE) {"-${env}"} else {""}
+        if (vendor == Vendor.APPLE) {
+            return "${arch}-${vendor}-${os}${versionStr}${envStr}"
+        } else if (vendor == Vendor.UNKNOWN && os == OS.WINDOWS) {
+            return "${arch}-${os}${envStr}"
+        } else {
+            return "${arch}-${vendor}-${os}${envStr}${versionStr}"
+        }
+    }
+
+    public func toString(): String {
+        _stringValue
+    }
+
+    private static func extractApiVersion(value: String): (String, ApiVersion) {
+        assertion { => Regex("^[a-zA-Z][_a-zA-Z0-9]*$").matches(value) }
+
+        var curr = value.size - 1
+        while (curr > 0) {
+            if (!value[curr].isAsciiNumber()) {
+                curr++
+                break
+            }
+            curr--
+        }
+
+        if (curr == value.size) {
+            return (value, Option<UInt8>.None)
+        } else {
+            let version = UInt8.tryParse(value[curr..]) ?? return (value, Option<UInt8>.None)
+            let prefix  = value[..curr]
+            return (prefix, version)
+        }
+    }
+
+    public static func fromString(triple: String): Result<Triple, String> {
+        let errmesg = Result<Triple, String>.Err(
+            "The target-triple must be of form {ARCH}-{VENDOR}-{SYSTEM}-{ENV} or {ARCH}-{SYSTEM}-{ENV}. Got: ${triple}"
+        )
+        if (!Regex("^[a-zA-Z][-_a-zA-Z0-9]*$").matches(triple)) {
+            return errmesg
+        }
+        let data = triple.split("-")
+        if (data.size != 3 && data.size != 4) {
+            return errmesg
+        }
+
+        if (data[1] == "apple") {
+            // example: arm64-apple-ios11-sim 
+            // example: aarch64-apple-darwin
+            let env = if (data.size == 4) { Env.parse(data[3]) } else { Env.NOT_AVAILABLE } 
+            let (os, version) = extractApiVersion(data[2])
+            return Ok(Triple(
+                triple,
+                arch: Arch.parse(data[0]),
+                vendor: Vendor.parse(data[1]),
+                os: OS.parse(os),
+                env: env,
+                apiVersion: version
+            ))
+        }
+
+        let (env, apiVersion) = if (data[data.size - 1] == "mingw32") { 
+            (data[data.size - 1], Option<UInt8>.None)
+        } else {
+            extractApiVersion(data[data.size - 1])
+        }
+        return Ok(Triple(
+            triple,
+            arch: Arch.parse(data[0]),
+            vendor: Vendor.UNKNOWN,
+            os: OS.parse(data[data.size - 2]),
+            env: Env.parse(env),
+            apiVersion: apiVersion
+        ))
+    }
+}
+
+private let outputTypeToEnum: HashMap<String, OutputType> = HashMap(
+    [
+        ("static", Static),
+        ("dynamic", Dynamic),
+        ("executable", Exe),
+        ("chir", Chir),
+        ("obj", Obj)
+    ]
+)
+
+@Derive[Equatable, Hashable]
+public enum OutputType <: Serializable<OutputType> & ToString {
+    | Static
+    | Dynamic
+    | Exe
+    | Chir
+    | Obj
+    | Unknown(String)
+
+    // output type is considered valid if it can be used in public API by the user
+    // e.g. `package.output-type` field in `cjpm.toml` or `cjpm init --type=<output-type>`
+    public prop isValid: Bool {
+        get() {
+            match (this) {
+                case Static | Dynamic | Exe => true
+                case Chir => false // This output type is currently for internal usage only
+                case Obj => false // This output type is currently for internal usage only
+                case Unknown(_) => false
+            }
+        }
+    }
+
+    public prop isLib: Bool {
+        get() {
+            match (this) {
+                case Static | Dynamic => true
+                case Exe | Chir | Obj | Unknown(_) => false
+            }
+        }
+    }
+
+    public func toString(): String {
+        match (this) {
+            case Static => "static"
+            case Dynamic => "dynamic"
+            case Exe => "executable"
+            case Chir => "chir"
+            case Obj => "obj"
+            case Unknown(s) => s
+        }
+    }
+
+    public prop asCompilerArg: String {
+        get() {
+            match (this) {
+                case Static => "staticlib"
+                case Dynamic => "dylib"
+                case Exe => "exe"
+                case Chir => "chir"
+                case Obj => "obj"
+                case Unknown(s) => s
+            }
+        }
+    }
+
+    public static func fromString(s: String): OutputType {
+        if (let Some(res) <- outputTypeToEnum.get(s)) {
+            return res
+        }
+        return Unknown(s)
+    }
+
+    public func serialize(): DataModel {
+        this.toString().serialize()
+    }
+
+    public static func deserialize(dm: DataModel): OutputType {
+        var dmstr = match (dm) {
+            case data: DataModelString => data
+            case _: DataModelNull => DataModelString("")
+            case _ => throw CliFailError("tried to deserialize OutputType not from the DataModelString")
+        }
+        return fromString(dmstr.getValue())
+    }
+}
+
+public class CjpmState {
+    private var __cjcInfo: ?CjcInfo = None
+    private var __cjcPath: ?String = None
+    private var __isExperimental: ?Bool = None
+
+    init() {}
+
+    public prop cjcInfo: CjcInfo {
+        get() {
+            match (__cjcInfo) {
+                case None =>
+                    let info = CjcInfo.findCjc()
+                    __cjcInfo = info
+                    info
+                case Some(info) => info
+            }
+        }
+    }
+
+    public prop cjcPath: String {
+        get() {
+            match (__cjcPath) {
+                case None =>
+                    let info = initCjcPath()
+                    __cjcPath = info
+                    info
+                case Some(info) => info
+            }
+        }
+    }
+
+    public prop isExperimental: Bool {
+        get() {
+            match (__isExperimental) {
+                case None =>
+                    let value = checkExperimental()
+                    __isExperimental = value
+                    value
+                case Some(value) => value
+            }
+        }
+    }
+
+    private static func checkExperimental(): Bool {
+        let tomlFile = Path(DIR_CURRENT).join(CONFIG_FILE_NAME).toString()
+        if (!fileExists(tomlFile)) {
+            return false
+        }
+        var isExperimental = false
+        try (file = File(tomlFile, Read)) {
+            let de = DecoderToml(file)
+            let to = de.decode()
+            let dms = (DataModel.fromToml(to) as DataModelStruct) ?? throw Exception()
+            isExperimental = match (dms.accessDeep(["profile", "experimental"]) as DataModelBool) {
+                case Some(dmbool) => dmbool.getValue()
+                case _ => false
+            }
+        } catch (e: Exception) {
+            isExperimental = false
+        }
+        return isExperimental
+    }
+
+    private static func initCjcPath(): String {
+        let (success, output, _) = execWithOutput(WHICH, ArrayList<String>(["cjc"]))
+        if (success) {
+            return output.trimAscii()
+        }
+        throw CliFailError(output)
+    }
+}
+
+public let state: CjpmState = CjpmState()
 
 public class PkgInfo <: Serializable<PkgInfo> {
     public var name: String = ""

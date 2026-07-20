@@ -95,20 +95,6 @@ public enum Result<T, E> {
         this.map {_ => ()}
     }
 
-    public func finish(action: (T) -> Unit): Unit {
-        match (this) {
-            case Ok(x) => action(x)
-            case Err(_) => ()
-        }
-    }
-
-    public func finishErr(action: (E) -> Unit): Unit {
-        match (this) {
-            case Ok(_) => ()
-            case Err(e) => action(e)
-        }
-    }
-
     public func getOrDefault(default: () -> T): T {
         this.ok ?? default()
     }
@@ -177,16 +163,6 @@ extend <A> Iterator<A> <: IterableResultExtend<A> {
 }
 
 extend <A> Array<A> <: IterableResultExtend<A> { 
-    public func allResult<B, E>(transform: (A) -> Result<B, Array<E>>): Result<Array<B>, Array<E>> {
-        helperAllResult(this, transform)
-    }
-
-    public func anyResult<B, E>(transform: (A) -> Result<B, Array<E>>): Result<B, Array<E>> {
-        helperAnyResult(this, transform)
-    }
-}
-
-extend <A> ArrayList<A> <: IterableResultExtend<A> { 
     public func allResult<B, E>(transform: (A) -> Result<B, Array<E>>): Result<Array<B>, Array<E>> {
         helperAllResult(this, transform)
     }
