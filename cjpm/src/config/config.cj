@@ -420,35 +420,6 @@ public struct Triple <: ToString {
         public let apiVersion!: ApiVersion
     ) {}
 
-    public init(
-        arch!: Arch,
-        vendor!: Vendor = UNKNOWN,
-        os!: OS,
-        env!: Env,
-        apiVersion!: ApiVersion
-    ) {
-        this(
-            toStringFromTriple(arch, vendor, os, env, apiVersion),
-            arch: arch,
-            vendor: vendor,
-            os: os,
-            env: env,
-            apiVersion: apiVersion
-        )
-    }
-
-    private static func toStringFromTriple(arch: Arch, vendor: Vendor, os: OS, env: Env, apiVersion: ApiVersion): String {
-        let versionStr = apiVersion?.toString() ?? ""
-        let envStr = if (env != Env.NOT_AVAILABLE) {"-${env}"} else {""}
-        if (vendor == Vendor.APPLE) {
-            return "${arch}-${vendor}-${os}${versionStr}${envStr}"
-        } else if (vendor == Vendor.UNKNOWN && os == OS.WINDOWS) {
-            return "${arch}-${os}${envStr}"
-        } else {
-            return "${arch}-${vendor}-${os}${envStr}${versionStr}"
-        }
-    }
-
     public func toString(): String {
         _stringValue
     }
