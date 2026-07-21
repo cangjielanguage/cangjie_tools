@@ -559,9 +559,6 @@ std::shared_ptr<HeapAnalyzer::Object> HeapAnalyzer::GetObject(Hprof::ID id)
     return obj;
 }
 
-// LCOV_EXCL_START  JNI-only path (GetRawHeapSnapshot chain):
-// triggered only by Cjprof::ParseHeapSnapshotFile -> analyzer.GetRawHeapSnapshot();
-// no JNI test cases exercise this, exclude from coverage stats.
 static uint64_t GetRawHeapNameIndex(
     RawHeapSnapshot& data, std::string& name, std::unordered_map<uint64_t, uint32_t>& nameIndexs)
 {
@@ -673,7 +670,6 @@ RawHeapSnapshot HeapAnalyzer::GetRawHeapSnapshot()
 
     return data;
 }
-// LCOV_EXCL_STOP
 
 #include "Analyzer/Types.h"
 #include "Analyzer/HttpContext.h"
