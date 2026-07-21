@@ -73,3 +73,9 @@ endif()
 
 include_directories(include)
 add_subdirectory(src)
+
+option(BUILD_TESTING "Build the gtest-based C++ API tests" OFF)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
