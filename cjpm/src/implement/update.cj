@@ -167,8 +167,6 @@ func updateDepModule(requires: HashMap<String, DepInfo>, prePath: String, preNam
             v.path = depPath
         }
 
-        v.importedPath = Path(getCanonicalPath(prePath)).join(CONFIG_FILE_NAME).toString()
-
         if (let Some(currentDep) <- UPDATE_ANALYSIS_ENGINE.finalDepMap.get(name)) {
             let current = currentDep.sourceInfo
             let (isAlternative, errInfo) = current.isAlternative(v)
@@ -235,7 +233,6 @@ func updateIndex(): Bool {
     let defaultSize = 16 // default parallel value
     let actualSize = min(defaultSize, maxParallelSize)
     let downloadSem = Semaphore(actualSize)
-    let downloadMtx: Mutex = Mutex()
     let downloadErrorLogs: ConcurrentLinkedQueue<String> = ConcurrentLinkedQueue<String>()
 
     for ((org, name) in UPDATE_INDEX_LIST) {

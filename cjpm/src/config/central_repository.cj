@@ -27,11 +27,7 @@ public class RepositoryInfo <: Serializable<RepositoryInfo> {
     ) {}
 
     public func serialize(): DataModel {
-        let result = DataModelStruct()
-        result.add(field<String>("path", this.path))
-        result.add(field<String>("registry", this.registry))
-        result.add(field<String>("token", this.token))
-        return result
+        return DataModelStruct()
     }
 
     public static func deserialize(dm: DataModel): RepositoryInfo {
@@ -51,9 +47,7 @@ public class GlobalRepoConfig <: Serializable<GlobalRepoConfig> {
     public var strictTls: Bool = true
 
     public func serialize(): DataModel {
-        let result = DataModelStruct()
-        result.add(field<Bool>(GLOBAL_STRICT_TLS, this.strictTls))
-        return result
+        return DataModelStruct()
     }
 
     public static func deserialize(dm: DataModel): GlobalRepoConfig {
@@ -79,10 +73,7 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
     }
 
     public func serialize(): DataModel {
-        let result = DataModelStruct()
-        result.add(field<HashMap<String, RepositoryInfo>>("repository", repository))
-        result.add(field<GlobalRepoConfig>("global", global))
-        return result
+        return DataModelStruct()
     }
 
     public static func deserialize(dm: DataModel): SettingsConfig {
@@ -163,22 +154,6 @@ public func loadConfigInfo(): SettingsConfig {
     res.repository[REPO_CACHE_NAME].path = globalCjpmConfig
 
     return res
-}
-
-func versionCompare(v1: String, v2: String): Bool {
-    let vArr1: Array<String> = v1.split(".")
-    let vArr2: Array<String> = v2.split(".")
-    let vArrList1: ArrayList<Int64> = ArrayList<Int64>()
-    let vArrList2: ArrayList<Int64> = ArrayList<Int64>()
-    for (index in 0..3) {
-        vArrList1.add(Int64.parse(vArr1[index]))
-        vArrList2.add(Int64.parse(vArr2[index]))
-    }
-    if (vArrList2[0] > vArrList1[0] || (vArrList2[0] == vArrList1[0] && vArrList2[1] > vArrList1[1]) ||
-        (vArrList2[0] == vArrList1[0] && vArrList2[1] == vArrList1[1] && vArrList2[2] > vArrList1[2])) {
-        return true
-    }
-    return false
 }
 
 public func verifyDependencyField(dep: DepInfo, name: String, path: String): Bool {
