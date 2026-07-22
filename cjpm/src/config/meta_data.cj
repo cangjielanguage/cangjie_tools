@@ -92,14 +92,6 @@ public class IndexDep <: Serializable<IndexDep> {
         public let outputType: OutputType
     ) {}
 
-    public init() {
-        this.name = ""
-        this.require = ""
-        this.target = None
-        this.depType = None
-        this.outputType = OutputType.Unknown("")
-    }
-
     public func serialize(): DataModel {
         DataModelStruct()
             .add(field<String>(INDEX_DEP_NAME, this.name))

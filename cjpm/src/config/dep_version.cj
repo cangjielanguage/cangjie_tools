@@ -49,37 +49,16 @@ public class SingleVersion <: Comparable<SingleVersion> & ToString {
     }
 
     public func compare(that: SingleVersion): Ordering {
-        if (this == that) {
-            return Ordering.EQ
-        } else if (this > that) {
-            return Ordering.GT
-        } else {
-            return Ordering.LT
+        if (this.majorVersion != that.majorVersion) {
+            return if (this.majorVersion > that.majorVersion) { Ordering.GT } else { Ordering.LT }
         }
-    }
-
-    public operator func <(rhs: SingleVersion): Bool {
-        return (this.majorVersion < rhs.majorVersion) ||
-            ((this.majorVersion == rhs.majorVersion) && (this.minorVersion < rhs.minorVersion)) ||
-            ((this.majorVersion == rhs.majorVersion) && (this.minorVersion == rhs.minorVersion) && (this.patchVersion < rhs.patchVersion))
-    }
-
-    public operator func <=(rhs: SingleVersion): Bool {
-        return (this < rhs) || (this == rhs)
-    }
-
-    public operator func ==(rhs: SingleVersion): Bool {
-        return (this.majorVersion == rhs.majorVersion) &&
-            (this.minorVersion == rhs.minorVersion) &&
-            (this.patchVersion == rhs.patchVersion)
-    }
-
-    public operator func >(rhs: SingleVersion): Bool {
-        return !(this <= rhs)
-    }
-
-    public operator func >=(rhs: SingleVersion): Bool {
-        return !(this < rhs)
+        if (this.minorVersion != that.minorVersion) {
+            return if (this.minorVersion > that.minorVersion) { Ordering.GT } else { Ordering.LT }
+        }
+        if (this.patchVersion != that.patchVersion) {
+            return if (this.patchVersion > that.patchVersion) { Ordering.GT } else { Ordering.LT }
+        }
+        return Ordering.EQ
     }
 
     public func upgrade(): Unit {
@@ -122,10 +101,6 @@ class RequireRange {
         this.ceil = SingleVersion(other.ceil)
     }
 
-    public func isMatchWith(versionStr: String): Bool {
-        return this.isMatchWith(SingleVersion(versionStr))
-    }
-
     public func isMatchWith(version: SingleVersion): Bool {
         return (this.floor <= version) && (this.ceil >= version)
     }
@@ -144,8 +119,6 @@ class RequireRange {
 public class RequireVersion {
     var name: String = ""
     let ranges: ArrayList<RequireRange> = ArrayList<RequireRange>()
-
-    public init() {}
 
     public init(name: String, versionStr: String) {
         // delete all whitespace
