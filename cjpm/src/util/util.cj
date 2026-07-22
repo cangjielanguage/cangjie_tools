@@ -39,7 +39,7 @@ public func isSubpackage(fqname: String): Bool {
 // If struct is tried to be constructed from incorrect one (missing backticks '`' when necessary)
 // Will attempt to place them in some way for package name to be valid
 @Derive[Hashable, Equatable]
-public struct PackageFqName <: ToString & Serializable<PackageFqName> {
+public struct PackageFqName <: ToString {
     public let value: String
 
     public init(value: String) {
@@ -95,17 +95,6 @@ public struct PackageFqName <: ToString & Serializable<PackageFqName> {
     public func toString(): String {
         return value
     }
-
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
-
-    public static func deserialize(dm: DataModel): PackageFqName {
-        return match (dm) {
-            case dmstr: DataModelString => PackageFqName(dmstr.getValue())
-            case _ => throw DataModelException("this data is not DataModelString")
-        }
-    }
 }
 
 // Support struct which helps to identify whether value of type T is a default or was modified
@@ -151,15 +140,6 @@ public struct WithDefault<T> {
 private enum OptionDefault<T> {
     | Setted(T)
     | Default(T)
-}
-
-
-public func tryResult<T>(comp: () -> T): Result<T, String> {
-    try {
-        return Ok(comp())
-    } catch(e: Exception) {
-        return Err(e.message)
-    }
 }
 
 public type Hash = Int64

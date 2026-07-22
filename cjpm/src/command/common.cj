@@ -168,19 +168,6 @@ public func lackConfigInfo(): Bool {
     !FINAL_CJPM_CONFIG_INFO.isValid
 }
 
-@When[os != "macOS"]
-public func lackCjc(): Bool {
-    targetConfigName = getTargetConfigName() ?? return true
-    return false
-}
-
-@When[os == "macOS"]
-public func lackCjc(): Bool {
-    let maybeTargetConfigName = getTargetConfigName()
-    if (maybeTargetConfigName.isSome()) {
-        targetConfigName = maybeTargetConfigName.getOrThrow()
-        let _ = state.cjcPath
-        return false
-    }
-    return true
+public func findCjc(): Unit {
+    targetConfigName = state.cjcInfo.target.toString()
 }

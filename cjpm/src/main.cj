@@ -24,9 +24,7 @@ main(): Int64 {
             return 0
         }
 
-        if (lackCjc()) {
-            return 1
-        }
+        findCjc()
 
         if (lackConfigInfo()) {
             return 1
