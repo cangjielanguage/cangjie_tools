@@ -221,6 +221,10 @@ void HttpServer::start()
         res.set_content(HttpHandlers::handleFragmentSummary(*ctx), "application/json");
     });
 
+    svr->Get("/api/fragment/distribution", [ctx](const httplib::Request&, httplib::Response& res) {
+        res.set_content(HttpHandlers::handleFragmentDistribution(*ctx), "application/json");
+    });
+
     // Static files under /static/
     svr->Get(R"(/static/(.+))", [staticRoot = staticRootPath_](const httplib::Request& req, httplib::Response& res) {
         std::string requested = req.matches[1].str();

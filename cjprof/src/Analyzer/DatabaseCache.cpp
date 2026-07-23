@@ -20,8 +20,8 @@
 
 namespace cjprof {
 
-// kCacheFormatVersion is 1: binary cache format version number
-static constexpr uint32_t kCacheFormatVersion = 1;
+// kCacheFormatVersion is 2: added address_range_start/end to SnapshotEntry
+static constexpr uint32_t kCacheFormatVersion = 2;
 
 #pragma pack(push, 1)
 struct BinaryHeader
@@ -57,10 +57,12 @@ struct BinaryHeader
 
 struct SnapshotEntry
 {
-    uint64_t heap_total_size;
-    uint64_t object_count;
-    uint64_t gc_root_count;
-    uint64_t used_size;
+    uint64_t heapTotalSize;
+    uint64_t objectCount;
+    uint64_t gcRootCount;
+    uint64_t usedSize;
+    uint64_t addressRangeStart;
+    uint64_t addressRangeEnd;
 };
 
 struct ClassEntry
@@ -220,7 +222,8 @@ bool DatabaseCache::save(const std::string& heapFilePath,
 
     file.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
-    SnapshotEntry snap{snapshot.heap_total_size, snapshot.object_count, snapshot.gc_root_count, snapshot.used_size};
+    SnapshotEntry snap{snapshot.heap_total_size, snapshot.object_count, snapshot.gc_root_count, snapshot.used_size,
+        snapshot.address_range_start, snapshot.address_range_end};
     file.write(reinterpret_cast<const char*>(&snap), sizeof(snap));
 
     for (const auto& cls : classes) {
@@ -315,10 +318,12 @@ bool DatabaseCache::load(const std::string& heapFilePath,
     file.seekg(static_cast<std::streamoff>(header.snapshot_offset));
     SnapshotEntry snap;
     file.read(reinterpret_cast<char*>(&snap), sizeof(snap));
-    snapshot.heap_total_size = snap.heap_total_size;
-    snapshot.object_count = snap.object_count;
-    snapshot.gc_root_count = snap.gc_root_count;
-    snapshot.used_size = snap.used_size;
+    snapshot.heap_total_size = snap.heapTotalSize;
+    snapshot.object_count = snap.objectCount;
+    snapshot.gc_root_count = snap.gcRootCount;
+    snapshot.used_size = snap.usedSize;
+    snapshot.address_range_start = snap.addressRangeStart;
+    snapshot.address_range_end = snap.addressRangeEnd;
 
     // Read string table
     std::string stringTableData;

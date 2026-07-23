@@ -207,6 +207,35 @@
             font-size: 12px;
             color: #888;
         }
+        .distribution-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .distribution-row-chart {
+            flex: 1;
+            height: 40px;
+            min-width: 0;
+        }
+        .distribution-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            margin-top: 12px;
+            font-size: 11px;
+            color: #ccc;
+        }
+        .distribution-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .distribution-legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
 
         /* View toggle buttons */
         .view-btn {
@@ -296,11 +325,19 @@
         </div>
 
         <!-- Memory Fragment View -->
-        <div id="fragment-view" class="card" style="display:none;">
-            <h2>Memory Overview</h2>
-            <div id="fragment-summary"></div>
-            <h3 style="margin-top:20px;color:#e94560;">Memory Layout</h3>
-            <div id="fragment-layout"></div>
+        <div id="fragment-view" class="card" style="display:none; grid-template-columns: 1fr 520px; gap: 15px 20px;">
+            <h2 style="margin:0; align-self: center;">Memory Overview</h2>
+            <h2 style="margin:0; color:#e94560; font-size:1.17em; align-self: center;">Top 10 Objects</h2>
+            <div>
+                <div id="fragment-summary"></div>
+                <h3 style="margin-top:20px;margin-bottom:30px;color:#e94560;">Memory Layout</h3>
+                <div id="fragment-layout"></div>
+                <h3 style="margin-top:20px;color:#e94560;">Memory Summary</h3>
+                <div id="fragment-detail"></div>
+            </div>
+            <div class="dominance-table" style="align-self: start;">
+                <div id="fragment-top10-table"></div>
+            </div>
         </div>
     </div>
 
@@ -333,7 +370,21 @@
 
                 const tabName = tab.dataset.tab;
                 document.getElementById('dominance-view').style.display = tabName === 'dominance' ? 'grid' : 'none';
-                document.getElementById('fragment-view').style.display = tabName === 'fragment' ? 'block' : 'none';
+                document.getElementById('fragment-view').style.display = tabName === 'fragment' ? 'grid' : 'none';
+
+                // Render ECharts distribution when fragment tab becomes visible
+                // Must wait for layout reflow so ECharts can read correct container width
+                if (tabName === 'fragment' && distributionData) {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            if (distributionCharts.length === 0) {
+                                renderDistributionChart();
+                            } else {
+                                distributionCharts.forEach(function(ch) { if (ch) ch.resize(); });
+                            }
+                        });
+                    });
+                }
             });
         });
 
@@ -581,6 +632,7 @@
                     if (!params.data) return;
 
                     var clickedNodeId = params.data.nodeId;
+
 
                     // Click center node (the sole top-level node spanning 360°) -> go back to parent
                     if (sunburstCenterNodeId !== null && clickedNodeId === sunburstCenterNodeId) {
@@ -1621,26 +1673,32 @@
         // Load fragment overview
         async function loadFragmentOverview() {
             try {
-                const [overviewRes, layoutRes] = await Promise.all([
+                const [overviewRes, layoutRes, summaryRes, top10Res, distributionRes] = await Promise.all([
                     fetch(`${API_BASE}/fragment/overview`),
-                    fetch(`${API_BASE}/fragment/layout`)
+                    fetch(`${API_BASE}/fragment/layout`),
+                    fetch(`${API_BASE}/fragment/summary`),
+                    fetch(`${API_BASE}/dominance/top10`),
+                    fetch(`${API_BASE}/fragment/distribution`)
                 ]);
                 const overview = await overviewRes.json();
                 const layout = await layoutRes.json();
+                const summary = await summaryRes.json();
+                const top10Data = await top10Res.json();
+                const distribution = await distributionRes.json();
 
                 // Overview section
                 document.getElementById('fragment-summary').innerHTML = `
                     <div class="stat">
-                        <div class="stat-value">${formatBytes(overview.used_size)}</div>
-                        <div class="stat-label">Used</div>
-                    </div>
-                    <div class="stat">
                         <div class="stat-value">${formatBytes(overview.heap_limit)}</div>
-                        <div class="stat-label">Heap Limit</div>
+                        <div class="stat-label">Cangjie Heap Capacity</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-value">${overview.utilization.toFixed(1)}%</div>
-                        <div class="stat-label">Utilization</div>
+                        <div class="stat-value">${formatBytes(overview.used_size)}</div>
+                        <div class="stat-label">Used Heap Size</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">${overview.utilization < 1 ? overview.utilization.toFixed(2) : overview.utilization.toFixed(1)}%</div>
+                        <div class="stat-label">Used Ratio</div>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width:${Math.min(overview.utilization, 100)}%"></div>
@@ -1651,19 +1709,51 @@
                     </div>
                 `;
 
-                // Layout section
+                // Layout section — distribution map with 10 rows
+                if (distribution && distribution.rows && distribution.rows.length > 0) {
+                    let layoutHtml = '<div id="fragment-layout-rows">';
+                    distribution.rows.forEach(function(row, i) {
+                        layoutHtml += '<div class="distribution-row">';
+                        layoutHtml += '<div id="fragment-distribution-row-' + i + '" class="distribution-row-chart"></div>';
+                        layoutHtml += '</div>';
+                    });
+                    layoutHtml += '</div>';
+                    layoutHtml += '<div id="fragment-distribution-legend" class="distribution-legend"></div>';
+                    document.getElementById('fragment-layout').innerHTML = layoutHtml;
+                    distributionData = distribution;
+                }
+
+                // Summary section — card grid (moved from Layout)
                 if (layout.regions) {
-                    let layoutHtml = '<div class="fragment-grid">';
+                    let summaryHtml = '<div class="fragment-grid">';
                     layout.regions.forEach(r => {
-                        layoutHtml += `
+                        summaryHtml += `
                             <div class="fragment-item">
                                 <div class="value">${formatBytes(r.size)}</div>
                                 <div class="label">${r.type}</div>
                             </div>
                         `;
                     });
-                    layoutHtml += '</div>';
-                    document.getElementById('fragment-layout').innerHTML = layoutHtml;
+                    summaryHtml += '</div>';
+                    document.getElementById('fragment-detail').innerHTML = summaryHtml;
+                }
+
+                // Top 10 Objects section
+                if (top10Data.items && top10Data.items.length === 0) {
+                    document.getElementById('fragment-top10-table').innerHTML = '<div class="loading">No data</div>';
+                } else if (top10Data.items) {
+                    let top10Html = '<table style="table-layout:fixed;width:100%;"><colgroup><col style="width:45px;"><col><col style="width:130px;"><col style="width:110px;"><col style="width:70px;"></colgroup><tr><th>Rank</th><th>Type</th><th>Object ID</th><th>Retained Size</th><th>Percentage</th></tr>';
+                    for (const item of top10Data.items) {
+                        top10Html += `<tr>
+                            <td>${item.rank}</td>
+                            <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(item.type)}">${escapeHtml(item.type)}</td>
+                            <td>0x${item.object_id.toString(16)}</td>
+                            <td>${formatBytes(item.retained_size)}</td>
+                            <td>${item.percentage.toFixed(2)}%</td>
+                        </tr>`;
+                    }
+                    top10Html += '</table>';
+                    document.getElementById('fragment-top10-table').innerHTML = top10Html;
                 }
             } catch (e) {
                 document.getElementById('fragment-summary').innerHTML = '<div class="error">Failed to load fragment data</div>';
@@ -1678,9 +1768,133 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        // Distribution chart colors (UNMOVABLE_OBJECT merged into PINNED_OBJECT, same as card grid)
+        const DISTRIBUTION_COLORS = {
+            'INSTANCE_OBJECT': '#e94560',
+            'OBJECT_ARRAY': '#00d9ff',
+            'STRUCT_ARRAY': '#ff9f43',
+            'PRIMITIVE_ARRAY': '#10ac84',
+            'PINNED_OBJECT': '#5f27cd',
+            'LARGE_OBJECT': '#ee5a24',
+            'FREE_SPACE': '#2d2d44'
+        };
+        let distributionCharts = [];
+        let distributionData = null;
+
+        function renderDistributionChart() {
+            if (!distributionData || !distributionData.rows || distributionData.rows.length === 0) return;
+
+            // Destroy existing charts
+            distributionCharts.forEach(function(ch) { if (ch) ch.dispose(); });
+            distributionCharts = [];
+
+            const parseHex = (hexStr) => parseInt(hexStr, 16);
+
+            distributionData.rows.forEach(function(row, i) {
+                const container = document.getElementById('fragment-distribution-row-' + i);
+                if (!container) return;
+
+                const chart = echarts.init(container);
+                distributionCharts.push(chart);
+
+                const rowStart = parseHex(row.start_address);
+                const rowEnd = parseHex(row.end_address);
+
+                const data = row.segments.map(function(seg) {
+                    return {
+                        value: [parseHex(seg.start_address), parseHex(seg.end_address), 0],
+                        type: seg.type,
+                        size: seg.size,
+                        percentage: seg.percentage
+                    };
+                });
+
+                const barHeight = 40;
+                chart.setOption({
+                    tooltip: {
+                        trigger: 'item',
+                        confine: true,
+                        formatter: function(params) {
+                            var d = params.data;
+                            return '<strong>' + d.type + '</strong><br/>' +
+                                   'Size: ' + formatBytes(d.size) + '<br/>' +
+                                   'Percentage: ' + d.percentage.toFixed(2) + '%';
+                        }
+                    },
+                    xAxis: {
+                        type: 'value',
+                        min: rowStart,
+                        max: rowEnd,
+                        show: false
+                    },
+                    yAxis: {
+                        type: 'value',
+                        min: 0,
+                        max: 1,
+                        show: false
+                    },
+                    grid: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    },
+                    series: [{
+                        type: 'custom',
+                        renderItem: function(params, api) {
+                            var d = data[params.dataIndex];
+                            var startAddr = d.value[0];
+                            var endAddr = d.value[1];
+
+                            var pStart = api.coord([startAddr, 0.5]);
+                            var pEnd = api.coord([endAddr, 0.5]);
+
+                            var width = pEnd[0] - pStart[0];
+                            if (width < 2) width = 2;
+
+                            return {
+                                type: 'rect',
+                                shape: {
+                                    x: pStart[0],
+                                    y: pStart[1] - barHeight / 2,
+                                    width: width,
+                                    height: barHeight
+                                },
+                                style: {
+                                    fill: DISTRIBUTION_COLORS[d.type] || '#888'
+                                },
+                                emphasis: {
+                                    style: {
+                                        stroke: '#fff',
+                                        lineWidth: 2
+                                    }
+                                }
+                            };
+                        },
+                        data: data,
+                        encode: { x: [0, 1], y: 2 }
+                    }]
+                });
+            });
+
+            // Render legend
+            const legendContainer = document.getElementById('fragment-distribution-legend');
+            if (legendContainer) {
+                let legendHtml = '';
+                for (const [typeName, color] of Object.entries(DISTRIBUTION_COLORS)) {
+                    legendHtml += '<div class="distribution-legend-item">' +
+                        '<div class="distribution-legend-dot" style="background:' + color + ';"></div>' +
+                        '<span>' + typeName + '</span>' +
+                    '</div>';
+                }
+                legendContainer.innerHTML = legendHtml;
+            }
+        }
+
         window.addEventListener('resize', () => {
             if (sunburstChart) sunburstChart.resize();
             if (treeChart) treeChart.resize();
+            distributionCharts.forEach(function(ch) { if (ch) ch.resize(); });
         });
 
         // Initial load
