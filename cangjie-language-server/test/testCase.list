@@ -1247,6 +1247,7 @@
 {"applyEdit":{"testFile":"ExtractInterface_Apply_019.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_020.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"ExtractInterface_Apply_021.test","method":"workspace/applyEdit"}}
+{"applyEdit":{"testFile":"ExtractInterface_Apply_022.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_001.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_002.test","method":"workspace/applyEdit"}}
 {"applyEdit":{"testFile":"IntroduceField_Apply_003.test","method":"workspace/applyEdit"}}
