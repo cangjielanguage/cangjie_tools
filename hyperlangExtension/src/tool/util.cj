@@ -10,10 +10,11 @@ import std.ast.*
 import std.collection.*
 
 public func addComment(msg: String, reason!: ?String = None): Tokens {
+    let safeMsg = msg.replace("*/", "*\\/").replace("/*", "/\\*")
     if (let Some(r) <- reason) {
-        Tokens([Token(TokenKind.COMMENT, "// ${r}"), nl, Token(TokenKind.COMMENT, "/*${msg}*/"), nl])
+        Tokens([Token(TokenKind.COMMENT, "// ${r}"), nl, Token(TokenKind.COMMENT, "/*${safeMsg}*/"), nl])
     } else {
-        Tokens([Token(TokenKind.COMMENT, "/*${msg}*/"), nl])
+        Tokens([Token(TokenKind.COMMENT, "/*${safeMsg}*/"), nl])
     }
 }
 
