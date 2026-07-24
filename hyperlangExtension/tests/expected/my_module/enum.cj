@@ -235,12 +235,12 @@ public enum Response1 <: ToString & Equatable < Response1 > {
 
 // this is systemapi
 /*// @systemapi
-/* enum SystemErrorCode {
+/\* enum SystemErrorCode {
 	 success = 0,
 	 invalidInput = 1,
 	 networkError = 2,
 	 internalError = 3
-	}*/
+	}*\/
 public enum SystemErrorCode <: ToString & Equatable < SystemErrorCode > {
     | success
     | invalidInput
@@ -300,11 +300,11 @@ public enum SystemErrorCode <: ToString & Equatable < SystemErrorCode > {
 
 // this api is deprecated
 /*// @deprecated
-/* enum LegacyStatus {
+/\* enum LegacyStatus {
 	 active = 0,
 	 inactive = 1,
 	 pending = 2
-	}*/
+	}*\/
 public enum LegacyStatus <: ToString & Equatable < LegacyStatus > {
     | active
     | inactive
