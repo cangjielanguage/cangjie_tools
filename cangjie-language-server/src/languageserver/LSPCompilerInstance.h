@@ -61,6 +61,8 @@ class LSPCompilerInstance : public CompilerInstance {
 public:
     using PackageMap = std::unordered_map<std::string, PackageMapNode>;
     using CjoCacheMap = std::unordered_map<std::string, std::vector<uint8_t>>;
+    using CjoBytesRef = std::shared_ptr<const std::vector<uint8_t>>;
+    using UsrCjoCacheMap = std::unordered_map<std::string, CjoBytesRef>;
     LSPCompilerInstance(ark::Callbacks *cb,
                         CompilerInvocation &invocation,
                         std::unique_ptr<DiagnosticEngine> diag,
@@ -182,8 +184,10 @@ public:
     static inline CjoCacheMap cjoFileCacheMap;
     static inline std::unordered_map<std::string, std::vector<std::string>> cjoLibraryMap;
     // key: moduleName, value: CjoCacheMap
-    static inline std::unordered_map<std::string, CjoCacheMap> usrCjoFileCacheMap;
+    static inline std::unordered_map<std::string, UsrCjoCacheMap> usrCjoFileCacheMap;
     static inline std::unordered_set<std::string> cjoPathSet;
+    // path -> shared cjo bytes; dedup source of truth. UpdateUsrCjoFileCacheMap MUST stay single-threaded
+    static inline std::unordered_map<std::string, CjoBytesRef> cjoBytesByPath;
 
 private:
     struct DependencyContext {
