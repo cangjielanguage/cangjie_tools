@@ -25,6 +25,7 @@ public:
     static std::string handleFragmentOverview(const HttpContext& ctx);
     static std::string handleFragmentLayout(const HttpContext& ctx);
     static std::string handleFragmentSummary(const HttpContext& ctx);
+    static std::string handleFragmentDistribution(const HttpContext& ctx);
 };
 
 } // namespace cjprof

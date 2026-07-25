@@ -1110,6 +1110,25 @@ bool HeapAnalyzer::StartReportServer(int port)
         snapshotInfo.object_count = instances.size() + arrays.size();
         snapshotInfo.gc_root_count = gcRoots.size();
         snapshotInfo.heap_total_size = 512ULL * 1024 * 1024;
+        // Calculate address range from object IDs (hprof IDs are object addresses)
+        uint64_t minAddr = UINT64_MAX;
+        uint64_t maxAddr = 0;
+        for (const auto& inst : instances) {
+            if (inst.first != 0) {
+                minAddr = std::min(minAddr, inst.first);
+                maxAddr = std::max(maxAddr, inst.first);
+            }
+        }
+        for (const auto& arr : arrays) {
+            if (arr.first != 0) {
+                minAddr = std::min(minAddr, arr.first);
+                maxAddr = std::max(maxAddr, arr.first);
+            }
+        }
+        if (minAddr != UINT64_MAX) {
+            snapshotInfo.address_range_start = minAddr;
+            snapshotInfo.address_range_end = maxAddr;
+        }
         auto t5 = std::chrono::steady_clock::now();
 
         // Build dominance tree directly from m_hprof (skip RawHeapSnapshot intermediary)
