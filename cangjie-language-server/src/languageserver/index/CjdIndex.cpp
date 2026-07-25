@@ -26,8 +26,9 @@ void DCompilerInstance::ImportCjoToManager(const std::unique_ptr<ark::CjoManager
     auto allDependencies = graph->FindAllDependencies(pkgNameForPath);
     for (auto &package: allDependencies) {
         for (auto &item: usrCjoFileCacheMap) {
-            if (item.second.count(package)) {
-                importManager->SetPackageCjoCache(package, item.second[package]);
+            auto it = item.second.find(package);
+            if (it != item.second.end()) {
+                importManager->SetPackageCjoCache(package, *it->second);
             }
         }
     }
