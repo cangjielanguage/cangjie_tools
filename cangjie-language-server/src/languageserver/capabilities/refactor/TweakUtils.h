@@ -44,6 +44,9 @@ public:
 
     static bool IsIfLetSelection(const SelectionTree &selectionTree, const Range &range);
 
+    static bool IsTupleElementIndexSelection(
+        const ArkAST *arkAst, const SelectionTree &selectionTree, const Range &range);
+
     static std::string GetTypeName(const Ty &ty);
 
     static std::string GetCompoundAssignOperatorText(Cangjie::TokenKind tokenKind);
