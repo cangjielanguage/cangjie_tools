@@ -1627,7 +1627,7 @@ ark::lsp::SymbolID CompletionEnv::GetDeclSymbolID(const Decl& decl)
     return ret;
 }
 
-ark::lsp::SymbolID CompletionEnv::GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+ark::lsp::SymbolID CompletionEnv::GetPrimaryTypeSymbolId(const DataTy ty)
 {
     if (!ty || !ty->IsPrimitive()) {
         return ark::lsp::INVALID_SYMBOL_ID;

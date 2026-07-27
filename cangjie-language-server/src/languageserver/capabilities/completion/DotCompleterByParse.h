@@ -43,7 +43,7 @@ public:
                           CompletionEnv &env) const;
 
 private:
-    void CompleteClassDecl(Ptr<Cangjie::AST::Ty> ty,
+    void CompleteClassDecl(Cangjie::AST::DataTy ty,
                            const Cangjie::Position &pos,
                            CompletionEnv &env,
                            bool isSuperOrThis = false) const;
@@ -52,9 +52,9 @@ private:
                                const Cangjie::Position &pos,
                                CompletionEnv &env) const;
 
-    void CompleteEnumDecl(Ptr<Cangjie::AST::Ty> ty, const Cangjie::Position &pos, CompletionEnv &env) const;
+    void CompleteEnumDecl(Cangjie::AST::DataTy ty, const Cangjie::Position &pos, CompletionEnv &env) const;
 
-    void CompleteStructDecl(Ptr<Cangjie::AST::Ty> ty, const Cangjie::Position &pos, CompletionEnv &env) const;
+    void CompleteStructDecl(Cangjie::AST::DataTy ty, const Cangjie::Position &pos, CompletionEnv &env) const;
 
     void CompleteBuiltInType(Ty *type, CompletionEnv &env) const;
 
@@ -67,11 +67,11 @@ private:
     std::set<std::string> FindDeclSetByFiles(const std::string &packageName,
                                              std::vector<OwnedPtr<Cangjie::AST::File>> &files) const;
 
-    void AddExtendDeclFromIndex(Ptr<Ty> extendTy, CompletionEnv &env) const;
+    void AddExtendDeclFromIndex(DataTy extendTy, CompletionEnv &env) const;
 
-    void AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &extendTys, CompletionEnv &env, ArkAST *ast,
+    void AddExtendVisibleMembers(const std::vector<DataTy> &extendTys, CompletionEnv &env, ArkAST *ast,
         std::unordered_set<lsp::SymbolID> &ids, std::unordered_set<lsp::SymbolID> &allVisibleMembers) const;
-    void AddExtendDeclFromIndexBatch(const std::vector<Ptr<Ty>> &extendTys, CompletionEnv &env) const;
+    void AddExtendDeclFromIndexBatch(const std::vector<DataTy> &extendTys, CompletionEnv &env) const;
 
     std::string QueryByPos(Ptr<Node> node, const Position pos);
 
@@ -204,12 +204,12 @@ private:
         std::vector<OwnedPtr<AST::Decl>> &decls);
 
     void GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst,
-        Ptr<Ty> &ty, Ptr<NameReferenceExpr> &resExpr);
+        DataTy &ty, Ptr<NameReferenceExpr> &resExpr);
 
     void CompleteByReferenceTarget(const Position &pos, const std::string &prefix, CompletionEnv &env,
         const Ptr<Expr> &expr, std::string &scopeName);
 
-    Ptr<Ty> GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst);
+    DataTy GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst);
 
     bool CheckInIfAvailable(Ptr<Decl> decl, const Position &pos);
 

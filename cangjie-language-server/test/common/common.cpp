@@ -739,7 +739,7 @@ namespace test::common {
         // 3 times
         const int maxRetries = 3;
         // 3 min timeout
-        const int timeout = 1 * 180;
+        const int timeout = 1 * 1800000;
         bool success = false;
 
         while (retryCount < maxRetries && !success) {

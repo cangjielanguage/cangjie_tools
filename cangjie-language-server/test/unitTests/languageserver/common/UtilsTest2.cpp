@@ -440,10 +440,10 @@ TEST(UtilsTest, GetVarDeclType001) {
     auto decl = Ptr<VarDecl>(new VarDecl());
     // Use a plain Type, set its kind to something else
     Ptr<TestTy> rType(new TestTy(TypeKind::TYPE_FUNC));
-    std::vector<Ptr<Ty>> v;
-    v.emplace_back(nullptr);
-    Ptr<FuncTy> funcTy(new FuncTy(v, rType));
-    decl->SetTy(std::move(funcTy));
+    std::vector<ModalTy> v;
+    v.emplace_back(ModalTy{});
+    Ptr<FuncTy> funcTy(new FuncTy(v, ModalTy{DataTy{rType}}));
+    decl->SetTy(ModalTy{DataTy{std::move(funcTy)}});
     GetVarDeclType(decl);
 }
 
@@ -510,7 +510,7 @@ TEST(UtilsTest, InImportSpec001) {
 class FakeVarDecl : public VarDecl {
 public:
     FakeVarDecl() : VarDecl(ASTKind::VAR_DECL) {
-        SetTy(nullptr);
+        SetTy(ModalTy{});
         type = nullptr;
     }
 };
@@ -527,7 +527,7 @@ public:
 // Test 086: When both decl->GetTy() and decl->type are null, return empty string
 TEST(UtilsTest, GetVarDeclType_086) {
     Ptr<FakeVarDecl> decl(new FakeVarDecl());
-    decl->SetTy(nullptr);
+    decl->SetTy(ModalTy{});
     decl->type = nullptr;
 
     std::string result = GetVarDeclType(decl, nullptr);
@@ -568,8 +568,8 @@ TEST(UtilsTest, GetVarDeclType_088) {
     Ptr<FakeVarDecl> decl(new FakeVarDecl());
 
     // Create a function type
-    std::vector<Ptr<Ty>> params;
-    decl->SetTy(Ptr<Ty>(new FuncTy(params, nullptr)));
+    std::vector<ModalTy> params;
+    decl->SetTy(Ptr<Ty>(new FuncTy(params, ModalTy{})));
 
     // Logic: TYPE_FUNC triggers GetDetailByTy and ReplaceTuple
     std::string result = GetVarDeclType(decl, nullptr);

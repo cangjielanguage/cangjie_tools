@@ -191,22 +191,19 @@ void OverrideCompleter::ExtractReplace(Ptr<Decl> decl)
     }
     for (const auto& inheritedType: inheritedTypes) {
         Ptr<ClassLikeDecl> inheritedDecl = nullptr;
-        if (auto clsTy = DynamicCast<ClassTy*>(inheritedType->GetTy())) {
+        if (auto clsTy = DynamicCast<ClassTy*>(inheritedType->GetTy().get())) {
             inheritedDecl = clsTy->declPtr;
-        } else if (auto ifTy = DynamicCast<InterfaceTy*>(inheritedType->GetTy())) {
+        } else if (auto ifTy = DynamicCast<InterfaceTy*>(inheritedType->GetTy().get())) {
             inheritedDecl = ifTy->declPtr;
         }
         if (!inheritedDecl || !inheritedType->GetTy()) {
             continue;
         }
-        auto originalDetail = ResolveType(inheritedDecl->GetTy());
+        auto originalDetail = ResolveType(inheritedDecl->GetTy().Ty());
         if (!originalDetail) {
             return;
         }
-        auto newDetail = ResolveType(inheritedType->GetTy());
-        if (!newDetail) {
-            return;
-        }
+        auto newDetail = ResolveType(inheritedType->GetTy().Ty());
         for (auto& item: replace) {
             newDetail->SetIdentifier(item.first, item.second);
         }

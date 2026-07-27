@@ -52,7 +52,7 @@ public:
 
     static ark::lsp::SymbolID GetDeclSymbolID(const Decl& decl);
 
-    static ark::lsp::SymbolID GetPrimaryTypeSymbolId(const Ptr<Ty> ty);
+    static ark::lsp::SymbolID GetPrimaryTypeSymbolId(const DataTy ty);
 
     // make sure use this in safe
     static Range GetEditRangeForAutoImport(const ArkAST &file);

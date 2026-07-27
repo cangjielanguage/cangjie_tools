@@ -336,7 +336,7 @@ void DotCompleterByParse::CompleteByReferenceTarget(const Position &pos, const s
 }
 
 void DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_ptr<ArkAST> arkAst,
-    Ptr<Ty> &ty, Ptr<NameReferenceExpr> &resExpr)
+    DataTy &ty, Ptr<NameReferenceExpr> &resExpr)
 {
     Ptr<NameReferenceExpr> semaCacheExpr;
     auto macroCallNodes = &arkAst->file->originalMacroCallNodes;
@@ -369,7 +369,7 @@ void DotCompleterByParse::GetTyFromMacroCallNodes(Ptr<Expr> expr, std::unique_pt
     auto searchTy = [&ty, &macroBeginPos, &maNextTokenPos, &resExpr](auto node) {
         if (auto ma = dynamic_cast<NameReferenceExpr *>(node.get())) {
             if (ma->begin == macroBeginPos && (maNextTokenPos.IsZero() || ma->end <= maNextTokenPos)) {
-                ty = ma->GetTy();
+                ty = ma->DataTy();
                 resExpr = ma;
                 return VisitAction::STOP_NOW;
             }
@@ -418,20 +418,20 @@ void DotCompleterByParse::CompleteCandidate(const Position &pos, const std::stri
                 isEnumCtor = true;
                 env.SetValue(FILTER::IS_STATIC, false);
             }
-            Ptr<Ty> ty = decl->GetTy();
+            DataTy ty = decl->DataTy();
             auto vd = DynamicCast<VarDecl *>(decl);
             if (vd && vd->type) {
-                ty = vd->type->GetTy();
+                ty = vd->type->DataTy();
             }
             CompleteFromType(decl->identifier, pos, ty, env);
         }
     } else {
         for (auto &ty : declOrTy.tys) {
             if (ty->kind == TypeKind::TYPE_ENUM) {
-                isEnumCtor = IsEnumCtorTy(prefix, ty);
+                isEnumCtor = IsEnumCtorTy(prefix, ty.get());
             }
             const std::string identifier = prefix == "this" || prefix == "super" ? prefix : "";
-            CompleteFromType(identifier, pos, ty, env);
+            CompleteFromType(identifier, pos, ty.get(), env);
         }
     }
     env.OutputResult(result);
@@ -1100,13 +1100,13 @@ void DotCompleterByParse::InitMap() const
     DotMatcher::GetInstance().RegFunc(ASTKind::IF_AVAILABLE_EXPR, &ark::DotCompleterByParse::FindIfAvailableExpr);
 }
 
-void DotCompleterByParse::AddExtendDeclFromIndex(Ptr<Ty> extendTy, CompletionEnv &env) const
+void DotCompleterByParse::AddExtendDeclFromIndex(DataTy extendTy, CompletionEnv &env) const
 {
-    std::vector<Ptr<Ty>> extendTys = {extendTy};
+    std::vector<DataTy> extendTys = {extendTy};
     AddExtendDeclFromIndexBatch(extendTys, env);
 }
 
-void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &extendTys,
+void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<DataTy> &extendTys,
     CompletionEnv &env,
     ArkAST *ast,
     std::unordered_set<lsp::SymbolID> &ids,
@@ -1126,7 +1126,8 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &ex
 
     for (auto extendTy : extendTys) {
         auto extendMembers =
-            CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(extendTy, packageNameForPath, *ast->file);
+            CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
+            Cangjie::AST::ModalTy{extendTy}, packageNameForPath, *ast->file);
         auto decl = Ty::GetDeclPtrOfTy(extendTy);
         if (!decl && !extendTy->IsPrimitive()) {
             continue;
@@ -1160,7 +1161,7 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<Ptr<Ty>> &ex
     }
 }
 
-void DotCompleterByParse::AddExtendDeclFromIndexBatch(const std::vector<Ptr<Ty>> &extendTys, CompletionEnv &env) const
+void DotCompleterByParse::AddExtendDeclFromIndexBatch(const std::vector<DataTy> &extendTys, CompletionEnv &env) const
 {
     if (extendTys.empty()) {
         return;
@@ -1287,7 +1288,7 @@ void DotCompleterByParse::CompleteFromType(const std::string &identifier,
         if (!aliasDecl || !aliasDecl->type) {
             return;
         }
-        CompleteFromType(identifier, pos, aliasDecl->type->GetTy(), env);
+        CompleteFromType(identifier, pos, aliasDecl->type->GetTy().get(), env);
     } else if (typeid(*type) == typeid(GenericsTy)) {
         auto genericsDecl = dynamic_cast<GenericsTy *>(type)->upperBounds;
         for (auto ty : genericsDecl) {
@@ -1304,7 +1305,7 @@ void DotCompleterByParse::CompleteFromType(const std::string &identifier,
     }
 }
 
-void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position &pos,
+void DotCompleterByParse::CompleteClassDecl(DataTy ty, const Cangjie::Position &pos,
                                             CompletionEnv &env, bool isSuperOrThis) const
 {
     auto classDecl = DynamicCast<ClassDecl>(Ty::GetDeclPtrOfTy(ty));
@@ -1336,7 +1337,7 @@ void DotCompleterByParse::CompleteClassDecl(Ptr<Ty> ty, const Cangjie::Position 
     if (ark::Is<ClassDecl>(classDecl->GetSuperClassDecl().get())) {
         auto superClass = classDecl->GetSuperClassDecl();
         env.SetValue(FILTER::IS_SUPER, true);
-        CompleteClassDecl(superClass->GetTy(), pos, env, isSuperOrThis);
+        CompleteClassDecl(superClass->GetTy().Ty(), pos, env, isSuperOrThis);
     }
 }
 
@@ -1363,12 +1364,12 @@ void DotCompleterByParse::CompleteSuperInterface(Ptr<const InterfaceDecl> interf
         }
         auto refType = dynamic_cast<RefType*>(inheritedType.get().get());
         if (Cangjie::Is<InterfaceTy>(refType->GetTy().get()) && !IsHiddenDecl(refType->ref.target)) {
-            CompleteFromType("", pos, refType->GetTy(), env);
+            CompleteFromType("", pos, refType->GetTy().get(), env);
         }
     }
 }
 
-void DotCompleterByParse::CompleteEnumDecl(Ptr<Ty> ty, const Cangjie::Position &pos, CompletionEnv &env) const
+void DotCompleterByParse::CompleteEnumDecl(DataTy ty, const Cangjie::Position &pos, CompletionEnv &env) const
 {
     // TD: Enum Type will be written later.
     auto enumDecl = DynamicCast<EnumDecl>(Ty::GetDeclPtrOfTy(ty));
@@ -1413,7 +1414,7 @@ void DotCompleterByParse::CompleteEnumInterface(Ptr<EnumDecl> enumDecl, const Po
     }
 }
 // LCOV_EXCL_STOP
-void DotCompleterByParse::CompleteStructDecl(Ptr<Ty> ty, const Cangjie::Position &pos, CompletionEnv &env) const
+void DotCompleterByParse::CompleteStructDecl(DataTy ty, const Cangjie::Position &pos, CompletionEnv &env) const
 {
     // TD: Struct Type will be written later.
     auto structDecl = dynamic_cast<StructTy *>(ty.get())->decl;
@@ -1450,7 +1451,7 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
         return;
     }
     auto extendDecls = CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
-        type, packageNameForPath, *ast->file);
+        Cangjie::AST::ModalTy{Cangjie::AST::DataTy{type}}, packageNameForPath, *ast->file);
     for (auto &decl : extendDecls) {
         if (!syscap.CheckSysCap(decl) || IsHiddenDecl(decl) || IsHiddenDecl(decl->outerDecl)) {
             return;
@@ -1472,7 +1473,7 @@ void DotCompleterByParse::CompleteBuiltInType(Ty *type, CompletionEnv &env) cons
 
     if (type->IsIdeal()) {
         auto kinds = GetIdealTypesByKind(type->kind);
-        std::vector<Ptr<Ty>> extendTys;
+        std::vector<DataTy> extendTys;
         for (auto kind: kinds) {
             auto primitivety = TypeManager::GetPrimitiveTy(kind);
             extendTys.push_back(primitivety);
