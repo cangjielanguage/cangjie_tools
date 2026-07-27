@@ -80,7 +80,7 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
             // For Enum mode, determine if it is an IrrefutablePattern
             if (varOrEnumPattern->pattern && varOrEnumPattern->pattern->GetTy()) {
                 auto &enumPattern = static_cast<const EnumPattern &>(*varOrEnumPattern->pattern);
-                auto enumTy = RawStaticCast<EnumTy *>(varOrEnumPattern->pattern->GetTy());
+                auto enumTy = RawStaticCast<EnumTy *>(varOrEnumPattern->pattern->GetTy().get());
                 return enumTy && enumTy->declPtr && enumTy->declPtr->constructors.size() == 1 &&
                     std::all_of(enumPattern.patterns.cbegin(), enumPattern.patterns.cend(),
                     [](const OwnedPtr<Pattern> &p) { return IsIrrefutablePattern(*p); });
@@ -92,7 +92,7 @@ static bool IsIrrefutablePattern(const Pattern &pattern)
                 return false;
             }
             auto &enumPattern = static_cast<const EnumPattern &>(pattern);
-            auto enumTy = RawStaticCast<EnumTy *>(pattern.GetTy());
+            auto enumTy = RawStaticCast<EnumTy *>(pattern.GetTy().get());
             return enumTy && enumTy->declPtr && enumTy->declPtr->constructors.size() == 1 &&
                 std::all_of(enumPattern.patterns.cbegin(), enumPattern.patterns.cend(),
                 [](const OwnedPtr<Pattern> &p) { return IsIrrefutablePattern(*p); });

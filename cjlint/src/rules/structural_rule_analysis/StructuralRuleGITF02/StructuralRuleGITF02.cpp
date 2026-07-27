@@ -34,7 +34,8 @@ void StructuralRuleGITF02::CheckExtendMemberDecls(const Cangjie::AST::ExtendDecl
     for (auto& member : extendDecl.members) {
         bool label = false;
         for (auto& interfaceTy : extendDecl.GetSuperInterfaceTys()) {
-            auto interface = RawStaticCast<AST::InterfaceDecl*>(AST::Ty::GetDeclOfTy(interfaceTy));
+            Ptr<AST::Ty> ty = interfaceTy;
+            auto interface = RawStaticCast<AST::InterfaceDecl*>(AST::Ty::GetDeclOfTy(ty));
             if (interface->TestAttr(Attribute::IMPORTED)) {
                 continue;
             }

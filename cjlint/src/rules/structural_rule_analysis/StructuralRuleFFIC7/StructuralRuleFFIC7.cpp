@@ -16,7 +16,7 @@ static Ptr<Ty> GetType(Ptr<Ty> ty)
     if (!ty || ty->typeArgs.empty()) {
         return nullptr;
     }
-    return ty->typeArgs[0];
+    return ty->typeArgs[0].Ty();
 }
 
 void StructuralRuleFFIC7::CheckPointerExpr(Ptr<AST::Node> node)
@@ -26,11 +26,11 @@ void StructuralRuleFFIC7::CheckPointerExpr(Ptr<AST::Node> node)
             return VisitAction::WALK_CHILDREN;
         }
         auto pointerExpr = StaticAs<ASTKind::POINTER_EXPR>(node);
-        auto toTy = GetType(pointerExpr->GetTy());
+        auto toTy = GetType(pointerExpr->GetTy().Ty());
         if (!pointerExpr->arg || !pointerExpr->arg->GetTy()) {
             return VisitAction::WALK_CHILDREN;
         }
-        auto fromTy = GetType(pointerExpr->arg->GetTy());
+        auto fromTy = GetType(pointerExpr->arg->GetTy().Ty());
         if (!toTy || !fromTy) {
             return VisitAction::WALK_CHILDREN;
         }

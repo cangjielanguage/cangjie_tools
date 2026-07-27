@@ -91,7 +91,7 @@ void StructuralRuleGOTH04::AnalyzeVarDecl(const VarDecl& varDecl)
     }
 
     bool flag = false;
-    VarDeclTypeAnalysis(varDecl.GetTy(), flag);
+    VarDeclTypeAnalysis(varDecl.GetTy().Ty(), flag);
     if (flag) {
         Diagnose(varDecl.identifier.Begin(), varDecl.identifier.End(),
             CodeCheckDiagKind::G_OTH_04_avoid_use_string_type_to_store_sensitive_data, varDecl.identifier.Val());
@@ -134,7 +134,7 @@ void StructuralRuleGOTH04::IsIncludeStringType(Ptr<Ty> ty, bool& flag)
             flag = true;
             break;
         }
-        VarDeclTypeAnalysis(item, flag);
+        VarDeclTypeAnalysis(item.Ty(), flag);
     }
 }
 } // namespace Cangjie::CodeCheck

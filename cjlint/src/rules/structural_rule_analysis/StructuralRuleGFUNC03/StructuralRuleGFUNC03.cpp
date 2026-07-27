@@ -14,6 +14,9 @@ using namespace Meta;
 
 static bool IsSubClass(Ptr<AST::Ty> base, Ptr<AST::Ty> derived)
 {
+    if (!base || !derived) {
+        return false;
+    }
     if (!derived->IsClassLike()) {
         return false;
     }
@@ -22,11 +25,21 @@ static bool IsSubClass(Ptr<AST::Ty> base, Ptr<AST::Ty> derived)
     }
     auto classDecl = StaticCast<AST::ClassLikeDecl*>(AST::Ty::GetDeclOfTy(derived).get());
     for (auto& super : classDecl->inheritedTypes) {
-        if (IsSubClass(base, super->GetTy())) {
+        if (IsSubClass(base, super->GetTy().Ty())) {
             return true;
         }
     }
     return false;
+}
+
+static std::vector<Ptr<AST::Ty>> GetDataTys(const std::vector<AST::ModalTy>& modalTys)
+{
+    std::vector<Ptr<AST::Ty>> dataTys;
+    dataTys.reserve(modalTys.size());
+    for (auto& modalTy : modalTys) {
+        dataTys.emplace_back(modalTy.Ty());
+    }
+    return dataTys;
 }
 
 static bool IsNotSameParams(std::vector<Ptr<AST::Ty>>& current, std::vector<Ptr<AST::Ty>>& target)
@@ -58,9 +71,9 @@ static bool HasParentChildTypeRelation(std::vector<Ptr<AST::Ty>>& current, std::
 void StructuralRuleGFUNC03::FuncDeclProcessor(Ptr<Node> node)
 {
     auto funcDecl = StaticCast<AST::FuncDecl*>(node);
-    auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy());
+    auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy().get());
     if (functy) {
-        auto paramTys = functy->paramTys;
+        auto paramTys = GetDataTys(functy->paramTys);
         for (auto modifier : funcDecl->modifiers) {
             if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::SPECIFIC) {
                 return;
@@ -92,11 +105,11 @@ void StructuralRuleGFUNC03::FileProcessor(Ptr<Node> node)
             continue;
         }
         auto funcDecl = StaticCast<AST::FuncDecl*>(decl.get());
-        auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy());
+        auto functy = DynamicCast<AST::FuncTy*>(funcDecl->GetTy().get());
         if (!functy) {
             continue;
         }
-        auto paramTys = functy->paramTys;
+        auto paramTys = GetDataTys(functy->paramTys);
         for (auto modifier : funcDecl->modifiers) {
             if (modifier.modifier== TokenKind::COMMON || modifier.modifier == TokenKind::SPECIFIC) {
                 return;
