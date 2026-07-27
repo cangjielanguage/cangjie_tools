@@ -177,6 +177,61 @@ bool TweakUtils::IsIfLetSelection(const SelectionTree &selectionTree, const Rang
     return found;
 }
 
+bool TweakUtils::IsTupleElementIndexSelection(
+    const ArkAST *arkAst, const SelectionTree &selectionTree, const Range &range)
+{
+    auto isSelectedTupleIndex = [&range](const SubscriptExpr &subscriptExpr) {
+        bool isTupleBase = subscriptExpr.baseExpr &&
+            subscriptExpr.baseExpr->TyKind() == TypeKind::TYPE_TUPLE;
+        if (!isTupleBase && subscriptExpr.baseExpr) {
+            auto baseRef = DynamicCast<const RefExpr *>(subscriptExpr.baseExpr.get());
+            auto target = baseRef ? baseRef->GetTarget() : nullptr;
+            isTupleBase = target && target->GetTy() && target->GetTy()->kind == TypeKind::TYPE_TUPLE;
+        }
+        if (!isTupleBase && !subscriptExpr.isTupleAccess) {
+            return false;
+        }
+        return std::any_of(subscriptExpr.indexExprs.begin(), subscriptExpr.indexExprs.end(),
+            [&range](const auto &indexExpr) {
+                return indexExpr && indexExpr->begin == range.start && indexExpr->end == range.end;
+            });
+    };
+
+    // The selection tree can be rooted at the literal, so find its parent subscript in the file AST.
+    if (arkAst && arkAst->file) {
+        bool found = false;
+        ConstWalker(arkAst->file, [&found, &isSelectedTupleIndex](Ptr<const Node> node) {
+            if (!node || found) {
+                return VisitAction::STOP_NOW;
+            }
+            auto subscriptExpr = DynamicCast<const SubscriptExpr *>(node.get());
+            if (subscriptExpr && isSelectedTupleIndex(*subscriptExpr)) {
+                found = true;
+                return VisitAction::STOP_NOW;
+            }
+            return VisitAction::WALK_CHILDREN;
+        }).Walk();
+        if (found) {
+            return true;
+        }
+    }
+
+    auto root = selectionTree.root();
+    if (!root || !root->node) {
+        return false;
+    }
+    bool found = false;
+    SelectionTree::Walk(root, [&found, &isSelectedTupleIndex](const SelectionTree::SelectionTreeNode *node) {
+        if (!node || !node->node || found) {
+            return SelectionTree::WalkAction::STOP_NOW;
+        }
+        auto subscriptExpr = DynamicCast<const SubscriptExpr *>(node->node.get());
+        found = subscriptExpr && isSelectedTupleIndex(*subscriptExpr);
+        return found ? SelectionTree::WalkAction::STOP_NOW : SelectionTree::WalkAction::WALK_CHILDREN;
+    });
+    return found;
+}
+
 std::string TweakUtils::GetTypeName(const Ty &ty)
 {
     auto tupleTy = dynamic_cast<const TupleTy *>(&ty);
