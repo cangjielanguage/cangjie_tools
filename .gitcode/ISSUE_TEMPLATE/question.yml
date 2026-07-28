@@ -7,6 +7,18 @@ body:
     attributes:
       value: |
         感谢提出问题，我们将安排人答复！ | Thanks for asking, we will arrange for someone to reply!
+  - type: dropdown
+    id: domain
+    attributes:
+      label: "领域 | Domain"
+      description: "请选择该 issue 所属领域： | Please select the domain this issue belongs to."
+      options:
+        - Tools
+        - LSP
+        - HLE
+        - 其它
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: "问题描述 | Question description"
@@ -19,11 +31,13 @@ body:
       label: "受影响的分支版本 | Affected branch versions"
       description: "请选择您的问题涉及的分支版本： | Please select the branch versions involved in your question."
       options:
-        - label: dev
-          required: false
         - label: main
           required: false
         - label: release/1.0
+          required: false
+        - label: release/1.1
+          required: false
+        - label: release/1.2
           required: false
     validations:
       required: true
