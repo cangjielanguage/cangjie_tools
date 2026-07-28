@@ -837,13 +837,6 @@ void ArkServer::FindCompletion(const CompletionParams &params, const std::string
 {
     Trace::Log("ArkServer::FindCompletion in.");
 
-    auto fileId = GetFileId(file);
-    if (!fileId) {
-        Trace::Log("ArkServer::FindCompletion fileId is null.");
-        ValueOrError value(ValueOrErrorCheck::VALUE, nullptr);
-        reply(value);
-        return;
-    }
     Cangjie::Position pos = {
         static_cast<unsigned int>(0),
         params.position.line,
