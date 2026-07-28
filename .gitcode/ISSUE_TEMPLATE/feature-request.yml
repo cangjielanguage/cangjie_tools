@@ -7,6 +7,18 @@ body:
     attributes:
       value: |
         感谢提出新需求。 | Thanks for proposing a new feature.
+  - type: dropdown
+    id: domain
+    attributes:
+      label: "领域 | Domain"
+      description: "请选择该 issue 所属领域： | Please select the domain this issue belongs to."
+      options:
+        - Tools
+        - LSP
+        - HLE
+        - 其它
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: "新需求提供了什么功能？ | What functionality does the new feature provide?"
@@ -25,11 +37,13 @@ body:
       label: "新需求涉及的分支版本 | Branch versions involved in the new feature"
       description: "请选择涉及的分支版本： | Please select the involved branch versions."
       options:
-        - label: dev
-          required: false
         - label: main
           required: false
         - label: release/1.0
+          required: false
+        - label: release/1.1
+          required: false
+        - label: release/1.2
           required: false
     validations:
       required: true

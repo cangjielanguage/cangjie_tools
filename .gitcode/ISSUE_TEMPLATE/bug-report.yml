@@ -7,6 +7,18 @@ body:
     attributes:
       value: |
         感谢对仓颉社区的支持与关注，欢迎反馈缺陷。 | Thanks for your support and attention to the community. We welcome feedback on any issues.
+  - type: dropdown
+    id: domain
+    attributes:
+      label: "领域 | Domain"
+      description: "请选择该 issue 所属领域： | Please select the domain this issue belongs to."
+      options:
+        - Tools
+        - LSP
+        - HLE
+        - 其它
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: "发生了什么问题？ | Describe the issue that occurred."
@@ -45,11 +57,13 @@ body:
       label: "分支版本信息 | Branch version information"
       description: "在哪些分支版本存在该缺陷？ | In which branch versions does this bug exist?"
       options:
-        - label: dev
-          required: false
         - label: main
           required: false
         - label: release/1.0
+          required: false
+        - label: release/1.1
+          required: false
+        - label: release/1.2
           required: false
     validations:
       required: true
