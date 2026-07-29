@@ -4,3 +4,4 @@
 # cjlint
 cjlint/build/build/*
 cjlint/build/logs/*
+cjlint/dist/

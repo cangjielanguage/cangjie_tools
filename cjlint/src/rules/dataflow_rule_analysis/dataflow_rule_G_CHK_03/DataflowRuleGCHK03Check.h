@@ -62,7 +62,7 @@ public:
     void PropagateExpressionEffect(
         CHK03CanonicalizeDomain& state, const Cangjie::CHIR::Expression* expression) override;
     std::optional<Cangjie::CHIR::Block*> PropagateTerminatorEffect(
-        CHK03CanonicalizeDomain& state, const Cangjie::CHIR::Terminator* terminator) override;
+        CHK03CanonicalizeDomain& state, const Cangjie::CHIR::Expression* terminator) override;
     CHK03CanonicalizeDomain Bottom() override;
 
 private:
@@ -100,7 +100,7 @@ public:
     void InitializeFuncEntryState(CHK03VerifyDomain& state) override;
     void PropagateExpressionEffect(CHK03VerifyDomain& state, const Cangjie::CHIR::Expression* expression) override;
     std::optional<Cangjie::CHIR::Block*> PropagateTerminatorEffect(
-        CHK03VerifyDomain& state, const Cangjie::CHIR::Terminator* terminator) override;
+        CHK03VerifyDomain& state, const Cangjie::CHIR::Expression* terminator) override;
     CHK03VerifyDomain Bottom() override;
 
 private:

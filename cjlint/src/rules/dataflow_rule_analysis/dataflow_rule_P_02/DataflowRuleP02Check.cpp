@@ -198,7 +198,7 @@ static std::string GetPathStr(const CHIR::Value *base, const std::vector<uint64_
 template <typename T>
 DataflowRuleP02Check::MemberVarInChain DataflowRuleP02Check::GetMemberVarInChain(const T* getElementRef)
 {
-    auto base = getElementRef->GetLocation();
+    auto base = getElementRef->GetBase();
     auto path = getElementRef->GetPath();
     if (!base->IsLocalVar()) {
         std::string str = base->GetSrcCodeIdentifier();
@@ -381,8 +381,7 @@ void DataflowRuleP02Check::CheckSpawnClosure(const CHIR::Lambda *spawnClosure)
                 if (!expr->IsTerminator()) {
                     CheckNonTerminal(expr, isLock);
                 } else {
-                    auto term = StaticCast<CHIR::Terminator *>(expr);
-                    for (auto block : term->GetSuccessors()) {
+                    for (auto block : expr->GetSuccessors()) {
                         visitBlock(block, isLock, visited);
                     }
                 }
