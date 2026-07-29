@@ -811,39 +811,65 @@ void ArkLanguageServer::OnDocumentLink(const DocumentLinkParams &params, nlohman
     Server->FindDocumentLink(file, std::move(reply));
 }
 // LCOV_EXCL_START
-void ArkLanguageServer::WrapClientWatchedFiles(std::vector<FileWatchedEvent> &changes,
-                                               const DidChangeWatchedFilesParam &params) const
+bool ArkLanguageServer::CheckIsCangjieWatchedFile(const std::string &file, FileChangeType type) const
 {
-    for (auto &event : params.changes) {
+    if (!FileUtil::HasExtension(file, CANGJIE_FILE_EXTENSION())) {
+        return false;
+    }
+    if (type == FileChangeType::DELETED) {
+        // The path no longer exists, so use the state recorded before deletion.
+        return DocMgr.ContainsFile(file);
+    }
+    return FileUtil::FileExist(file) && !CheckIsDirectory(file);
+}
+
+void ArkLanguageServer::CollectWatchedDirectoryFiles(const std::string &file, FileChangeType type,
+                                                     std::vector<std::string> &fileVec) const
+{
+    std::string filePath = file + "/dump.file";
+    if (type == FileChangeType::DELETED && CheckFileInCangjieProject(filePath)) {
+        auto res =
+            CompilerCangjieProject::GetInstance()->GetAllFilesUnderPathRecursive(file, true); // multi folder
+        std::for_each(res.begin(), res.end(), [&file, &fileVec](auto &fp) {
+            if (IsUnderPath(file, fp)) {
+                fileVec.push_back(fp.substr(file.length() + 1));
+            }
+        });
+        auto trackedFiles = DocMgr.GetFilesUnderPath(file);
+        std::for_each(trackedFiles.begin(), trackedFiles.end(), [&file, &fileVec](const auto &fp) {
+            fileVec.push_back(fp.substr(file.length() + 1));
+        });
+    } else if (type == FileChangeType::CREATED && CheckIsDirectory(file) &&
+               CheckFileInCangjieProject(filePath)) {
+        fileVec = GetAllFilesUnderCurrentPath(file, CANGJIE_FILE_EXTENSION(), false);
+    }
+}
+
+void ArkLanguageServer::WrapClientWatchedFiles(std::vector<FileWatchedEvent> &changes,
+                                               const DidChangeWatchedFilesParam &params)
+{
+    for (const auto &event : params.changes) {
         std::set<std::string> fileNameSet;
         std::string file = FileStore::NormalizePath(URI::Resolve(event.textDocument.uri.file));
-        // 3 indicate ".cj" string length
-        if (file.rfind(".cj") == file.size() - 3 &&
-        fileNameSet.find(event.textDocument.uri.file) == fileNameSet.end()) {
+        if (CheckIsCangjieWatchedFile(file, event.type) &&
+            fileNameSet.find(event.textDocument.uri.file) == fileNameSet.end()) {
+            if (event.type != FileChangeType::DELETED) {
+                // Record the path before the asynchronous compilation task is scheduled.
+                DocMgr.TrackFile(file);
+            }
             (void)fileNameSet.insert(event.textDocument.uri.file);
             changes.push_back({event.textDocument, event.type}); // if this is a cj file
             continue;
         }
-        std::string filePath = file + "/dump.file";
-
         std::vector<std::string> fileVec;
-        if (event.type == FileChangeType::DELETED && CheckIsDirectory(file, true) &&
-            CheckFileInCangjieProject(filePath)) {
-            auto res =
-                CompilerCangjieProject::GetInstance()->GetAllFilesUnderPathRecursive(file, true); // multi folder
-            std::for_each(res.begin(), res.end(), [&file, &fileVec] (auto& fp) {
-                if (fp.rfind(file, 0) == 0) {
-                    fileVec.push_back(fp.substr(file.length() + 1));
-                }
-            });
-        } else if (event.type == FileChangeType::CREATED && CheckIsDirectory(file) &&
-                CheckFileInCangjieProject(filePath)) {
-            fileVec = GetAllFilesUnderCurrentPath(file, CANGJIE_FILE_EXTENSION(), false);
-        }
-        for (const auto& item : fileVec) {
+        CollectWatchedDirectoryFiles(file, event.type, fileVec);
+        for (const auto &item : fileVec) {
             TextDocumentIdentifier textDocument;
             textDocument.uri.file = event.textDocument.uri.file + "/" + item; // format: file:///d%3A/Code/LSP
             if (fileNameSet.find(textDocument.uri.file) == fileNameSet.end()) {
+                if (event.type != FileChangeType::DELETED) {
+                    DocMgr.TrackFile(FileStore::NormalizePath(URI::Resolve(textDocument.uri.file)));
+                }
                 (void)fileNameSet.insert(textDocument.uri.file);
                 changes.push_back({textDocument, event.type});
             }

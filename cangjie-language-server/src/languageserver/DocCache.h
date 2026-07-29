@@ -26,6 +26,12 @@ public:
 
     void AddDocWhenInitCompile(const std::string &file);
 
+    void TrackFile(const std::string &file);
+
+    bool ContainsFile(const std::string &file) const;
+
+    std::vector<std::string> GetFilesUnderPath(const std::string &path) const;
+
     void RemoveDoc(const std::string &file);
 
     Doc GetDoc(const std::string &file);

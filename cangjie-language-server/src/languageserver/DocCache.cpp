@@ -5,10 +5,34 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "DocCache.h"
+#include <algorithm>
 #include <iostream>
 #include <utility>
 #include "logger/Logger.h"
 #include "common/BasicHelper.h"
+
+namespace {
+std::string NormalizePathSeparators(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    while (path.size() > 1 && path.back() == '/') {
+        path.pop_back();
+    }
+    return path;
+}
+
+bool IsFileUnderPath(const std::string &basePath, const std::string &filePath)
+{
+    std::string pathPrefix = NormalizePathSeparators(basePath);
+    if (pathPrefix.empty()) {
+        return false;
+    }
+    if (pathPrefix.back() != '/') {
+        pathPrefix.push_back('/');
+    }
+    return NormalizePathSeparators(filePath).rfind(pathPrefix, 0) == 0;
+}
+} // namespace
 
 namespace ark {
     using namespace Cangjie;
@@ -42,6 +66,30 @@ namespace ark {
         std::lock_guard<std::mutex> lock(mutex);
         Doc &doc = Docs[file];
         doc.isInitCompiled = true;
+    }
+
+    void DocCache::TrackFile(const std::string &file)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        (void)Docs.try_emplace(file);
+    }
+
+    bool DocCache::ContainsFile(const std::string &file) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return Docs.find(file) != Docs.end();
+    }
+
+    std::vector<std::string> DocCache::GetFilesUnderPath(const std::string &path) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        std::vector<std::string> files;
+        for (const auto &item : Docs) {
+            if (IsFileUnderPath(path, item.first)) {
+                files.push_back(item.first);
+            }
+        }
+        return files;
     }
 
     bool DocCache::UpdateDoc(const std::string &file, int64_t version, bool needReParser,

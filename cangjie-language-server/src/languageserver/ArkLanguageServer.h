@@ -62,7 +62,7 @@ public:
 
     bool WhetherSupportVersionInDiag() const;
 
-    void WrapClientWatchedFiles(std::vector<FileWatchedEvent> &changes, const DidChangeWatchedFilesParam &params) const;
+    void WrapClientWatchedFiles(std::vector<FileWatchedEvent> &changes, const DidChangeWatchedFilesParam &params);
 
     void ReadyForDiagnostics(std::string, std::int64_t, std::vector<DiagnosticToken>) override;
 
@@ -157,6 +157,11 @@ private:
     void OnOutgoingCalls(const CallHierarchyItem &params, nlohmann::json id);
 
     void OnDidChangeWatchedFiles(const DidChangeWatchedFilesParam &params);
+
+    bool CheckIsCangjieWatchedFile(const std::string &file, FileChangeType type) const;
+
+    void CollectWatchedDirectoryFiles(const std::string &file, FileChangeType type,
+        std::vector<std::string> &fileVec) const;
 
     bool CheckFileInCangjieProject(const std::string &filePath, bool ignoreMacro = true) const;
 
