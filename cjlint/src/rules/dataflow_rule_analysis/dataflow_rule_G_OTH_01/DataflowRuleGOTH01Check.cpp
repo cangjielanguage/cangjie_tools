@@ -267,7 +267,7 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
             CheckApplyOrInvoke<CHIR::Invoke>(invoke, state);
         }
     };
-    const auto actionOnTerminator = [this](const CHIR::ConstDomain& state, CHIR::Terminator* expr,
+    const auto actionOnTerminator = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr,
                                         std::optional<CHIR::Block*>) {
         if (expr->IsApplyWithException()) {
             auto applyWithExcept = StaticCast<Cangjie::CHIR::ApplyWithException*>(expr);

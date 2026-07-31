@@ -332,7 +332,7 @@ std::string CommonFunc::GetChainMemberPathName(const CHIR::GetElementRef* getEle
 {
     std::string str;
     auto path = getElementRef->GetPath();
-    auto type = getElementRef->GetLocation()->GetType();
+    auto type = getElementRef->GetBase()->GetType();
     while (type->GetTypeKind() == CHIR::Type::TypeKind::TYPE_REFTYPE) {
         type = StaticCast<CHIR::RefType*>(type)->GetBaseType();
     }
@@ -390,8 +390,8 @@ std::string CommonFunc::GetChainMemberName(const CHIR::GetElementRef* getElement
      * }
      * '''
      */
-    if (getElementRef->GetLocation()->IsParameter() &&
-        getElementRef->GetLocation()->GetSrcCodeIdentifier() == "this") {
+    if (getElementRef->GetBase()->IsParameter() &&
+        getElementRef->GetBase()->GetSrcCodeIdentifier() == "this") {
         return pathStr.erase(0, (pathStr.front() == '.') ? 1 : 0);
     }
     /**
@@ -404,7 +404,7 @@ std::string CommonFunc::GetChainMemberName(const CHIR::GetElementRef* getElement
      * a.a = 1
      * '''
      */
-    auto localVar = DynamicCast<CHIR::LocalVar*>(getElementRef->GetLocation());
+    auto localVar = DynamicCast<CHIR::LocalVar*>(getElementRef->GetBase());
     if (!localVar || !localVar->GetExpr() || localVar->GetExpr()->GetExprKind() != CHIR::ExprKind::LOAD) {
         return pathStr;
     }

@@ -204,7 +204,7 @@ void FIO01Analysis::PropagateExpressionEffect(FIO01Domain& state, const Expressi
     }
 }
 
-std::optional<Block*> FIO01Analysis::PropagateTerminatorEffect(FIO01Domain& state, const Terminator* terminator)
+std::optional<Block*> FIO01Analysis::PropagateTerminatorEffect(FIO01Domain& state, const Expression* terminator)
 {
     auto kind = terminator->GetExprKind();
     if (kind == ExprKind::APPLY_WITH_EXCEPTION) {
@@ -231,7 +231,7 @@ std::vector<std::string> DataflowRuleGFIO01Check::CheckDefaultParamFunc(CHIR::Fu
     const auto actionBeforeVisitExpr = [](const FIO01Domain&, Expression*, size_t) {};
     const auto actionAfterVisitExpr = [](const FIO01Domain&, Expression*, size_t) {};
     const auto actionOnTerminator = [&files](
-                                        const FIO01Domain& state, const Terminator* terminator, std::optional<Block*>) {
+                                        const FIO01Domain& state, const Expression* terminator, std::optional<Block*>) {
         if (terminator->GetExprKind() == CHIR::ExprKind::EXIT) {
             for (auto iter : *state.GetMap()) {
                 if (state.IsTrueAt(iter.second)) {
@@ -257,7 +257,7 @@ void DataflowRuleGFIO01Check::CheckNormalFunc(CHIR::Function* func, const std::v
     const auto actionBeforeVisitExpr = [](const FIO01Domain&, Expression*, size_t) {};
     const auto actionAfterVisitExpr = [](const FIO01Domain&, Expression*, size_t) {};
     const auto actionOnTerminator = [this, &posMap](
-                                        const FIO01Domain& state, const Terminator* terminator, std::optional<Block*>) {
+                                        const FIO01Domain& state, const Expression* terminator, std::optional<Block*>) {
         if (terminator->GetExprKind() == CHIR::ExprKind::EXIT) {
             for (auto iter : *state.GetMap()) {
                 if (state.IsTrueAt(iter.second)) {

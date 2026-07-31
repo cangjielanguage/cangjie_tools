@@ -34,8 +34,7 @@ static void GetDecontaminatBlockHelper(
         if (!expr->IsTerminator()) {
             continue;
         }
-        auto terminator = StaticCast<CHIR::Terminator*>(expr);
-        for (auto newBlock : terminator->GetSuccessors()) {
+        for (auto newBlock : expr->GetSuccessors()) {
             if (visited.count(newBlock) == 0) {
                 blockSet.insert(newBlock);
                 GetDecontaminatBlockHelper(newBlock, blockSet, visited);
@@ -336,7 +335,7 @@ void DataflowRuleGCHK01Check::CheckStore(CHIR::Store* store, std::set<std::strin
  */
 void DataflowRuleGCHK01Check::CheckTuple(CHIR::Tuple* tuple, std::set<std::string>& taintedVars)
 {
-    auto operands = tuple->GetOperands();
+    auto operands = tuple->GetElementValues();
     auto iter = std::find_if(operands.begin(), operands.end(), [&taintedVars](auto& operand) {
         auto identifier = GetArgName(operand);
         return taintedVars.count(identifier) > 0;
@@ -356,7 +355,7 @@ void DataflowRuleGCHK01Check::CheckStoreElementRef(CHIR::StoreElementRef* storeE
     auto base = storeElementRef->GetValue();
     auto identifier = GetArgName(base);
     if (taintedVars.count(identifier) > 0) {
-        taintedVars.insert(GetArgName(storeElementRef->GetLocation()));
+        taintedVars.insert(GetArgName(storeElementRef->GetBase()));
     }
 }
 
@@ -424,12 +423,11 @@ void DataflowRuleGCHK01Check::CheckFuncBody(CHIR::Block& entryBlock)
                     continue;
                 }
                 if (expr->IsTerminator()) {
-                    auto term = StaticCast<CHIR::Terminator*>(expr);
                     if (expr->GetExprKind() == CHIR::ExprKind::APPLY_WITH_EXCEPTION) {
                         auto applyWithException = StaticCast<CHIR::ApplyWithException*>(expr);
                         CheckApply<CHIR::ApplyWithException>(applyWithException, taintedVars);
                     }
-                    for (auto newblock : term->GetSuccessors()) {
+                    for (auto newblock : expr->GetSuccessors()) {
                         visitBlock(newblock, taintedVars);
                     }
                 }
