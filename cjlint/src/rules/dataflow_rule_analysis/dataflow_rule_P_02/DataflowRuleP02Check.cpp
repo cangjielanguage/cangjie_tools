@@ -415,8 +415,8 @@ template <typename T> void DataflowRuleP02Check::CheckApplyOrInVoke(const CHIR::
     if (CommonFunc::FindCHIRFunction(apply->GetCallee(), spawnFunc)) {
         auto lambdaVar = StaticCast<CHIR::LocalVar *>(apply->GetArgs()[1]);
         auto lambdaExpr = lambdaVar->GetExpr();
-        if (lambdaExpr->GetExprKind() == CHIR::ExprKind::TYPECAST) {
-            auto cast = StaticCast<const CHIR::TypeCast*>(lambdaExpr);
+        if (lambdaExpr->GetExprKind() == CHIR::ExprKind::CLASS_STATIC_CAST) {
+            auto cast = StaticCast<const CHIR::ClassStaticCast*>(lambdaExpr);
             CJC_ASSERT(cast->GetSourceValue()->IsLocalVar());
             lambdaExpr = StaticCast<const CHIR::LocalVar*>(cast->GetSourceValue())->GetExpr();
         }
