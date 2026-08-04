@@ -76,8 +76,7 @@ struct Segment {
 };
 
 // buildBuckets: divide [rangeStart, rangeEnd] into 64KB buckets and accumulate
-// per-category sizes from the address-sorted objects (UNMOVABLE_OBJECT is
-// merged into PINNED_OBJECT, matching the card grid). Then pick the dominant
+// per-category sizes from the address-sorted objects. Then pick the dominant
 // category per bucket — the largest cumulative size wins, strict > so a tie
 // goes to the lower enum value (e.g. PINNED beats LARGE when equal). Empty
 // buckets keep INSTANCE_OBJECT as a placeholder category; the caller relies
@@ -95,11 +94,7 @@ static std::vector<BucketInfo> buildBuckets(const std::vector<const HeapObject*>
         uint64_t addr = obj->object_id;
         size_t bIdx = static_cast<size_t>((addr - rangeStart) / K_BUCKET_SIZE);
         if (bIdx >= bucketCount) bIdx = bucketCount - 1;
-        // Merge UNMOVABLE_OBJECT into PINNED_OBJECT (same as card grid)
         ObjectCategory cat = obj->category;
-        if (cat == ObjectCategory::UNMOVABLE_OBJECT) {
-            cat = ObjectCategory::PINNED_OBJECT;
-        }
         uint8_t catIdx = static_cast<uint8_t>(cat);
         if (catIdx < K_OBJECT_CATEGORY_COUNT) {
             bucketTotals[bIdx * K_OBJECT_CATEGORY_COUNT + catIdx] += obj->size;
@@ -1020,7 +1015,8 @@ std::string HttpHandlers::handleFragmentOverview(const HttpContext& ctx)
         j["address_range_start"] = ctx.snapshotInfo->address_range_start;
         j["address_range_end"] = ctx.snapshotInfo->address_range_end;
     } else {
-        j = {{"heap_limit", 0}, {"used_size", 0}, {"utilization", 0.0}, {"address_range_start", 0}, {"address_range_end", 0}};
+        j = {{"heap_limit", 0}, {"used_size", 0}, {"utilization", 0.0},
+            {"address_range_start", 0}, {"address_range_end", 0}};
     }
     return j.dump();
 }
@@ -1044,10 +1040,9 @@ std::string HttpHandlers::handleFragmentLayout(const HttpContext& ctx)
     uint64_t usedSize = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : 0;
     uint64_t freeSpace = (heapLimit > usedSize) ? (heapLimit - usedSize) : 0;
 
-    uint64_t pinnedTotal =
-        categoryTotals[static_cast<uint8_t>(ObjectCategory::PINNED_OBJECT)]
-        + categoryTotals[static_cast<uint8_t>(ObjectCategory::UNMOVABLE_OBJECT)];
+    uint64_t pinnedTotal = categoryTotals[static_cast<uint8_t>(ObjectCategory::PINNED_OBJECT)];
     uint64_t largeTotal = categoryTotals[static_cast<uint8_t>(ObjectCategory::LARGE_OBJECT)];
+    uint64_t unmovableTotal = categoryTotals[static_cast<uint8_t>(ObjectCategory::UNMOVABLE_OBJECT)];
 
     json result;
     result["categories"] = json::array();
@@ -1066,6 +1061,7 @@ std::string HttpHandlers::handleFragmentLayout(const HttpContext& ctx)
     addCategory("PRIMITIVE_ARRAY", categoryTotals[3]);
     addCategory("PINNED_OBJECT", pinnedTotal);
     addCategory("LARGE_OBJECT", largeTotal);
+    addCategory("UNMOVABLE_OBJECT", unmovableTotal);
     addCategory("FREE_SPACE", freeSpace);
 
     return result.dump();
@@ -1075,8 +1071,13 @@ std::string HttpHandlers::handleFragmentSummary(const HttpContext& ctx)
 {
     LOG_DEBUG("Handling /api/fragment/summary");
 
-    uint64_t instanceTotal = 0, objectArrayTotal = 0, structArrayTotal = 0;
-    uint64_t primitiveTotal = 0, pinnedTotal = 0, largeTotal = 0;
+    uint64_t instanceTotal = 0;
+    uint64_t objectArrayTotal = 0;
+    uint64_t structArrayTotal = 0;
+    uint64_t primitiveTotal = 0;
+    uint64_t pinnedTotal = 0;
+    uint64_t largeTotal = 0;
+    uint64_t unmovableTotal = 0;
 
     if (ctx.objects) {
         for (const auto& obj : *ctx.objects) {
@@ -1100,6 +1101,7 @@ std::string HttpHandlers::handleFragmentSummary(const HttpContext& ctx)
                     largeTotal += obj.size;
                     break;
                 case ObjectCategory::UNMOVABLE_OBJECT:
+                    unmovableTotal += obj.size;
                     break;
             }
         }
@@ -1114,6 +1116,7 @@ std::string HttpHandlers::handleFragmentSummary(const HttpContext& ctx)
     j["primitive_array_total"] = primitiveTotal;
     j["pinned_object_total"] = pinnedTotal;
     j["large_object_total"] = largeTotal;
+    j["unmovable_object_total"] = unmovableTotal;
     j["top10"] = json::array();
     return j.dump();
 }
