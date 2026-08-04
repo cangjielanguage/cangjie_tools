@@ -397,7 +397,8 @@ void DataflowRuleGCHK01Check::CheckFuncBody(CHIR::Block& entryBlock)
                     CheckStore(load, taintedVars);
                     continue;
                 }
-                if (expr->GetExprKind() == CHIR::ExprKind::TYPECAST) {
+                if (expr->GetExprKind() == CHIR::ExprKind::CLASS_STATIC_CAST ||
+                    expr->GetExprKind() == CHIR::ExprKind::NUMERIC_CAST) {
                     auto typeCast = StaticCast<CHIR::TypeCast*>(expr);
                     CheckExpr(typeCast->GetSourceValue(), typeCast->GetResult(), taintedVars);
                     continue;
