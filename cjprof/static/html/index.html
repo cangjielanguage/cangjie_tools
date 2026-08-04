@@ -1768,7 +1768,7 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Distribution chart colors (UNMOVABLE_OBJECT merged into PINNED_OBJECT, same as card grid)
+        // Distribution chart colors
         const DISTRIBUTION_COLORS = {
             'INSTANCE_OBJECT': '#e94560',
             'OBJECT_ARRAY': '#00d9ff',
@@ -1776,6 +1776,7 @@
             'PRIMITIVE_ARRAY': '#10ac84',
             'PINNED_OBJECT': '#5f27cd',
             'LARGE_OBJECT': '#ee5a24',
+            'UNMOVABLE_OBJECT': '#f368e0',
             'FREE_SPACE': '#2d2d44'
         };
         let distributionCharts = [];
