@@ -194,7 +194,9 @@ cjprof heap -i heap.data --dump-report=9090
 >
 > If a proxy is configured, the web page may not be accessible. You need to remove the proxy before accessing it through a web browser.
 
-The visual analysis report provides a dominance tree view, displaying the dominance relationships of heap objects. It supports two visualization modes: sunburst chart and tree chart. Objects can be displayed at two granularity levels: by object or by type. Objects whose proportion falls below the threshold are merged into summary nodes. A Top 10 ranking is provided, showing the top 10 objects by retained heap size. A memory fragment analysis view is also provided, including a memory overview, an address-space distribution map colored by object type, a size summary of each object category, and a Top 10 objects ranking, for analyzing the fragmentation degree and free-space distribution of the heap.
+The visual analysis report provides a dominance tree view, displaying the dominance relationships of heap objects. It supports two visualization modes: sunburst chart and tree chart. Objects can be displayed at two granularity levels: by object or by type. Objects whose proportion falls below the threshold are merged into summary nodes. A Top 10 ranking is provided, showing the top 10 objects by retained heap size. 
+
+The visual analysis report also provides a memory fragment analysis view, including a memory overview, an address-space distribution map colored by object type, a size summary of each object category, and a Top 10 objects ranking, for analyzing the fragmentation degree and free-space distribution of the heap.
 
 - Analyze heap memory data and display object information.
 
