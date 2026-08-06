@@ -1,0 +1,1 @@
+{"id":5,"jsonrpc":"2.0","result":{"range":{"end":{"character":30,"line":10},"start":{"character":21,"line":10}},"uri":"file:///workspace/cangjie_tools/cangjie-language-server/temp/commonSpecificTestPro/lib/platform1/logic.cj"}}
