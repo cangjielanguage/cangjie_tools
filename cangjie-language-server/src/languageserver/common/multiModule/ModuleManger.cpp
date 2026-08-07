@@ -89,6 +89,7 @@ void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const 
         return;
     }
     moduleInfoMap[modulePath].isCommonSpecificModule = true;
+    std::vector<std::string> specificSourceSetNames;
     for (const auto &member : jsonData[COMMON_SPECIFIC_PATHS()]) {
         if (!member.is_object() || !member.contains(TYPE()) || !member.contains(PATH())) {
             continue;
@@ -98,17 +99,28 @@ void ModuleManager::SetCommonSpecificPath(const nlohmann::json &jsonData, const 
         if (path == "") {
             continue;
         }
+        const auto normalizedPath = FileStore::NormalizePath(URI::Resolve(path));
         if (type == COMMON() && moduleInfoMap[modulePath].commonSpecificPaths.first == "") {
-            moduleInfoMap[modulePath].commonSpecificPaths.first = FileStore::NormalizePath(URI::Resolve(path));
-            moduleInfoMap[modulePath].sourceSetNames.push_back("common");
+            moduleInfoMap[modulePath].commonSpecificPaths.first = normalizedPath;
+            moduleInfoMap[modulePath].sourceSetNameByPath[normalizedPath] = "common";
             continue;
         }
         if (type == SPECIFIC()) {
-            moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(FileStore::NormalizePath(URI::Resolve(path)));
-            moduleInfoMap[modulePath].sourceSetNames.push_back(member.value(SOURCE_SET_NAME(), ""));
+            const auto sourceSetName = member.value(SOURCE_SET_NAME(), "");
+            if (sourceSetName.empty()) {
+                continue;
+            }
+            moduleInfoMap[modulePath].commonSpecificPaths.second.push_back(normalizedPath);
+            moduleInfoMap[modulePath].sourceSetNameByPath[normalizedPath] = sourceSetName;
+            specificSourceSetNames.push_back(sourceSetName);
             continue;
         }
     }
+    if (!moduleInfoMap[modulePath].commonSpecificPaths.first.empty()) {
+        moduleInfoMap[modulePath].sourceSetNames.push_back("common");
+    }
+    moduleInfoMap[modulePath].sourceSetNames.insert(moduleInfoMap[modulePath].sourceSetNames.end(),
+        specificSourceSetNames.begin(), specificSourceSetNames.end());
 }
 
 void ModuleManager::SetPackageRequires(const nlohmann::json &jsonData, const std::string &modulePath)
