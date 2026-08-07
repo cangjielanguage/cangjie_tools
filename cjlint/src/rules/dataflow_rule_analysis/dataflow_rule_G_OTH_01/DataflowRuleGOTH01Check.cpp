@@ -258,19 +258,16 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
     }
     const auto actionBeforeVisitExpr = [](const CHIR::ConstDomain&, CHIR::Expression*, size_t) {};
     const auto actionAfterVisitExpr = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr, size_t) {
-        if (expr->IsApply()) {
-            auto apply = StaticCast<Cangjie::CHIR::Apply*>(expr);
+        if (auto apply = DynamicCast<Cangjie::CHIR::Apply*>(expr)) {
             CheckApplyOrInvoke<CHIR::Apply>(apply, state);
         }
-        if (expr->IsInvoke()) {
-            auto invoke = StaticCast<Cangjie::CHIR::Invoke*>(expr);
+        if (auto invoke = DynamicCast<Cangjie::CHIR::Invoke*>(expr)) {
             CheckApplyOrInvoke<CHIR::Invoke>(invoke, state);
         }
     };
     const auto actionOnTerminator = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr,
                                         std::optional<CHIR::Block*>) {
-        if (expr->IsApplyWithException()) {
-            auto applyWithExcept = StaticCast<Cangjie::CHIR::ApplyWithException*>(expr);
+        if (auto applyWithExcept = DynamicCast<Cangjie::CHIR::ApplyWithException*>(expr)) {
             CheckApplyOrInvoke<CHIR::ApplyWithException>(applyWithExcept, state);
         }
     };
