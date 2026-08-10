@@ -434,8 +434,8 @@ void DataflowRuleP02Check::CheckBasedOnCHIRFunc(CHIR::BlockGroup& body)
         }
         if (exprKind == CHIR::ExprKind::APPLY) {
             CheckApplyOrInVoke<CHIR::Apply>(expr);
-        } else if (exprKind == CHIR::ExprKind::APPLY_WITH_EXCEPTION) {
-            CheckApplyOrInVoke<CHIR::ApplyWithException>(expr);
+        } else if (exprKind == CHIR::ExprKind::TRY_APPLY) {
+            CheckApplyOrInVoke<CHIR::TryApply>(expr);
         }
         return CHIR::VisitResult::CONTINUE;
     });
