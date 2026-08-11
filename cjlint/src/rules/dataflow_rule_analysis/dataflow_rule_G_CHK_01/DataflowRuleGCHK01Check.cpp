@@ -204,9 +204,9 @@ void DataflowRuleGCHK01Check::CheckApplyUser(CHIR::Expression* user, CHIR::Value
         CheckApplyInUsers<CHIR::Apply>(newApply, result);
         return;
     }
-    if (user->GetExprKind() == CHIR::ExprKind::APPLY_WITH_EXCEPTION) {
-        auto newApply = StaticCast<CHIR::ApplyWithException*>(user);
-        CheckApplyInUsers<CHIR::ApplyWithException>(newApply, result);
+    if (user->GetExprKind() == CHIR::ExprKind::TRY_APPLY) {
+        auto newApply = StaticCast<CHIR::TryApply*>(user);
+        CheckApplyInUsers<CHIR::TryApply>(newApply, result);
         return;
     }
     if (user->GetExprKind() == CHIR::ExprKind::INVOKE) {
@@ -219,9 +219,9 @@ void DataflowRuleGCHK01Check::CheckApplyUser(CHIR::Expression* user, CHIR::Value
         CheckInvokeInUsers<CHIR::InvokeStatic>(invoke, result);
         return;
     }
-    if (user->GetExprKind() == CHIR::ExprKind::INVOKE_WITH_EXCEPTION) {
-        auto invoke = StaticCast<CHIR::InvokeWithException*>(user);
-        CheckInvokeInUsers<CHIR::InvokeWithException>(invoke, result);
+    if (user->GetExprKind() == CHIR::ExprKind::TRY_INVOKE) {
+        auto invoke = StaticCast<CHIR::TryInvoke*>(user);
+        CheckInvokeInUsers<CHIR::TryInvoke>(invoke, result);
         return;
     }
 }
@@ -424,9 +424,9 @@ void DataflowRuleGCHK01Check::CheckFuncBody(CHIR::Block& entryBlock)
                     continue;
                 }
                 if (expr->IsTerminator()) {
-                    if (expr->GetExprKind() == CHIR::ExprKind::APPLY_WITH_EXCEPTION) {
-                        auto applyWithException = StaticCast<CHIR::ApplyWithException*>(expr);
-                        CheckApply<CHIR::ApplyWithException>(applyWithException, taintedVars);
+                    if (expr->GetExprKind() == CHIR::ExprKind::TRY_APPLY) {
+                        auto tryApply = StaticCast<CHIR::TryApply*>(expr);
+                        CheckApply<CHIR::TryApply>(tryApply, taintedVars);
                     }
                     for (auto newblock : expr->GetSuccessors()) {
                         visitBlock(newblock, taintedVars);

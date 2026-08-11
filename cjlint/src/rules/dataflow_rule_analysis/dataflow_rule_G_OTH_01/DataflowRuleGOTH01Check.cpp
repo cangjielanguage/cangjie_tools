@@ -118,9 +118,9 @@ static std::string GetSpecialLogMsg(Ptr<CHIR::Apply> apply, const CHIR::ConstDom
     return GetSpecialLogMsg<CHIR::Apply>(apply, state);
 }
 
-static std::string GetSpecialLogMsg(Ptr<CHIR::ApplyWithException> applyWithExcept, const CHIR::ConstDomain& state)
+static std::string GetSpecialLogMsg(Ptr<CHIR::TryApply> tryApply, const CHIR::ConstDomain& state)
 {
-    return GetSpecialLogMsg<CHIR::ApplyWithException>(applyWithExcept, state);
+    return GetSpecialLogMsg<CHIR::TryApply>(tryApply, state);
 }
 // For 'SimpleLogger.log()', require the log level to be not equal to 0, where 0 indicates off.
 template <typename T> static bool GetLogLevel(Ptr<T> apply, int index)
@@ -158,9 +158,9 @@ static std::string GetGeneralLogMsg(Ptr<CHIR::Apply> apply, const CHIR::ConstDom
     return GetGeneralLogMsg<CHIR::Apply>(apply, state);
 }
 
-static std::string GetGeneralLogMsg(Ptr<CHIR::ApplyWithException> apply, const CHIR::ConstDomain& state)
+static std::string GetGeneralLogMsg(Ptr<CHIR::TryApply> apply, const CHIR::ConstDomain& state)
 {
-    return GetGeneralLogMsg<CHIR::ApplyWithException>(apply, state);
+    return GetGeneralLogMsg<CHIR::TryApply>(apply, state);
 }
 
 static std::string GetGeneralLogMsg(Ptr<CHIR::Invoke> invoke, const CHIR::ConstDomain& state)
@@ -267,8 +267,8 @@ void DataflowRuleGOTH01Check::CheckBasedOnCHIR(CHIR::Package &package)
     };
     const auto actionOnTerminator = [this](const CHIR::ConstDomain& state, CHIR::Expression* expr,
                                         std::optional<CHIR::Block*>) {
-        if (auto applyWithExcept = DynamicCast<Cangjie::CHIR::ApplyWithException*>(expr)) {
-            CheckApplyOrInvoke<CHIR::ApplyWithException>(applyWithExcept, state);
+        if (auto tryApply = DynamicCast<Cangjie::CHIR::TryApply*>(expr)) {
+            CheckApplyOrInvoke<CHIR::TryApply>(tryApply, state);
         }
     };
     auto funcs = package.GetGlobalFuncsWithBody(false);
