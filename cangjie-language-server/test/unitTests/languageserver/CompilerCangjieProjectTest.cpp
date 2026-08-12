@@ -6,6 +6,8 @@
 
 #include "ArkLanguageServer.h"
 #include "CompilerCangjieProject.h"
+#include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
@@ -41,6 +43,13 @@ Environment CreateTestEnvironment() {
     env.cangjieHome = "test_workspace";
     env.cangjiePath = "test_stdlib";
     return env;
+}
+
+FileWatchedEvent CreateWatchedEvent(const std::filesystem::path &path, FileChangeType type)
+{
+    TextDocumentIdentifier textDocument;
+    textDocument.uri.file = URI::URIFromAbsolutePath(path.string()).ToString();
+    return {textDocument, type};
 }
 
 std::unique_ptr<lsp::IndexDatabase> CreateTestIndexDatabase() {
@@ -366,4 +375,73 @@ TEST_F(CompilerCangjieProjectTest, UsrCjoBytesSharedByPath)
     LSPCompilerInstance::cjoBytesByPath.clear();
     LSPCompilerInstance::cjoPathSet.clear();
     LSPCompilerInstance::cjoLibraryMap.clear();
+}
+
+TEST_F(CompilerCangjieProjectTest, RealCangjieFileKeepsCreateChangeAndDeleteEvents)
+{
+    namespace fs = std::filesystem;
+    const fs::path testRoot = fs::temp_directory_path() / "cangjie_lsp_watched_file_test";
+    const fs::path file = testRoot / "example.cj";
+    fs::remove_all(testRoot);
+    ASSERT_TRUE(fs::create_directories(testRoot));
+    {
+        std::ofstream stream(file);
+        ASSERT_TRUE(stream.good());
+    }
+
+    DidChangeWatchedFilesParam params;
+    params.changes.push_back(CreateWatchedEvent(file, FileChangeType::CREATED));
+    std::vector<FileWatchedEvent> changes;
+    server->WrapClientWatchedFiles(changes, params);
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, FileChangeType::CREATED);
+
+    params.changes = {CreateWatchedEvent(file, FileChangeType::CHANGED)};
+    changes.clear();
+    server->WrapClientWatchedFiles(changes, params);
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, FileChangeType::CHANGED);
+
+    ASSERT_TRUE(fs::remove(file));
+    params.changes = {CreateWatchedEvent(file, FileChangeType::DELETED)};
+    changes.clear();
+    server->WrapClientWatchedFiles(changes, params);
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, FileChangeType::DELETED);
+
+    fs::remove_all(testRoot);
+}
+
+TEST(DocCacheTest, TrackedFilesUnderPathUseDirectoryBoundary)
+{
+    DocCache cache;
+    cache.TrackFile("/workspace/src/example.cj/child.cj");
+    cache.TrackFile("/workspace/src/example.cj2/other.cj");
+    cache.TrackFile("/workspace/src/example.cj");
+
+    auto files = cache.GetFilesUnderPath("/workspace/src/example.cj");
+
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0], "/workspace/src/example.cj/child.cj");
+}
+
+TEST(DocCacheTest, DirectoryPathIsNotTrackedAsSourceFile)
+{
+    DocCache cache;
+    cache.TrackFile("/workspace/src/example.cj/child.cj");
+
+    EXPECT_FALSE(cache.ContainsFile("/workspace/src/example.cj"));
+    EXPECT_TRUE(cache.ContainsFile("/workspace/src/example.cj/child.cj"));
+}
+
+TEST(DocCacheTest, TrackedFilesUnderPathNormalizesWindowsSeparators)
+{
+    DocCache cache;
+    cache.TrackFile(R"(C:\workspace\src\example.cj\child.cj)");
+    cache.TrackFile(R"(C:\workspace\src\example.cj2\other.cj)");
+
+    auto files = cache.GetFilesUnderPath("C:/workspace/src/example.cj/");
+
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0], R"(C:\workspace\src\example.cj\child.cj)");
 }
