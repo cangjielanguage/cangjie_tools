@@ -596,6 +596,7 @@
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_001.test","id":"9"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_002.test","id":"9"}}
 {"goToDefinition":{"testFile":"LSP_GoToDefinition_script_dependencies_switch_root_001.test","id":"9"}}
+{"goToDefinition":{"testFile":"LSP_GoToDefinition_Common_Specific_003.test","id":"5"}}
 
 {"hover":{"testFile":"LSP_Hover_String_001.test","id":"7"}}
 {"hover":{"testFile":"LSP_Hover_Interface_001.test","id":"110"}}

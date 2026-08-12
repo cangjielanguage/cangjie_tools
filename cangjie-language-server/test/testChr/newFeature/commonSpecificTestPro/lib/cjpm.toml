@@ -1,0 +1,50 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+# This source file is part of the Cangjie project, licensed under Apache-2.0
+# with Runtime Library Exception.
+#
+# See https://cangjie-lang.cn/pages/LICENSE for license information.
+[package]
+  cjc-version = "1.1.0"
+  compile-option = ""
+  description = "Keels Application"
+  link-option = ""
+  name = "ohos_app_cangjie_entry"
+  output-type = "dynamic"
+  src-dir = "./common"
+  target-dir = ""
+  version = "1.0.0"
+  [package.package-configuration]
+  [package.scripts]
+
+[profile]
+  experimental = true
+  [profile.build]
+    incremental = true
+    lto = ""
+  [profile.customized-option]
+    debug = "-g -Woff all"
+    release = "--fast-math -O2 -s -Woff all"
+  [profile.test]
+
+[[source-set]]
+  name = "common"
+  src-dir = "./common"
+  features = []
+
+[[source-set]]
+  name = "platform3"
+  src-dir = "./platform3"
+  features = ["os.platform3"]
+  product = true
+
+[[source-set]]
+  name = "platform1"
+  src-dir = "./platform1"
+  features = ["os.platform1"]
+  product = true
+
+[[source-set]]
+  name = "platform2"
+  src-dir = "./platform2"
+  features = ["os.platform2"]
+  product = true
