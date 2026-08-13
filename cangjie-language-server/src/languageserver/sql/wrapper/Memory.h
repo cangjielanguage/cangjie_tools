@@ -49,7 +49,7 @@ std::size_t getHardHeapLimit() noexcept;
  * usages approaches the limit.
  * The soft heap limit may not be greater than the hard heap limit. If the hard
  * heap limit is enabled and if the soft heap limit is set to a value that is
- * greater than the hard heap limit, the the soft heap limit is set to the
+ * greater than the hard heap limit, the soft heap limit is set to the
  * value of the hard heap limit.
  */
 void setSoftHeapLimit(std::size_t N); // In bytes.
