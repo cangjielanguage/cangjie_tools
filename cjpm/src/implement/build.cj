@@ -247,67 +247,13 @@ func handleCompilePipelineParallel(buildConfig: BuildConfig, tomlInfo: TomlInfo)
             eprintln("Error: field 'compile-pipeline-parallel' is only supported on Linux/macOS/Windows")
             return false
         }
-        if (buildConfig.isLto) {
-            eprintln("Warning: cjpm won't apply pipeline optimization to the build process when field 'profile.build.lto' is 'full' or 'thin'")
+        if (resolveLtoCombineBuildMode(buildConfig).usesLto) {
+            warnLtoDisablesCompilePipelineParallel()
         } else if (!state.isExperimental) {
             eprintln("Warning: cjpm won't apply pipeline optimization to the build process when field 'profile.experimental' is not true")
         } else {
             buildConfig.isCompilePipelineParallel = true
         }
-    }
-    true
-}
-
-func handleCombineAllDeps(buildConfig: BuildConfig, tomlInfo: TomlInfo): Bool {
-    if (buildConfig.globalConfig.isProjectCombine &&
-        buildConfig.packageList.isMacro(buildConfig.globalConfig.rootName)) {
-        eprintln("Error: field " +
-            "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
-            "is not support for macro root package '${buildConfig.globalConfig.rootName}'")
-        return false
-    }
-
-    if (tomlInfo.profile.build.ltoValue.isEmpty() && tomlInfo.profile.build.lto.level.isEmpty() &&
-        tomlInfo.profile.build.lto.keepPkgVisibility.isSome()) {
-        eprintln("Error: field 'keep-pkg-visibility' of '[profile.build.lto]' is not supported when lto is disabled")
-        return false
-    }
-
-    if (!tomlInfo.profile.build.ltoValue.isEmpty() || !tomlInfo.profile.build.lto.level.isEmpty()) {
-        buildConfig.isLto = supportLto()
-        if (!buildConfig.isLto) {
-            println("Warning: configuration failed, field 'profile.build.lto' " +
-                "settings only support compilation for Linux/OHOS")
-        }
-        if (!tomlInfo.profile.build.ltoValue.isEmpty()) {
-            println("Warning: The string-type 'lto' under 'profile.build' will be deprecated. " +
-                "Please use the struct-type 'lto' to enable LTO functionality. For details, refer to the user guide.")
-        }
-        buildConfig.ltoValue = if (!tomlInfo.profile.build.lto.level.isEmpty()) { 
-            tomlInfo.profile.build.lto.level 
-        } else { 
-            tomlInfo.profile.build.ltoValue 
-        }
-        buildConfig.keepPkgVisibility = tomlInfo.profile.build.lto.keepPkgVisibility ?? None
-        if (let Some(keepPkgs) <- buildConfig.keepPkgVisibility) {
-            for (fullName in keepPkgs) {
-                if (!keepPkgVisibilityNameCheck(fullName)) {
-                    return false
-                }
-            }
-        }
-    }
-
-    if (supportLto() && buildConfig.globalConfig.isProjectCombine && buildConfig.ltoValue.isEmpty()) {
-        eprintln("Error: field " +
-            "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
-            "is invalid when field 'profile.build.lto' is empty")
-        return false
-    } else if (!supportLto() && buildConfig.globalConfig.isProjectCombine) {
-        eprintln("Error: field " +
-            "'package.package-configuration.${buildConfig.globalConfig.rootName}.combine-all-deps = true' " +
-            "only supports compilation to Linux/OHOS")
-        return false
     }
     true
 }
@@ -324,7 +270,7 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
     buildConfig.globalConfig.overrideCompileOption = dm.globalConfig.overrideCompileOption
     buildConfig.globalConfig.nativeOverrideOption = dm.globalConfig.nativeOverrideOption
 
-    if (!handleCombineAllDeps(buildConfig, tomlInfo)) {
+    if (!configureLtoAndCombineBuild(buildConfig, tomlInfo)) {
         return Option<ModuleResolve>.None
     }
 
@@ -340,6 +286,7 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
         return Option<ModuleResolve>.None
     }
 
+    let ltoCombineMode = resolveLtoCombineBuildMode(buildConfig)
     let resolves = ArrayList<ResolveItem>()
     let superPkgList = ArrayList<SuperPackageConfig>()
     for (k in dm.readyPkgs) {
@@ -347,17 +294,14 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
         if (let Some(v) <- pkg.superPkgCfg) {
             superPkgList.add(v)
         }
-        if (buildConfig.globalConfig.isProjectCombine) {
-            if (pkg.requires.contains(buildConfig.globalConfig.rootName)) {
-                eprintln("Error: roo package '${buildConfig.globalConfig.rootName}' is depended by package ${k}, " +
-                    "it cannot be depended by any package when field 'combine-all-deps = true' is valid")
+        if (ltoCombineMode.usesProjectCombine) {
+            // Project lto-combine: root must not be imported; output types set in lto_combine_state.cj.
+            if (!validateProjectCombineRootDependency(buildConfig, k, pkg.requires)) {
                 return Option<ModuleResolve>.None
             }
-            if (k != buildConfig.globalConfig.rootName && !pkg.isMacroPackage) {
-                pkg.outputType = Static
-            } else {
-                pkg.outputType = Dynamic
-            }
+            applyProjectCombinePackageOutputType(buildConfig, k, pkg)
+        } else if (ltoCombineMode.usesModuleLtoCombine) {
+            applyModuleLtoCombinePackageOutputType(buildConfig, k, pkg)
         }
         resolves.add(dm.packageDepMap[k])
     }
@@ -435,7 +379,7 @@ func prepareBuild(buildConfig: BuildConfig, curResolveData: ModuleResolve): Unit
 
     for ((_, jsonData) in buildConfig.jsonInformation) {
         jsonData.add(all: buildConfig.getOptionCacheData())
-        if (buildConfig.isLto) {
+        if (resolveLtoCombineBuildMode(buildConfig).usesLto) {
             jsonData.add(buildConfig.ltoValue)
         }
     }
@@ -611,19 +555,16 @@ func appendLinkOption(compileTask: CompileTask, ignoreTestFlags!: Bool = false):
 func getDepLinkCommand(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
     let res = ArrayList<String>()
 
-    // module-level combine
-    if (compileTask.isCombined) {
-        res.add(all: getBuildArgs(compileTask, buildConfig))
-        res.add(all: getForcedLibArgs(compileTask, buildConfig))
-        return res
-    }
-
-    if (compileTask.outputType == Exe || compileTask.outputType == Dynamic) {
-        if (compileTask.isProjectCombined) {
-            res.add(all: getLtoCombineBuildArgs(compileTask, buildConfig))
-        } else {
+    // Link strategy is resolved in lto_combine_mode.cj (see CompileTaskLinkStrategy).
+    match (resolveCompileTaskLinkStrategy(compileTask)) {
+        case ModuleCombineLink =>
             res.add(all: getBuildArgs(compileTask, buildConfig))
-        }
+            res.add(all: getForcedLibArgs(compileTask, buildConfig))
+        case ProjectCombineLink =>
+            res.add(all: getLtoCombineBuildArgs(compileTask, buildConfig))
+        case StandardLink =>
+            res.add(all: getBuildArgs(compileTask, buildConfig))
+        case NoLink => ()
     }
 
     return res
@@ -632,7 +573,7 @@ func getDepLinkCommand(compileTask: CompileTask, buildConfig: BuildConfig): Arra
 func getOutput(compileTask: CompileTask): Option<String> {
     match (compileTask.outputType) {
         case Static =>
-            if (compileTask.isLto) {
+            if (compileTask.combineFlags.isLto && !isIosLtoCombineLinkTask(compileTask)) {
                 makeLtoName(compileTask.filename)
             } else {
                 makeCangjieStaticlibName(compileTask.filename)
@@ -671,13 +612,7 @@ func getTypeCommand(compileTask: CompileTask, ignoreTestFlags!: Bool = false): A
     }
 
 
-    if (compileTask.isLto) {
-        res.add("--lto=${compileTask.ltoValue}")
-        if (compileTask.outputType == Dynamic && compileTask.keepPkgVisibility.isSome()) {
-            let keepPkgVisibilityStr = String.join(compileTask.keepPkgVisibility.getOrThrow(), delimiter: ",")
-            res.add(all: extractOptionByString("--lto-keep-pkg-visibility=\"${keepPkgVisibilityStr}\""))
-        }
-    }
+    appendLtoCompileArgs(res, compileTask)
 
     res.add("--output-type=${compileTask.outputType.asCompilerArg}")
 
@@ -693,164 +628,9 @@ func getTypeCommand(compileTask: CompileTask, ignoreTestFlags!: Bool = false): A
     return res
 }
 
-func appendOptionForBindep(binDepMap: HashMap<String, BinDeps>, linkPkgs: HashSet<String>, isLto: Bool): ArrayList<String> {
-    let (libPathOptions, _) = getLinkOptionForBindep(binDepMap, linkPkgs, isLto)
-    libPathOptions
-}
-
-// add bin-dependencies links to build arguments
-func getLinkOptionForBindep(binDepMap: HashMap<String, BinDeps>, linkPkgs: HashSet<String>, isLto: Bool): (ArrayList<String>, StdDeps) {
-    let linkerOptions = ArrayList<String>()     // -l or lto libs
-    let libPathOptions = ArrayList<String>()    // -L path
-    let moduleLinkerSet = HashSet<String>()
-    let stdDeps = StdDeps()
-    for ((_, eachModuleDepMap) in binDepMap) {
-        let moduleLinkerOptions = ArrayList<String>()
-        for (index in (eachModuleDepMap.packageRequiresSort.size - 1)..=0 : -1) {
-            let depName = eachModuleDepMap.packageRequiresSort[index]
-            if (!linkPkgs.contains(depName)) {
-                continue
-            }
-            let info = eachModuleDepMap.packageRequires[depName]
-            if (info.isMacroPackage) {
-                continue
-            }
-            stdDeps.add(all: info.stdRequires)
-            let linkArray: ArrayList<String> = linkPackage(info.libName, info.libPath, isLto)
-
-            // size == 1 when isLto
-            if (linkArray.size <= 1) {
-                moduleLinkerOptions.add(all: linkArray)
-                continue
-            }
-
-            // size == 3 when !isLto: -L path -llib
-            if (!libPathOptions.contains(linkArray[1])) {
-                libPathOptions.add(linkArray[0])
-                libPathOptions.add(linkArray[1])
-            }
-            moduleLinkerOptions.add(linkArray[2])
-        }
-
-        // deal with module-level duplication
-        if (moduleLinkerSet.add(String.join(moduleLinkerOptions.toArray()))) {
-            linkerOptions.add(all: moduleLinkerOptions)
-        }
-    }
-
-    libPathOptions.add(all: linkerOptions)
-    (libPathOptions, stdDeps)
-}
-
-func getCLibLinkStr(cLibLinkMap: HashMap<String, ArrayList<String>>, cLibNameList: ArrayList<String>): ArrayList<String> {
-    var res = ArrayList<String>()
-    let cLibNameSet = HashSet<String>(cLibNameList)
-    for (cLibName in cLibNameSet) {
-        if (cLibLinkMap.contains(cLibName)) {
-            res.add(all: cLibLinkMap[cLibName])
-        }
-    }
-    return res
-}
-
-func getMinimizedCLibLinkStr(cLibLinkMap: HashMap<String, ArrayList<String>>, cLibNameList: ArrayList<String>): ArrayList<String> {
-    let cLibLinkStr = getCLibLinkStr(cLibLinkMap, cLibNameList)
-
-    let res = ArrayList<String>()
-
-    var index: Int64 = 0
-    let cLibPathSet: HashSet<String> = HashSet<String>()
-    let cLibNameSet: HashSet<String> = HashSet<String>()
-    while (index < cLibLinkStr.size) {
-        if (cLibLinkStr[index] == "-L") {
-            if (!cLibPathSet.contains(cLibLinkStr[index + 1])) {
-                res.add(cLibLinkStr[index])
-                res.add(cLibLinkStr[index + 1])
-                cLibPathSet.add(cLibLinkStr[index + 1])
-            }
-            index += 2
-        } else if (cLibLinkStr[index].startsWith("-l")) {
-            if (!cLibNameSet.contains(cLibLinkStr[index])) {
-                res.add(cLibLinkStr[index])
-                cLibNameSet.add(cLibLinkStr[index])
-            }
-            index += 1
-        } else {
-            res.add(cLibLinkStr[index])
-            index += 1
-        }
-    }
-
-    return res
-}
-
-func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
-    ArrayList<String> {
-    let res = ArrayList<String>()
-    let cLibNameList = ArrayList<String>([compileTask.rootPkgName]) // Record dependent root packages
-    let linkSort: HashSet<String> = getDepSet(compileTask, buildConfig) // Record dependent package names
-    let allOptions = ArrayList<String>()
-    let libPathSet = HashSet<String>()
-    let binDepSet = HashSet<String>()
-    // link all lto packages
-    // and get all binary dependencies depended by root package
-    for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
-        let depName = buildConfig.packageList.all[index]
-        if (linkSort.contains(depName)) {
-            linkSort.add(all: getDepSet(depName, buildConfig))
-        }
-        let depRootName: String = getRootPkgName(depName)
-        cLibNameList.add(depRootName, at: 0)
-        if (buildConfig.packageList.isMacro(depName) || buildConfig.packageList.isTest(depName)) {
-            continue
-        }
-
-        var libPath = Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
-
-        let linkArray: ArrayList<String> = linkPackage(depName, libPath, compileTask.isLto)
-        if (linkArray.size <= 1) {
-            allOptions.add(all: linkArray)
-            binDepSet.add(all: getDepSet(depName, buildConfig))
-            continue
-        }
-        if (libPathSet.contains(libPath)) {
-            allOptions.add(linkArray[linkArray.size - 1])
-        } else {
-            allOptions.add(all: linkArray)
-            libPathSet.add(libPath)
-        }
-        binDepSet.add(all: getDepSet(depName, buildConfig))
-    }
-    res.add(all: allOptions)
-
-    // link all binary dependecies depended by root package
-    let binOptions = ArrayList<String>()
-    binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, linkSort, compileTask.isLto), at: 0)
-    binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, linkSort, compileTask.isLto), at: 0)
-    res.add(all: binOptions)
-
-    // link all binary dependencies depended by other packages which are not depended by root package
-    let otherBinOptions = ArrayList<String>()
-    binDepSet.remove(all: linkSort)
-    otherBinOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet, cLibNameList))
-
-    let compileTarget = compileTask.target
-    addForcedLibArgs(res, otherBinOptions, compileTarget)
-
-    let cLibLinkMap = if (compileTask.isCrossCompile) {
-        buildConfig.globalConfig.crossCLibLinkMap
-    } else { buildConfig.globalConfig.cLibLinkMap }
-    res.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
-
-    return res
-}
-
 func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
     let res = ArrayList<String>()
     // Record dependent root packages
-    let cLibLinkMap = if (compileTask.isCrossCompile) {
-        buildConfig.globalConfig.crossCLibLinkMap
-    } else { buildConfig.globalConfig.cLibLinkMap }
     let cLibNameList = ArrayList<String>([compileTask.rootPkgName])
 
     // Record dependent package names
@@ -895,7 +675,7 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
             Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
         }
 
-        let linkArray: ArrayList<String> = linkPackage(depName, libPath, compileTask.isLto)
+        let linkArray: ArrayList<String> = linkPackage(depName, libPath, compileTask)
         if (linkArray.size <= 1) {
             allOptions.add(all: linkArray)
             continue
@@ -909,13 +689,15 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     }
 
     res.add(all: allOptions)
-    let (libPathOptions, binStdDeps) = getLinkOptionForBindep(buildConfig.binDepMap, linkSort, compileTask.isLto)
- 	let (crosslibPathOptions, crossbinStdDeps) = getLinkOptionForBindep(buildConfig.crossBinDepMap, linkSort, compileTask.isLto)
+    let (libPathOptions, binStdDeps) = getLinkOptionForBindep(buildConfig.binDepMap, linkSort, compileTask)
+ 	let (crosslibPathOptions, crossbinStdDeps) = getLinkOptionForBindep(buildConfig.crossBinDepMap, linkSort, compileTask)
     let binOptions = ArrayList<String>()
     binOptions.add(all: libPathOptions, at: 0)
     binOptions.add(all: crosslibPathOptions, at: 0)
     res.add(all: binOptions)
-    res.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
+    if (!isIosModuleLtoCombineRootCompileTask(compileTask)) {
+        res.add(all: getMinimizedCLibLinkStr(getCLibLinkMap(compileTask, buildConfig), cLibNameList))
+    }
 
     if (isLinkTask) {
         stdDeps.add(all: binStdDeps)
@@ -952,7 +734,7 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
             continue
         }
         let libPath = Path(compileTask.targetDir).join(depRootName).toString()
-        let linkArray: ArrayList<String> = forcedLinkPackage(depName, libPath, compileTask.isLto)
+        let linkArray: ArrayList<String> = forcedLinkPackage(depName, libPath, compileTask)
         if (linkArray.size <= 1 || libPathSet.add(libPath)) {
             allOptions.add(all: linkArray)
         } else {
@@ -966,7 +748,14 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     // it will be added into `binDepSet`.
     // So we should remove it from `binDepSet` because we only need link it once.
     binDepSet.remove(all: linkSort)
-    allOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet, cLibNameList))
+    if (isIosModuleLtoCombineRootCompileTask(compileTask)) {
+        allOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
+        allOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
+        addForcedLibArgs(res, allOptions, compileTask.target)
+        return res
+    }
+    allOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet))
+    appendForcedCLibLinkOptions(allOptions, compileTask, buildConfig, cLibNameList)
     addForcedLibArgs(res, allOptions, compileTask.target)
     if (let Some(stdLinks) <- addStdLibsLink(compileTask.target)) {
         res.add(all: stdLinks)
@@ -979,71 +768,33 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     return res
 }
 
-func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
-    cLibNameList: ArrayList<String>): ArrayList<String> {
-    let compileTarget = if (crossCompileTarget.isEmpty()) {
-        targetConfigName
-    } else {
-        crossCompileTarget
-    }
+func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>): ArrayList<String> {
+    let compileTarget = getCompileTarget()
 
     if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
-        return getForcedBinDepForMac(compileTask, buildConfig, binDepSet, cLibNameList)
+        return getForcedBinDepForMac(compileTask, buildConfig, binDepSet)
     } else {
-        return getForcedBinDepForLinuxOrWin(compileTask, buildConfig, binDepSet, cLibNameList)
+        return getForcedBinDepForLinuxOrWin(compileTask, buildConfig, binDepSet)
     }
 }
 
-func getForcedBinDepForLinuxOrWin(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>,
-    cLibNameList: ArrayList<String>): ArrayList<String> {
+func getForcedBinDepForLinuxOrWin(compileTask: CompileTask, buildConfig: BuildConfig,
+    binDepSet: HashSet<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
-    binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask.isLto), at: 0)
-    binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask.isLto), at: 0)
-    let cLibLinkMap = if (compileTask.isCrossCompile) {
-        buildConfig.globalConfig.crossCLibLinkMap
-    } else { buildConfig.globalConfig.cLibLinkMap }
-    binOptions.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
+    binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
+    binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
     return binOptions
 }
 
-
-func getForcedBinDepForMac(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>, cLibNameList: ArrayList<String>): ArrayList<String> {
+func getForcedBinDepForMac(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
-
-    let cLibLinkMap = if (compileTask.isCrossCompile) {
-        buildConfig.globalConfig.crossCLibLinkMap
-    } else { buildConfig.globalConfig.cLibLinkMap }
-
-    if (crossCompileTarget.contains("linux") && !crossCompileTarget.contains("android")) {
-        binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask.isLto), at: 0)
-        binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask.isLto), at: 0)
-        binOptions.add(all: getMinimizedCLibLinkStr(cLibLinkMap, cLibNameList))
-    } else {
-        binOptions.add(all: getForcedBinDepPath(buildConfig.binDepMap, binDepSet, compileTask.isLto), at: 0)
-        binOptions.add(all: getForcedBinDepPath(buildConfig.crossBinDepMap, binDepSet, compileTask.isLto), at: 0)
-        let cLibLinkStr = getCLibLinkStr(cLibLinkMap, cLibNameList)
-
-        var libName = ""
-        var libPath = ""
-        for (part in cLibLinkStr) {
-            if (part == "-L") {
-                continue
-            } else if (part.startsWith("-l")) {
-                libName = part.removePrefix("-l")
-            } else {
-                libPath = part
-            }
-            if (!libName.isEmpty() && !libPath.isEmpty()) {
-                binOptions.add(all: forcedLinkPackage(libName, libPath, false))
-                libName = ""
-                libPath = ""
-            }
-        }
-    }
+    binOptions.add(all: getForcedBinDepPath(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
+    binOptions.add(all: getForcedBinDepPath(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
     return binOptions
 }
 
-func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet<String>, isLto: Bool): ArrayList<String> {
+func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet<String>,
+    compileTask: CompileTask): ArrayList<String> {
     let libPathSet = ArrayList<String>()
     for ((_, eachModuleDepMap) in binDepMap) {
         for (index in (eachModuleDepMap.packageRequiresSort.size - 1)..=0 : -1) {
@@ -1055,7 +806,7 @@ func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet
             if (info.isMacroPackage) {
                 continue
             }
-            let linkArray: ArrayList<String> = forcedLinkPackage(info.libName, info.libPath, isLto)
+            let linkArray: ArrayList<String> = forcedLinkPackage(info.libName, info.libPath, compileTask)
             libPathSet.add(all: linkArray)
         }
     }
@@ -1097,7 +848,8 @@ func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, com
 
 // find dependent package names of a package if we need to know if it's combined
 public func getDepSet(compileTask: CompileTask, buildConfig: BuildConfig): HashSet<String> {
-    let superPkgMap: ?HashMap<String, SuperPackageConfig> = if (compileTask.isCombined) { buildConfig.superPkgMap } else { None }
+    let superPkgMap: ?HashMap<String, SuperPackageConfig> =
+        if (compileTask.combineFlags.isCombined) { buildConfig.superPkgMap } else { None }
     getDepSet(compileTask.fullName, buildConfig.requiresMap, buildConfig.superPkgSubMap,
         isForMacroRequire: buildConfig.packageList.isMacro(compileTask.fullName), superPkgMap: superPkgMap)
 }

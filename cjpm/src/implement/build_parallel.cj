@@ -143,10 +143,8 @@ public struct CompileTask {
         public let customizedOption!: ArrayList<String> = ArrayList(), 
         // Stores names of all subpackages of a module to combine them into a single compilation unit
         public let subPkgSet!: HashSet<String> = HashSet(), 
-        // Use `--whole-archive` to link dendencies
-        public let isCombined!: Bool = false,
-        // Compile this root package and make it into a single linkable binary
-        public let isProjectCombined!: Bool = false,
+        // LTO/combine flags for this task; see lto_combine_mode.cj
+        public let combineFlags!: CompileTaskCombineFlags = CompileTaskCombineFlags(),
         // Package is being compiled by `cjpm test`
         public let requiredForTests!: Bool = false, 
         // Include some declarations from testfiles `*_test.cj` of a package.
@@ -171,10 +169,6 @@ public struct CompileTask {
         public let mockSupported!: Bool = false,
         // Is package a macro package
         public let isMacro!: Bool = false, 
-        // A value of `--lto` flag to be passed to a compiler
-        public let isLto!: Bool = false,
-        public let ltoValue!: String = "",
-        public let keepPkgVisibility!: Option<Array<String>> = None,
         // Locations of `*.chir` and `*.cjo` of each source set, the current one depends on
         // 0 - CHIR file with declarations to be merged for multiplatform build
         // 1 - The value of `--common-part-cjo` for multiplatform build
@@ -216,8 +210,7 @@ public struct CompileTask {
         linkOption!: ?String = None,
         customizedOption!: ?ArrayList<String> = None,
         subPkgSet!: ?HashSet<String> = None,
-        isCombined!: ?Bool = None,
-        isProjectCombined!: ?Bool = None,
+        combineFlags!: ?CompileTaskCombineFlags = None,
         requiredForTests!: ?Bool = None,
         exportForTests!: ?Bool = None,
         requireTasks!: ?HashSet<TaskId> = None,
@@ -229,9 +222,6 @@ public struct CompileTask {
         isCov!: ?Bool = None,
         mockSupported!: ?Bool = None,
         isMacro!: ?Bool = None,
-        isLto!: ?Bool = None,
-        ltoValue!: ?String = None,
-        keepPkgVisibility!: ?Option<Array<String>> = None,
         prevStageArtifacts!: ?Array<(String, String)> = None,
         isMultiplatform!: ?Bool = None,
         supressed!: ?ArrayList<String> = None,
@@ -261,8 +251,7 @@ public struct CompileTask {
             linkOption: linkOption ?? this.linkOption,
             customizedOption: customizedOption ?? this.customizedOption,
             subPkgSet: subPkgSet ?? this.subPkgSet,
-            isCombined: isCombined ?? this.isCombined,
-            isProjectCombined: isProjectCombined ?? this.isProjectCombined,
+            combineFlags: combineFlags ?? this.combineFlags,
             requiredForTests: requiredForTests ?? this.requiredForTests,
             exportForTests: exportForTests ?? this.exportForTests,
             requireTasks: requireTasks ?? this.requireTasks,
@@ -274,9 +263,6 @@ public struct CompileTask {
             isCov: isCov ?? this.isCov,
             mockSupported: mockSupported ?? this.mockSupported,
             isMacro: isMacro ?? this.isMacro,
-            isLto: isLto ?? this.isLto,
-            ltoValue: ltoValue ?? this.ltoValue,
-            keepPkgVisibility: keepPkgVisibility ?? this.keepPkgVisibility,
             prevStageArtifacts: prevStageArtifacts ?? this.prevStageArtifacts,
             isMultiplatform: isMultiplatform ?? this.isMultiplatform,
             supressed: supressed ?? this.supressed,
@@ -454,9 +440,11 @@ private func createArtifactGroup(compileTask: CompileTask, buildConfig: BuildCon
 
     match (compileTask.outputType) {
         case Static => 
-            let name = if (compileTask.isLto) { 
-                makeLtoName(compileTask.filename) 
-            } else { makeCangjieStaticlibName(compileTask.filename) }
+            let name = if (compileTask.combineFlags.isLto && !isIosLtoCombineLinkTask(compileTask)) {
+                makeLtoName(compileTask.filename)
+            } else {
+                makeCangjieStaticlibName(compileTask.filename)
+            }
             ArtifactGroup(artifact(name, CheckExists), cjo())
         case Dynamic =>
             let name = if (compileTask.isMacro) { 
@@ -1183,6 +1171,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
     let featureMapping = r.featureDeducer.cleanFeatures() // leaving only mapping to apply them to source set features
 
     let productSuffixes = buildConfig.packageList.productSuffixes
+    let buildLtoCombineMode = resolveLtoCombineBuildMode(buildConfig)
 
     // Specific to the `--target` platform
     // `isNativeForCross == true` - package needs to be compiled with `host` target to be used by or is a `macro package` 
@@ -1220,12 +1209,9 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
             let sourceSetFeatures = sourceSetEntry.features
 
             let subPkgSet = r.superPkgCfg?.subPkgSet ?? HashSet<String>()
-            let isCombined = product && r.superPkgCfg.isSome() && !isNativeForCross
-            let isProjectCombined =
-                product &&
-                buildConfig.globalConfig.isProjectCombine &&
-                r.fullName == buildConfig.globalConfig.rootName &&
-                !isNativeForCross
+            // Centralized LTO/combine flag derivation (see lto_combine_mode.cj).
+            let combineFlags = resolveCompileTaskCombineFlags(
+                buildConfig, fullName, product, r.superPkgCfg.isSome(), target, isNativeForCross)
 
             let supressed = ArrayList<String>()
 
@@ -1238,21 +1224,10 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 OutputType.Static
             } else { r.outputType }
 
-            // LTO follows the actual compile target.
-            let isLto = buildConfig.isLto && supportLtoForTarget(target)
-            let ltoValue = if (isLto) { buildConfig.ltoValue } else { "" }
-            let keepPkgVisibility = if (isLto) { buildConfig.keepPkgVisibility } else { Option<Array<String>>.None }
+            let isSplittable = compileTaskIsSplittable(
+                combineFlags, product, isMultiplatform, buildConfig.isCompilePipelineParallel, isMacro, outputType)
 
-            let isSplittable = !isMultiplatform &&
-                !isLto &&
-                product &&
-                buildConfig.isCompilePipelineParallel &&
-                !isMacro &&
-                (outputType == Dynamic || outputType == Exe)
- 
-            let requiresOnlyTypeInfo = 
-                !isLto &&
-                (outputType == Static || isSplittable || outputType == Chir)
+            let requiresOnlyTypeInfo = compileTaskRequiresOnlyTypeInfo(combineFlags, outputType, isSplittable)
 
             let taskId = TaskId.Compile(fullName, target, isDebug, mockSupported, outputType, sourceSetDir)
 
@@ -1268,7 +1243,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
             let logPath = Path(targetDir).join(".build-logs").join(swapOrgName(rootPkgName)).join(sourceSetDir).toString()
 
             let requireTasksIterable = 
-                if (buildConfig.globalConfig.isProjectCombine && fullName == buildConfig.globalConfig.rootName) {
+                if (buildLtoCombineMode.usesProjectCombine && fullName == buildConfig.globalConfig.rootName) {
                     productOutputTypes.keys().iterator()
                 } else {
                     var result = r.requires.iterator()
@@ -1289,7 +1264,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 let depSourceSetDir = productSuffixes.get(name) ?? ""
                 
                 let isSplittableDep = !isMultiplatform &&
-                    !isLto &&
+                    !combineFlags.isLto &&
                     buildConfig.isCompilePipelineParallel &&
                     !isMacroName &&
                     (buildConfig.packageList.isDyLib(name) || buildConfig.packageList.isExe(name))
@@ -1347,8 +1322,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 linkOption: linkOption,
                 customizedOption: customizedOption,
                 subPkgSet: subPkgSet,
-                isCombined: isCombined,
-                isProjectCombined: isProjectCombined,
+                combineFlags: combineFlags,
                 requiredForTests: requiredForTests,
                 exportForTests: exportForTests,
                 requireTasks: requireTasks,
@@ -1360,9 +1334,6 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                 isCov: isCov,
                 mockSupported: mockSupported,
                 isMacro: isMacro,
-                isLto: isLto,
-                ltoValue: ltoValue,
-                keepPkgVisibility: keepPkgVisibility,
                 prevStageArtifacts: prevStageArtifacts,
                 isMultiplatform: isMultiplatform,
                 supressed: supressed,
@@ -1384,7 +1355,7 @@ func createPackageCompileTasks(r: ResolveItem, buildConfig: BuildConfig, product
                     let depOutputType = productOutputTypes[name]
                     let depSourceSetDir = productSuffixes.get(name) ?? ""
                     let isSplittableDep = !isMultiplatform &&
-                        !isLto &&
+                        !combineFlags.isLto &&
                         buildConfig.isCompilePipelineParallel &&
                         !isMacroName &&
                         (buildConfig.packageList.isDyLib(name) || buildConfig.packageList.isExe(name))

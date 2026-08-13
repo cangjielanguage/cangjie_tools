@@ -1105,11 +1105,11 @@ hello = { path = "./src/" }
 
 ```text
 [profile.build]
-lto = "full"  # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on target platforms of `Linux/OHOS/Android`. This setting has the same effect as the `level` configuration option of `[profile.build.lto]`.This string-type configuration will be deprecated in future versions. Please use the level option under `[profile.build.lto]` to enable LTO.
+lto = "full"  # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on target platforms of `Linux/OpenHarmony/Android/iOS`. This setting has the same effect as the `level` configuration option of `[profile.build.lto]`.This string-type configuration will be deprecated in future versions. Please use the level option under `[profile.build.lto]` to enable LTO.
 incremental = true # Whether to enable incremental compilation by default
 
 [profile.build.lto]
-level = "full" # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on target platforms of `Linux/OHOS/Android`.
+level = "full" # Whether to enable `LTO` (Link Time Optimization) compilation mode. This feature is only supported on target platforms of `Linux/OpenHarmony/Android/iOS`.
 keep-pkg-visibility = ["pkgA", "pkgB", ...] # This configuration is used to control symbol hiding for `LTO` is enabled.
 ```
 
@@ -1168,7 +1168,7 @@ Test configuration supports specifying options for compiling and running test ca
 Used to specify supported compilation options, including:
 
 - `compile-option`: A string containing additional `cjc` compilation options, supplementing the top-level `compile-option` field.
-- `lto`: Specifies whether to enable `LTO` optimization compilation mode, with values `thin` or `full`. This feature is only supported on target platforms of `Linux/OHOS/Android`.
+- `lto`: Specifies whether to enable `LTO` optimization compilation mode, with values `thin` or `full`. This feature is only supported on target platforms of `Linux/OpenHarmony/Android/iOS`.
 - `mock`: Explicitly sets the `mock` mode, with possible options: `on`, `off`, `runtime-error`. The default value for `test`/`build` subcommands is `on`, and for `bench` subcommands, it is `runtime-error`.
 
 #### "profile.test.env"
