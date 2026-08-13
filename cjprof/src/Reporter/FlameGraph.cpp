@@ -249,7 +249,7 @@ const std::string FlameGraph::m_svgTemplate = R"###(<?xml version="1.0" standalo
             return;
         }
 
-        // compute show ratiom, show the longest txt
+        // compute show ratio, show the longest txt
         var start = Math.floor((w / sl) * txt.length);
         for (var x = start; x > 0; x = x - 2) {
             if (child_text.getSubStringLength(0, x + 2) <= w) {
