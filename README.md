@@ -15,7 +15,7 @@ As shown in the diagram, this warehouse provides the following cangjie tools:
 - Cangjie Project Manager （Abbreviated as `cjpm`）：used for managing the module system of Cangjie project, covering module initialization, dependency checking and updating operations, providing a unified compilation entry point, supporting incremental compilation, parallel compilation, etc.
 - Cangjie Formatter （Abbreviated as `cjfmt`）: a code automatic formatting tool developed based on the Cangjie programming specification.
 - Cangjie HyperLang Extension （Abbreviated as `hle`）: cangjie calls the template auto generation tool for ArkTS interoperability code.
-- Cangjie Languager Server （Abbreviated as `lsp`）: the server backend that provides Cangjie language services on the DevEco Studio needs to be used in conjunction with the DevEco Studio client.
+- Cangjie Language Server （Abbreviated as `lsp`）: the server backend that provides Cangjie language services on the DevEco Studio needs to be used in conjunction with the DevEco Studio client.
 - Cangjie Lint Tool (abbreviated as `cjlint`): A static analysis tool developed based on the Cangjie language coding standards. It helps developers identify issues that violate coding conventions, detect vulnerabilities in code, and write compliant Cangjie code.
 - Cangjie Coverage Tool (abbreviated as `cjcov`): A code coverage tool developed based on the Cangjie language programming standards.
 - Cangjie Profile Tool (`Cangjie Profile`, abbreviated as `cjprof`): Performs CPU hot function sampling on Cangjie programs and generates statistical reports or flame graphs, and also supports dumping and analyzing heap memory to help developers analyze performance and memory issues.
