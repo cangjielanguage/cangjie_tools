@@ -723,7 +723,7 @@ std::string FlameGraph::GenFrames(float sideMargin, float bottomMargin, int time
             "\" height=\"" << (bottom - top) << "\" fill=\"" << warmColor() << "\" rx=\"2\" ry=\"2\"/>\n";
 
         int chars = static_cast<int>((right - left) / (m_fontSize * m_fontWidth));
-        /* Three is room for one char plus two dots. */
+        /* There is room for one char plus two dots. */
         std::string text = (chars >= 3) ? ((chars >= static_cast<int>(func.size()))
             ? func : func.substr(0, chars - 2) + "..") : "";
 
