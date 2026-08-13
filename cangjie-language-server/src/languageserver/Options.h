@@ -123,7 +123,7 @@ private:
         optionDescriptions["--test"] = "For the execution of UT";
         // Add more options and their description here
         // ...
-        // Add intenral flag for cj language server
+        // Add internal flag for cj language server
         internalFLag.emplace("enableParallel", false);
     }
 };
