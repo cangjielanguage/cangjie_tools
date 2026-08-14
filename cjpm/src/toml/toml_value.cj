@@ -389,9 +389,7 @@ public struct LocalTime <: ToString & Serializable<LocalTime> {
                 result.second = t.second
                 result.nanoSecond = t.nanosecond
                 break
-            } catch (_: Exception) {
-                return LocalTime()
-            }
+            } catch (_: Exception) {}
         }
 
         return result
