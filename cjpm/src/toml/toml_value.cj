@@ -429,6 +429,6 @@ public struct LocalDatetime <: ToString {
     }
 
     public func toString(): String {
-        return "${date}T${time}}"
+        return "${date}T${time}"
     }
 }
