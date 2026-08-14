@@ -1701,7 +1701,7 @@ PATH = { value = "/usr/bin", splice-type = "prepend" }
     - `random-seed` 用来指定随机种子的值，参数值类型为正整数
     - `no-color` 指定执行结果在控制台中是否无颜色显示，值为 `true` 或 `false`
     - `report-path` 指定测试执行后的报告生成路径（不能通过 `@Configure` 配置）
-    - `report-format` 指定报告输出格式，当前当前单元测试报告仅支持 `xml` 和 `xml-per-package` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置），性能测试报告仅支持 `csv` 和 `csv-raw` 格式
+    - `report-format` 指定报告输出格式，当前单元测试报告仅支持 `xml` 和 `xml-per-package` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置），性能测试报告仅支持 `csv` 和 `csv-raw` 格式
     - `verbose` 指定显示编译过程详细信息，参数值类型为 `BOOL`，即值可为 `true` 或 `false`
 
 #### "profile.test.build"
@@ -1742,7 +1742,7 @@ verbose = true
     - `random-seed` 用来指定随机种子的值, 参数值类型为正整数
     - `no-color` 指定执行结果在控制台中是否无颜色显示，值为 `true` 或 `false`
     - `report-path` 指定测试执行后的报告生成路径（不能通过 `@Configure` 配置）
-    - `report-format` 指定报告输出格式，当前当前单元测试报告仅支持 `xml` 和 `xml-per-package` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置）, 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
+    - `report-format` 指定报告输出格式，当前单元测试报告仅支持 `xml` 和 `xml-per-package` 格式（可忽略大小写），使用其它值将会抛出异常（不能通过 `@Configure` 配置）, 性能测试报告仅支持 `csv` 和 `csv-raw` 格式
     - `verbose` 指定显示编译过程详细信息，参数值类型为 `BOOL`, 即值可为 `true` 或 `false`
     - `baseline-path` 与当前性能结果进行比较的现有报告的路径。默认情况下它使用 `--report-path` 值。
 
