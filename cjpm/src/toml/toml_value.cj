@@ -360,12 +360,14 @@ public struct LocalTime <: ToString & Serializable<LocalTime> {
         hour: Int64,
         minute: Int64,
         second: Int64,
-        nanosecond!: Int64 = 0
+        nanosecond!: Int64 = 0,
+        precision!: Int64 = 0
     ) {
         this.hour = hour
         this.minute = minute
         this.second = second
         this.nanoSecond = nanosecond
+        this.precision = precision
     }
 
     public func serialize(): DataModel {
@@ -398,9 +400,9 @@ public struct LocalTime <: ToString & Serializable<LocalTime> {
     public func toString(): String {
         let sb = StringBuilder("${hour.format("02")}:${minute.format("02")}:${second.format("02")}")
         if (precision > 0) {
-            sb.append(".${nanoSecond.format("09")}"[..precision + 1])
+            sb.append(".${nanoSecond.format("09")}"[..precision])
         } else if (nanoSecond > 0) {
-            sb.append(".${nanoSecond.format("09")}".stripLeft("0"))
+            sb.append(".${nanoSecond.format("09")}")
         }
         return sb.toString()
     }
