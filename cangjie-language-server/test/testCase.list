@@ -962,6 +962,7 @@
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_Wildcard.test","id":"7"}}
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_Unicode_Length.test","id":"7"}}
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_ModuleCondition_001.test","id":"9"}}
+{"semanticHighlight":{"testFile":"LSP_SemanticHighlight_QualifiedTypeGeneric_001.test","id":"2"}}
 
 {"codeCov":{"testFile":"LSP_CodeCov_OnCompletion_001.test","id":"9"}}
 {"codeCov":{"testFile":"LSP_CodeCov_OnCompletion_002.test","id":"9"}}

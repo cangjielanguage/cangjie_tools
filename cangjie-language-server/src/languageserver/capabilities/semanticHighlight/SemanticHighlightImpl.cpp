@@ -126,35 +126,31 @@ void GetMemberAccess(
         return;
     }
 
-    Position pos = mAccess->GetEnd();
     Position fieldPos = mAccess->GetFieldPos();
-    PositionUTF8ToIDE(tokens, pos, *node);
     PositionUTF8ToIDE(tokens, fieldPos, *node);
-    Range leftRange = {{pos.fileID, pos.line, pos.column - static_cast<int>(CountUnicodeCharacters(mAccess->field))},
-                       pos};
-    Range rightRange = {fieldPos, {fieldPos.line, fieldPos.column + static_cast<int>(
-                                                                        CountUnicodeCharacters(mAccess->field))}};
+    Range fieldRange = {fieldPos, {fieldPos.line, fieldPos.column + static_cast<int>(
+                                                                      CountUnicodeCharacters(mAccess->field))}};
 
     if (mAccess->target != nullptr && mAccess->target->identifier == "init") {
-        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(leftRange)});
+        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(fieldRange)});
     } else if (ark::Is<ClassLikeDecl>(mAccess->target.get()) || ark::Is<EnumDecl>(mAccess->target.get()) ||
                ark::Is<StructDecl>(mAccess->target.get()) || ark::Is<TypeAliasDecl>(mAccess->target.get())) {
-        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(leftRange)});
+        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(fieldRange)});
     } else if (ark::Is<PackageDecl>(mAccess->target.get())) {
-        leftRange = {node->GetBegin(), node->end};
-        result.push_back({HighlightKind::PACKAGE_H, TransformFromChar2IDE(leftRange)});
+        Range nodeRange = {node->GetBegin(), node->end};
+        result.push_back({HighlightKind::PACKAGE_H, TransformFromChar2IDE(nodeRange)});
     } else if (ark::Is<FuncDecl>(mAccess->target.get()) || (!mAccess->field.Empty() && !(mAccess->isAlone))) {
         /** the if condition contains two cases:
          * case1: access an existing function;
          * case2: access the function that modified externally.
          */
         if (ark::Is<VarDecl>(mAccess->target.get())) {
-            result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(rightRange)});
+            result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(fieldRange)});
         } else {
-            result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(rightRange)});
+            result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(fieldRange)});
         }
     } else {
-        result.push_back({HighlightKind::FIELD_H, TransformFromChar2IDE(rightRange)});
+        result.push_back({HighlightKind::FIELD_H, TransformFromChar2IDE(fieldRange)});
     }
 }
 // LCOV_EXCL_START
@@ -398,8 +394,7 @@ void GetQualifiedType(Ptr<Node> node, std::vector<SemanticHighlightToken> &resul
     auto qualifiedType = dynamic_cast<QualifiedType*>(node.get());
     if (!qualifiedType) { return; }
 
-    Position pos = {qualifiedType->GetBegin().fileID, qualifiedType->GetBegin().line,
-        qualifiedType->end.column - static_cast<int>(qualifiedType->field.Val().size())};
+    Position pos = qualifiedType->GetFieldPos();
     Range range = {pos, {pos.fileID, pos.line,
         pos.column + static_cast<int>(CountUnicodeCharacters(qualifiedType->field))}};
     UpdateRange(tokens, range, *node);

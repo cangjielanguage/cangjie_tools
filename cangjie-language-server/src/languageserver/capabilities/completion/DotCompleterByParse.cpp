@@ -588,7 +588,7 @@ void DotCompleterByParse::FindBlock(Ptr<Node> node, const Position &pos, std::st
 void DotCompleterByParse::FindVarDecl(Ptr<Node> node, const Position &pos, std::string &scopeName, bool &isInclude)
 {
     auto pVarDecl = dynamic_cast<VarDecl*>(node.get());
-    if (!pVarDecl) { return; }
+    if (!pVarDecl || !pVarDecl->initializer) { return; }
     // initializer may be lambdaExpr, matchCase
     std::set<ASTKind> keyKind = {
         ASTKind::LAMBDA_EXPR,
