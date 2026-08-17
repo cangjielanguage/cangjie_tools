@@ -1247,7 +1247,10 @@ func makeExecutableTests(testConfig: TestConfig, pkgFullNames: Collection<PkgDes
         }
         let rootPkgName = getRootPkgName(pkgDesc.fqname.value)
         let executeCommand = mkExecTestPackageCommand(testConfig, pkgDesc.fqname.value)
-        let packageInfo = ExecutableTestPackage(pkgDesc.fqname.value, executeCommand)
+        // std.unittest uses the package name as a report file name. Convert organization-qualified names
+        // to cjpm's file-system-safe form because ':' is not allowed in Windows file names.
+        let reportPkgName = swapOrgName(pkgDesc.fqname.value)
+        let packageInfo = ExecutableTestPackage(reportPkgName, executeCommand)
         if (let Some(packages) <- moduleNameToPackages.get(rootPkgName)) {
             packages.add(packageInfo)
         } else {
@@ -1256,7 +1259,7 @@ func makeExecutableTests(testConfig: TestConfig, pkgFullNames: Collection<PkgDes
     }
     let modules = ArrayList<ExecutableTestModule>()
     for ((rootPkgName, packages) in moduleNameToPackages) {
-        modules.add(ExecutableTestModule(rootPkgName, packages.toArray()))
+        modules.add(ExecutableTestModule(swapOrgName(rootPkgName), packages.toArray()))
     }
     (successFlag, ExecutableTestProject(modules.toArray()))
 }
