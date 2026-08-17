@@ -5,10 +5,13 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "PositionResolver.h"
+#include <algorithm>
 #include "../CompilerCangjieProject.h"
 #include "cangjie/Utils/Unicode.h"
 
 namespace ark {
+constexpr int LITERAL_DELIMITER_SIDE_COUNT = 2;
+
 bool IsUTF8(const std::string &str)
 {
     int count;
@@ -97,6 +100,27 @@ static int GetUTF8PrefixBytesByColumns(const std::string &str, int columns)
         consumedColumns += charColumns;
     }
     return bytes;
+}
+
+static int GetTokenValueStartOffset(const Cangjie::Token &token)
+{
+    if (token.Begin().line != token.End().line) {
+        return 0;
+    }
+    if (token.kind != Cangjie::TokenKind::STRING_LITERAL &&
+        token.kind != Cangjie::TokenKind::RUNE_LITERAL &&
+        token.kind != Cangjie::TokenKind::MULTILINE_STRING &&
+        token.kind != Cangjie::TokenKind::MULTILINE_RAW_STRING) {
+        return 0;
+    }
+
+    // Literal token positions include the opening and closing delimiters, while
+    // Token::Value() does not. The delimiters are symmetric and ASCII, so they
+    // do not contribute to the UTF-8/UTF-16 difference, but their leading width
+    // must be removed before indexing into Value().
+    int sourceLength = token.End().column - token.Begin().column;
+    int delimiterLength = sourceLength - static_cast<int>(token.Value().size());
+    return delimiterLength > 0 ? delimiterLength / LITERAL_DELIMITER_SIDE_COUNT : 0;
 }
 
 int GetFirstTokenOnCurLine(const std::vector<Cangjie::Token> &tokens, int declLine)
@@ -308,8 +332,9 @@ void PositionIDEToUTF8(const std::vector<Cangjie::Token> &tokens, Cangjie::Posit
         if (!IsMultiLine(tokens[begin]) && tokens[begin].Begin().line == pos.line &&
             pos.column <= tokenBeginColumn + tokenColumns) {
             int prefixColumns = pos.column - tokenBeginColumn;
-            int prefixBytes = GetUTF8PrefixBytesByColumns(tokens[begin].Value(), prefixColumns);
-            redundantCharacters += prefixBytes - prefixColumns;
+            int valuePrefixColumns = std::max(0, prefixColumns - GetTokenValueStartOffset(tokens[begin]));
+            int prefixBytes = GetUTF8PrefixBytesByColumns(tokens[begin].Value(), valuePrefixColumns);
+            redundantCharacters += prefixBytes - valuePrefixColumns;
             break;
         }
         auto offset = static_cast<int>(static_cast<int>(tokens[begin].Value().size()) -
@@ -425,7 +450,9 @@ void PositionUTF8ToIDE(const std::vector<Cangjie::Token> &tokens, Cangjie::Posit
                                                     CountUnicodeCharacters(tokens[begin].Value()));
         }
         if (PositionInCurToken(pos.line, pos.column, tokens[begin])) {
-            std::string validStr = tokens[begin].Value().substr(0, pos.column - tokens[begin].Begin().column);
+            int sourcePrefixBytes = pos.column - tokens[begin].Begin().column;
+            int valuePrefixBytes = std::max(0, sourcePrefixBytes - GetTokenValueStartOffset(tokens[begin]));
+            std::string validStr = tokens[begin].Value().substr(0, static_cast<size_t>(valuePrefixBytes));
             redundantCharacters += static_cast<int>(static_cast<int>(validStr.size()) -
                                                     CountUnicodeCharacters(validStr));
             pos.column = pos.column - redundantCharacters;
