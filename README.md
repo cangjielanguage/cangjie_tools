@@ -89,7 +89,7 @@ Please refer to the following software architecture diagrams for the command-lin
 
 ## Construction Dependencies
 
-The construction of tools relies on Cangjie `SDK`. Please refer to [Openharmony SDK Integration Construction Guide](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README.md)
+The construction of tools relies on Cangjie `SDK`. Please refer to [OpenHarmony SDK Integration Construction Guide](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README.md)
 
 ## Related Repositories
 
