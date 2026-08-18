@@ -61,9 +61,10 @@ public func parse(data: String): Parser {
 }
 
 public func parse(data: Array<Byte>): Parser {
+    // Parse the original byte array in place so large inputs are not duplicated as Strings.
     var contentOffset: Int64 = 0
 
-    // Skip the UTF-8 BOM by offset instead of copying the remaining file bytes.
+    // Keep the BOM in the backing array and skip it through the lexer offset.
     if (data.size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
         contentOffset = 3
     }
