@@ -249,7 +249,7 @@ const std::string FlameGraph::m_svgTemplate = R"###(<?xml version="1.0" standalo
             return;
         }
 
-        // compute show ratiom, show the longest txt
+        // compute show ratio, show the longest txt
         var start = Math.floor((w / sl) * txt.length);
         for (var x = start; x > 0; x = x - 2) {
             if (child_text.getSubStringLength(0, x + 2) <= w) {
@@ -723,7 +723,7 @@ std::string FlameGraph::GenFrames(float sideMargin, float bottomMargin, int time
             "\" height=\"" << (bottom - top) << "\" fill=\"" << warmColor() << "\" rx=\"2\" ry=\"2\"/>\n";
 
         int chars = static_cast<int>((right - left) / (m_fontSize * m_fontWidth));
-        /* Three is room for one char plus two dots. */
+        /* There is room for one char plus two dots. */
         std::string text = (chars >= 3) ? ((chars >= static_cast<int>(func.size()))
             ? func : func.substr(0, chars - 2) + "..") : "";
 
