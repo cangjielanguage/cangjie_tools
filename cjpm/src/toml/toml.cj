@@ -92,8 +92,8 @@ extend DataModel <: ToToml {
 
 public func unmarshal<T>(path: String): T where T <: Serializable<T> {
     var e = Exception("")
-    try (fin = File(path, Read)) {
-        let de = Decoder(fin)
+    try {
+        let de = Decoder(File.readFrom(path))
         let to = de.decode()
         let dm = DataModel.fromToml(to)
         return T.deserialize(dm)

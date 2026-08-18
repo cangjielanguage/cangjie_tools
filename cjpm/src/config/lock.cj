@@ -80,11 +80,9 @@ public func loadLockFile(rootPath: String): (Bool, ModuleLock) {
     }
 
     try {
-        let file = File(lockFile, Read)
-        let de = DecoderToml(file)
+        let de = DecoderToml(File.readFrom(lockFile))
         let to = de.decode()
         res = ModuleLock.deserialize(DataModel.fromToml(to))
-        file.close()
     } catch (_: Exception) {
         eprintln("Error: parse the '${LOCK_FILE_NAME}' file failed")
         return (false, res)

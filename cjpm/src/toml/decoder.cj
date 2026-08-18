@@ -9,16 +9,36 @@ package cjpm.toml
 import std.io.*
 
 public class Decoder {
-    let r: InputStream
+    let stream: ?InputStream
+    let data: ?Array<Byte>
 
+    // Keep stream consumption and I/O failures in decode(), matching the original API behavior.
     public init(r: InputStream) {
-        this.r = r
+        this.stream = r
+        this.data = None
+    }
+
+    // File-based callers should use this overload with the exact bytes returned by File.readFrom.
+    public init(data: Array<Byte>) {
+        this.stream = None
+        this.data = data
     }
 
     public func decode(): TomlObject {
-        let sr = StringReader(r)
-        let data = sr.readToEnd()
-        let p = parse(data)
+        let input = match (data) {
+            case Some(bytes) => bytes
+            case None => readStream()
+        }
+        let p = parse(input)
         return p.mapping
+    }
+
+    private func readStream(): Array<Byte> {
+        let buffer = ByteBuffer()
+        match (stream) {
+            case Some(input) => copy(input, to: buffer)
+            case None => throw Exception("decoder has no input")
+        }
+        return buffer.bytes()
     }
 }
