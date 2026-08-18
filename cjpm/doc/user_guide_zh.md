@@ -257,7 +257,7 @@ cjpm tree success
 - `--coverage` 用于生成覆盖率信息，默认情况下不开启覆盖率功能
 - `--cfg` 指定后，能够透传 `cjpm.toml` 中的自定义 `cfg` 选项，`cjpm.toml` 中的配置可参考 [profile.customized-option](#profilecustomized-option) 章节
 - `--enable-features <value>` 显式指定要启用的功能，可用逗号分隔
-- `no-feature-deduce` 禁用功能的自动启用，支持从其他选项或机器的相关属性推断等
+- `--no-feature-deduce` 禁用功能的自动启用，支持从其他选项或机器的相关属性推断等
 - `-m, --member <value>` 仅可在工作空间下使用，可用于指定单个模块作为编译入口
 - `--target <value>` 指定后，可交叉编译代码到目标平台，`cjpm.toml` 中的配置可参考 [target](#target) 章节
 - `--target-dir <value>` 用于指定输出产物的存放路径
@@ -903,7 +903,7 @@ cjpm install org::boo-2.0.0         # 从中心仓安装 org 组织下名为 boo
 [dependencies] # 源码依赖配置项，非必需
   aoo = "1.0.0" # 导入中心仓依赖
   boo = { version = "2.0.0" } # 导入中心仓依赖
-  coo = { git = "xxx"，branch = "dev" } # 导入 `git` 依赖
+  coo = { git = "xxx",branch = "dev" } # 导入 `git` 依赖
   doo = { path = "./pro1" } # 导入源码依赖
 
 [test-dependencies] # 测试阶段的依赖配置项，格式和 dependencies 相同，非必需
@@ -1905,7 +1905,7 @@ main(): Int64 {
 
 ```text
 [target.目标平台]
-  compile-macros-for-target = ["pkg1", "pkg2"] # 配置项为字符串数字形式，可选值是宏包名
+  compile-macros-for-target = ["pkg1", "pkg2"] # 配置项为字符串数组形式，可选值是宏包名
 ```
 
 #### "target" 相关字段合并规则
