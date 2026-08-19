@@ -22,13 +22,15 @@ public let FIXED_SUBPACKAGE = HashSet<String>()
 let MAX_CJC_JOBS: Int64 = 999999999
 
 // Command build implement.
-public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: Bool = false): Bool {
+public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: Bool = false,
+    rootTomlDocument!: ?ModuleTomlDocument = None): Bool {
     // check top-level build-related configuration
     if (!checkBuildConfiguration(tomlInfo, buildConfig)) {
         return false
     }
 
-    let curResolveData: ModuleResolve = generateResolveData(buildConfig, tomlInfo, isScriptDep) ?? return false
+    let curResolveData: ModuleResolve = generateResolveData(buildConfig, tomlInfo, isScriptDep,
+        rootTomlDocument: rootTomlDocument) ?? return false
 
     // record '.cjpm-history' file at originTargetPath
     let resolveString = curResolveData.serialize().toJson().toJsonString()
@@ -153,6 +155,17 @@ public func doBuild(buildConfig: BuildConfig): Bool {
     return buildRes
 }
 
+// Build command entry point. Parse once; dependency resolution creates its own mutable config from the document.
+public func doTopLevelBuild(buildConfig: BuildConfig): Bool {
+    let document = loadModuleDocument(buildConfig.globalConfig.rootPath) ?? return false
+    let tomlInfo = document.toTomlInfo() ?? return false
+    state.setExperimental(tomlInfo.profile.isExperimental)
+    recordCjpmBuildStartTime(tomlInfo)
+    let buildRes = doBuild(tomlInfo, buildConfig, isScriptDep: false, rootTomlDocument: document)
+    recordCjpmBuildEndTime(tomlInfo, buildConfig.globalConfig.compilePerformanceTargetDir)
+    return buildRes
+}
+
 public func getGlobalFolderPath(): Path {
     let path = GLOBAL_CJPM_CONFIG_DIR
 
@@ -186,7 +199,8 @@ func hasRealOption(cmdOption: HashSet<String>, resolves: ArrayList<ResolveItem>)
 }
 
 // Resolve dependencies and generate .cjpm-history file.
-func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: Bool): Option<ModuleResolve> {
+func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: Bool,
+    rootTomlDocument!: ?ModuleTomlDocument = None): Option<ModuleResolve> {
     if (!replaceEnvforTargetDir(tomlInfo, Path(buildConfig.globalConfig.rootPath).join(CONFIG_FILE_NAME).toString())) {
         return Option<ModuleResolve>.None
     }
@@ -238,7 +252,7 @@ func generateResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptD
         return Option<ModuleResolve>.None
     }
 
-    return getResolveData(buildConfig, tomlInfo, isScriptDep)
+    return getResolveData(buildConfig, tomlInfo, isScriptDep, rootTomlDocument: rootTomlDocument)
 }
 
 func handleCompilePipelineParallel(buildConfig: BuildConfig, tomlInfo: TomlInfo): Bool {
@@ -258,10 +272,12 @@ func handleCompilePipelineParallel(buildConfig: BuildConfig, tomlInfo: TomlInfo)
     true
 }
 
-func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: Bool): Option<ModuleResolve> {
+func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: Bool,
+    rootTomlDocument!: ?ModuleTomlDocument = None): Option<ModuleResolve> {
     buildConfig.globalConfig.customizedOption = buildConfig.customizedOption
     buildConfig.globalConfig.isForScript = isScriptDep
-    let (dm, flag, _) = resolve(buildConfig.globalConfig, isScriptDep: isScriptDep)
+    let (dm, flag, _) = resolve(buildConfig.globalConfig, isScriptDep: isScriptDep,
+        rootTomlDocument: rootTomlDocument)
     if (!flag) {
         return Option<ModuleResolve>.None
     }

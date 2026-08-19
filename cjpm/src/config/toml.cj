@@ -372,31 +372,63 @@ func getChecker(map: HashMap<String, String>): ArrayList<String> {
     return res
 }
 
-// load cjpm config file from path
-public func loadModuleFile(path: String): Option<TomlInfo> {
+// Immutable parsed TOML document used to create isolated mutable configuration objects.
+public class ModuleTomlDocument {
+    private let mapping: TomlObject
+    private let tomlFile: String
+    // Cache the canonical module path once for root-document matching during dependency resolution.
+    public let canonicalModulePath: String
+
+    init(mapping: TomlObject, tomlFile: String, canonicalModulePath: String) {
+        this.mapping = mapping
+        this.tomlFile = tomlFile
+        this.canonicalModulePath = canonicalModulePath
+    }
+
+    public func toTomlInfo(): Option<TomlInfo> {
+        try {
+            // Dependency resolution mutates TomlInfo, so every consumer must receive a fresh instance.
+            let tomlInfo = TomlInfo.deserialize(DataModel.fromToml(mapping))
+            tomlInfo.multiplatformConfig = parseCJMPConfigSchema(mapping).getOrThrow { errs =>
+                Exception(errs |> collectString(delimiter: "\n"))
+            }
+            return tomlInfo
+        } catch (e: Exception) {
+            eprintln("${e.message}\nError: parse the '${tomlFile}' file failed")
+            return Option<TomlInfo>.None
+        }
+    }
+}
+
+// Load and parse cjpm config file from path.
+public func loadModuleDocument(path: String): Option<ModuleTomlDocument> {
     let tomlFile = Path(path).join(CONFIG_FILE_NAME).toString()
 
     if (!fileExists(tomlFile)) {
         eprintln("Error: the file '${tomlFile}' does not exist")
-        return Option<TomlInfo>.None
+        return Option<ModuleTomlDocument>.None
     }
 
-    var tomlInfo: TomlInfo
+    let canonicalModulePath = try {
+        getCanonicalPath(path)
+    } catch (e: Exception) {
+        eprintln("${e.message}\nError: canonicalize the module path '${path}' failed")
+        return Option<ModuleTomlDocument>.None
+    }
+
     try {
-        let file = File(tomlFile, Read)
-        let de = DecoderToml(file)
-        let to = de.decode()
-        tomlInfo = TomlInfo.deserialize(DataModel.fromToml(to))
-        tomlInfo.multiplatformConfig = parseCJMPConfigSchema(to).getOrThrow { errs =>
-            Exception(errs |> collectString(delimiter: "\n"))
-        }
-        file.close()
+        let mapping = DecoderToml(File.readFrom(tomlFile)).decode()
+        return ModuleTomlDocument(mapping, tomlFile, canonicalModulePath)
     } catch (e: Exception) {
         eprintln("${e.message}\nError: parse the '${tomlFile}' file failed")
-        return Option<TomlInfo>.None
+        return Option<ModuleTomlDocument>.None
     }
+}
 
-    return tomlInfo
+// Load cjpm config file from path.
+public func loadModuleFile(path: String): Option<TomlInfo> {
+    let document = loadModuleDocument(path) ?? return Option<TomlInfo>.None
+    return document.toTomlInfo()
 }
 
 public func loadStringFromFile(file: String): (String, Bool) {

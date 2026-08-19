@@ -372,10 +372,8 @@ public func loadInstallList(root: String): Option<HashMap<String, InstallBinary>
         return Option.None
     }
     try {
-        let file = File(path, Read)
-        let de = Decoder(file)
+        let de = Decoder(File.readFrom(path))
         let to = de.decode()
-        file.close()
         let dm = DataModelStruct.fromToml(to)
         var dms = match (dm) {
             case data: DataModelStruct => data

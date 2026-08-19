@@ -101,11 +101,9 @@ public class SettingsConfig <: Serializable<SettingsConfig> {
 public func readConfigToml(file: Path): SettingsConfig {
     var res = SettingsConfig()
     try {
-        let fileInfo = File(file, Read)
-        let de = DecoderToml(fileInfo)
+        let de = DecoderToml(File.readFrom(file))
         let to = de.decode()
         res = SettingsConfig.deserialize(DataModel.fromToml(to))
-        fileInfo.close()
     } catch (e: Exception) {
         eprintln(e.message)
         eprintln("Error: load file '${file}' failed.")

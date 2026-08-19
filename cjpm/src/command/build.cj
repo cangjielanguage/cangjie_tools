@@ -123,7 +123,7 @@ class BuildCommand <: Handle {
             let buildConfig = BuildConfig()
             buildConfig.globalConfig.resolveType = RESOLVE_BUILD
             buildConfig.globalConfig.isPureBuild = true
-            return doBuild(buildConfig)
+            return doTopLevelBuild(buildConfig)
         }
 
         let (argMap, unparseArgs) = getParseOption(this.arguments, BUILD_SHORT_OPTION, BUILD_LONG_OPTION)
@@ -172,7 +172,7 @@ class BuildCommand <: Handle {
         buildConfig.globalConfig.resolveType = RESOLVE_BUILD
         buildConfig.globalConfig.isPureBuild = true
 
-        return doBuild(buildConfig)
+        return doTopLevelBuild(buildConfig)
     }
 }
 

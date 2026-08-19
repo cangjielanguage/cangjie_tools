@@ -647,14 +647,19 @@ public class CjpmState {
         }
     }
 
+    // Set from an already parsed top-level config to avoid reopening cjpm.toml.
+    public func setExperimental(value: Bool): Unit {
+        __isExperimental = value
+    }
+
     private static func checkExperimental(): Bool {
         let tomlFile = Path(DIR_CURRENT).join(CONFIG_FILE_NAME).toString()
         if (!fileExists(tomlFile)) {
             return false
         }
         var isExperimental = false
-        try (file = File(tomlFile, Read)) {
-            let de = DecoderToml(file)
+        try {
+            let de = DecoderToml(File.readFrom(tomlFile))
             let to = de.decode()
             let dms = (DataModel.fromToml(to) as DataModelStruct) ?? throw Exception()
             isExperimental = match (dms.accessDeep(["profile", "experimental"]) as DataModelBool) {

@@ -11,7 +11,8 @@ import std.fs.*
 import cjpm.config.*
 
 // Dependency resolve.
-func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel, Bool, Bool) {
+func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false,
+    rootTomlDocument!: ?ModuleTomlDocument = None): (DepModel, Bool, Bool) {
     var dm = DepModel(globalConfig)
 
     let (loadFlag, lockFile) = if (isScriptDep) {
@@ -23,7 +24,8 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false): (DepModel,
         return (dm, false, false)
     }
 
-    let (checkSuccessful, mockUsed) = dm.resolve(globalConfig.rootPath, lockFile.requires, isScriptDep)
+    let (checkSuccessful, mockUsed) = dm.resolve(globalConfig.rootPath, lockFile.requires, isScriptDep,
+        rootTomlDocument: rootTomlDocument)
     if (!checkSuccessful) {
         return (dm, false, mockUsed)
     }
