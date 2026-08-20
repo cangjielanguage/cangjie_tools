@@ -172,7 +172,7 @@ void ExtractReplace(const Ptr<InheritableDecl>& decl, std::unordered_map<Ptr<Inh
     }
 
     for (const auto& inheritedType: inheritedTypes) {
-        auto inheritedDecl = GetInheritedDeclFromType(inheritedType->GetTy());
+        auto inheritedDecl = GetInheritedDeclFromType(inheritedType->GetTy().Ty());
         if (!inheritedDecl || !inheritedType->GetTy()) {
             continue;
         }

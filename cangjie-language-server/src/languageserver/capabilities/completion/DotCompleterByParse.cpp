@@ -1127,7 +1127,7 @@ void DotCompleterByParse::AddExtendVisibleMembers(const std::vector<DataTy> &ext
     for (auto extendTy : extendTys) {
         auto extendMembers =
             CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
-            Cangjie::AST::ModalTy{extendTy}, packageNameForPath, *ast->file);
+                {extendTy}, packageNameForPath, *ast->file);
         auto decl = Ty::GetDeclPtrOfTy(extendTy);
         if (!decl && !extendTy->IsPrimitive()) {
             continue;

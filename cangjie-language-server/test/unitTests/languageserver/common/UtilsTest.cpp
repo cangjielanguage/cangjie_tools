@@ -758,7 +758,7 @@ ark::TypeCompatibility CheckTypeCompatibility(Ptr<Ty> a, Ptr<Ty> b) {
 
 struct FakeFuncTy : public Cangjie::AST::FuncTy {
     // Default to empty parameter list, null return, and default Config
-    FakeFuncTy(const std::vector<ModalTy> &params = {},
+    explicit FakeFuncTy(const std::vector<ModalTy> &params = {},
         ModalTy ret = ModalTy{},
         const Config &cfg = {})
         : FuncTy(params, ret, cfg) {}

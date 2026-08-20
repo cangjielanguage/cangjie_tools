@@ -88,7 +88,8 @@ bool IsFuncParameterTypesIdentical(const FuncTy &t1, const FuncTy &t2)
     if (t1.paramTys.size() == t2.paramTys.size()) {
         result = true;
         for (size_t i = 0; i < t2.paramTys.size(); i++) {
-            result = result && (CheckTypeCompatibility(t1.paramTys[i].get(), t2.paramTys[i].get()) == TypeCompatibility::IDENTICAL);
+            result = result &&
+                (CheckTypeCompatibility(t1.paramTys[i].get(), t2.paramTys[i].get()) == TypeCompatibility::IDENTICAL);
         }
     }
 
