@@ -219,7 +219,8 @@ func appendLtoCompileArgs(res: ArrayList<String>, compileTask: CompileTask): Uni
         res.add("--dy-std")
     }
 
-    if (compileTask.outputType == Dynamic && flags.keepPkgVisibility.isSome()) {
+    if ((compileTask.outputType == Dynamic || isIosLtoCombineLinkTask(compileTask)) &&
+        flags.keepPkgVisibility.isSome()) {
         let keepPkgVisibilityStr = String.join(flags.keepPkgVisibility.getOrThrow(), delimiter: ",")
         res.add(all: extractOptionByString("--lto-keep-pkg-visibility=\"${keepPkgVisibilityStr}\""))
     }
