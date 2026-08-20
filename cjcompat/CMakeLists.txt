@@ -13,7 +13,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CJCOMPAT_VERSION_STR "1.2.0-beta.rc2")
+set(CJCOMPAT_VERSION_STR "1.3.0-alpha.02")
 set(ASAN_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
 set(CMAKE_CXX_FLAGS_RELEASE "-D_FORTIFY_SOURCE=2 -O2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fstandalone-debug")
