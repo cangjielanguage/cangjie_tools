@@ -101,7 +101,7 @@ public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
         return None
     }
     let targetCommit = v.commitId ?? git.getCommitHashFromName(url, v.branch ?? v.tag) ?? return None
-    let dependencyPath = gitStoragePath.join(name).join(targetCommit).toString()
+    let dependencyPath = gitStoragePath.join(swapOrgName(name)).join(targetCommit).toString()
     if (directoryExists(dependencyPath)) {
         return (dependencyPath, targetCommit, false)
     } else {
