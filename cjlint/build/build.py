@@ -124,6 +124,8 @@ def generate_cmake_defs(args):
     def bool_to_opt(value):
         return "ON" if value else "OFF"
 
+    rpath_option = ["-DRUNTIME_RPATH=" + args.rpath] if args.rpath else []
+
     if args.target == "windows-x86_64":
         return [
             "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
@@ -132,12 +134,12 @@ def generate_cmake_defs(args):
             "-DCMAKE_C_COMPILER=" + "x86_64-w64-mingw32-gcc",
             "-DCMAKE_CXX_COMPILER=" + "x86_64-w64-mingw32-g++",
             "-DCANGJIE_HOME=" + os.environ["CANGJIE_HOME"],
-        ] + [arg for arg in args.cmake_args if arg != "--"]
+        ] + rpath_option + [arg for arg in args.cmake_args if arg != "--"]
 
     return [
         "-DCMAKE_BUILD_TYPE=" + args.build_type.value,
         "-DCOVERAGE_FLAG=" + bool_to_opt(args.code_coverage),
-    ] + [arg for arg in args.cmake_args if arg != "--"]
+    ] + rpath_option + [arg for arg in args.cmake_args if arg != "--"]
 
 
 def build(args):
@@ -273,6 +275,10 @@ def main():
 
     parser_build.add_argument(
         "--gcc-toolchain", dest="gcc_toolchain", help="Specify toolchain for cjlint build"
+    )
+
+    parser_build.add_argument(
+        "--set-rpath", dest="rpath", help="Set rpath value"
     )
 
     parser_build.add_argument(
