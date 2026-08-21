@@ -41,6 +41,7 @@ function(cangjie_lsp_enable_strict_warnings target_name)
             "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
             "$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
             "$<$<COMPILE_LANGUAGE:CXX>:-Wfloat-equal>"
+            "$<$<COMPILE_LANGUAGE:CXX>:-Wno-pragmas>"
         )
     endif ()
     if (strict_warning_options)

@@ -699,7 +699,7 @@ static void BuildUsageSets(Package& package, UsageSets& usage)
                 (void)usage.usedByPtrExternal.insert(target);
             }
             CollectNamedArgUsage(node, target, usage);
-        } else if (auto ref = DynamicCast<NameReferenceExpr*>(node.get())) {
+        } else if (DynamicCast<NameReferenceExpr*>(node.get()) != nullptr) {
             // DEBUG: log RefExpr nodes with null target
             auto filePath = node->curFile ? node->curFile->filePath : "null";
             Trace::Log("NameRefExpr null target:", "file =", filePath,
