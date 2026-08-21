@@ -36,7 +36,8 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         moduleInfoMap[normalizeModulePath] = {.moduleName = moduleName, .modulePath = normalizeModulePath,
                                               .cjoRequiresMap = {}, .srcPath = {},
                                               .isCommonSpecificModule = false,
-                                              .commonSpecificPaths = {}, .sourceSetNames = {}};
+                                              .commonSpecificPaths = {}, .sourceSetNames = {},
+                                              .sourceSetNameByPath = {}};
         requirePackages[moduleName].insert(moduleName);
         return;
     }
@@ -50,7 +51,8 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         }
         duplicateModules[name].push_back(path);
         moduleInfoMap[path] = {.moduleName = name, .modulePath = path, .cjoRequiresMap = {}, .srcPath = {},
-                               .isCommonSpecificModule = false, .commonSpecificPaths = {}, .sourceSetNames = {}};
+                               .isCommonSpecificModule = false, .commonSpecificPaths = {}, .sourceSetNames = {},
+                               .sourceSetNameByPath = {}};
         if (value.contains(SRC_PATH())) {
             auto srcPath = value.value(SRC_PATH(), "");
             moduleInfoMap[path].srcPath = FileStore::NormalizePath(URI::Resolve(srcPath));
