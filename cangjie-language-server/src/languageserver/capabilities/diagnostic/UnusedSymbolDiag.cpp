@@ -589,7 +589,7 @@ static VisitAction CollectUnusedLocalDiags(
     const UsageSets& usage)
 {
     auto decl = DynamicCast<Decl*>(node);
-    if (!decl) {
+    if (!decl || decl->TestAttr(Attribute::IMPLICIT_ADD)) {
         return VisitAction::WALK_CHILDREN;
     }
 
