@@ -1,0 +1,7 @@
+{"caseFolder":"normalTest//NamedParameterOverload","id":"5"}
+{"jsonrpc":"2.0","id":"1","method":"initialize","params":{"rootUri":"file:///dummy/","capabilities":{"textDocument":{"documentHighlight":{}}}}}
+{"jsonrpc":"2.0","method":"initialized","params":{}}
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///dummy/src/namedParameterOverload.cj","languageId":"Cangjie","version":1,"text":"// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.\n// This source file is part of the Cangjie project, licensed under Apache-2.0\n// with Runtime Library Exception.\n//\n// See https://cangjie-lang.cn/pages/LICENSE for license information.\n\nimport std.collection.ArrayList\n\nfunc test() {\n    let list = ArrayList<Int64> ()\n    list.add(0)\n    list.add(1)\n\n    let list2 = ArrayList<UInt32> ()\n    list2.add(0)\n\n    let li = [2, 3]\n    list.add(all: li)\n    list.add(all: li)\n}"}}}
+{"jsonrpc":"2.0","id":"5","method":"textDocument/documentHighlight","params":{"textDocument":{"uri":"file:///dummy/src/namedParameterOverload.cj"},"position":{"line":17,"character":14}}}
+{"jsonrpc":"2.0","id":"4","method":"shutdown","params":{}}
+{"jsonrpc":"2.0","method":"exit","params":{}}
