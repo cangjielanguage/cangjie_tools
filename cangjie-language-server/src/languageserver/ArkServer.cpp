@@ -1179,7 +1179,10 @@ static std::vector<std::unique_ptr<Tweak::Selection>> CreateTweakSelection(const
     const std::string &file, Range range, std::map<std::string, std::string> extraOptions)
 {
     std::vector<std::unique_ptr<Tweak::Selection>> result;
-    if (range.start == range.end && inputAST.ast && !inputAST.ast->tokens.empty()) {
+    if (inputAST.ast == nullptr) {
+        return result;
+    }
+    if (range.start == range.end && !inputAST.ast->tokens.empty()) {
         int tokenIndex = inputAST.ast->GetCurTokenByStartColumn(range.start, 0,
             static_cast<int>(inputAST.ast->tokens.size()) - 1);
         if (tokenIndex >= 0 && static_cast<size_t>(tokenIndex) < inputAST.ast->tokens.size()) {

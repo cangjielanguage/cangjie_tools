@@ -92,7 +92,7 @@ void result_null(sqlite3_context *C);
 int create_scalar(sqlite3 *DB,
     const char *Name,
     int ArgsNum,
-    int Flags,
+    unsigned int Flags,
     void *AppData,
     void (*Function)(sqlite3_context *, int, sqlite3_value **),
     void (*Destroy)(void *));
@@ -102,7 +102,7 @@ void *user_data(sqlite3_context *C);
 int create_aggregate(sqlite3 *DB,
     const char *Name,
     int ArgsNum,
-    int Flags,
+    unsigned int Flags,
     void *AppData,
     void (*Step)(sqlite3_context *, int, sqlite3_value **),
     void (*Final)(sqlite3_context *),

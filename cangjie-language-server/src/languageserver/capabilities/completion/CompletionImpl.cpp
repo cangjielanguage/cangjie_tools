@@ -577,7 +577,7 @@ IfImportInfo CompletionImpl::GetIfImportInfo(const ArkAST &input, Position pos, 
         return info;
     }
 
-    pos.column -= prefix.size();
+    pos.column -= static_cast<int>(prefix.size());
     std::string query = "_ = (" + std::to_string(input.semaCache->fileID) + ", " +
         std::to_string(pos.line) + ", " + std::to_string(pos.column) + ")";
 
@@ -712,7 +712,7 @@ void CompletionImpl::NamedParameterComplete(const ark::ArkAST &input, const Cang
         int totalParamCount = 0;
         for (const auto &pList : paramLists) {
             if (pList) {
-                totalParamCount += pList->params.size();
+                totalParamCount += static_cast<int>(pList->params.size());
             }
         }
 

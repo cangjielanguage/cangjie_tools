@@ -1158,7 +1158,7 @@ bool IsTypeReferenceMatch(const Type &type, const Decl &targetDecl, const Range 
 std::optional<Range> GetNameReferenceRange(const NameReferenceExpr &refExpr)
 {
     Position begin = Cangjie::INVALID_POSITION;
-    size_t nameLength = 0;
+    int nameLength = 0;
     if (auto ref = DynamicCast<const RefExpr*>(&refExpr)) {
         begin = ref->GetIdentifierPos();
         nameLength = CountUnicodeCharacters(ref->ref.identifier);
@@ -1170,7 +1170,7 @@ std::optional<Range> GetNameReferenceRange(const NameReferenceExpr &refExpr)
         return std::nullopt;
     }
     Range exprRange{begin, begin};
-    exprRange.end.column += static_cast<int>(nameLength);
+    exprRange.end.column += nameLength;
     return exprRange;
 }
 // LCOV_EXCL_BR_START

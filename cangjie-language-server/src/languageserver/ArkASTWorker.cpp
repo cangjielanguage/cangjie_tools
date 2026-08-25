@@ -272,7 +272,11 @@ void ArkASTWorker::RunWithASTCache(
 int ArkASTWorker::GetFileIDForCompletion(const std::string &file) const
 {
     if (Options::GetInstance().IsOptionSet("test")) {
-        return CompilerCangjieProject::GetInstance()->GetFileID(file).value_or(-1);
+        auto fileID = CompilerCangjieProject::GetInstance()->GetFileID(file);
+        if (fileID.has_value()) {
+            return static_cast<int>(fileID.value());
+        }
+        return -1;
     }
     return CompilerCangjieProject::GetInstance()->GetFileIDForCompete(file);
 }
@@ -337,7 +341,7 @@ void ArkASTWorker::DoCompletionWithASTCache(
         isCompleteRunning = false;
         return;
     }
-    pos.fileID = fileID;
+    pos.fileID = static_cast<unsigned int>(fileID);
     std::vector<TextDocumentContentChangeEvent> contentChanges;
     ParseAndInvokeWithASTCache(name, file, pos, inputs, action);
 }

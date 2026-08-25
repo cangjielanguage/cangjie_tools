@@ -176,7 +176,7 @@ void Logger::RemoveRedundantLogFile()
 void Logger::HandleNewLog(size_t infoSize)
 {
     struct stat statBuf {};
-    std::string logPath = FileUtil::Normalize(path.str());
+    std::string logPath = FileStore::NormalizePath(path.str());
     // rename log.txt to cangjie_lsp_($time)_log.txt
     if (stat(logPath.c_str(), &statBuf) == 0 &&
         ((static_cast<size_t>(statBuf.st_size) + infoSize) > LOG_FILE_MAX)) {

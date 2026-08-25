@@ -590,10 +590,9 @@ void ArkLanguageServer::OnDocumentDidClose(const DidCloseTextDocumentParams &par
     PublishDiagnosticsParams notification;
     notification.uri.file = params.textDocument.uri.file;
     PublishDiagnostics(notification);
-    if (Options::GetInstance().GetLSPFlag("enableParallel").has_value()) {
-        if (!Options::GetInstance().GetLSPFlag("enableParallel").value()) {
-            return;
-        }
+    auto enableParallel = Options::GetInstance().GetLSPFlag("enableParallel");
+    if (enableParallel.has_value() && !enableParallel.value()) {
+        return;
     }
     if (!MessageHeaderEndOfLine::GetIsDeveco()) {
         CompilerCangjieProject::GetInstance()->UpdateOnDisk(file);
@@ -1437,7 +1436,7 @@ void ArkLanguageServer::ImportAllSymsCodeAction(std::vector<DiagnosticToken> &di
             }
             CollectCA2AllImport(allImports, diags[i]->codeActions.value());
         }
-        if (allImports.size() <= 1 || !diags[insertIdx]) {
+        if (insertIdx < 0 || allImports.size() <= 1 || !diags[static_cast<size_t>(insertIdx)]) {
             continue;
         }
         CodeAction allImportCA;
@@ -1461,8 +1460,8 @@ void ArkLanguageServer::ImportAllSymsCodeAction(std::vector<DiagnosticToken> &di
         std::vector<TextEdit> textEditVec(textEdits.begin(), textEdits.end());
         edit.changes[uri] = textEditVec;
         allImportCA.edit = std::move(edit);
-        diags[insertIdx]->codeActions.value().insert(diags[insertIdx]->codeActions.value().begin(),
-            std::move(allImportCA));
+        diags[static_cast<size_t>(insertIdx)]->codeActions.value().insert(
+            diags[static_cast<size_t>(insertIdx)]->codeActions.value().begin(), std::move(allImportCA));
     }
 }
 

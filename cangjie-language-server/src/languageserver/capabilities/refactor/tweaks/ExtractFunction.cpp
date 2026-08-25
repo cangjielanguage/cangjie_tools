@@ -333,7 +333,7 @@ class ExtractFunctionSelectionRule : public TweakRule {
             return false;
         }
 
-        if (root->selected == SelectionTree::Selection::Complete && root->node
+        if (root != nullptr && root->selected == SelectionTree::Selection::Complete && root->node
             && CANNOT_EXTRACT_FUNC_EXPR.count(root->node->astKind)) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(ExtractFunction::ExtractFunctionError::INVALID_CODE_SEGMENT))));
@@ -901,7 +901,7 @@ SelectionTree::WalkAction ExtractFunction::ProcessReturnValueNode(
 void ExtractFunction::GetFunctionBody(const Tweak::Selection &sel, ExtractedFunction &function)
 {
     auto root = sel.selectionTree.root();
-    if (!root->node) {
+    if (root == nullptr || !root->node) {
         return;
     }
     const auto& children = root->Children;

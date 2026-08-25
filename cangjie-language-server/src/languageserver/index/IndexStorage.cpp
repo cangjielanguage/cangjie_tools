@@ -45,6 +45,9 @@ void ReadSymsCompletions(Symbol &res, const IdxFormat::Symbol *sym)
 {
     if (sym->completion_items()) {
         for (const auto &item : *sym->completion_items()) {
+            if (item->label() == nullptr || item->insert_text() == nullptr) {
+                continue;
+            }
             std::string label = item->label()->str();
             std::string insert = item->insert_text()->str();
             res.completionItems.push_back({label, insert});
@@ -101,52 +104,64 @@ void ReadSymsComments(Symbol &res, const IdxFormat::Symbol *sym)
 
 void ReadSymbolLocation(Symbol &res, const IdxFormat::Symbol *sym)
 {
-    if (sym->location()->begin() != nullptr) {
-        res.location.begin.fileID = sym->location()->begin()->file_id();
-        res.location.begin.line = sym->location()->begin()->line();
-        res.location.begin.column = sym->location()->begin()->column();
+    const auto *location = sym->location();
+    if (location == nullptr) {
+        return;
     }
-    if (sym->location()->end() != nullptr) {
-        res.location.end.fileID = sym->location()->end()->file_id();
-        res.location.end.line = sym->location()->end()->line();
-        res.location.end.column = sym->location()->end()->column();
+    if (location->begin() != nullptr) {
+        res.location.begin.fileID = location->begin()->file_id();
+        res.location.begin.line = location->begin()->line();
+        res.location.begin.column = location->begin()->column();
     }
-    if (sym->location()->file_uri() != nullptr) {
-        res.location.fileUri = sym->location()->file_uri()->str();
+    if (location->end() != nullptr) {
+        res.location.end.fileID = location->end()->file_id();
+        res.location.end.line = location->end()->line();
+        res.location.end.column = location->end()->column();
+    }
+    if (location->file_uri() != nullptr) {
+        res.location.fileUri = location->file_uri()->str();
     }
 }
 
 void ReadSymbolDeclaration(Symbol &res, const IdxFormat::Symbol *sym)
 {
-    if (sym->declaration()->begin() != nullptr) {
-        res.declaration.begin.fileID = sym->declaration()->begin()->file_id();
-        res.declaration.begin.line = sym->declaration()->begin()->line();
-        res.declaration.begin.column = sym->declaration()->begin()->column();
+    const auto *declaration = sym->declaration();
+    if (declaration == nullptr) {
+        return;
     }
-    if (sym->declaration()->end() != nullptr) {
-        res.declaration.end.fileID = sym->declaration()->end()->file_id();
-        res.declaration.end.line = sym->declaration()->end()->line();
-        res.declaration.end.column = sym->declaration()->end()->column();
+    if (declaration->begin() != nullptr) {
+        res.declaration.begin.fileID = declaration->begin()->file_id();
+        res.declaration.begin.line = declaration->begin()->line();
+        res.declaration.begin.column = declaration->begin()->column();
     }
-    if (sym->declaration()->file_uri() != nullptr) {
-        res.declaration.fileUri = sym->declaration()->file_uri()->str();
+    if (declaration->end() != nullptr) {
+        res.declaration.end.fileID = declaration->end()->file_id();
+        res.declaration.end.line = declaration->end()->line();
+        res.declaration.end.column = declaration->end()->column();
+    }
+    if (declaration->file_uri() != nullptr) {
+        res.declaration.fileUri = declaration->file_uri()->str();
     }
 }
 
 void ReadSymbolMacro(Symbol &res, const IdxFormat::Symbol *sym)
 {
-    if (sym->cur_macro_call()->begin() != nullptr) {
-        res.curMacroCall.begin.fileID = sym->cur_macro_call()->begin()->file_id();
-        res.curMacroCall.begin.line = sym->cur_macro_call()->begin()->line();
-        res.curMacroCall.begin.column = sym->cur_macro_call()->begin()->column();
+    const auto *curMacroCall = sym->cur_macro_call();
+    if (curMacroCall == nullptr) {
+        return;
     }
-    if (sym->cur_macro_call()->end() != nullptr) {
-        res.curMacroCall.end.fileID = sym->cur_macro_call()->end()->file_id();
-        res.curMacroCall.end.line = sym->cur_macro_call()->end()->line();
-        res.curMacroCall.end.column = sym->cur_macro_call()->end()->column();
+    if (curMacroCall->begin() != nullptr) {
+        res.curMacroCall.begin.fileID = curMacroCall->begin()->file_id();
+        res.curMacroCall.begin.line = curMacroCall->begin()->line();
+        res.curMacroCall.begin.column = curMacroCall->begin()->column();
     }
-    if (sym->cur_macro_call()->file_uri() != nullptr) {
-        res.curMacroCall.fileUri = sym->cur_macro_call()->file_uri()->str();
+    if (curMacroCall->end() != nullptr) {
+        res.curMacroCall.end.fileID = curMacroCall->end()->file_id();
+        res.curMacroCall.end.line = curMacroCall->end()->line();
+        res.curMacroCall.end.column = curMacroCall->end()->column();
+    }
+    if (curMacroCall->file_uri() != nullptr) {
+        res.curMacroCall.fileUri = curMacroCall->file_uri()->str();
     }
 }
 
@@ -192,18 +207,22 @@ void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
 
 void ReadRefLocation(Ref &res, const IdxFormat::Ref *ref)
 {
-    if (ref->location()->begin() != nullptr) {
-        res.location.begin.fileID = ref->location()->begin()->file_id();
-        res.location.begin.line = ref->location()->begin()->line();
-        res.location.begin.column = ref->location()->begin()->column();
+    const auto *location = ref->location();
+    if (location == nullptr) {
+        return;
     }
-    if (ref->location()->end() != nullptr) {
-        res.location.end.fileID = ref->location()->end()->file_id();
-        res.location.end.line = ref->location()->end()->line();
-        res.location.end.column = ref->location()->end()->column();
+    if (location->begin() != nullptr) {
+        res.location.begin.fileID = location->begin()->file_id();
+        res.location.begin.line = location->begin()->line();
+        res.location.begin.column = location->begin()->column();
     }
-    if (ref->location()->file_uri() != nullptr) {
-        res.location.fileUri = ref->location()->file_uri()->str();
+    if (location->end() != nullptr) {
+        res.location.end.fileID = location->end()->file_id();
+        res.location.end.line = location->end()->line();
+        res.location.end.column = location->end()->column();
+    }
+    if (location->file_uri() != nullptr) {
+        res.location.fileUri = location->file_uri()->str();
     }
 }
 
@@ -226,18 +245,22 @@ void ReadRelation(Relation &res, const IdxFormat::Relation *relation)
 
 void ReadCrossSymbolLocation(CrossSymbol &crossSymbol, const IdxFormat::CrossSymbol *crs)
 {
-    if (crs->location()->begin() != nullptr) {
-        crossSymbol.location.begin.fileID = crs->location()->begin()->file_id();
-        crossSymbol.location.begin.line = crs->location()->begin()->line();
-        crossSymbol.location.begin.column = crs->location()->begin()->column();
+    const auto *location = crs->location();
+    if (location == nullptr) {
+        return;
     }
-    if (crs->location()->end() != nullptr) {
-        crossSymbol.location.begin.fileID = crs->location()->begin()->file_id();
-        crossSymbol.location.begin.line = crs->location()->begin()->line();
-        crossSymbol.location.begin.column = crs->location()->begin()->column();
+    if (location->begin() != nullptr) {
+        crossSymbol.location.begin.fileID = location->begin()->file_id();
+        crossSymbol.location.begin.line = location->begin()->line();
+        crossSymbol.location.begin.column = location->begin()->column();
     }
-    if (crs->location()->file_uri() != nullptr) {
-        crossSymbol.location.fileUri = crs->location()->file_uri()->str();
+    if (location->end() != nullptr) {
+        crossSymbol.location.end.fileID = location->end()->file_id();
+        crossSymbol.location.end.line = location->end()->line();
+        crossSymbol.location.end.column = location->end()->column();
+    }
+    if (location->file_uri() != nullptr) {
+        crossSymbol.location.fileUri = location->file_uri()->str();
     }
 }
 
@@ -270,6 +293,9 @@ void ReadReExportSymbol(ReExportSymbol &reExportSymbol, const IdxFormat::ReExpor
     }
     if (res->completion_items()) {
         for (const auto &item : *res->completion_items()) {
+            if (item->label() == nullptr || item->insert_text() == nullptr) {
+                continue;
+            }
             std::string label = item->label()->str();
             std::string insert = item->insert_text()->str();
             reExportSymbol.completionItems.push_back({label, insert});
