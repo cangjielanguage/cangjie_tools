@@ -23,6 +23,12 @@ const copyrightC = `// Copyright (c) Huawei Technologies Co., Ltd. ${new Date().
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.`;
+// 用于从注释中剥离源文件版权头的正则。
+// 年份用 \d{4} 通配匹配，这样无论源文件中的版权年份是否与当前年份一致，都能正确剥离。
+const copyrightRegex = new RegExp(
+    '^' + copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1").replace(new Date().getFullYear(), '\\d{4}'),
+    'gm'
+);
 
 let filename = '';
 // Avoid duplicate filename in different directories, append prefix to filename
@@ -168,7 +174,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         info.comment = comment;
 
         this.visit(node, content);
@@ -226,7 +232,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
 
     }
@@ -289,7 +295,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
     }
 
@@ -318,7 +324,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
     }
 
@@ -374,7 +380,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
 
         this.visit(node, rjson[rjson.length - 1]);
@@ -436,7 +442,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
 
     }
@@ -459,7 +465,7 @@ class ASTVisitor {
             if (comments) {
                 comment = comments.join('\n');
             }
-            comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+            comment = comment.replace(copyrightRegex, '').trim();
             rjson[rjson.length - 1].info.comment = comment;
 
             rjson[rjson.length - 1].info.name = declaration.name.escapedText;
@@ -506,7 +512,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
     }
 
@@ -552,7 +558,7 @@ class ASTVisitor {
         if (comments) {
             comment = comments.join('\n');
         }
-        comment = comment.replace(new RegExp(`^${copyrightC.replace(/([.*+?^=!:${}()|\[\]\/\\,-])/g, "\\\$1")}`, 'gm'), '').trim();
+        comment = comment.replace(copyrightRegex, '').trim();
         rjson[rjson.length - 1].info.comment = comment;
     }
 
