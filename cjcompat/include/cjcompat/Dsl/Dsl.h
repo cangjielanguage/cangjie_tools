@@ -266,16 +266,17 @@ public:
     /** @brief Returns `map[node]` if it exists, nullptr otherwise. */
     static Node* Corresponding(Node* node, const std::map<Node*, Node*>& map);
 
+private:
+    TypeManager& typeMan1;
+    TypeManager& typeMan2;
+
+public:
     /***** Options *****/
 
     /** @brief Check for API rules. */
     const bool checkAPI;
     /** @brief Check for ABI rules. */
     const bool checkABI;
-
-private:
-    TypeManager& typeMan1;
-    TypeManager& typeMan2;
 }; // class Dsl
 
 #endif // DSL_DSL_H

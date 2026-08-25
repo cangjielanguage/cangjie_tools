@@ -79,7 +79,6 @@ bool CheckerImpl::StructVarDepreAnno(
 {
     auto checkerResult{true};
     BEGIN_FORALL(c1, diff.GetDomPotentiallyModified(), dsl.StructDecl(c1) && dsl.TopLevel(c1) && diff.ModuleVisible(c1))
-        LETIF(c2, dsl.Corresponding(c1, diff.PotentiallyModified()), dsl.StructDecl(c1) && dsl.TopLevel(c1))
         BEGIN_FORALL(v1, diff.GetDomPotentiallyMemberModified(c1), dsl.VarLetOrConst(v1) && diff.ModuleVisible(v1))
             LETIF(v2, dsl.Corresponding(v1, diff.GetPotentiallyMemberModified(c1)),
                 dsl.VarLetOrConst(v2) && diff.ModuleVisible(v2))
@@ -195,8 +194,6 @@ bool CheckerImpl::ClassInstMemberVarAddedOrDeleted(
             END_FORALL()
 
             BEGIN_FORALL(v1, diff.GetMemberDeleted(c1), dsl.VarLetOrConst(v1))
-                auto c1NotPublicInheritable = c1->TestAttr(Attribute::SEALED) || !diff.ModuleVisible(c1) ||
-                    (diff.ModuleVisible(c1) && !c1->TestAttr(Attribute::OPEN));
                 if (!(v1->TestAttr(Attribute::PRIVATE) || v1->TestAttr(Attribute::INTERNAL))) {
                     continue;
                 }

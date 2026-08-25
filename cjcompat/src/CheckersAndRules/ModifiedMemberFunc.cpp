@@ -93,7 +93,7 @@ static bool AddMemberParamDefaultValue(Dsl& dsl, Node* f, Node* p1, Node* p2)
     return false;
 }
 
-static bool IsClassOpenInstanceFunc(Dsl& dsl, Node* fd)
+static bool IsClassOpenInstanceFunc(Node* fd)
 {
     auto pDecl = GetOuterDecl(fd);
     if (!pDecl || pDecl->astKind != ASTKind::CLASS_DECL) {
@@ -123,7 +123,7 @@ static void CheckFuncReturnType(
         return;
     }
     // The return type of function is changed.
-    if (IsClassOpenInstanceFunc(dsl, f1)) {
+    if (IsClassOpenInstanceFunc(f1)) {
         CHECK(RuleKind::FUNC_RETURN_TYPE_OPEN, false, f1, f2);
         return;
     }
@@ -685,8 +685,6 @@ bool CheckerImpl::ChangeFuncParamOrder(
         return false;
     }
     auto numParams = dsl.NumFuncParams(f1);
-    size_t f1NamedParamCnt = 0;
-    size_t f2NamedParamCnt = 0;
     std::set<std::string> f1NamedParamNames;
     std::set<std::string> f2NamedParamNames;
     std::set<std::string> f1UnnamedParamNames;
@@ -727,10 +725,7 @@ bool CheckerImpl::ChangeFuncParamOrder(
         CHECK(RuleKind::FUNC_CHANGE_ORDER_OF_UNNAMED_PARAMETER, false, f1, f2);
         changeOrder = true;
     }
-    if (changeOrder) {
-        return true;
-    }
-    return false;
+    return changeOrder;
 }
 
 void CheckerImpl::CheckFuncParams(
@@ -780,7 +775,7 @@ void CheckerImpl::CheckFuncParams(
         }
         if ((dsl.IsNamedParam(p1) == dsl.IsNamedParam(p2)) && !sameType) {
             // The parameter's type of open member function has been changed.
-            if (IsClassOpenInstanceFunc(dsl, f1)) {
+            if (IsClassOpenInstanceFunc(f1)) {
                 CHECK(RuleKind::FUNC_CHANGE_TYPE_OF_PARAMETER_OPEN, false, f1, f2, p1, p2);
                 continue;
             }

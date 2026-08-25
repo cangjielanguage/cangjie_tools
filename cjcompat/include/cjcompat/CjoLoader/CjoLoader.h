@@ -35,10 +35,10 @@ public:
 private:
     Cangjie::DiagnosticEngine diagEngine{};
     Cangjie::CompilerInvocation loadInvocation{};
-    Cangjie::CompilerInstance ci;
     static const std::string PACKAGENAME;
     std::string cjoPath;
     std::string modulesPath;
+    Cangjie::CompilerInstance ci;
     Cangjie::AST::Package* package{};
 };
 

@@ -27,6 +27,11 @@ public:
         CJC_ASSERT(isAPI || isABI);
     }
 
+    RuleKind GetKind() const
+    {
+        return kind;
+    }
+
     bool IsAPI() const
     {
         return isAPI;
