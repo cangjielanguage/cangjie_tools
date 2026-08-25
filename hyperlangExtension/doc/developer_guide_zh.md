@@ -3,7 +3,7 @@
 ## 系统架构
 
 `HLE (HyperlangExtension)` 是一个仓颉调用ArkTS互操作代码模板自动生成工具。
-该工具的输入是ArkTS接口声明文件，例如后缀.d.ts或者.d.ets结尾的文件，输出为包含BUILD.gn文件和src文件夹。src文件夹中包含的cj文件中存放生成的互操作代码。工具也会输出包含ArkTS文件的所有信息的json文件。为了提升互操作易用性，在DevEco Studio提供了两个工具，一个是ArkTS调用仓颉的Bindings generator，即通过@Interop宏展开，自动生产ArkTS调用仓颉的代码和ArkTS侧的接口文件，另外一个工具是仓颉调用ArkTS的Bindings generator(即HLE工具)，其整体技术架构如下图所示：
+该工具的输入是ArkTS接口声明文件，例如后缀.d.ts或者.d.ets结尾的文件，输出为包含BUILD.gn文件和src文件夹。src文件夹中包含的cj文件中存放生成的互操作代码。工具也会输出包含ArkTS文件的所有信息的json文件。为了提升互操作易用性，在DevEco Studio提供了两个工具，一个是ArkTS调用仓颉的Bindings generator，即通过@Interop宏展开，自动生成ArkTS调用仓颉的代码和ArkTS侧的接口文件，另外一个工具是仓颉调用ArkTS的Bindings generator(即HLE工具)，其整体技术架构如下图所示：
 
 ![HLE架构设计图](../figures/HLE.png)
 
@@ -12,7 +12,7 @@
 
 - 接口抽象描述生成：在解析 ArkTS 接口的基础上，将接口信息进行抽象化处理，生成统一、简洁的接口抽象描述，便于后续进行接口依赖分析等操作，为代码生成过程中对接口关系的处理提供清晰的抽象模型。
 
-- 代码生成：基于互操作库，自动生产仓颉封装层代码。
+- 代码生成：基于互操作库，自动生成仓颉封装层代码。
 
 架构图中依赖部件引入说明：
 
@@ -141,7 +141,7 @@ hyperlangExtension/
     ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle  -i  ${WORKDIR}/cangjie-tools/hyperlangExtension/tests/cases/class.d.ts -o out --module-name=ohos.hilog --lib
     ```
 
-    在Windows环境，文件目录当前不支持符号“\\”，仅支持使用“/”。
+    在Windows环境，文件路径当前不支持符号“\\”，仅支持使用“/”。
     ```sh
     ${WORKDIR}/cangjie-tools/hyperlangExtension/output/hle.exe -i  ${WORKDIR}/cangjie-tools/hyperlangExtension/tests/cases/class.d.ts -o out --module-name=ohos.hilog --lib
     ```
@@ -160,7 +160,7 @@ python3 build.py build --target windows-x86_64
 python3 build.py install --prefix output
 ```
 
-执行该命令后，构建产物默认位于 `hyperlangExtension/output` 目录下。
+执行该命令后，构建产物位于 `hyperlangExtension/output` 目录下。
 
 ### 更多构建选项
 
