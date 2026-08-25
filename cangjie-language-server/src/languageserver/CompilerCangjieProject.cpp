@@ -539,6 +539,10 @@ bool CompilerCangjieProject::UpdateDependencies(
         for (const auto &file : packages[0]->files) {
             CheckPackageNameByAbsName(*file, fullPkgName, ci);
         }
+    } else {
+        for (const auto &file : packages[0]->files) {
+            ReportModuleNameConflict(*file);
+        }
     }
     return true;
 }
@@ -2248,6 +2252,7 @@ std::string CompilerCangjieProject::GetFilePathByID(const Node &node, unsigned i
 void CompilerCangjieProject::CheckPackageNameByAbsName(const File &needCheckedFile, const std::string &fullPackageName,
     const std::unique_ptr<LSPCompilerInstance> &ci)
 {
+    ReportModuleNameConflict(needCheckedFile);
     std::string realPkgName = GetRealPackageName(fullPackageName);
     (void)CheckPackageModifier(needCheckedFile, realPkgName);
 
@@ -2278,6 +2283,30 @@ void CompilerCangjieProject::CheckPackageNameByAbsName(const File &needCheckedFi
         ci->diag.DiagnoseRefactor(DiagKindRefactor::package_name_not_identical_lsp,
             errPos, expectedPkgName);
     }
+}
+
+void CompilerCangjieProject::ReportModuleNameConflict(const File &file) const
+{
+    if (!moduleManager || !file.package) {
+        return;
+    }
+    ModuleNameConflict conflict;
+    if (!moduleManager->GetModuleNameConflict(file.filePath, conflict)) {
+        return;
+    }
+
+    DiagnosticToken diagnostic;
+    diagnostic.category = LSP_ERROR_CODE;
+    diagnostic.code = LSP_ERROR_CODE;
+    diagnostic.message = "modules with name '" + conflict.moduleName +
+        "' in dependency tree are conflicted. If existing dependency was updated in cjpm.toml then do `cjpm update`";
+    diagnostic.range = {
+        {file.package->begin.fileID, file.package->begin.line - 1, file.package->begin.column - 1},
+        {file.package->end.fileID, file.package->end.line - 1, file.package->end.column - 1}
+    };
+    diagnostic.severity = 1;
+    diagnostic.source = "Cangjie";
+    callback->UpdateDiagnostic(file.filePath, diagnostic);
 }
 
 bool CompilerCangjieProject::CheckPackageModifier(const File &needCheckedFile, const std::string &fullPackageName)

@@ -211,6 +211,8 @@ private:
 
     bool IsBuildScriptContext();
 
+    bool HasSourceModuleNameConflict(ark::ModuleNameConflict &conflict);
+
     std::string GetCurrentModuleName();
 };
 } // namespace Cangjie

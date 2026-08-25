@@ -346,10 +346,20 @@ void SymbolCollector::Build(const Package &package, const std::string &packagePa
 {
     Preamble(package);
     std::unordered_set<Ptr<InheritableDecl>> inheritableDecls;
+    std::vector<const File *> uncoveredFiles;
     (void)scopes.emplace_back(&package, package.fullPackageName + ":");
     AccessLevel pkgAccess = package.accessible;
     for (auto &file : package.files) {
+        if (!packagePath.empty() && !IsUnderPath(packagePath, file->curFile->filePath)) {
+            uncoveredFiles.emplace_back(file.get());
+            continue;
+        }
         ProcessFile(*file, packagePath, pkgAccess, inheritableDecls);
+    }
+    // Collect the current path first so symbolRefMap contains the refreshed symbol IDs.
+    // Only then inherit symbols from source files not covered by this incremental build.
+    for (const auto *file : uncoveredFiles) {
+        SetUpstreamUncoveredSymbols(*file);
     }
     scopes.pop_back();
     CollectRelations(inheritableDecls);
@@ -360,8 +370,6 @@ void SymbolCollector::ProcessFile(const File& file, const std::string& packagePa
 {
     auto filePath = file.curFile->filePath;
     if (!packagePath.empty() && !IsUnderPath(packagePath, filePath)) {
-        // need to set upstream symbols which is not covered into cur pkg symbol map
-        SetUpstreamUncoveredSymbols(file);
         return;
     }
 

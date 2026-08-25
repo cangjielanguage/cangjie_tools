@@ -21,6 +21,7 @@ set(UNIT_TESTS_SRC
         languageserver/common/BasicHelperTest.cpp
         languageserver/common/FindDeclUsageTest.cpp
         languageserver/common/ItemResolverUtilTest.cpp
+        languageserver/common/ModuleManagerTest.cpp
         languageserver/common/PositionResolverTest.cpp
         languageserver/common/SyscapCheckTest.cpp
         languageserver/common/UtilsTest.cpp
