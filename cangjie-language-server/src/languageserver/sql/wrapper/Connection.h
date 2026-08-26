@@ -190,7 +190,8 @@ void Connection::scalar(const std::string &Name, Function F)
 {
     auto Scalar = new impl::Scalar<Function>({std::move(F)});
     int RC = sqlite::create_scalar(DB, Name.c_str(), traits::function<Function>::arity,
-        sqlite::UTF8 | sqlite::Deterministic | sqlite::Innocuous, Scalar,
+        static_cast<unsigned int>(sqlite::UTF8) | static_cast<unsigned int>(sqlite::Deterministic) |
+            static_cast<unsigned int>(sqlite::Innocuous), Scalar,
         impl::scalar<std::remove_reference_t<decltype(*Scalar)>>,
         [](void *P) { delete static_cast<decltype(Scalar)>(P); });
 #ifndef NO_EXCEPTIONS
@@ -205,7 +206,8 @@ void Connection::aggregate(const std::string &Name, Step S, Final F)
 {
     auto Aggregate = new impl::Aggregate<Step, Final>({std::move(S), std::move(F)});
     int RC = sqlite::create_aggregate(DB, Name.c_str(), traits::function<Step>::arity - 1,
-        sqlite::UTF8 | sqlite::Deterministic | sqlite::DirectOnly, Aggregate,
+        static_cast<unsigned int>(sqlite::UTF8) | static_cast<unsigned int>(sqlite::Deterministic) |
+            static_cast<unsigned int>(sqlite::DirectOnly), Aggregate,
         impl::step<std::remove_reference_t<decltype(*Aggregate)>>,
         impl::final<std::remove_reference_t<decltype(*Aggregate)>>,
         [](void *P) { delete static_cast<decltype(Aggregate)>(P); });
