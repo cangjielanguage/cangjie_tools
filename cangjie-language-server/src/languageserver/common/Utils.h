@@ -74,6 +74,8 @@ bool IsHiddenDecl(const Ptr<Node> node);
 
 bool IsFuncParameterTypesIdentical(const Cangjie::AST::FuncTy &t1, const Cangjie::AST::FuncTy& t2);
 
+bool IsFuncNamedParameterIdentical(const FuncDecl& fd1, const FuncDecl& fd2);
+
 bool IsMatchingCompletion(const std::string &prefix, const std::string &completionName, bool caseSensitive = false);
 
 std::string GetSortText(double score);

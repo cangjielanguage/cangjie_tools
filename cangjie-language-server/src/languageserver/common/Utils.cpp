@@ -95,6 +95,45 @@ bool IsFuncParameterTypesIdentical(const FuncTy &t1, const FuncTy &t2)
     return result;
 }
 
+// just check named param name and order is identical or not, type checking using IsFuncParameterTypesIdentical()
+bool IsFuncNamedParameterIdentical(const FuncDecl& fd1, const FuncDecl& fd2)
+{
+    if (!fd1.funcBody && !fd2.funcBody) {
+        return true;
+    }
+
+    if (!fd1.funcBody || !fd2.funcBody) {
+        return false;
+    }
+
+    if (fd1.funcBody->paramLists.size() != fd2.funcBody->paramLists.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < fd1.funcBody->paramLists.size(); i++) {
+        if (fd1.funcBody->paramLists[i]->params.size() != fd2.funcBody->paramLists[i]->params.size()) {
+            return false;
+        }
+        for (size_t j = fd1.funcBody->paramLists[i]->params.size(); j > 0; j--) {
+            auto& p1 = fd1.funcBody->paramLists[i]->params[j - 1];
+            auto& p2 = fd2.funcBody->paramLists[i]->params[j - 1];
+            if (!p1 || !p2) {
+                return false;
+            }
+            if (!p1->isNamedParam && !p2->isNamedParam) {
+                break;
+            }
+            if (!p1->isNamedParam || !p2->isNamedParam) {
+                return false;
+            }
+            if (p1->identifier != p2->identifier) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool IsMatchingCompletion(const std::string &prefix, const std::string &completionName, bool caseSensitive)
 {
     if (prefix.empty()) {
@@ -435,7 +474,8 @@ bool IsFuncSignatureIdentical(const Cangjie::AST::FuncDecl &funcDecl1, const Can
     }
     auto funcTy1 = dynamic_cast<FuncTy *>(funcDecl1.GetTy().get());
     auto funcTy2 = dynamic_cast<FuncTy *>(funcDecl2.GetTy().get());
-    if (!funcTy1 || !funcTy2 || !IsFuncParameterTypesIdentical(*funcTy1, *funcTy2) ||
+    if (!funcTy1 || !funcTy2 || !IsFuncNamedParameterIdentical(funcDecl1, funcDecl2) ||
+        !IsFuncParameterTypesIdentical(*funcTy1, *funcTy2) ||
         !(CheckTypeCompatibility(funcTy1->retTy, funcTy2->retTy) == TypeCompatibility::IDENTICAL)) {
         return false;
     }
