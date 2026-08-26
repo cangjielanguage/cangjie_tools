@@ -13,6 +13,7 @@ The overall architecture diagram of the Cangjie toolchain is as follows:
 As shown in the diagram, this warehouse provides the following cangjie tools:
 
 - Cangjie Project Manager （Abbreviated as `cjpm`）：used for managing the module system of Cangjie project, covering module initialization, dependency checking and updating operations, providing a unified compilation entry point, supporting incremental compilation, parallel compilation, etc.
+- Cangjie Compatibility Checker (abbreviated as `cjcompat`): compares Cangjie library `.cjo` files from different versions and checks API and ABI compatibility changes.
 - Cangjie Formatter （Abbreviated as `cjfmt`）: a code automatic formatting tool developed based on the Cangjie programming specification.
 - Cangjie HyperLang Extension （Abbreviated as `hle`）: cangjie calls the template auto generation tool for ArkTS interoperability code.
 - Cangjie Language Server （Abbreviated as `lsp`）: the server backend that provides Cangjie language services on the DevEco Studio needs to be used in conjunction with the DevEco Studio client.
@@ -31,14 +32,20 @@ Cangjie Language CLI Toolchain currently supports the following platforms: Windo
 │   ├── build                 # build script
 │   ├── doc                   # construction and usage guidelines
 │   └── src                   # source code
+├── cjcompat
+│   ├── build                 # build script
+│   ├── doc                   # developer guide
+│   ├── figures               # architecture diagrams
+│   ├── include               # header files
+│   └── src                   # source code
 ├── cjcov
 │   ├── build    # build script
-│   ├── doc      # construction and usage guidelines
+│   ├── doc      # developer guide
 │   └── src      # source code
 ├── cjfmt
 │   ├── build    # build script
 │   ├── config   # configuration file
-│   ├── doc      # construction and usage guidelines
+│   ├── doc      # developer guides
 │   ├── include  # configuration file
 │   └── src      # source code
 ├── cjhead
@@ -50,15 +57,15 @@ Cangjie Language CLI Toolchain currently supports the following platforms: Windo
 ├── cjlint
 │   ├── build    # build script
 │   ├── config   # configuration file
-│   ├── doc      # construction and usage guidelines
+│   ├── doc      # developer guide
 │   └── src      # source code
 ├── cjpm
 │   ├── build    # build script
-│   ├── doc      # construction and usage guidelines
+│   ├── doc      # developer guides
 │   └── src      # source code
 ├── cjprof
 │   ├── build    # build script
-│   ├── doc      # construction and usage guidelines
+│   ├── doc      # developer guides
 │   ├── figures  # architecture diagrams
 │   ├── include  # header files
 │   ├── src      # source code
@@ -73,18 +80,26 @@ Cangjie Language CLI Toolchain currently supports the following platforms: Windo
     └── src              # source code
 ```
 
-To get detailed information, please refer to the user guides in the corresponding doc directory.
+For usage details, refer to the user manuals maintained in the `cangjie_docs` repository:
+
+- [`cjpm` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjpm_manual.md)
+- [`cjprof` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjprof_manual.md)
+- [`cjcompat` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjcompat_manual.md)
+- [`cjlint` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjlint_manual.md)
+- [`cjfmt` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjfmt_manual.md)
+- [`cjcov` User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjcov_manual.md)
 
 Please refer to the following software architecture diagrams for the command-line tools:
 
-- [software architecture diagram for `cjpm`](./cjpm/doc/developer_guide.md#开源项目介绍)
-- [software architecture diagram for `cjfmt`](./cjfmt/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `cjpm`](./cjpm/doc/developer_guide.md#system-architecture)
+- [software architecture diagram for `cjcompat`](./cjcompat/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `cjfmt`](./cjfmt/doc/developer_guide.md#system-architecture)
 - [software architecture diagram for `cjhead`](./cjhead/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `hle`](./hyperlangExtension/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `lsp`](./cangjie-language-server/doc/developer_guide.md#开源项目介绍)
 - [software architecture diagram for `cjcov`](./cjcov/doc/developer_guide_zh.md#开源项目介绍)
 - [software architecture diagram for `cjlint`](./cjlint/doc/developer_guide_zh.md#开源项目介绍)
-- [software architecture diagram for `cjprof`](./cjprof/doc/developer_guide.md#开源项目介绍)
+- [software architecture diagram for `cjprof`](./cjprof/doc/developer_guide.md#introduction)
 - [software architecture diagram for `cjtrace-recover`](./cjtrace-recover/doc/developer_guide_zh.md#开源项目介绍)
 
 ## Construction Dependencies

@@ -32,7 +32,7 @@ cjfmt/
 |-- src
     |-- Format
         |-- DocProcessor    # Converts Doc struct to source code
-        |-- NodeFormatter    # Converts AST nodes to Doc struct
+        `-- NodeFormatter    # Converts AST nodes to Doc struct
 ```
 
 ## Installation and Usage Guide
@@ -43,7 +43,7 @@ cjfmt/
 
 ### Build Preparation
 
-`cjfmt` depends on `cjc` for building. Refer to [SDK Build]() for build instructions.
+`cjfmt` depends on `cjc` for building. Refer to [SDK Build](https://gitcode.com/Cangjie/cangjie_build/blob/dev/README.md) for build instructions.
 
 ### Build Steps
 

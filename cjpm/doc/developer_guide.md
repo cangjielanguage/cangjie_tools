@@ -44,7 +44,9 @@ cjpm/src
     - Developers need to download the `stdx` binary library for the target platform or compile it from `stdx` source code: To compile native platform artifacts, the `stdx` library must match the current platform; to cross-compile `Windows` platform artifacts from a `Linux` platform, the `stdx` library must be the `Windows` version.
     - Then, developers must configure the `stdx` binary library path in the environment variable `CANGJIE_STDX_PATH`. If downloading pre-built `stdx` binaries, the path is the `static/stdx` directory under the extracted library directory; if compiling from `stdx` source, the path is the `static/stdx` directory under the corresponding platform directory in the `target` output directory (e.g., `target/linux_x86_64_cjnative/static/stdx` for `Linux-x86`). Refer to [stdx Repository](https://gitcode.com/Cangjie/cangjie_stdx) for compiling `stdx` from source.
     - Additionally, if developers want to use `stdx` dynamic libraries as binary dependencies, they can replace `static` with `dynamic` in the above path configuration. `cjpm` compiled this way cannot run independently; to enable standalone execution, the same `stdx` library path must be added to the system dynamic library environment variables.
+- `CMake` (minimum version `3.10`) and `make` (`mingw32-make` is required when building on `Windows`).
 - If using the `python` build script method, install `python3`.
+- To build artifacts for `Windows`, download the [`llvm-mingw` toolchain](https://github.com/mstorsjo/llvm-mingw/releases/tag/20220906) for the target platform based on the `msvcrt` library, and set the `MINGW_PATH` environment variable to its path.
 
 ### Build Steps
 
@@ -164,6 +166,8 @@ Available subcommands:
   test             Unittest a local package or module
   bench            Run benchmarks in a local package or module
   clean            Clean up the target directory
+  bundle           Make distributable tarball of current module
+  publish          Publish a module to central repository
   install          Install a cangjie binary
   uninstall        Uninstall a cangjie binary
 
@@ -198,6 +202,7 @@ Example configuration:
 [package] # Single-module configuration (mutually exclusive with [workspace])
   cjc-version = "1.0.0" # Minimum required `cjc` version (required)
   name = "demo" # Module name and root package name (required)
+  organization = "" # Organization name (optional)
   description = "nothing here" # Description (optional)
   version = "1.0.0" # Module version (required)
   compile-option = "" # Additional compile options (optional)
@@ -206,7 +211,19 @@ Example configuration:
   output-type = "executable" # Output artifact type (required)
   src-dir = "" # Source directory path (optional)
   target-dir = "" # Output directory path (optional)
+  script-dir = "" # Build script artifact directory (optional)
   package-configuration = {} # Per-package configuration (optional)
+  include = ["src"] # Package inclusion patterns using gitignore-style globs (optional)
+  exclude = ["*.txt"] # Package exclusion patterns using gitignore-style globs (optional)
+
+  # Fields displayed for artifacts published to the central repository
+  authors = ["Tom", "Joan"] # Author IDs (optional)
+  repository = "" # Source repository URL (optional)
+  homepage = "" # Project homepage URL (optional)
+  documentation = "" # Documentation URL (optional)
+  tag = [] # Artifact tags (optional)
+  category = [] # Artifact categories (optional)
+  license = [] # License list (optional)
 
 [workspace] # Workspace configuration (mutually exclusive with [package])
   members = [] # Workspace member modules (required)
@@ -216,6 +233,7 @@ Example configuration:
   override-compile-option = "" # Workspace-wide global compile options (optional)
   link-option = "" # Workspace-wide linker options (optional)
   target-dir = "" # Output directory path (optional)
+  script-dir = "" # Build script artifact directory (optional)
 
 [dependencies] # Source dependencies (optional)
   coo = { git = "xxx", branch = "dev" } # Git dependency
@@ -300,7 +318,7 @@ Key configuration fields:
 
 In addition to the aforementioned commands and configuration items, `cjpm` also supports other features such as build scripts, command extensions, etc.
 
-For detailed information on all commands, configuration items, and additional features of `cjpm`, please refer to the [《Cangjie Project Manager User Guide》](./user_guide.md).
+For detailed information on all commands, configuration items, and additional features of `cjpm`, refer to the [Cangjie Project Manager User Manual](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjpm_manual.md) in the `cangjie_docs` repository.
 
 ## Related Repositories
 
