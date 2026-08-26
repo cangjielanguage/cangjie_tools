@@ -76,10 +76,16 @@ class InlineFunctionNoRecursiveRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
+        if (root == nullptr || !root->node) {
+            return false;
+        }
 
         auto toBeInline = root->node;
         if (root->node->astKind == ASTKind::FUNC_ARG) {
             auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            if (funcArg == nullptr || !funcArg->expr) {
+                return false;
+            }
             toBeInline = funcArg->expr;
         }
 
@@ -126,10 +132,16 @@ class InlineFunctionNoPrivateAccessRule : public TweakRule {
     bool Check(const Tweak::Selection &sel, std::map<std::string, std::string> &extraOptions) const override
     {
         auto root = sel.selectionTree.root();
+        if (root == nullptr || !root->node) {
+            return false;
+        }
 
         auto toBeInline = root->node;
         if (root->node->astKind == ASTKind::FUNC_ARG) {
             auto funcArg = DynamicCast<FuncArg*>(root->node.get());
+            if (funcArg == nullptr || !funcArg->expr) {
+                return false;
+            }
             toBeInline = funcArg->expr;
         }
 
