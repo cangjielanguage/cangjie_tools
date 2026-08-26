@@ -922,7 +922,6 @@ bool Dsl::HasUnimplementedInterface(const Node* i1, const Node* i2)
     if (Dsl::ClassDecl(i1) && !i1->TestAttr(Attribute::ABSTRACT)) {
         return false;
     }
-    bool hasUnImplemented = false;
     for (const auto& it2 : decl2->inheritedTypes) {
         if (!Dsl::IsInterface(it2)) {
             continue;

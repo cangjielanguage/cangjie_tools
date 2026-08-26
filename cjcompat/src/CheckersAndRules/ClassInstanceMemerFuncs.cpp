@@ -23,64 +23,18 @@ static std::vector<std::string> GetOpenInstanceMembers(Node* node, Dsl& dsl,
     return openFuncs;
 }
 
-static std::unordered_set<Node*> GetCallFuncsInFuncBody(Node* n)
-{
-    std::unordered_set<Node*> callFuncs;
-    auto fd = dynamic_cast<const FuncDecl*>(n);
-    if (!fd) {
-        return callFuncs;
-    }
-    auto fb = fd->funcBody.get();
-
-    ConstWalker(fb, [&callFuncs](auto node) {
-        if (auto re = DynamicCast<RefExpr*>(node); re && re->GetTarget()) {
-            auto target = re->GetTarget();
-            if (target->IsFunc()) {
-                callFuncs.emplace(target);
-            }
-        }
-        return VisitAction::WALK_CHILDREN;
-    }).Walk();
-    return callFuncs;
-}
-
-static std::unordered_set<Node*> GetRefClassMembers(Node* node)
-{
-    std::unordered_set<Node*> memberDecls;
-    auto x = dynamic_cast<Decl*>(node);
-    if (!x) {
-        return memberDecls;
-    }
-    auto predicate = [] (const OwnedPtr<Decl>& x) {
-        return Dsl::Func(x.get())
-            && !x->TestAnyAttr(Attribute::CONSTRUCTOR)
-            && x->TestAnyAttr(Attribute::PUBLIC, Attribute::PROTECTED)
-            && (x->HasAnno(AnnotationKind::FROZEN) || x->IsConst());
-    };
-    for (auto &member : x->GetMemberDecls()) {
-        if (predicate(member)) {
-            for (auto &ref : GetCallFuncsInFuncBody(member.get())) {
-                memberDecls.emplace(ref);
-            }
-        }
-    }
-    return memberDecls;
-}
-
 static void CheckClassOpenInstanceMemberOrder(Dsl& dsl, Logger& logger, const Checker& checker, bool& checkerResult,
     Node* c1, Node* c2, bool checkFunc)
 {
-    auto refMembers1 = GetRefClassMembers(c1);
-    auto refMembers2 = GetRefClassMembers(c2);
-    auto predicate = [&dsl, checkFunc] (const std::unordered_set<Node*>& refMembers) {
+    auto predicate = [&dsl, checkFunc] () {
         return [&dsl, checkFunc] (const OwnedPtr<Decl>& x) {
             return (checkFunc ? dsl.Func(x.get()) : dsl.PropDecl(x.get()))
                 && !x->TestAnyAttr(Attribute::CONSTRUCTOR)
                 && x->TestAnyAttr(Attribute::OPEN, Attribute::ABSTRACT);
         };
     };
-    auto oldMembers = GetOpenInstanceMembers(c1, dsl, predicate(refMembers1));
-    auto newMembers = GetOpenInstanceMembers(c2, dsl, predicate(refMembers2));
+    auto oldMembers = GetOpenInstanceMembers(c1, dsl, predicate());
+    auto newMembers = GetOpenInstanceMembers(c2, dsl, predicate());
     bool checked = false;
     BEGIN_FORALL(i, dsl.Range(0, oldMembers.size()), oldMembers.size() == newMembers.size())
         CHECK(checkFunc ? RuleKind::CLASS_OPEN_INSTANCE_MEMBER_FUNCS_ORDER_CHANGED :
