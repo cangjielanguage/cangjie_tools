@@ -109,12 +109,13 @@ void result_null(sqlite3_context *C) { sqlite3_result_null(C); }
 int create_scalar(sqlite3 *DB,
     const char *Name,
     int ArgsNum,
-    int Flags,
+    unsigned int Flags,
     void *AppData,
     void (*Function)(sqlite3_context *, int, sqlite3_value **),
     void (*Destroy)(void *))
 {
-    return sqlite3_create_function_v2(DB, Name, ArgsNum, Flags, AppData, Function, nullptr, nullptr, Destroy);
+    return sqlite3_create_function_v2(DB, Name, ArgsNum, static_cast<int>(Flags), AppData, Function, nullptr,
+        nullptr, Destroy);
 }
 
 void *user_data(sqlite3_context *C) { return sqlite3_user_data(C); }
@@ -122,13 +123,14 @@ void *user_data(sqlite3_context *C) { return sqlite3_user_data(C); }
 int create_aggregate(sqlite3 *DB,
     const char *Name,
     int ArgsNum,
-    int Flags,
+    unsigned int Flags,
     void *AppData,
     void (*Step)(sqlite3_context *, int, sqlite3_value **),
     void (*Final)(sqlite3_context *),
     void (*Destroy)(void *))
 {
-    return sqlite3_create_function_v2(DB, Name, ArgsNum, Flags, AppData, nullptr, Step, Final, Destroy);
+    return sqlite3_create_function_v2(DB, Name, ArgsNum, static_cast<int>(Flags), AppData, nullptr, Step, Final,
+        Destroy);
 }
 
 void *aggregate_context(sqlite3_context *C, int N) { return sqlite3_aggregate_context(C, N); }
@@ -173,6 +175,9 @@ int create_tokenizer(sqlite3 *DB,
     int RC = getApiFromDB(DB, &API);
     if (RC != SQLITE_OK) {
         return RC;
+    }
+    if (API == nullptr) {
+        return SQLITE_ERROR;
     }
     fts5_tokenizer Tok;
     Tok.xCreate = createTokenizer;

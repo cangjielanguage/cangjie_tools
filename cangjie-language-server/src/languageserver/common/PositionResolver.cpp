@@ -464,7 +464,7 @@ void PositionUTF8ToIDE(const std::vector<Cangjie::Token> &tokens, Cangjie::Posit
 
 int CountUnicodeCharacters(const std::string& utf8Str)
 {
-    int rawLength = utf8Str.length();
+    int rawLength = static_cast<int>(utf8Str.length());
     int length = 0;
     int i = 0;
     int oneByte = 1;

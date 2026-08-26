@@ -8,6 +8,7 @@
 #include <cangjie/Utils/FileUtil.h>
 #include <fstream>
 #include <sstream>
+#include "../common/FileStore.h"
 #include "Logger.h"
 #ifdef _WIN32
 #include <windows.h>
@@ -40,7 +41,8 @@ void KernelLogHandler(const std::thread::id &threadId)
 {
     std::string baseDir = ark::Logger::GetLogPath();
     std::string dotLogDir = Cangjie::FileUtil::JoinPath(baseDir, ".log");
-    std::ofstream ofs{dotLogDir + ark::FILE_SEPARATOR + "kernelLog.txt", std::ios::app};
+    std::ofstream ofs{ark::FileStore::NormalizePath(dotLogDir + ark::FILE_SEPARATOR + "kernelLog.txt"),
+        std::ios::app};
     std::stringstream log;
 
     if (ark::Logger::kernelLog.find(threadId) != ark::Logger::kernelLog.end()) {

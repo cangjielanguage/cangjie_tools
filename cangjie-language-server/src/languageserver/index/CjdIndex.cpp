@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include "CjdIndex.h"
+#include "../common/FileStore.h"
 
 namespace Cangjie {
 // LCOV_EXCL_START
@@ -330,7 +331,7 @@ void CjdIndexer::GenerateValidFile()
 {
     Trace::Log("Generate Cjd Index Valid Files Start");
     std::ofstream validFile;
-    validFile.open(Normalize(JoinPath(cjdCachePath, "valid.txt")));
+    validFile.open(FileStore::NormalizePath(JoinPath(cjdCachePath, "valid.txt")));
     if (!validFile.is_open()) {
         Trace::Log("Create cjd index files valid file failed");
     }

@@ -2608,8 +2608,10 @@ void CompilerCangjieProject::StorePackageCache(const std::string& pkgName)
         shard.reExportSymbols = &memIndex->pkgReExportSymsMap[pkgName];
         cacheManager->StoreIndexShard(pkgName, shardIdentifier, shard);
     }
-    cacheManager->Store(
-        pkgName, Digest(GetPathFromPkg(pkgName)), *cjoManager->GetData(pkgName));
+    auto cjoData = cjoManager->GetData(pkgName);
+    if (cjoData != nullptr) {
+        cacheManager->Store(pkgName, Digest(GetPathFromPkg(pkgName)), *cjoData);
+    }
 }
 // LCOV_EXCL_STOP
 void CompilerCangjieProject::BuildIndex(const std::unique_ptr<LSPCompilerInstance> &ci, bool isFullCompilation)
@@ -3089,7 +3091,7 @@ std::string CompilerCangjieProject::GetFinalDownStreamFullPkgName(const std::str
         return pkgName;
     }
     std::vector<std::string> sourceSetGraph = GetCommonSpecificSourceSetGraph(realPkgName);
-    for (int i = sourceSetGraph.size() - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(sourceSetGraph.size()) - 1; i >= 0; i--) {
         std::string sourceSetName = sourceSetGraph[i];
         std::string finalDownStreamFullPkgName = sourceSetName + "-" + realPkgName;
         if (pkgInfoMap.find(finalDownStreamFullPkgName) != pkgInfoMap.end()) {

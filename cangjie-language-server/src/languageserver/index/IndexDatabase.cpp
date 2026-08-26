@@ -59,12 +59,12 @@ constexpr int DIGEST_INDEX = 3;
 
 auto Line(Position &pos)
 {
-    return [&](uint32_t line) { pos.line = line; };
+    return [&](uint32_t line) { pos.line = static_cast<int>(line); };
 }
 
 auto Column(Position &pos)
 {
-    return [&](uint32_t column) { pos.column = column; };
+    return [&](uint32_t column) { pos.column = static_cast<int>(column); };
 }
 
 uint64_t GetIDFromArray(IDArray info)

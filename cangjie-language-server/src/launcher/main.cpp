@@ -70,7 +70,7 @@ ark::Environment StringifyEnvironmentPointer(const char *envp[])
 void WriteVersionInfo(const std::string &validFile)
 {
     std::ofstream versionInfo;
-    versionInfo.open(validFile);
+    versionInfo.open(ark::FileStore::NormalizePath(validFile));
     if (!versionInfo.is_open()) {
         Trace::Log("Create index version file failed");
     }

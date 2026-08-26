@@ -10,7 +10,8 @@ namespace ark {
 std::unordered_set<TokenKind> FileRefactor::ReExportKinds = 
     {TokenKind::INTERNAL, TokenKind::PROTECTED, TokenKind::PUBLIC};
 
-FileRefactor::FileRefactor(FileRefactorRespParams &result): result(result)
+FileRefactor::FileRefactor(FileRefactorRespParams &result)
+    : result(result), kind(FileRefactorKind::RefactorMoveFile), moveDir(false)
 {
     InitMatcher();
 }
