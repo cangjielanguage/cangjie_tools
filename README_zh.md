@@ -80,7 +80,7 @@
     └── src              # 源码
 ```
 
-工具使用说明统一由 `cangjie_docs` 仓维护，请参阅：
+若想获取工具的详细信息，请参阅以下用户指南：
 
 - [`cjpm` 用户手册](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_zh_cn/cmd-tools/cjpm_manual.md)
 - [`cjprof` 用户手册](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_zh_cn/cmd-tools/cjprof_manual.md)
@@ -88,6 +88,8 @@
 - [`cjlint` 用户手册](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_zh_cn/cmd-tools/cjlint_manual.md)
 - [`cjfmt` 用户手册](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_zh_cn/cmd-tools/cjfmt_manual.md)
 - [`cjcov` 用户手册](https://gitcode.com/Cangjie/cangjie_docs/blob/main/docs/tools/source_zh_cn/cmd-tools/cjcov_manual.md)
+
+其他工具的用户指南请参阅各工具的 `doc` 目录。
 
 每个工具对应的软件架构图请参考：
 
