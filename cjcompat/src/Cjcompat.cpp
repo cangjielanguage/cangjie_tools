@@ -6,6 +6,11 @@
 
 #include "cjcompat/Cjcompat.h"
 
+#include "cjcompat/CjoLoader/CjoLoader.h"
+#include "cjcompat/Diff/Diff.h"
+#include "cjcompat/Dsl/Dsl.h"
+#include "cjcompat/CheckersAndRules/Checker.h"
+
 using namespace Cangjie;
 
 namespace CjComplienceChecker {

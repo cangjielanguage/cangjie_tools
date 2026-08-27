@@ -10,13 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "cangjie/AST/PrintNode.h"
-
 #include "cjcompat/Option/Option.h"
-#include "cjcompat/CheckersAndRules/Checker.h"
-#include "cjcompat/CjoLoader/CjoLoader.h"
-#include "cjcompat/Diff/Diff.h"
-#include "cjcompat/Dsl/Dsl.h"
 
 using namespace CjComplienceChecker;
 namespace CjComplienceChecker {

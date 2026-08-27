@@ -73,6 +73,7 @@ static size_t HashBody(Decl& decl)
     auto paramList = MakeOwned<FuncParamList>();
     fd->funcBody->paramLists.emplace_back(std::move(paramList));
     fd->funcBody->body = AST::ASTCloner::Clone(funcbody->body.get(), [](const Node& src, Node& cloned) {
+        (void)src;
         if (cloned.astKind == AST::ASTKind::REF_EXPR) {
             auto re = static_cast<RefExpr*>(&cloned);
             if (re->ref.target) {
@@ -672,11 +673,17 @@ std::string Diff::PrettyPrintNode(Ptr<const Cangjie::AST::Node> node)
         [&res](const AST::MacroExpandParam& macroExpand) {
             res = "MacroExpandParam " + macroExpand.identifier.GetRawText();
         },
-        [&res](const AST::FuncParamList& paramList) { res = "FuncParamList "; },
+        [&res](const AST::FuncParamList& paramList) {
+            (void)paramList;
+            res = "FuncParamList ";
+        },
         [&res](const AST::MainDecl& mainDecl) { res = "MainDecl " + mainDecl.identifier.GetRawText(); },
         [&res](const AST::FuncDecl& funcDecl) { res = "FuncDecl " + funcDecl.identifier.GetRawText(); },
         [&res](const AST::MacroDecl& macroDecl) { res = "MacroDecl " + macroDecl.identifier.GetRawText(); },
-        [&res](const AST::FuncBody& body) { res = "FuncBody "; },
+        [&res](const AST::FuncBody& body) {
+            (void)body;
+            res = "FuncBody ";
+        },
         [&res](const AST::PropDecl& propDecl) { res = "PropDecl " + propDecl.identifier.GetRawText(); },
         [&res](const AST::MacroExpandDecl& macroExpand) {
             res = "MacroExpandDecl " + macroExpand.identifier.GetRawText();

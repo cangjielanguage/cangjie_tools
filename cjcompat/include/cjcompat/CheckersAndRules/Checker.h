@@ -13,7 +13,6 @@
 #include "cjcompat/Diff/Diff.h"
 #include "cjcompat/Dsl/Dsl.h"
 #include "cjcompat/Logger/Logger.h"
-#include "cjcompat/CheckersAndRules/CheckersList.inc"
 
 class Checker {
 public:

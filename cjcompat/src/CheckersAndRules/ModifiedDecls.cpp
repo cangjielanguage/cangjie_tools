@@ -15,7 +15,10 @@ static std::vector<Ptr<Decl>> GetEnumConstructors(Node* n)
     }
     auto ed = static_cast<AST::EnumDecl*>(n);
     std::copy_if(ed->constructors.begin(), ed->constructors.end(),
-        std::back_inserter(res), [](auto& arg) { return true; });
+        std::back_inserter(res), [](auto& arg) {
+            (void)arg;
+            return true;
+        });
     return res;
 }
 }

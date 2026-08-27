@@ -9,9 +9,6 @@
 
 #include <string>
 
-#include "cjcompat/Diff/Diff.h"
-#include "cjcompat/Dsl/Dsl.h"
-
 enum class RuleKind : size_t {
 #define RULEKIND(ID, IS_API, IS_ABI, DESCRIPTION) ID,
 #include "cjcompat/CheckersAndRules/RulesList.inc"
@@ -61,7 +58,7 @@ const static std::vector<Rule> RULE_KIND_2_RULE{
 #undef RULEKIND
 };
 
-const static Rule& GetRule(RuleKind kind)
+const inline Rule& GetRule(RuleKind kind)
 {
     return RULE_KIND_2_RULE[static_cast<size_t>(kind)];
 }
