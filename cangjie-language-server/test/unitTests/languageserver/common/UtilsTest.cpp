@@ -594,20 +594,17 @@ TEST(UtilsTest, UtilsTest069) {
 class FakeNode4InterpolatedStrInRename : public AST::Node {
 public:
     FakeNode4InterpolatedStrInRename(const std::string &s, const Position &nodeBegin)
-        : AST::Node(ASTKind::DECL), text_(s), begin_(nodeBegin)
-    {}
+        : AST::Node(ASTKind::DECL), text_(s)
+    {
+        begin = nodeBegin;
+    }
 
     std::string ToString() const override {
         return text_;
     }
 
-    Position GetBegin() const {
-        return begin_;
-    }
-
 private:
     std::string text_;
-    Position    begin_;
 };
 
 // Helper: make a Token with explicit begin/end
@@ -732,6 +729,57 @@ TEST(UtilsTest, UtilsTest076) {
     Position pos{5,5,13};
 
     SetRangForInterpolatedStrInRename(tok, node, range, pos);
+
+    EXPECT_EQ(range.start, (Position{5, 5, 10}));
+    EXPECT_EQ(range.end, (Position{5, 5, 18}));
+}
+
+TEST(UtilsTest, SetRangeForUnicodeIdentifierAtEveryCharacter) {
+    Position begin{6, 8, 15};
+    Token tok = MakeToken(TokenKind::STRING_LITERAL, {6, 8, 12}, {6, 8, 29});
+    Ptr<const AST::Node> node(new FakeNode4InterpolatedStrInRename("清风明月", begin));
+
+    for (int column : {15, 18, 21, 24}) {
+        ark::Range range{{0, 0, 0}, {0, 0, 0}};
+        SetRangForInterpolatedStrInRename(tok, node, range, {6, 8, column});
+        EXPECT_EQ(range.start, (Position{6, 8, 15}));
+        EXPECT_EQ(range.end, (Position{6, 8, 19}));
+    }
+}
+
+TEST(UtilsTest, SetRangeForMixedUnicodeIdentifier) {
+    Token tok = MakeToken(TokenKind::STRING_LITERAL, {7, 3, 1}, {7, 3, 40});
+    Ptr<const AST::Node> node(new FakeNode4InterpolatedStrInRename("前缀.${清风_2026}后缀", {7, 3, 1}));
+    ark::Range range{{0, 0, 0}, {0, 0, 0}};
+
+    // The identifier starts after 3-byte '前', 3-byte '缀', '.', '$' and '{'.
+    SetRangForInterpolatedStrInRename(tok, node, range, {7, 3, 17});
+
+    EXPECT_EQ(range.start, (Position{7, 3, 10}));
+    EXPECT_EQ(range.end, (Position{7, 3, 17}));
+}
+
+TEST(UtilsTest, SetRangeForSupplementaryUnicodeIdentifier) {
+    const std::string identifier = "\xF0\x90\x90\x80name"; // U+10400 followed by ASCII letters.
+    Token tok = MakeToken(TokenKind::STRING_LITERAL, {8, 4, 5}, {8, 4, 20});
+    Ptr<const AST::Node> node(new FakeNode4InterpolatedStrInRename(identifier, {8, 4, 5}));
+    ark::Range range{{0, 0, 0}, {0, 0, 0}};
+
+    SetRangForInterpolatedStrInRename(tok, node, range, {8, 4, 9});
+
+    EXPECT_EQ(range.start, (Position{8, 4, 5}));
+    EXPECT_EQ(range.end, (Position{8, 4, 11}));
+}
+
+TEST(UtilsTest, SetRangeDoesNotCrossUnicodePunctuation) {
+    Token tok = MakeToken(TokenKind::STRING_LITERAL, {9, 2, 1}, {9, 2, 30});
+    Ptr<const AST::Node> node(new FakeNode4InterpolatedStrInRename("清风、明月", {9, 2, 1}));
+    ark::Range range{{0, 0, 0}, {0, 0, 0}};
+
+    SetRangForInterpolatedStrInRename(tok, node, range, {9, 2, 10});
+
+    EXPECT_EQ(range.start, (Position{9, 2, 10}));
+    EXPECT_EQ(range.end, (Position{9, 2, 12}));
 }
 
 

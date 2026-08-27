@@ -41,6 +41,16 @@ namespace TestLspRename {
             return false;
         }
 
+        if (!param.preId.empty()) {
+            nlohmann::json expectPrepare = ReadFileById(p->messagePath + "/" + param.baseFile, param.preId);
+            nlohmann::json actualPrepare = ReadFileById(p->pathOut, param.preId);
+            if (expectPrepare != actualPrepare) {
+                std::cout << "prepareRename result is different" << std::endl;
+                ShowDiff(expectPrepare, actualPrepare, param, p->messagePath);
+                return false;
+            }
+        }
+
         /* Check the test case result. */
         std::vector<TextDocumentEditInfo> expect = ReadTextDocumentEditVector(testFile, param.baseFile, rootUri, isMultiModule);
         std::vector<TextDocumentEditInfo> actual = CreateTextDocumentEditStruct(ReadFileById(p->pathOut, param.id));
