@@ -35,7 +35,7 @@ public:
 
 #define CHECK(rule, expr, symbols...)                                                                                  \
     do {                                                                                                               \
-        assert(checker.Checks(rule) && "Rule does not belong to checker!");                                            \
+        (void)checker;assert(checker.Checks(rule) && "Rule does not belong to checker!");                              \
         if ((Rules::GetRule(rule).IsAPI() && dsl.checkAPI) || (Rules::GetRule(rule).IsABI() && dsl.checkABI)) {        \
             auto result = expr;                                                                                        \
             checkerResult = checkerResult && result;                                                                   \
