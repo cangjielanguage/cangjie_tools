@@ -11,6 +11,16 @@ using namespace Cangjie;
 using namespace Cangjie::AST;
 
 namespace {
+static std::vector<Ptr<Ty>> ToDataTys(const std::vector<ModalTy>& modalTys)
+{
+    std::vector<Ptr<Ty>> dataTys;
+    dataTys.reserve(modalTys.size());
+    for (const auto& modalTy : modalTys) {
+        dataTys.emplace_back(modalTy.Ty());
+    }
+    return dataTys;
+}
+
 static Ptr<Ty> GetTyFromASTType(TypeManager& typeManager, const Ty* ty, const std::vector<Ptr<Ty>>& typeArgs)
 {
     auto pDecl = Ty::GetDeclOfTy(ty);
@@ -37,7 +47,7 @@ static Ptr<Ty> GetTyFromASTType(TypeManager& typeManager, const Ty* ty, const st
         default:
             break;
     }
-    return pDecl->GetTy();
+    return pDecl->GetTy().Ty();
 }
 
 static std::string GetTypeName(TypeManager& typeManager, const Ty* ty, const std::vector<Ptr<Ty>>& typeArgs = {})
@@ -56,19 +66,19 @@ static std::string GetTypeName(TypeManager& typeManager, const Ty* ty, const std
         if (!aliasTy->declPtr || !aliasTy->declPtr->type || !aliasTy->declPtr->type->GetTy()) {
             return tystr;
         }
-        return GetTypeName(typeManager, aliasTy->declPtr->type->GetTy(), ty->typeArgs);
+        return GetTypeName(typeManager, aliasTy->declPtr->type->GetTy().Ty(), ToDataTys(ty->typeArgs));
     }
     if (ty->kind == TypeKind::TYPE_FUNC) {
         auto funcTy = static_cast<const FuncTy*>(ty);
         std::string str{"("};
         for (auto& paramTy : funcTy->paramTys) {
             if (&paramTy == &funcTy->paramTys.back()) {
-                str += GetTypeName(typeManager, paramTy, typeArgs);
+                str += GetTypeName(typeManager, paramTy.Ty(), typeArgs);
             } else {
-                str += GetTypeName(typeManager, paramTy, typeArgs) + ", ";
+                str += GetTypeName(typeManager, paramTy.Ty(), typeArgs) + ", ";
             }
         }
-        str = str + ") -> " + GetTypeName(typeManager, funcTy->retTy, typeArgs);
+        str = str + ") -> " + GetTypeName(typeManager, funcTy->retTy.Ty(), typeArgs);
         return funcTy->IsCFunc() ? "CFunc<" + str + ">" : str;
     }
     if (ty->HasGeneric() && ty->typeArgs.size() == typeArgs.size()) {
@@ -472,8 +482,8 @@ bool Dsl::SameFunc(Node* n1, Node* n2)
     }
     auto paramNum = fd1->funcBody->paramLists[0]->params.size();
     for (size_t i = 0; i < paramNum; i++) {
-        if (!SameType(fd1->funcBody->paramLists[0]->params[i]->GetTy(),
-            fd2->funcBody->paramLists[0]->params[i]->GetTy())) {
+        if (!SameType(fd1->funcBody->paramLists[0]->params[i]->GetTy().get(),
+            fd2->funcBody->paramLists[0]->params[i]->GetTy().get())) {
             return false;
         }
     }
@@ -670,7 +680,7 @@ bool Dsl::SameNamelessDecl(const Node* x1, const Node* x2, bool isClass)
         }
         return false;
     }
-    if (!SameType(x1->GetTy(), x2->GetTy())) {
+    if (!SameType(x1->GetTy().get(), x2->GetTy().get())) {
         return false;
     }
     if (IsInitialized(x1) && IsInitialized(x2) && VarLetOrConst(x1)) {
@@ -685,7 +695,7 @@ bool Dsl::SameVarValue(const Node* x1, const Node* x2)
     CJC_ASSERT(v1 != nullptr);
     auto v2 = dynamic_cast<const VarDecl*>(x2);
     CJC_ASSERT(v2 != nullptr);
-    if (!Subtype(v1->GetTy(), v2->GetTy()) && !IsParentType(v1->GetTy(), v2->GetTy())) {
+    if (!Subtype(v1->GetTy().get(), v2->GetTy().get()) && !IsParentType(v1->GetTy().get(), v2->GetTy().get())) {
         return false;
     }
     if (auto litConstExpr1 = dynamic_cast<LitConstExpr*>(v1->initializer.get().get()); litConstExpr1) {
@@ -762,7 +772,10 @@ bool Dsl::IsConst(const Node* x)
 
 bool Dsl::IsClass(const OwnedPtr<Type>& x)
 {
-    return x && x->GetTy() && x->GetTy()->kind == TypeKind::TYPE_CLASS && Ty::ToString(x->GetTy()) != "Class-Object";
+    if (!x || !x->GetTy() || x->TyKind() != TypeKind::TYPE_CLASS) {
+        return false;
+    }
+    return Ty::ToString(x->DataTy()) != "Class-Object";
 }
 
 bool Dsl::IsInterface(const OwnedPtr<Type>& x)
@@ -813,7 +826,7 @@ Ty* Dsl::AliasTargetTy(const Node* n)
     if (!n || n->astKind != ASTKind::TYPE_ALIAS_DECL) {
         return nullptr;
     }
-    return static_cast<const TypeAliasDecl*>(n)->type->GetTy();
+    return static_cast<const TypeAliasDecl*>(n)->type->GetTy().get();
 }
 
 Ty* Dsl::TypeOf(const Node* n)

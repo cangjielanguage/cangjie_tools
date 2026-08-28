@@ -179,7 +179,7 @@ static bool CheckConstructorParam(
             if (!p1 || !p2) {
                 continue;
             }
-            if (!dsl.SameType(p1->GetTy(), p2->GetTy()) || dsl.NameOfParam(p1) != dsl.NameOfParam(p2)) {
+            if (!dsl.SameType(p1->DataTy(), p2->DataTy()) || dsl.NameOfParam(p1) != dsl.NameOfParam(p2)) {
                 sameParamType = false;
                 break;
             }
@@ -748,7 +748,7 @@ void CheckerImpl::CheckFuncParams(
             continue;
         }
         auto sameName = dsl.NameOfParam(p1) == dsl.NameOfParam(p2);
-        auto sameType = dsl.SameType(p1->GetTy(), p2->GetTy());
+        auto sameType = dsl.SameType(p1->DataTy(), p2->DataTy());
         if (dsl.IsNamedParam(p1)) {
             // The named parameter of function has been changed to unnamed parameter.
             CHECK(RuleKind::FUNC_PARAMETER_NAMED_TO_UNNAMED, dsl.IsNamedParam(p2), f1, f2, p1, p2);
@@ -786,7 +786,7 @@ void CheckerImpl::CheckFuncParams(
             }
             // Change the parameter type from A to B.
             // API: compatible when B is the parent type of A; conversely, incompatible. ABI: incompatible.
-            if (dsl.IsParentType(p2->GetTy(), p1->GetTy())) {
+            if (dsl.IsParentType(p2->DataTy(), p1->DataTy())) {
                 CHECK(RuleKind::FUNC_CHANGE_TYPE_OF_PARAMETER, false, f1, f2, p1, p2);
             } else {
                 CHECK(RuleKind::FUNC_CHANGE_TYPE_OF_PARAMETER_NOT_PARENT_TYPE, false, f1, f2, p1, p2);
@@ -917,7 +917,8 @@ bool CheckerImpl::StructMemberPropDeletedOrChanged(
             CHECK(RuleKind::STRUCT_MEMBER_PROP_ANNO_CHANGED2,
                 !IsFrozenAnnotationDeleted(dsl, p1, p2), p1, p2);
             // The return type of member property has been changed.
-            CHECK(RuleKind::STRUCT_MEMBER_PROP_RETURN_TYPE_CHANGED, dsl.SameType(p1->GetTy(), p2->GetTy()), p1, p2);
+            CHECK(RuleKind::STRUCT_MEMBER_PROP_RETURN_TYPE_CHANGED,
+                dsl.SameType(p1->DataTy(), p2->DataTy()), p1, p2);
             // The funcbody of getter/setter in member property has been changed.
             NodeInfo propInfo{p1, p2};
             CheckPropBodyChanged(dsl, logger, checker, checkerResult, propInfo);
@@ -1032,7 +1033,8 @@ bool CheckerImpl::EnumMemberPropDeletedOrChanged(
             // The annotation(Frozen) of member property has been deleted.
             CHECK(RuleKind::ENUM_MEMBER_PROP_ANNO_CHANGED2, !IsFrozenAnnotationDeleted(dsl, p1, p2), p1, p2);
             // The return type of member property has been changed.
-            CHECK(RuleKind::ENUM_MEMBER_PROP_RETURN_TYPE_CHANGED, dsl.SameType(p1->GetTy(), p2->GetTy()), p1, p2);
+            CHECK(RuleKind::ENUM_MEMBER_PROP_RETURN_TYPE_CHANGED,
+                dsl.SameType(p1->DataTy(), p2->DataTy()), p1, p2);
             // The funcbody of getter/setter in member property has been changed.
             NodeInfo propInfo{p1, p2};
             CheckPropBodyChanged(dsl, logger, checker, checkerResult, propInfo);
@@ -1075,7 +1077,8 @@ bool CheckerImpl::ClassInstanceMemberPropRetTypeOrBodyChanged(
         BEGIN_FORALL(p1, diff.GetDomPotentiallyMemberModified(c1), dsl.PropDecl(p1) && diff.ModuleVisible(p1));
             LETIF(p2, dsl.Corresponding(p1, diff.GetPotentiallyMemberModified(c1)), dsl.PropDecl(p2))
             // The return type of member property has been changed.
-            CHECK(RuleKind::CLASS_INSTANCE_MEMBER_PROP_RETURN_TYPE_CHANGED, dsl.SameType(p1->GetTy(), p2->GetTy()), p1, p2);
+            CHECK(RuleKind::CLASS_INSTANCE_MEMBER_PROP_RETURN_TYPE_CHANGED,
+                dsl.SameType(p1->DataTy(), p2->DataTy()), p1, p2);
             // The funcbody of getter/setter in member property has been changed.
             NodeInfo propInfo{p1, p2};
             CheckPropBodyChanged(dsl, logger, checker, checkerResult, propInfo);
@@ -1163,7 +1166,8 @@ bool CheckerImpl::InterfaceMemberPropAddedDeletedOrChanged(
             // The annotation(Frozen) of member property has been deleted.
             CHECK(RuleKind::INTERFACE_MEMBER_PROP_FROZEN_DELETED, !IsFrozenAnnotationDeleted(dsl, p1, p2), p1, p2);
             // The return type of member property has been changed.
-            CHECK(RuleKind::INTERFACE_MEMBER_PROP_RETURN_TYPE_CHANGED, dsl.SameType(p1->GetTy(), p2->GetTy()), p1, p2);
+            CHECK(RuleKind::INTERFACE_MEMBER_PROP_RETURN_TYPE_CHANGED,
+                dsl.SameType(p1->DataTy(), p2->DataTy()), p1, p2);
             // The funcbody of getter/setter in member property has been changed.
             NodeInfo propInfo{p1, p2};
             CheckPropBodyChanged(dsl, logger, checker, checkerResult, propInfo);
@@ -1232,7 +1236,8 @@ bool CheckerImpl::ExtendMemberPropAddedDeletedOrChanged(
             // The annotation(Frozen) of member property has been deleted.
             CHECK(RuleKind::EXTEND_MEMBER_PROP_FROZEN_DELETED, !IsFrozenAnnotationDeleted(dsl, p1, p2), p1, p2);
             // The return type of member property has been changed.
-            CHECK(RuleKind::EXTEND_MEMBER_PROP_RETURN_TYPE_CHANGED, dsl.SameType(p1->GetTy(), p2->GetTy()), p1, p2);
+            CHECK(RuleKind::EXTEND_MEMBER_PROP_RETURN_TYPE_CHANGED,
+                dsl.SameType(p1->DataTy(), p2->DataTy()), p1, p2);
             // The funcbody of getter/setter in member property has been changed.
             NodeInfo propInfo{p1, p2};
             CheckPropBodyChanged(dsl, logger, checker, checkerResult, propInfo);
