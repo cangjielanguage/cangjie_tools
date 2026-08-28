@@ -745,9 +745,7 @@ TEST(UtilsTest, IsValidIdentifier_ContainsSpace) {
 TEST(UtilsTest, IsValidIdentifier_ContainsUnicode) {
     std::string identifier = "变量"; // Chinese characters
     bool result = IsValidIdentifier(identifier);
-    // Depends on iswalpha/iswalnum implementation for wide chars
-    // This test might behave differently on different platforms
-    EXPECT_FALSE(result); // Typically returns false for non-ASCII
+    EXPECT_TRUE(result);
 }
 
 TEST(UtilsTest, IsValidIdentifier_SingleLetter) {

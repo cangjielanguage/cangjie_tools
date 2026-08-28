@@ -8,6 +8,7 @@
 #include "ItemResolverUtil.h"
 #include "cangjie/Basic/Version.h"
 #include "cangjie/Basic/StringConvertor.h"
+#include "cangjie/Utils/Unicode.h"
 #include "Inherit/InheritDeclUtil.h"
 #include "../CompilerCangjieProject.h"
 
@@ -425,6 +426,63 @@ void SetRangForInterpolatedString(const Cangjie::Token &curToken, Ptr<const Cang
     range.end = {node->end.fileID, node->end.line, node->end.column};
 }
 
+namespace {
+struct CodePointRange {
+    int start;
+    int end;
+    Cangjie::Unicode::UTF32 codePoint;
+};
+
+int FindStringOffsetAtPosition(const std::string &text, Position begin, const Position &target)
+{
+    for (int offset = 0; offset <= static_cast<int>(text.length()); ++offset) {
+        if (offset < static_cast<int>(text.length()) && text[static_cast<size_t>(offset)] == '\n') {
+            begin.line++;
+            begin.column = 0;
+        }
+        if (begin == target) {
+            return offset;
+        }
+        begin.column++;
+    }
+    return -1;
+}
+
+std::vector<CodePointRange> GetCodePointRanges(const std::string &text)
+{
+    std::vector<CodePointRange> ranges;
+    int byteOffset = 0;
+    for (const auto codePoint : UTF8ToChar32(text)) {
+        int byteLength = static_cast<int>(Char32ToUTF8(std::u32string{codePoint}).size());
+        ranges.push_back({byteOffset, byteOffset + byteLength, codePoint});
+        byteOffset += byteLength;
+    }
+    return ranges;
+}
+
+bool FindIdentifierByteRange(const std::string &text, int offset, int &identifierStart, int &identifierEnd)
+{
+    auto codePoints = GetCodePointRanges(text);
+    auto current = std::find_if(codePoints.begin(), codePoints.end(), [offset](const CodePointRange &range) {
+        return range.start <= offset && offset < range.end;
+    });
+    if (current == codePoints.end() || !Cangjie::Unicode::IsXIDContinue(current->codePoint)) {
+        return false;
+    }
+    auto start = current;
+    while (start != codePoints.begin() && Cangjie::Unicode::IsXIDContinue((start - 1)->codePoint)) {
+        --start;
+    }
+    auto end = current + 1;
+    while (end != codePoints.end() && Cangjie::Unicode::IsXIDContinue(end->codePoint)) {
+        ++end;
+    }
+    identifierStart = start->start;
+    identifierEnd = (end - 1)->end;
+    return true;
+}
+} // namespace
+
 void SetRangForInterpolatedStrInRename(const Cangjie::Token &curToken, Ptr<const Cangjie::AST::Node> node,
     Range &range, Cangjie::Position pos)
 {
@@ -436,35 +494,25 @@ void SetRangForInterpolatedStrInRename(const Cangjie::Token &curToken, Ptr<const
     if (pos < curToken.Begin() || pos > curToken.End() || nodeStr.empty()) {
         return;
     }
-    Position curPos = node->GetBegin();
-    int index = -1;
-    for (int i = 0; i <= static_cast<int>(nodeStr.length()); ++i) {
-        if (i < static_cast<int>(nodeStr.length()) && nodeStr[i] == '\n') {
-            curPos.line++;
-            curPos.column = 0;
-        }
-        if (curPos == pos) {
-            index = i;
-            break;
-        }
-        curPos.column++;
-    }
+    int index = FindStringOffsetAtPosition(nodeStr, node->GetBegin(), pos);
     if (index == -1) {
         return;
     }
-    int start = index;
-    int end = index;
-    while (start > 0 && (std::iswalnum(nodeStr[start - 1]) || nodeStr[start - 1] == L'_')) {
-        start--;
+    int identifierStart = 0;
+    int identifierEnd = 0;
+    if (!FindIdentifierByteRange(nodeStr, index, identifierStart, identifierEnd)) {
+        return;
     }
-    while (end < static_cast<int>(nodeStr.length()) && (std::iswalnum(nodeStr[end]) || nodeStr[end] == L'_')) {
-        end++;
+    std::string identifier = nodeStr.substr(
+        static_cast<size_t>(identifierStart), static_cast<size_t>(identifierEnd - identifierStart));
+    int startColumn = pos.column - (index - identifierStart);
+    if (!IsValidIdentifier(identifier) || startColumn <= 0) {
+        return;
     }
-    std::string identifier = nodeStr.substr(start, end - start);
-    if (IsValidIdentifier(identifier) && (pos.column - (index - start) > 0)) {
-        range.start = {pos.fileID, pos.line, pos.column - (index - start)};
-        range.end = {pos.fileID, pos.line, pos.column + (end - index)};
-    }
+    range.start = {pos.fileID, pos.line, startColumn};
+    // UpdateRange converts range.start from the AST's UTF-8 byte column to an LSP UTF-16 column and keeps
+    // range.end - range.start as the selection length, so the length stored here must already use UTF-16 units.
+    range.end = {pos.fileID, pos.line, startColumn + CountUnicodeCharacters(identifier)};
 }
 
 bool IsFuncSignatureIdentical(const Cangjie::AST::FuncDecl &funcDecl1, const Cangjie::AST::FuncDecl &funcDecl2)
@@ -1401,18 +1449,12 @@ ark::lsp::SymbolID GetDeclSymbolID(const Decl& decl)
 
 bool IsValidIdentifier(const std::string& identifier)
 {
-    if (identifier.empty()) {
+    auto codePoints = UTF8ToChar32(identifier);
+    if (codePoints.empty() || !Cangjie::Unicode::IsCJXIDStart(codePoints.front())) {
         return false;
     }
-
-    wchar_t firstChar = identifier[0];
-    if (!(std::iswalpha(firstChar) || firstChar == L'_')) {
-        return false;
-    }
-
-    for (size_t i = 1; i < identifier.length(); ++i) {
-        wchar_t ch = identifier[i];
-        if (!(std::iswalnum(ch) || ch == L'_')) {
+    for (auto it = codePoints.begin() + 1; it != codePoints.end(); ++it) {
+        if (!Cangjie::Unicode::IsXIDContinue(*it)) {
             return false;
         }
     }
