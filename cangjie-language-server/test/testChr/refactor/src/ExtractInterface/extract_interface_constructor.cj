@@ -7,8 +7,9 @@
 /**
  * Created on 2025/7/16
  */
+package ohos_app_cangjie_entry.ExtractInterface
 
-public class Person {
+public class Product {
     public func printName(): String {
         return "person"
     }
@@ -16,15 +17,15 @@ public class Person {
         return "class only"
     }
 }
-class Consumer {
-    var cached: Person = Person()
-    func consume(person: Person): String {
+class ProductUser {
+    var cached: Product = Product()
+    func consume(person: Product): String {
         return person.printName()
     }
-    func build(): Person {
-        return Person()
+    func build(): Product {
+        return Product()
     }
-    func keepConcrete(person: Person): String {
+    func keepConcrete(person: Product): String {
         return person.classOnly()
     }
 }

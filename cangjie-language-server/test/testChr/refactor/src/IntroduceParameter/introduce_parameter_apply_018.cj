@@ -4,17 +4,17 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package ohos_app_cangjie_entry.ExtractInterface
+package ohos_app_cangjie_entry.IntroduceParameter
 
-public interface Named {
-    func name(): String
+class CompoundAssignOwner {
+    var offset: Int64 = 3
+
+    func shift(base: Int64): Unit {
+        this.offset <<= 2
+    }
 }
 
-public class User <: Named {
-    public func name(): String {
-        return "user"
-    }
-    public func enabled(): Bool {
-        return true
-    }
+func callCompoundAssignOwner(): Unit {
+    let owner = CompoundAssignOwner()
+    owner.shift(10)
 }

@@ -4,6 +4,8 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+package ohos_app_cangjie_entry.ExtractInterface
+
 public interface CodedStatus {
     func read(): String
     func sourceOnly(): String
