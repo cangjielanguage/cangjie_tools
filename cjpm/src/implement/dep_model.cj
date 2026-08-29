@@ -7,6 +7,7 @@
 package cjpm.implement
 
 import std.collection.*
+import std.collection.concurrent.*
 import std.sync.*
 import std.fs.*
 import std.sort.*
@@ -54,8 +55,6 @@ class DepModel {
     public var jsonMap: HashMap<String, ArrayList<String>> = HashMap<String, ArrayList<String>>()
     let packageMtx: Mutex = Mutex()
     let errPrintMtx: Mutex = Mutex()
-    let scanCjoMtx: Mutex = Mutex()
-    let scanPkgMtx: Mutex = Mutex()
     // Collect zero indegree packages
     var readyPkgs: ArrayList<String> = ArrayList<String>()
     public var targetMacroPkgs: HashSet<String> = HashSet<String>() // used by cross compile
@@ -73,11 +72,14 @@ class DepModel {
     public var rootConfiguredCombined: Bool = false
     public let combinedConfiguredMembers: HashSet<String> = HashSet<String>()
     // Binary dependencies record
-    public var binDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
+    public var binDepCacheMap: ConcurrentHashMap<String, RequiresPackages> =
+        ConcurrentHashMap<String, RequiresPackages>()
     // Package dependencies record (pkg without test)
-    public var pkgBuildDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
+    public var pkgBuildDepCacheMap: ConcurrentHashMap<String, RequiresPackages> =
+        ConcurrentHashMap<String, RequiresPackages>()
     // Package dependencies record (pkg with test)
-    public var pkgTestDepCacheMap: HashMap<String, RequiresPackages> = HashMap<String, RequiresPackages>()
+    public var pkgTestDepCacheMap: ConcurrentHashMap<String, RequiresPackages> =
+        ConcurrentHashMap<String, RequiresPackages>()
 
     public init(globalConfig: GlobalConfig) {
         this.globalConfig = globalConfig
@@ -749,8 +751,10 @@ class DepModel {
     // Get package information by the '.cjo' file.
     func scanCjoInfo(cjoPath: String, isTest: Bool): ?RequiresPackages {
         let timeStamp = FileInfo(cjoPath).lastModificationTime.toUnixTimeStamp().toSeconds()
-        if (this.binDepCacheMap.contains(cjoPath) && (timeStamp == this.binDepCacheMap[cjoPath].timeStamp)) {
-            return this.binDepCacheMap[cjoPath]
+        if (let Some(cached) <- this.binDepCacheMap.get(cjoPath)) {
+            if (timeStamp == cached.timeStamp) {
+                return cached
+            }
         }
 
         let arguments = ArrayList<String>(["--scan-dependency", cjoPath])
@@ -785,9 +789,7 @@ class DepModel {
 
         p.timeStamp = timeStamp
 
-        synchronized (this.scanCjoMtx) {
-            this.binDepCacheMap.add(cjoPath, p)
-        }
+        this.binDepCacheMap.add(cjoPath, p)
 
         return p
     }
@@ -854,21 +856,23 @@ class DepModel {
         }
         let pkgPath = pkgSource.allPaths[0]
         let pkgPathString = pkgPath.toString()
-        if (!isTest && this.pkgBuildDepCacheMap.contains(pkgPathString) && (timeStamp == this.pkgBuildDepCacheMap[pkgPathString].timeStamp)) {
-            return Ok(this.pkgBuildDepCacheMap[pkgPathString])
-        } else if (isTest && this.pkgTestDepCacheMap.contains(pkgPathString) && (timeStamp == this.pkgTestDepCacheMap[pkgPathString].timeStamp)) {
-            return Ok(this.pkgTestDepCacheMap[pkgPathString])
+        if (let Some(cached) <- if (isTest) {
+            this.pkgTestDepCacheMap.get(pkgPathString)
+        } else {
+            this.pkgBuildDepCacheMap.get(pkgPathString)
+        }) {
+            if (timeStamp == cached.timeStamp) {
+                return Ok(cached)
+            }
         }
         // update pkgDepCacheMap
         scanDependency(pkgPath, isTest: isTest, compileOptions: compileOptions).inspect { depRes =>
             var dep = depRes
             dep.timeStamp = timeStamp
-            synchronized (this.scanPkgMtx) {
-                if (isTest) {
-                    this.pkgTestDepCacheMap.add(pkgPathString, dep)
-                } else {
-                    this.pkgBuildDepCacheMap.add(pkgPathString, dep)
-                }
+            if (isTest) {
+                this.pkgTestDepCacheMap.add(pkgPathString, dep)
+            } else {
+                this.pkgBuildDepCacheMap.add(pkgPathString, dep)
             }
         }.mapErr { e => [ e ] }
     }
@@ -914,9 +918,12 @@ class DepModel {
 
         match (dm) {
             case data: DataModelStruct =>
-                this.binDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("bin"))
-                this.pkgBuildDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-build"))
-                this.pkgTestDepCacheMap = HashMap<String, RequiresPackages>.deserialize(data.get("pkg-test"))
+                this.binDepCacheMap = ConcurrentHashMap(
+                    HashMap<String, RequiresPackages>.deserialize(data.get("bin")))
+                this.pkgBuildDepCacheMap = ConcurrentHashMap(
+                    HashMap<String, RequiresPackages>.deserialize(data.get("pkg-build")))
+                this.pkgTestDepCacheMap = ConcurrentHashMap(
+                    HashMap<String, RequiresPackages>.deserialize(data.get("pkg-test")))
 
             case _ =>
                 throw Exception("this data is not DataModelStruct")
@@ -929,9 +936,12 @@ class DepModel {
     func updateDepIncrementalCache(): Unit {
         let binCachePath = Path(this.globalConfig.targetDir).join(DEP_INCREMENTAL_CACHE).toString()
         let dmCacheRoot = DataModelStruct()
-            .add(field<HashMap<String, RequiresPackages>>("bin", this.binDepCacheMap))
-            .add(field<HashMap<String, RequiresPackages>>("pkg-build", this.pkgBuildDepCacheMap))
-            .add(field<HashMap<String, RequiresPackages>>("pkg-test", this.pkgTestDepCacheMap))
+            .add(field<HashMap<String, RequiresPackages>>(
+                "bin", this.binDepCacheMap |> collectHashMap))
+            .add(field<HashMap<String, RequiresPackages>>(
+                "pkg-build", this.pkgBuildDepCacheMap |> collectHashMap))
+            .add(field<HashMap<String, RequiresPackages>>(
+                "pkg-test", this.pkgTestDepCacheMap |> collectHashMap))
         let cacheString = dmCacheRoot.toJson().toJsonString()
         createAndWriteFile(binCachePath, cacheString)
         return
