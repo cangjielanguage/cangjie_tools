@@ -153,3 +153,19 @@ func main3() {
     var aa1 = color.getValue()
     println("红色值: ${color.getValue()}")
 }
+
+func introduceParameter013(): Int64 {
+    return 2 * 2
+}
+
+func callIntroduceParameter013(): Int64 {
+    return introduceParameter013()
+}
+
+func introduceParameter014(): UInt8 {
+    return 9
+}
+
+func callIntroduceParameter014(): UInt8 {
+    return introduceParameter014()
+}

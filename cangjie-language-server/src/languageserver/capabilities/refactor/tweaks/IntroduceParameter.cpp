@@ -1276,8 +1276,13 @@ static std::string BuildCompoundAssignArgumentText(const CallSiteContext &contex
     }
 
     auto paramList = context.sourceFuncDecl.funcBody->paramLists.front().get();
-    auto replacements = CollectCallSiteArgumentReplacements(context, callExpr, *paramList);
-    std::string leftText = ApplyCallSiteArgumentReplacements(context, std::move(replacements));
+    Range leftRange = {assignExpr->leftValue->begin, assignExpr->leftValue->end};
+    std::string leftArgumentText = context.sel.arkAst->sourceManager->GetContentBetween(
+        leftRange.start, leftRange.end);
+    CallSiteContext leftContext{context.sel, context.funcDecl, context.sourceFuncDecl, leftRange,
+        leftArgumentText, context.paramName, context.removedParamIndices};
+    auto replacements = CollectCallSiteArgumentReplacements(leftContext, callExpr, *paramList);
+    std::string leftText = ApplyCallSiteArgumentReplacements(leftContext, std::move(replacements));
     std::string rightText = context.sel.arkAst->sourceManager->GetContentBetween(
         assignExpr->rightExpr->begin, assignExpr->rightExpr->end);
     auto opText = TweakUtils::GetCompoundAssignOperatorText(assignExpr->op);

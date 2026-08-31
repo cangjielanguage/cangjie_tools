@@ -4,17 +4,13 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package ohos_app_cangjie_entry.ExtractInterface
+package ohos_app_cangjie_entry.IntroduceParameter
 
-public interface Named {
-    func name(): String
+func tokenBoundarySample(base: Int64): Int64 {
+    let baseValue = 2
+    return base + baseValue
 }
 
-public class User <: Named {
-    public func name(): String {
-        return "user"
-    }
-    public func enabled(): Bool {
-        return true
-    }
+func callTokenBoundarySample(): Unit {
+    let result = tokenBoundarySample(10)
 }
