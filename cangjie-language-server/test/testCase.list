@@ -883,6 +883,7 @@
 {"rename":{"testFile":"LSP_Rename_InterplationString_002.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_Common_Specific.test","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_UnicodeInterpolatedString.test","preId":"5","id":"9"}}
+{"rename":{"testFile":"LSP_Rename_UnicodeInterpolatedString.test","preId":"6","id":"9"}}
 
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_String_001.test","id":"7"}}
 {"semanticHighlight":{"testFile":"LSP_SemanticHighlight_Interface_001.test","id":"110"}}

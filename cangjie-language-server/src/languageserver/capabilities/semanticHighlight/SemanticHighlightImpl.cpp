@@ -202,8 +202,9 @@ bool SpecialTarget(const Ptr<Node> node)
  *
  * @param range
  * @param sourceManager
+ * @param sourcePos UTF-8 source position before UpdateRange converts the range to UTF-16.
  */
-void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager)
+void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager, const Position &sourcePos)
 {
     if (!sourceManager) {
         return;
@@ -211,8 +212,8 @@ void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager
     if (range.start.column + 1 > range.end.column) {
         return;
     }
-    Position end(range.start.fileID, range.start.line, range.start.column + 1);
-    std::string result = sourceManager->GetContentBetween(range.start.fileID, range.start, end);
+    Position end(sourcePos.fileID, sourcePos.line, sourcePos.column + 1);
+    std::string result = sourceManager->GetContentBetween(sourcePos.fileID, sourcePos, end);
     if (result == "$") {
         range.start.column = range.start.column + 1;
         range.end.column = range.end.column + 1;
@@ -255,7 +256,7 @@ void GetRefExpr(Ptr<Node> node, std::vector<SemanticHighlightToken> &result, con
             result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(range)});
         }
     } else {
-        HandleInterpolationExpr(range, sourceManager);
+        HandleInterpolationExpr(range, sourceManager, pos);
         result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(range)});
     }
 }
