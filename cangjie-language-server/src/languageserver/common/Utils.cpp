@@ -466,16 +466,16 @@ bool FindIdentifierByteRange(const std::string &text, int offset, int &identifie
     auto current = std::find_if(codePoints.begin(), codePoints.end(), [offset](const CodePointRange &range) {
         return range.start <= offset && offset < range.end;
     });
-    if (current == codePoints.end() || !Cangjie::Unicode::IsXIDContinue(current->codePoint)) {
-        return false;
-    }
     auto start = current;
     while (start != codePoints.begin() && Cangjie::Unicode::IsXIDContinue((start - 1)->codePoint)) {
         --start;
     }
-    auto end = current + 1;
+    auto end = current;
     while (end != codePoints.end() && Cangjie::Unicode::IsXIDContinue(end->codePoint)) {
         ++end;
+    }
+    if (start == end) {
+        return false;
     }
     identifierStart = start->start;
     identifierEnd = (end - 1)->end;

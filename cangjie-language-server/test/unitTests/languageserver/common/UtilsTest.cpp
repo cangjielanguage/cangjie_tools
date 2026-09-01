@@ -739,7 +739,7 @@ TEST(UtilsTest, SetRangeForUnicodeIdentifierAtEveryCharacter) {
     Token tok = MakeToken(TokenKind::STRING_LITERAL, {6, 8, 12}, {6, 8, 29});
     Ptr<const AST::Node> node(new FakeNode4InterpolatedStrInRename("清风明月", begin));
 
-    for (int column : {15, 18, 21, 24}) {
+    for (int column : {15, 18, 21, 24, 27}) {
         ark::Range range{{0, 0, 0}, {0, 0, 0}};
         SetRangForInterpolatedStrInRename(tok, node, range, {6, 8, column});
         EXPECT_EQ(range.start, (Position{6, 8, 15}));
@@ -780,6 +780,44 @@ TEST(UtilsTest, SetRangeDoesNotCrossUnicodePunctuation) {
 
     EXPECT_EQ(range.start, (Position{9, 2, 10}));
     EXPECT_EQ(range.end, (Position{9, 2, 12}));
+}
+
+TEST(UtilsTest, SetRangeForIdentifierAtRightBoundary) {
+    const std::vector<std::pair<std::string, int>> identifiers{
+        {"aaaa", 4}, {"清风明月", 4}, {"清风_2026", 7},
+        {"\xF0\x90\x90\x80name", 6}, {"name\xF0\x90\x90\x80", 6}
+    };
+    for (const auto &[identifier, utf16Length] : identifiers) {
+        SCOPED_TRACE(identifier);
+        for (auto kind : {TokenKind::STRING_LITERAL, TokenKind::MULTILINE_STRING}) {
+            const int byteLength = static_cast<int>(identifier.size());
+            Token tok = MakeToken(kind, {10, 1, 12}, {10, 1, 17 + byteLength});
+            FakeNode4InterpolatedStrInRename node(identifier, {10, 1, 15});
+            ark::Range range{{0, 0, 0}, {0, 0, 0}};
+
+            SetRangForInterpolatedStrInRename(tok, &node, range, {10, 1, 15 + byteLength});
+
+            EXPECT_EQ(range.start, (Position{10, 1, 15}));
+            EXPECT_EQ(range.end, (Position{10, 1, 15 + utf16Length}));
+        }
+    }
+}
+
+TEST(UtilsTest, SetRangeForIdentifierBeforeDelimiter) {
+    Token tok = MakeToken(TokenKind::STRING_LITERAL, {11, 1, 1}, {11, 1, 10});
+    FakeNode4InterpolatedStrInRename node("${aaaa} ", {11, 1, 1});
+    for (int column : {3, 7}) {
+        ark::Range range{{0, 0, 0}, {0, 0, 0}};
+        SetRangForInterpolatedStrInRename(tok, &node, range, {11, 1, column});
+        EXPECT_EQ(range.start, (Position{11, 1, 3}));
+        EXPECT_EQ(range.end, (Position{11, 1, 7}));
+    }
+    for (int column : {1, 2, 8, 9}) {
+        ark::Range range{{0, 0, 0}, {0, 0, 0}};
+        SetRangForInterpolatedStrInRename(tok, &node, range, {11, 1, column});
+        EXPECT_EQ(range.start, (Position{0, 0, 0}));
+        EXPECT_EQ(range.end, (Position{0, 0, 0}));
+    }
 }
 
 
