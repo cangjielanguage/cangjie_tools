@@ -213,6 +213,10 @@ std::string ItemResolverUtil::ResolveDetailByNode(Cangjie::AST::Node &node, Sour
             detail = ResolveDetailByNode(*decl.invocation.decl, sourceManager);
             return detail;
         },
+        [&detail, sourceManager](const Cangjie::AST::ExtendDecl &decl) {
+            ResolveExtendDeclDetail(detail, decl, sourceManager);
+            return detail;
+        },
         // ----------- Match nothing --------------------
         [&detail]() { return detail; });
 }
@@ -1627,6 +1631,35 @@ void ItemResolverUtil::ResolveStructDeclDetail(std::string &detail, const Cangji
     detail = GetModifierByNode(decl);
     detail += "struct ";
     detail += ResolveSignatureByNode(decl);
+}
+
+void ItemResolverUtil::ResolveExtendDeclDetail(std::string &detail, const Cangjie::AST::ExtendDecl &decl,
+                                               Cangjie::SourceManager *sourceManager)
+{
+    detail = GetModifierByNode(decl);
+    detail += "extend";
+    if (decl.generic) {
+        detail += GetGenericParamByDecl(decl.generic.get());
+    }
+    if (decl.extendedType) {
+        detail += " ";
+        DealTypeDetail(detail, decl.extendedType.get(), decl.curFile ? decl.curFile->filePath : "", sourceManager);
+    }
+    if (decl.inheritedTypes.empty()) {
+        return;
+    }
+    detail += " <: ";
+    bool isFirst = true;
+    for (auto &iterFace : decl.inheritedTypes) {
+        if (iterFace == nullptr || decl.curFile == nullptr) {
+            continue;
+        }
+        if (!isFirst) {
+            detail += " & ";
+        }
+        DealTypeDetail(detail, iterFace.get(), decl.curFile->filePath, sourceManager);
+        isFirst = false;
+    }
 }
 
 void ItemResolverUtil::ResolveGenericParamDeclDetail(std::string &detail, const Cangjie::AST::GenericParamDecl &decl)

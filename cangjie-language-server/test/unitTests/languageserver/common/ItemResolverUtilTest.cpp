@@ -529,3 +529,56 @@ TEST(ItemResolverUtilTest, GetDeclByTy_NullTy) {
     Ptr<Decl> result = ItemResolverUtil::GetDeclByTy(ty);
     EXPECT_EQ(nullptr, result);
 }
+
+// Test ResolveDetailByNode for extend declarations.  Extend details are
+// composed from the extended type, optional generic parameters and inherited
+// interfaces, so keep the AST nodes minimal and position independent.
+TEST(ItemResolverUtilTest, ResolveDetailByNode_ExtendDeclWithExtendedType)
+{
+    auto extendDecl = OwnedPtr<ExtendDecl>(new ExtendDecl());
+    auto extendedType = OwnedPtr<RefType>(new RefType());
+    extendedType->ref.identifier = *new SrcIdentifier("Widget");
+    extendDecl->extendedType = std::move(extendedType);
+
+    EXPECT_EQ("extend Widget", ItemResolverUtil::ResolveDetailByNode(*extendDecl));
+}
+
+TEST(ItemResolverUtilTest, ResolveDetailByNode_ExtendDeclWithGenericAndInheritedTypes)
+{
+    auto extendDecl = OwnedPtr<ExtendDecl>(new ExtendDecl());
+
+    auto generic = OwnedPtr<Generic>(new Generic());
+    auto genericParam = OwnedPtr<GenericParamDecl>(new GenericParamDecl());
+    genericParam->identifier = "T";
+    generic->typeParameters.emplace_back(std::move(genericParam));
+    extendDecl->generic = std::move(generic);
+
+    auto extendedType = OwnedPtr<RefType>(new RefType());
+    extendedType->ref.identifier = *new SrcIdentifier("Box");
+    extendDecl->extendedType = std::move(extendedType);
+
+    File file;
+    file.filePath = "test.cj";
+    extendDecl->curFile = &file;
+    auto inherited1 = OwnedPtr<RefType>(new RefType());
+    inherited1->ref.identifier = *new SrcIdentifier("Printable");
+    auto inherited2 = OwnedPtr<RefType>(new RefType());
+    inherited2->ref.identifier = *new SrcIdentifier("Serializable");
+    extendDecl->inheritedTypes.emplace_back(std::move(inherited1));
+    extendDecl->inheritedTypes.emplace_back(std::move(inherited2));
+
+    EXPECT_EQ("extend<T> Box <: Printable & Serializable",
+              ItemResolverUtil::ResolveDetailByNode(*extendDecl));
+}
+
+TEST(ItemResolverUtilTest, ResolveDetailByNode_ExtendDeclSkipsNullInheritedType)
+{
+    auto extendDecl = OwnedPtr<ExtendDecl>(new ExtendDecl());
+    File file;
+    extendDecl->curFile = &file;
+    extendDecl->inheritedTypes.emplace_back(nullptr);
+
+    // A declaration with no extended type still reports the extend keyword;
+    // null inherited entries are ignored by the resolver.
+    EXPECT_EQ("extend <: ", ItemResolverUtil::ResolveDetailByNode(*extendDecl));
+}

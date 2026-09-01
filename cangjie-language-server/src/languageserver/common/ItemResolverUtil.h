@@ -160,6 +160,9 @@ private:
 
     static void ResolveStructDeclDetail(std::string &detail, const Cangjie::AST::StructDecl &decl);
 
+    static void ResolveExtendDeclDetail(std::string &detail, const Cangjie::AST::ExtendDecl &decl,
+                                        Cangjie::SourceManager *sourceManager = nullptr);
+
     static void ResolveGenericParamDeclDetail(std::string &detail, const Cangjie::AST::GenericParamDecl &decl);
 
     static void ResolveTypeAliasDetail(std::string &detail, const Cangjie::AST::TypeAliasDecl &decl,
