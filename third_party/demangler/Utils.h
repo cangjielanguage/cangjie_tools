@@ -136,7 +136,8 @@ const std::unordered_map<const char*, const char*, StdPkgHash, StdPkgCompare> MA
     {"cn", "std.crypto.cipher"},
     {"co", "std.math.numeric"},
     {"cp", "std.math.native"},
-    {"cq", "std.math.numeric.native"}
+    {"cq", "std.math.numeric.native"},
+    {"cr", "std.concurrent"}
 };
 } // namespace Cangjie
 #endif // CANGJIE_DEMANGLER_UTILS_H
