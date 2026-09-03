@@ -41,6 +41,35 @@ Available options:
         print("\ncjpm run finished\n")
     }
 
+    // Help detection is performed before handleCommand parses the arguments.
+    // Do not treat a value of an option (for example, `--run-args -h`) as a
+    // cjpm help request, and do not inspect arguments after `--`, which are
+    // passed to the executable product.
+    public override func isHelp(): Bool {
+        var index = 0
+        while (index < this.arguments.size) {
+            let arg = this.arguments[index]
+            if (arg == "--") {
+                return false
+            }
+            if (arg == "-h" || arg == "--help") {
+                return true
+            }
+
+            // These options consume the following argument as their value.
+            // That value may itself start with '-', so it must not be checked
+            // as a cjpm option.
+            if (arg == "--name" || arg == "--build-args" ||
+                arg == "--run-args" || arg == "--target-dir" ||
+                arg == "--enable-features") {
+                index += 2
+            } else {
+                index += 1
+            }
+        }
+        return false
+    }
+
     func handleUnparseArgs(unparseArgs: Array<String>): Bool {
         if (unparseArgs.isEmpty()) {
             return true
