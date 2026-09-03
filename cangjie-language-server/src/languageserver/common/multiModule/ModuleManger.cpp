@@ -24,6 +24,23 @@ std::string GetParentPath(const std::string &filePath)
     }
     return filePath.substr(0, lastSlashPos);
 }
+
+size_t GetMatchingPathLength(const ark::ModuleInfo &moduleInfo, const std::string &filePath)
+{
+    size_t matchingLength = 0;
+    auto updateMatchingLength = [&filePath, &matchingLength](const std::string &path) {
+        if (!path.empty() && ark::IsUnderPath(path, filePath, true)) {
+            matchingLength = std::max(matchingLength, path.size());
+        }
+    };
+    updateMatchingLength(moduleInfo.modulePath);
+    updateMatchingLength(moduleInfo.srcPath);
+    updateMatchingLength(moduleInfo.commonSpecificPaths.first);
+    for (const auto &specificPath : moduleInfo.commonSpecificPaths.second) {
+        updateMatchingLength(specificPath);
+    }
+    return matchingLength;
+}
 }
 
 namespace ark {
@@ -67,18 +84,29 @@ void ModuleManager::WorkspaceModeParser(const std::string &workspace)
         SetPackageRequires(value, path);
 
         if (value.contains(REQUIRES())) {
+            if (!value[REQUIRES()].is_object()) {
+                continue;
+            }
             for (const auto &item : value[REQUIRES()].items()) {
                 auto &reqKey = item.key();
-                auto itemPath = value[REQUIRES()][reqKey].value(MODULE_JSON_PATH(), "");
+                const auto &requireOption = value[REQUIRES()][reqKey];
+                if (!requireOption.is_object()) {
+                    continue;
+                }
+                auto itemPath = requireOption.value(MODULE_JSON_PATH(), "");
+                if (itemPath.empty()) {
+                    continue;
+                }
                 std::string requirePath = FileStore::NormalizePath(URI::Resolve(itemPath));
                 if (!FileExist(requirePath)) {
                     continue;
                 }
-                bool isScriptDependence = value[REQUIRES()][reqKey].value(IS_SCRIPT_DEPENDENCE(), false);
+                bool isScriptDependence = requireOption.value(IS_SCRIPT_DEPENDENCE(), false);
                 if (isScriptDependence) {
                     (void)scriptRequirePackages[name].insert(reqKey);
                 } else {
                     (void)requirePackages[name].insert(reqKey);
+                    (void)directRequirePaths[path].insert_or_assign(reqKey, requirePath);
                 }
             }
         }
@@ -258,6 +286,53 @@ std::string ModuleManager::GetExpectedPkgName(const Cangjie::AST::File &file)
     std::string path = Normalize(file.filePath);
     std::string fullPkgName = CompilerCangjieProject::GetInstance()->GetFullPkgName(path);
     return CompilerCangjieProject::GetInstance()->GetRealPackageName(fullPkgName);
+}
+
+bool ModuleManager::GetModuleNameConflict(const std::string &filePath, ModuleNameConflict &conflict) const
+{
+    const std::string normalizedFilePath = FileStore::NormalizePath(filePath);
+    const ModuleInfo *currentModule = nullptr;
+    size_t matchingLength = 0;
+    for (const auto &item : moduleInfoMap) {
+        size_t currentMatchingLength = GetMatchingPathLength(item.second, normalizedFilePath);
+        if (currentMatchingLength > matchingLength) {
+            matchingLength = currentMatchingLength;
+            currentModule = &item.second;
+        }
+    }
+    if (currentModule == nullptr) {
+        return false;
+    }
+
+    return ResolveModuleNameConflict(*currentModule, conflict);
+}
+
+bool ModuleManager::ResolveModuleNameConflict(
+    const ModuleInfo &currentModule, ModuleNameConflict &conflict) const
+{
+    if (currentModule.moduleName.empty() || !IsUnderPath(projectRootPath, currentModule.modulePath, true)) {
+        return false;
+    }
+
+    auto directRequires = directRequirePaths.find(currentModule.modulePath);
+    if (directRequires == directRequirePaths.end()) {
+        return false;
+    }
+    auto sameNameRequire = directRequires->second.find(currentModule.moduleName);
+    if (sameNameRequire == directRequires->second.end() || sameNameRequire->second == currentModule.modulePath) {
+        return false;
+    }
+
+    // Report only a conflict proven by the resolved path dependency graph. Merely seeing two modules with the
+    // same name in multiModuleOption is insufficient because they may not belong to the same dependency tree.
+    auto requiredModule = moduleInfoMap.find(sameNameRequire->second);
+    if (requiredModule == moduleInfoMap.end() || requiredModule->second.moduleName != currentModule.moduleName) {
+        return false;
+    }
+
+    conflict.moduleName = currentModule.moduleName;
+    conflict.modulePaths = {currentModule.modulePath, requiredModule->second.modulePath};
+    return true;
 }
 
 bool ModuleManager::isCommonSpecificModule(const std::string &filePath)

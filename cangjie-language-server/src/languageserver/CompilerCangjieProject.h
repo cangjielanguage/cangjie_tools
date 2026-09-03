@@ -232,6 +232,8 @@ public:
     void CheckPackageNameByAbsName(const Cangjie::AST::File& needCheckedFile, const std::string &fullPackageName,
         const std::unique_ptr<LSPCompilerInstance> &ci);
 
+    void ReportModuleNameConflict(const Cangjie::AST::File &file) const;
+
     std::string GetFullPkgName(const std::string &filePath) const;
 
     std::string GetFullPkgByDir(const std::string &dirPath) const;

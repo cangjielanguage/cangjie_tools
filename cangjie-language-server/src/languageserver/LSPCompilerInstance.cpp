@@ -405,6 +405,11 @@ bool LSPCompilerInstance::CompileAfterParse(
     if (!ark::CompilerCangjieProject::GetInstance()->isIdentical) {
         return false;
     }
+    ark::ModuleNameConflict conflict;
+    if (HasSourceModuleNameConflict(conflict)) {
+        Trace::Log("Skip semantic compilation for module with name conflict: ", conflict.moduleName);
+        return false;
+    }
     macroExpandSuccess = MacroExpand();
     (void)Sema();
     (void)ExecuteCompilerApi("DeleteASTLoaders", &ImportManager::DeleteASTLoaders, *this->importManager);
@@ -427,6 +432,25 @@ bool LSPCompilerInstance::CompileAfterParse(
     cjoManager->SetData(ark::CompilerCangjieProject::GetInstance()->GetRealPackageName(pkgNameForPath), cjoData);
     return changed;
 }
+
+bool LSPCompilerInstance::HasSourceModuleNameConflict(ark::ModuleNameConflict &conflict)
+{
+    if (!moduleManger) {
+        return false;
+    }
+    for (const auto &package : GetSourcePackages()) {
+        if (!package) {
+            continue;
+        }
+        for (const auto &file : package->files) {
+            if (file && moduleManger->GetModuleNameConflict(file->filePath, conflict)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 // LCOV_EXCL_START
 std::vector<std::string> LSPCompilerInstance::GetTopologySort()
 {

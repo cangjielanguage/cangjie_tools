@@ -16,6 +16,11 @@
 #include "MultiModuleCommon.h"
 
 namespace ark {
+struct ModuleNameConflict {
+    std::string moduleName;
+    std::vector<std::string> modulePaths;
+};
+
 class ModuleManager {
 public:
     ModuleManager(std::string mainModulePath, nlohmann::json multiModuleOption)
@@ -40,6 +45,8 @@ public:
 
     std::string GetExpectedPkgName(const Cangjie::AST::File &file);
 
+    bool GetModuleNameConflict(const std::string &filePath, ModuleNameConflict &conflict) const;
+
     bool isCommonSpecificModule(const std::string &filePath);
 
     std::string projectRootPath;
@@ -54,10 +61,15 @@ public:
     std::unordered_map<std::string, std::unordered_set<std::string>> requireAllPackages;
     // key: moduleName, value: self + script requires closure in build.cj
     std::unordered_map<std::string, std::unordered_set<std::string>> requireAllPackagesInBuild;
+    // key: modulePath, value: direct non-script dependency module name to its canonical module path
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> directRequirePaths;
     // key: moduleName, value: modulePaths with same moduleName
     std::unordered_map<std::string, std::vector<std::string>> duplicateModules;
     // key: moduleName, value: cur module is combined
     std::unordered_map<std::string, bool> combinedMap;
+
+private:
+    bool ResolveModuleNameConflict(const ModuleInfo &currentModule, ModuleNameConflict &conflict) const;
 };
 } // namespace ark
 

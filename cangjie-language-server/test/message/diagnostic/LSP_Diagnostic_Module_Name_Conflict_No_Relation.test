@@ -1,0 +1,8 @@
+{"caseFolder":"newFeature/scriptDependencies"}
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"processId":null,"rootPath":"/workspace/moduleConflict","rootUri":"file:///workspace/moduleConflict","capabilities":{"textDocument":{"publishDiagnostics":{"relatedInformation":true},"semanticTokens":{"requests":{"full":true},"tokenTypes":[],"tokenModifiers":[],"formats":["relative"]}}},"initializationOptions":{"multiModuleOption":{"file:///workspace/moduleConflict/normal_dep":{"name":"boo","src_path":"file:///workspace/moduleConflict/normal_dep/src","requires":{}},"file:///workspace/moduleConflict/script_dep":{"name":"boo","src_path":"file:///workspace/moduleConflict/script_dep/src","requires":{}}},"conditionCompileOption":{},"singleConditionCompileOption":{}},"workspaceFolders":[{"uri":"file:///workspace/moduleConflict","name":"moduleConflict"}]}}
+{"jsonrpc":"2.0","method":"initialized","params":{}}
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///workspace/moduleConflict/normal_dep/src/normal_dep.cj","languageId":"Cangjie","version":1,"text":"package boo\n\npublic func normalDepFunc(): Int64 {\n    return 2\n}\n"}}}
+{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///workspace/moduleConflict/normal_dep/src/normal_dep.cj","version":2},"contentChanges":[{"text":"package boo\n\npublic func normalDepFunc(): Int64 {\n    return 2\n}\n"}]}}
+{"jsonrpc":"2.0","id":999,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///workspace/moduleConflict/normal_dep/src/normal_dep.cj"}}}
+{"jsonrpc":"2.0","id":1,"method":"shutdown","params":{}}
+{"jsonrpc":"2.0","method":"exit","params":{}}
