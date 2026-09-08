@@ -116,7 +116,7 @@ public class Depot {
                 let respMsg = extractErrorMessage(resp)
                 return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: invalid parameters: ${respMsg}")
             case 401 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: authentication failed")
-            case 403 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: permission denied")
+            case 403 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: permission denied or the artifact name is already occupied by another user")
             case 404 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: file does not exist")
             case 409 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: artifact with the same name and verison already exists")
             case 429 => return (false, "${name}-${version} ${orgStr}publish failed with status ${resp.status}: rate limit exceeded, retry after one day")
