@@ -2828,6 +2828,13 @@ void CompilerCangjieProject::BuildIndexFromCjo()
     auto ci =
         std::make_unique<LSPCompilerInstance>(callback, *pi->compilerInvocation, GetDiagnosticEngine(),
             "dummy", moduleManager);
+    // Align with cjc ImportPackages: UpdateSearchPath so deps like flatbuffers.cjo under
+    // $CANGJIE_HOME/third_party/flatbuffers/modules can be resolved when loading std.ast.
+    const auto libPathName = ci->invocation.globalOptions.GetCangjieLibTargetPathName();
+    if (!modulesHome.empty() && !libPathName.empty()) {
+        auto cangjieModules = JoinPath(JoinPath(modulesHome, "modules"), libPathName);
+        ci->importManager->UpdateSearchPath(cangjieModules);
+    }
     ci->IndexCjoToManager(cjoManager, graph);
     std::map<int, std::vector<std::string>> fileMap;
     for (const auto &cjoPath : ci->cjoPathSet) {
