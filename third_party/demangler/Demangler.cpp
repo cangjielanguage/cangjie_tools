@@ -542,7 +542,9 @@ T DemangleInfo<T>::GetFullName(const T& scopeRes, const uint32_t argsNum) const
             } else {
                 fullDemangledName += identifier;
             }
-            if (IsFunctionLike() && type == TypeKind::FUNCTION_DECL && demangled.Find('(') != -1) {
+            const T paramList = T{ LEFT_BRACKET } + args + T{ RIGHT_BRACKET };
+            if (IsFunctionLike() && type == TypeKind::FUNCTION_DECL && !args.IsEmpty() &&
+                demangled.Find(paramList.Str()) != -1) {
                 return fullDemangledName;
             }
             fullDemangledName += GetGenericTypes();
