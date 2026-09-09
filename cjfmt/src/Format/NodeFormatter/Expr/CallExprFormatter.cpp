@@ -33,7 +33,8 @@ void CallExprFormatter::AddCallExpr(
     group.members.emplace_back(DocType::STRING, level, "(");
     doc.members.emplace_back(group);
 
-    if (astToFormatSource.IsMultipleLineCallExpr(callExpr) || astToFormatSource.IsMultipleLineArg(callExpr.args)) {
+    if (astToFormatSource.ShouldPreserveMultilineCallLayout(callExpr) ||
+        astToFormatSource.IsMultipleLineArg(callExpr.args)) {
         AddBreakLineCallArgs(doc, callExpr, level);
         return;
     }

@@ -56,7 +56,8 @@ void FuncParamListFormatter::AddFuncParamList(
     doc.members.emplace_back(DocType::SOFTLINE, level + 1, "");
 
     bool isMultipleLineMacroExpandParam = IsMultipleLineMacroExpandParam(funcParamList);
-    if (isMultipleLineMacroExpandParam || IsMultipleLine(funcParamList.rightParenPos.line, funcParamList.params)) {
+    if (isMultipleLineMacroExpandParam ||
+        ShouldPreserveMultilineLayout(funcParamList.rightParenPos.line, funcParamList.params)) {
         astToFormatSource.AddBreakLineParam(doc, funcParamList, level, funcOptions);
         return;
     }
@@ -76,7 +77,7 @@ void FuncParamListFormatter::AddFuncParamList(
     doc.members.emplace_back(DocType::STRING, level, ")");
 }
 
-bool FuncParamListFormatter::IsMultipleLine(const int& rightParentPosLine,
+bool FuncParamListFormatter::ShouldPreserveMultilineLayout(const int& rightParentPosLine,
     const std::vector<OwnedPtr<AST::FuncParam>>& params) const
 {
     if (params.size() < MIN_MUL_MEMBERS) {

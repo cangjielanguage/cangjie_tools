@@ -36,8 +36,8 @@ void LambdaExprFormatter::AddLambdaExpr(Doc& doc, const Cangjie::AST::LambdaExpr
         }
         FuncOptions funcOptions;
         funcOptions.isLambda = true;
-        blockMember.members.emplace_back(astToFormatSource.ASTToDoc(lambdaExpr.funcBody.get(),
-            lambdaExpr.begin.line != lambdaExpr.end.line ? level + 1 : level, funcOptions));
+        blockMember.members.emplace_back(
+            astToFormatSource.ASTToDoc(lambdaExpr.funcBody.get(), level + 1, funcOptions));
         if (lambdaExpr.begin.line != lambdaExpr.end.line) {
             blockMember.members.emplace_back(DocType::LINE, level, "");
         }

@@ -5,7 +5,6 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "Format/CommentHandler.h"
-#include "Format/OptionContext.h"
 #include "Format/SimultaneousIterator.h"
 #include "cangjie/Basic/DiagnosticEngine.h"
 
@@ -17,8 +16,6 @@ using namespace Cangjie::AST;
 
 namespace {
 const int MAX_LINEBREAKS = 2;
-OptionContext& g_optionContext = OptionContext::GetInstance();
-const int INDENT = g_optionContext.GetConfigOptions().indentWidth; // XXX: take from configuration
 
 bool IsClosing(const Token &token)
 {
@@ -44,8 +41,10 @@ struct InsertData {
 
 class CommentHandler : private SimultaneousIterator {
 public:
-    CommentHandler(const std::vector<Token> &originalTokens, const std::vector<Token> &outputTokens, SourceManager &sm)
-        : SimultaneousIterator(originalTokens, outputTokens), sm(sm)
+    // Formatting options are loaded per invocation, so the configured width must not be cached in a global value.
+    CommentHandler(const std::vector<Token> &originalTokens, const std::vector<Token> &outputTokens, SourceManager &sm,
+        int indentWidth)
+        : SimultaneousIterator(originalTokens, outputTokens), sm(sm), indentWidth(indentWidth)
     {
         this->outputText = "";
     }
@@ -102,6 +101,7 @@ public:
 
 private:
     SourceManager &sm;
+    int indentWidth;
     std::string outputText;
 
     void Insert(char character, int times)
@@ -169,7 +169,7 @@ private:
         }
         auto firstOnThisLine = FindFirstTokenOnThisLine(tokenToIndent);
         auto sameIndent = (firstOnThisLine->Begin().column - 1);
-        auto oneLevelIndented = sameIndent + INDENT;
+        auto oneLevelIndented = sameIndent + indentWidth;
 
         if (!isComment && tokenToIndent == firstOnThisLine) {
             return sameIndent;
@@ -345,9 +345,9 @@ private:
 }
 
 std::string InsertComments(const std::vector<Token> &originalTokens, const std::vector<Token> &formattedTokens,
-    SourceManager &sm)
+    SourceManager &sm, const FormattingOptions &options)
 {
-    auto commentHandler = CommentHandler(originalTokens, formattedTokens, sm);
+    auto commentHandler = CommentHandler(originalTokens, formattedTokens, sm, options.indentWidth);
     return commentHandler.DoInsert();
 }
 } // namespace Cangjie::Format
