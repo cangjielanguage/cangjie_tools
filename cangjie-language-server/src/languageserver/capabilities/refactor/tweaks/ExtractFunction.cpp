@@ -55,6 +55,7 @@ bool IsRefLoop(const Symbol& sym, const Node& self)
             case ASTKind::FUNC_DECL:
             case ASTKind::LAMBDA_EXPR:
                 return VisitAction::SKIP_CHILDREN;
+            case ASTKind::EXCLAVE_EXPR:
             default:
                 return VisitAction::WALK_CHILDREN;
         }

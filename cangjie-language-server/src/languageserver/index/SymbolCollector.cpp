@@ -76,7 +76,7 @@ Ptr<Decl> GetRealDecl(Ptr<Decl> decl)
     return decl;
 }
 
-TypeSubst GenerateTypeMapping(Ptr<const Generic> generic, const std::vector<Ptr<Ty>> &typeArgs)
+TypeSubst GenerateTypeMapping(Ptr<const Generic> generic, const std::vector<DataTy> &typeArgs)
 {
     TypeSubst mapping;
     if (!generic || generic->typeParameters.size() != typeArgs.size()) {
@@ -84,7 +84,7 @@ TypeSubst GenerateTypeMapping(Ptr<const Generic> generic, const std::vector<Ptr<
     }
     for (size_t i = 0; i < typeArgs.size(); ++i) {
         if (Ty::IsTyCorrect(generic->typeParameters[i]->GetTy()) && Ty::IsTyCorrect(typeArgs[i])) {
-            if (auto genParam = DynamicCast<GenericsTy*>(generic->typeParameters[i]->GetTy())) {
+            if (auto genParam = DynamicCast<GenericsTy*>(generic->typeParameters[i]->GetTy().get())) {
                 mapping[genParam] = typeArgs[i];
             }
         }
@@ -1303,7 +1303,7 @@ void SymbolCollector::CreateExtend(const Decl &decl, const std::string &filePath
     if (target) {
         symbolID = GetDeclSymbolID(*target);
     } else {
-        symbolID = GetPrimaryTypeSymbolId(extendDecl->extendedType->GetTy());
+        symbolID = GetPrimaryTypeSymbolId(extendDecl->extendedType->GetTy().Ty());
     }
     auto fullPackageName = extendDecl->fullPackageName;
     std::vector<ExtendInfo> extendVec;
@@ -2032,8 +2032,8 @@ Ptr<Decl> SymbolCollector::FindOverriddenMember(const Decl &member, const Inheri
                 *static_cast<FuncDecl *>(it.get()), *static_cast<const FuncDecl *>(&member));
             memberTy = tyMgr.GetInstantiatedTy(memberTy, mapping);
         }
-        if (tyMgr.IsFuncParameterTypesIdentical(*StaticCast<FuncTy *>(memberTy),
-                                                *StaticCast<FuncTy *>(member.GetTy()))) {
+        if (tyMgr.IsFuncParameterTypesIdentical(*StaticCast<FuncTy *>(memberTy.Ty()),
+                                                *StaticCast<FuncTy *>(member.GetTy().Ty()))) {
             found = it;
             break;
         }
@@ -2060,7 +2060,7 @@ Ptr<Decl> SymbolCollector::FindOverriddenMemberFromSuperClass(const Decl &member
             }
             sd = StaticCast<ClassDecl *>(Ty::GetDeclPtrOfTy(it->GetTy()));
             CJC_NULLPTR_CHECK(sd); // When ty is class and correct, sd must be non-null.
-            typeMapping.merge(GenerateTypeMapping(sd->GetGeneric(), it->GetTy()->typeArgs));
+            typeMapping.merge(GenerateTypeMapping(sd->GetGeneric(), it->GetTy()->TyArgs()));
             if (auto parent = FindOverriddenMember(member, *sd, typeMapping, condition)) {
                 return parent;
             }
@@ -2095,7 +2095,7 @@ std::vector<Ptr<Decl>> SymbolCollector::FindImplMemberFromInterface(const Decl &
                 continue;
             }
             auto currentMapping =
-                GenerateTypeMapping(interfaceDecl->GetGeneric(), it->GetTy()->typeArgs);
+                GenerateTypeMapping(interfaceDecl->GetGeneric(), it->GetTy()->TyArgs());
             currentMapping.insert(mapping.begin(), mapping.end());
             if (auto found =
                     FindOverriddenMember(member, *interfaceDecl, currentMapping, condition)) {

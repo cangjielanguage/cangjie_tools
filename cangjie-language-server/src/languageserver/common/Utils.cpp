@@ -48,7 +48,7 @@ TypeCompatibility CheckTypeCompatibility(const Ty *lvalue, const Ty *rvalue)
         }
         auto ret = TypeCompatibility::IDENTICAL;
         for (size_t i = 0; i < ltuple->typeArgs.size(); i++) {
-            auto res = CheckTypeCompatibility(ltuple->typeArgs[i], rtuple->typeArgs[i]);
+            auto res = CheckTypeCompatibility(ltuple->typeArgs[i].get(), rtuple->typeArgs[i].get());
             if (res == TypeCompatibility::INCOMPATIBLE) {
                 return res;
             }
@@ -88,7 +88,8 @@ bool IsFuncParameterTypesIdentical(const FuncTy &t1, const FuncTy &t2)
     if (t1.paramTys.size() == t2.paramTys.size()) {
         result = true;
         for (size_t i = 0; i < t2.paramTys.size(); i++) {
-            result = result && (CheckTypeCompatibility(t1.paramTys[i], t2.paramTys[i]) == TypeCompatibility::IDENTICAL);
+            result = result &&
+                (CheckTypeCompatibility(t1.paramTys[i].get(), t2.paramTys[i].get()) == TypeCompatibility::IDENTICAL);
         }
     }
 
@@ -254,7 +255,7 @@ CommentKind GetCommentKind(const std::string &comment)
     return CommentKind::NO_COMMENT;
 }
 
-std::string PrintTypeArgs(std::vector<Ptr<Ty>> tyArgs, const std::pair<bool, int> isVarray)
+std::string PrintTypeArgs(std::vector<DataTy> tyArgs, const std::pair<bool, int> isVarray)
 {
     if (tyArgs.empty()) {
         return "";
@@ -295,7 +296,7 @@ std::string GetString(const Ty &ty)
     if (vArrayTy) {
         isVArray = {true, vArrayTy->size};
     }
-    return ty.name.empty() ? ty.String() : ty.name + PrintTypeArgs(ty.typeArgs, isVArray);
+    return ty.name.empty() ? ty.String() : ty.name + PrintTypeArgs(ty.TyArgs(), isVArray);
 }
 
 std::string ReplaceTuple(const std::string &type)
@@ -353,7 +354,7 @@ std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager)
         if (decl->type) {
             type = ItemResolverUtil::ResolveTypeSignature(*decl->type);
         } else {
-            ItemResolverUtil::GetDetailByTy(decl->GetTy(), type, true);
+            ItemResolverUtil::GetDetailByTy(decl->GetTy().get(), type, true);
         }
         std::string realType = ReplaceTuple(type);
         type = realType.empty() ? type : realType;
@@ -436,7 +437,7 @@ bool IsFuncSignatureIdentical(const Cangjie::AST::FuncDecl &funcDecl1, const Can
     auto funcTy1 = dynamic_cast<FuncTy *>(funcDecl1.GetTy().get());
     auto funcTy2 = dynamic_cast<FuncTy *>(funcDecl2.GetTy().get());
     if (!funcTy1 || !funcTy2 || !IsFuncParameterTypesIdentical(*funcTy1, *funcTy2) ||
-        !(CheckTypeCompatibility(funcTy1->retTy, funcTy2->retTy) == TypeCompatibility::IDENTICAL)) {
+        !(CheckTypeCompatibility(funcTy1->retTy.get(), funcTy2->retTy.get()) == TypeCompatibility::IDENTICAL)) {
         return false;
     }
     return true;

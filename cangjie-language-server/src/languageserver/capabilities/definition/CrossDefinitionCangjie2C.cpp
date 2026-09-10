@@ -44,16 +44,16 @@ std::string CrossDefinitionCangjie2C::TypeVarray(const Cangjie::AST::Ty *ty, boo
     for (auto &item: ty->typeArgs) {
         if (!isSimple) {
             if (item->kind == TypeKind::TYPE_VARRAY || item->kind == TypeKind::TYPE_CSTRING) {
-                return GetCType(item) + "[]";
+                return GetCType(item.get()) + "[]";
             }
             if (item->kind == TypeKind::TYPE_POINTER) {
-                const string baseType = GetCType(item, true);
+                const string baseType = GetCType(item.get(), true);
                 return baseType == CANGJIE2C.find(TypeKind::TYPE_CSTRING)->second ? baseType + "*[]" :
                        baseType + " *[]";
             }
-            return GetCType(item) + " []";
+            return GetCType(item.get()) + " []";
         }
-        return GetCType(item, true);
+        return GetCType(item.get(), true);
     }
     return "unknown";
 }
@@ -63,16 +63,16 @@ std::string CrossDefinitionCangjie2C::TypeCpointer(const Cangjie::AST::Ty *ty, b
     for (auto &item: ty->typeArgs) {
         if (!isSimple) {
             if (item->kind == TypeKind::TYPE_POINTER || item->kind == TypeKind::TYPE_CSTRING) {
-                return GetCType(item) + "*";
+                return GetCType(item.get()) + "*";
             }
             if (item->kind == TypeKind::TYPE_VARRAY) {
-                const string baseType = GetCType(item, true);
+                const string baseType = GetCType(item.get(), true);
                 return baseType == CANGJIE2C.find(TypeKind::TYPE_CSTRING)->second ? baseType + "*" :
                        baseType + " *";
             }
-            return GetCType(item, true) + " *";
+            return GetCType(item.get(), true) + " *";
         }
-        return GetCType(item, true);
+        return GetCType(item.get(), true);
     }
     return "unknown";
 }
@@ -83,10 +83,10 @@ void CrossDefinitionCangjie2C::Cangjie2CGetFuncMessage(std::vector<message> &Cro
     message message;
     bool inValid = !funcDecl || !funcDecl->funcBody || !funcDecl->funcBody->retType ||
                    !funcDecl->funcBody->retType->GetTy() || funcDecl->funcBody->paramLists.empty() ||
-                   GetCType(funcDecl->funcBody->retType->GetTy()) == "unknown";
+                   GetCType(funcDecl->funcBody->retType->GetTy().get()) == "unknown";
     if (inValid) { return; }
     for (const auto &item: funcDecl->funcBody->paramLists[0]->params) {
-        string basicString = GetCType(item->GetTy());
+        string basicString = GetCType(item->GetTy().get());
         if (basicString == "unknown") {
             message.functionParameters = {};
             return;
@@ -99,7 +99,7 @@ void CrossDefinitionCangjie2C::Cangjie2CGetFuncMessage(std::vector<message> &Cro
     }
     message.targetLanguage = "C";
     message.functionName = funcDecl->identifier;
-    message.retType = GetCType(funcDecl->funcBody->retType->GetTy());
+    message.retType = GetCType(funcDecl->funcBody->retType->GetTy().get());
     if (funcDecl->hasVariableLenArg) {
         (void) message.functionParameters.emplace_back("...");
     }

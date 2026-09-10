@@ -380,7 +380,7 @@ std::string HoverImpl::GetHoverMessageByOuterDecl(const Decl &node)
             if (decl.GetTy() == nullptr) {
                 return detail;
             }
-            Ptr<Decl> realDecl = ItemResolverUtil::GetDeclByTy(decl.GetTy());
+            Ptr<Decl> realDecl = ItemResolverUtil::GetDeclByTy(decl.GetTy().get());
             if (realDecl == nullptr) {
                 return detail;
             }

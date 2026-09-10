@@ -360,7 +360,7 @@ static std::string GetEnumDefaultInitializer(const Tweak::Selection &sel, const 
     if (!selectedExpr || !selectedExpr->GetTy()) {
         return "";
     }
-    auto enumDecl = GetEnumDeclFromTy(selectedExpr->GetTy());
+    auto enumDecl = GetEnumDeclFromTy(selectedExpr->GetTy().Ty());
     if (!enumDecl || enumDecl->constructors.empty() || !enumDecl->constructors.front()) {
         return "";
     }

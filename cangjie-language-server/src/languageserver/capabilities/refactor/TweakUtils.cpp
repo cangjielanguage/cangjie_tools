@@ -384,6 +384,7 @@ Ptr<Block> TweakUtils::GetSymbolBlock(AST::Symbol &symbol, Range &range)
             auto funcDecl = DynamicCast<FuncDecl>(symbol.node);
             return DealFuncDecl(funcDecl, range);
         }
+        case Cangjie::AST::ASTKind::EXCLAVE_EXPR:
         default:
             return nullptr;
     }

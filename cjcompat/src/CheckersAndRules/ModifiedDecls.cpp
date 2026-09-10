@@ -174,8 +174,8 @@ bool CheckerImpl::VarGlobalType(
     BEGIN_FORALL(
         v1, diff.GetDomPotentiallyModified(), dsl.VarLetOrConst(v1) && dsl.TopLevel(v1) && diff.ModuleVisible(v1))
         LETIF(v2, dsl.Corresponding(v1, diff.PotentiallyModified()), dsl.VarLetOrConst(v2) && dsl.TopLevel(v2))
-        auto t1 = v1->GetTy().get();
-        auto t2 = v2->GetTy().get();
+        auto t1 = v1->DataTy();
+        auto t2 = v2->DataTy();
         auto sameClassLikeType = t1->IsClassLike() && t2->IsClassLike();
         // When B is a subtype of A, AND both A and B are of the class or interface type, the two types are compatible.
         // Otherwise, it is not compatible.
@@ -270,7 +270,9 @@ bool CheckerImpl::EnumInstMemberVarModified(
         for (; v1 != e1Constructors.end() && v2 != e2Constructors.end(); ++v1, ++v2) {
             LETIF(v1Corsp, dsl.Corresponding(*v1, diff.GetPotentiallyMemberModified(e1)), v1Corsp != nullptr)
             CHECK(RuleKind::ENUM_MEMBER_VAR_ORDER_MODIFIED,
-                ((*v1)->mangledName == (*v2)->mangledName) || !dsl.SameType((*v1)->GetTy(), v1Corsp->GetTy()), *v1, *v2);
+                ((*v1)->mangledName == (*v2)->mangledName) ||
+                    !dsl.SameType((*v1)->DataTy(), v1Corsp->DataTy()),
+                *v1, *v2);
         }
     END_FORALL()
     return checkerResult;

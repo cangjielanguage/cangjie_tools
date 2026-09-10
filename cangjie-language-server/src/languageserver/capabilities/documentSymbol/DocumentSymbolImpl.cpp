@@ -130,7 +130,7 @@ std::string GetDocumentSymbolNameByFuncDecl(const FuncDecl &decl, bool isMain)
         detail += ": Int64";
         return detail;
     }
-    Ty *retTy = decl.funcBody->retType ? decl.funcBody->retType->GetTy() : nullptr;
+    Ty *retTy = decl.funcBody->retType ? decl.funcBody->retType->GetTy().get() : nullptr;
     std::string retTyStr;
     if (decl.funcBody->retType) {
         retTyStr = ItemResolverUtil::ResolveTypeSignature(*decl.funcBody->retType);

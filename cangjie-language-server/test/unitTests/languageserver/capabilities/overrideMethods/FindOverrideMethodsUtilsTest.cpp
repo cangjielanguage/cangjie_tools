@@ -33,7 +33,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncParamListTest002)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
@@ -50,7 +50,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncParamListTest003)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->SetTy(nullptr);
+    param->SetTy(ModalTy{});
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
@@ -82,7 +82,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncRetTypeTest003)
     auto funcDecl = new FuncDecl();
     auto funcBody = new FuncBody();
     auto retType = new Type();
-    retType->SetTy(nullptr);
+    retType->SetTy(ModalTy{});
     funcBody->retType = OwnedPtr<Type>(retType);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
     const auto result = ResolveFuncRetType(funcDecl);
@@ -225,11 +225,11 @@ TEST(FindOverrideMethodsUtilsTest, ResolveTypeTest007)
 {
     auto paramTy1 = new PrimitiveTy(TypeKind::TYPE_INT32);
     auto paramTy2 = new PrimitiveTy(TypeKind::TYPE_FLOAT32);
-    auto paramTys = std::vector<Ptr<Ty>>();
-    paramTys.emplace_back(paramTy1);
-    paramTys.emplace_back(paramTy2);
+    auto paramTys = std::vector<ModalTy>();
+    paramTys.emplace_back(ModalTy{DataTy{paramTy1}});
+    paramTys.emplace_back(ModalTy{DataTy{paramTy2}});
     auto retTy = new PrimitiveTy(TypeKind::TYPE_INT32);
-    auto funcTy = new FuncTy(paramTys, retTy);
+    auto funcTy = new FuncTy(paramTys, ModalTy{DataTy{retTy}});
     auto detail = ResolveType(funcTy);
 
     EXPECT_NE(detail, nullptr);
@@ -353,11 +353,11 @@ TEST(FindOverrideMethodsUtilsTest, ResolveFuncDetailTest001)
     auto paramList = new FuncParamList();
     auto param = new FuncParam();
     param->identifier = "Int32";
-    param->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
     paramList->params.emplace_back(param);
     funcBody->paramLists.emplace_back(paramList);
     auto retType = new Type();
-    retType->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    retType->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
     funcBody->retType = OwnedPtr<Type>(retType);
     funcDecl->funcBody = OwnedPtr<FuncBody>(funcBody);
 
@@ -378,7 +378,7 @@ TEST(FindOverrideMethodsUtilsTest, ResolvePropDetailTest001)
     propDecl->identifier = "myProp";
     propDecl->EnableAttr(Attribute::PUBLIC);
     propDecl->EnableAttr(Attribute::STATIC);
-    propDecl->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    propDecl->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     auto detail = ResolvePropDetail(propDecl);
     EXPECT_EQ(detail.identifier, "myProp");

@@ -16,7 +16,7 @@ void StructuralRuleGITF04::CheckFuncDeclParams(const Cangjie::AST::FuncDecl &fun
         return;
     }
     if (funcDecl.GetTy()) {
-        Ptr<AST::FuncTy> funcTy = DynamicCast<AST::FuncTy*>(funcDecl.GetTy());
+        Ptr<AST::FuncTy> funcTy = DynamicCast<AST::FuncTy*>(funcDecl.GetTy().get());
         if (funcTy && funcTy->retTy && funcTy->retTy->IsInterface()) {
             Diagnose(funcDecl.begin, funcDecl.end,
                 CodeCheckDiagKind::G_ITF_04_avoid_directly_using_interfaces_as_types_02, funcDecl.identifier.Val());

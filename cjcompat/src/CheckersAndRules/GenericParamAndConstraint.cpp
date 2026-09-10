@@ -58,7 +58,7 @@ static bool checkUpperBounds(
         return true;
     }
     // When B is the parent type of A, the API is compatible. Conversely, it is not compatible.
-    if (dsl.IsParentType(upperTypeB->GetTy(), upperTypeA->GetTy())) {
+    if (dsl.IsParentType(upperTypeB->GetTy().get(), upperTypeA->GetTy().get())) {
         isParentType = true;
         return false;
     }

@@ -40,10 +40,12 @@ bool CheckerImpl::StructMemberVarModified(
                         dsl.IsConst(v1) && dsl.IsConst(v2), v1, v2);
             }
             if (dsl.IsPublic(v1) && dsl.IsPublic(v2)) {
-                CHECK(RuleKind::STRUCT_MEMBER_VAR_TYPE_MODIFIED, dsl.SameType(v1->GetTy(), v2->GetTy()), v1, v2);
+                CHECK(RuleKind::STRUCT_MEMBER_VAR_TYPE_MODIFIED,
+                    dsl.SameType(v1->DataTy(), v2->DataTy()), v1, v2);
             }
             if (!dsl.IsPublic(v1) && !dsl.IsPublic(v2)) {
-                CHECK(RuleKind::STRUCT_NONPUBLIC_MEMBER_VAR_TYPE_MODIFIED, dsl.SameType(v1->GetTy(), v2->GetTy()), v1, v2);
+                CHECK(RuleKind::STRUCT_NONPUBLIC_MEMBER_VAR_TYPE_MODIFIED,
+                    dsl.SameType(v1->DataTy(), v2->DataTy()), v1, v2);
             }
             CHECK(RuleKind::STRUCT_INSTANCE_VAR_ACCESS_MODIFIED,
                 !(dsl.IsPublic(v1) && !dsl.IsPublic(v2)), v1, v2);
@@ -65,7 +67,7 @@ bool CheckerImpl::StructMemberVarModified(
                 if (!(*v1)->TestAttr(Attribute::STATIC) && !(*v2)->TestAttr(Attribute::STATIC)) {
                     CHECK(RuleKind::STRUCT_MEMBER_VAR_ORDER_MODIFIED,
                         ((*v1)->mangledName == (*v2)->mangledName) || v1Corsp == nullptr ||
-                            !dsl.SameType((*v1)->GetTy(), v1Corsp->GetTy()),
+                            !dsl.SameType((*v1)->GetTy().get(), v1Corsp->GetTy().get()),
                         *v1, *v2);
                 }
             }
@@ -256,7 +258,7 @@ bool CheckerImpl::ClassInstMemberVarModified(
 
         for (; v1 != c1Vars.end() && v2 != c2Vars.end(); ++v1, ++v2) {
             LETIF(v1Corsp, dsl.Corresponding(*v1, diff.GetPotentiallyMemberModified(c1)), v1Corsp != nullptr)
-            auto modifyVarType = !dsl.SameType((*v1)->GetTy(), v1Corsp->GetTy());
+            auto modifyVarType = !dsl.SameType((*v1)->GetTy().get(), v1Corsp->GetTy().get());
             if (dsl.IsPublicOrProtected(*v1) && dsl.IsPublicOrProtected(v1Corsp)) {
                 CHECK(RuleKind::CLASS_PUBLIC_PROTECTED_MEMBER_VAR_TYPE_MODIFIED, !modifyVarType, *v1, v1Corsp);
             }
@@ -264,7 +266,9 @@ bool CheckerImpl::ClassInstMemberVarModified(
                 CHECK(RuleKind::CLASS_PRIVATE_INTERNAL_MEMBER_VAR_TYPE_MODIFIED, !modifyVarType, *v1, v1Corsp);
             }
             CHECK(RuleKind::CLASS_MEMBER_VAR_ORDER_MODIFIED,
-                ((*v1)->mangledName == (*v2)->mangledName) || !dsl.SameType((*v1)->GetTy(), v1Corsp->GetTy()), *v1, *v2);
+                ((*v1)->mangledName == (*v2)->mangledName) ||
+                    !dsl.SameType((*v1)->GetTy().get(), v1Corsp->GetTy().get()),
+                *v1, *v2);
         }
 
         BEGIN_FORALL(v1, diff.GetDomPotentiallyMemberModified(c1),

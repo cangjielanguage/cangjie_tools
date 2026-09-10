@@ -497,7 +497,7 @@ TEST(ItemResolverUtilTest, ResolveSourceByNode_NullDecl) {
 TEST(ItemResolverUtilTest, FetchTypeString_NullType) {
     // Test with null type
     Type type;
-    type.SetTy(nullptr);
+    type.SetTy(ModalTy{});
 
     std::string result = ItemResolverUtil::FetchTypeString(type);
     EXPECT_EQ("", result);

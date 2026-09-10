@@ -58,7 +58,7 @@ void MatchBracket(const std::string &type, size_t &index, int &count);
 
 std::string GetVarDeclType(Ptr<VarDecl> decl, SourceManager *sourceManager);
 
-std::string PrintTypeArgs(std::vector<Ptr<Cangjie::AST::Ty>> tyArgs, const std::pair<bool, int> isVarray = {false, 0});
+std::string PrintTypeArgs(std::vector<Cangjie::AST::DataTy> tyArgs, const std::pair<bool, int> isVarray = {false, 0});
 
 CommentKind GetCommentKind(const std::string &comment);
 
@@ -288,7 +288,7 @@ inline bool IsLocalFuncOrLambda(const AST::Decl& decl)
 
 lsp::SymbolID GetSymbolId(const Decl &decl);
 
-inline std::string GetPrimaryTypeIdentifier(const Ptr<Ty> ty)
+inline std::string GetPrimaryTypeIdentifier(const DataTy ty)
 {
     if (!ty || ty->IsPrimitive()) {
         return "";
