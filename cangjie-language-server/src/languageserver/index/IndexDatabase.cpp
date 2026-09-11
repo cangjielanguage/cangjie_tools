@@ -92,7 +92,7 @@ void PopulateSymbol(const sqldb::Result &row, Symbol &sym)
         sym.templateSpecializationArgs, sym.completionSnippetSuffix, sym.documentation,
         sym.returnType, sym.type, sym.flags, sym.isCjoSym, sym.isMemberParam, sym.modifier, sym.isDeprecated,
         sym.syscap, sym.pkgModifier, sym.curModule, sym.curMacroCall.fileUri, sym.curMacroCall.begin.line,
-        sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column);
+        sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column, sym.cjdSignature);
     sym.id = GetIDFromArray(idArray);
 }
 // LCOV_EXCL_START
@@ -165,7 +165,8 @@ dberr_no PopulateSymbolWithRank(const sqldb::Result &row, Symbol &sym)
         sym.templateSpecializationArgs, sym.completionSnippetSuffix, sym.documentation,
         sym.returnType, sym.type, sym.flags, sym.isCjoSym, sym.isMemberParam, sym.modifier, sym.isDeprecated,
         sym.syscap, sym.pkgModifier, sym.curModule, sym.curMacroCall.fileUri, sym.curMacroCall.begin.line,
-        sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column, sym.rank);
+        sym.curMacroCall.begin.column, sym.curMacroCall.end.line, sym.curMacroCall.end.column, sym.cjdSignature,
+        sym.rank);
         sym.id = GetIDFromArray(idArray);
     return true;
 }
@@ -1049,7 +1050,7 @@ dberr_no IndexDatabase::DBUpdate::InsertSymbol(const Symbol &sym)
                     insertSym.isCjoSym, insertSym.isMemberParam, insertSym.modifier, insertSym.isDeprecated,
                     insertSym.syscap, insertSym.pkgModifier, insertSym.curModule, insertSym.curMacroCall.fileUri,
                     insertSym.curMacroCall.begin.line, insertSym.curMacroCall.begin.column,
-                    insertSym.curMacroCall.end.line, insertSym.curMacroCall.end.column));
+                    insertSym.curMacroCall.end.line, insertSym.curMacroCall.end.column, insertSym.cjdSignature));
 #ifndef NO_EXCEPTIONS
         } catch (const std::exception &e) {
             Trace::Log("err in insert symbol: ", e.what());
@@ -1092,7 +1093,7 @@ void IndexDatabase::DBUpdate::DealSymbols(const std::vector<Symbol> &syms)
                 insertSym.modifier, insertSym.isDeprecated, insertSym.syscap, insertSym.pkgModifier,
                 insertSym.curModule, insertSym.curMacroCall.fileUri, insertSym.curMacroCall.begin.line,
                 insertSym.curMacroCall.begin.column, insertSym.curMacroCall.end.line,
-                insertSym.curMacroCall.end.column);
+                insertSym.curMacroCall.end.column, insertSym.cjdSignature);
             BindValue(bind, stmt.GetStmt(), Index);
             if (++i % MUTI_INSERT_MAX_SIZE == 0) {
                 Index = 0;
@@ -1126,7 +1127,7 @@ void IndexDatabase::DBUpdate::DealSymbols(const std::vector<Symbol> &syms)
             insertSym.flags, insertSym.isCjoSym, insertSym.isMemberParam, insertSym.modifier, insertSym.isDeprecated,
             insertSym.syscap, insertSym.pkgModifier, insertSym.curModule, insertSym.curMacroCall.fileUri,
             insertSym.curMacroCall.begin.line, insertSym.curMacroCall.begin.column, insertSym.curMacroCall.end.line,
-            insertSym.curMacroCall.end.column);
+            insertSym.curMacroCall.end.column, insertSym.cjdSignature);
         BindValue(bind, stmt.GetStmt(), Index);
     }
     stmt.execute();

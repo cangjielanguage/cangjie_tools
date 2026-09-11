@@ -527,10 +527,22 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     SymbolLocation zeroLoc = {.begin = {0, 0}, .end = {0, 0}, .fileUri = ""};
     SymbolLocation declaration = {.begin = {0, 0}, .end = {0, 0}, .fileUri = ""};
     CommentGroups comments = GetDeclComments(decl);
+    std::string cjdSignature;
 
     if (NeedToObtainCjdDeclPos(isCjoPkg)) {
-        declaration = CjdIndexer::GetInstance()->GetSymbolDeclaration(GetDeclSymbolID(decl), decl.fullPackageName);
-        comments = CjdIndexer::GetInstance()->GetSymbolComments(GetDeclSymbolID(decl), decl.fullPackageName);
+        auto declId = GetDeclSymbolID(decl);
+        // Read the declaration/comments/signature precomputed while indexing CJD (available on both
+        // fresh and cache paths). pkgSymsMap is stable here since the indexer has finished building.
+        if (const Symbol *cjdSym = CjdIndexer::GetInstance()->GetSymbol(declId, decl.fullPackageName)) {
+            declaration = cjdSym->location;
+            comments = cjdSym->comments;
+            cjdSignature = cjdSym->cjdSignature;
+        }
+    } else if (ark::MessageHeaderEndOfLine::GetIsDeveco() && ark::lsp::CjdIndexer::GetInstance() != nullptr &&
+           !isCjoPkg && ark::lsp::CjdIndexer::GetInstance()->GetRunningState()) {
+        // Read the signature precomputed while indexing CJD (available on both fresh and cache paths).
+        cjdSignature = CjdIndexer::GetInstance()->ExtractSignatureFromSource(
+            decl.identifier.Val(), decl.begin, decl.end, decl.fullPackageName, decl.curFile->filePath);
     }
     Symbol declSym;
     declSym.id = GetDeclSymbolID(decl);
@@ -541,6 +553,7 @@ void SymbolCollector::CreateBaseSymbol(const Decl &decl, const std::string &file
     declSym.canonicalDeclaration = zeroLoc;
     declSym.kind = decl.astKind;
     declSym.signature = ItemResolverUtil::ResolveSignatureByNode(decl);
+    declSym.cjdSignature = std::move(cjdSignature);
     declSym.returnType = GetTypeString(decl);
     declSym.idArray = GetArrayFromID(declSym.id);
     // config local lambda variables kind for callHierarchy

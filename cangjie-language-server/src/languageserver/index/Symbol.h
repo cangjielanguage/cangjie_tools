@@ -140,6 +140,8 @@ public:
 
     AST::ASTKind kind;
     std::string signature;
+    // Signature extracted from the CJD declaration source.
+    std::string cjdSignature;
     std::string returnType;
     std::string templateSpecializationArgs;
     std::string completionSnippetSuffix;
