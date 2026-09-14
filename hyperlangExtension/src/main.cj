@@ -103,7 +103,7 @@ main(args: Array<String>) {
 
         // check whether cjbind exists
         if (!(exists(cla.bindingsPath) && FileInfo(cla.bindingsPath).isRegular())) {
-            println("Error: generation failed! cjbind file ${cla.bindingsPath} not exists, please download cjbind or build it first!")
+            println("Error: generation failed! cjbind file ${cla.bindingsPath} does not exist, please download cjbind or build it first!")
             return 1
         }
 
@@ -206,8 +206,8 @@ func generateCangjieBindingsForC(moduleName: String, filePath: String, outDir: S
 func parseCommandLine(pa: ParsedArguments): Unit {
     let currentPath = getHomeDirectory().toString()
 
-    cla.arkpath = (pa.options.get("i") ?? "") //  输入的ArkTS文件路径
-    cla.outDir = (pa.options.get("o") ?? currentPath) //  输出的Cangjie文件路径
+    cla.arkpath = (pa.options.get("i") ?? "") //  输入的 d.ts 或 d.ets 文件路径
+    cla.outDir = (pa.options.get("o") ?? currentPath) //   输出的Cangjie文件目录
     if (!cla.outDir.endsWith("/")) {
         cla.outDir += "/"
     }
@@ -302,7 +302,7 @@ func parseFilesSpawn(f: FileInfo, dir: Path, name: String, gconfigList: Concurre
     let basePath = dir.toString().replace("\\", "/")
     let moduleName = f.path.toString().replace("\\", "/")
 
-    // Get each file's relative path to input direcotry
+    // Get each file's relative path to input  directory
     var relativeFilePath = ""
     let splitResult = moduleName.split(basePath)
     if (splitResult.size > 1) {
@@ -411,7 +411,7 @@ func parseFile(arkpath: String, outDir: String, jsASTPath: String, gconfig: Glob
     }
 
     //扫描整个ark json文件，将内容保存在全局变量gconfig里,gconfig的声明在globalConfig.cj
-    //如若需要指定cj json，可以考虑扩容Global
+    //如若需要指定cj json，可以考虑扩容GlobalConfig 类
     let fileContent = String.fromUtf8(File.readFrom(arkJson))
     let transform = Transform(fileContent)
     let jsonContent = JsonValue.fromStr(fileContent)
