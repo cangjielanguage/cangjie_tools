@@ -781,6 +781,26 @@ TEST_F(IndexStorageTest, StoreSymbol_EmptyFields) {
     EXPECT_TRUE(fb_sym->name()->str().empty());
 }
 
+TEST_F(IndexStorageTest, StoreAndReadSymbol_CjdSignature) {
+    flatbuffers::FlatBufferBuilder builder;
+    Symbol source;
+    source.id = 7;
+    source.name = "readLine";
+    source.signature = "readLine()";
+    source.cjdSignature = "public func readLine(separator!: String = \"\\n\"): String";
+
+    auto offset = StoreSymbol(builder, source);
+    builder.Finish(offset);
+
+    auto encoded = flatbuffers::GetRoot<IdxFormat::Symbol>(builder.GetBufferPointer());
+    Symbol restored;
+    ReadSymbol(restored, encoded);
+
+    EXPECT_EQ(restored.id, source.id);
+    EXPECT_EQ(restored.name, source.name);
+    EXPECT_EQ(restored.cjdSignature, source.cjdSignature);
+}
+
 // --- 10. AstFileHandler Dynamic Cast Coverage ---
 
 TEST_F(IndexStorageTest, AstFileHandler_StoreShard_InvalidType) {

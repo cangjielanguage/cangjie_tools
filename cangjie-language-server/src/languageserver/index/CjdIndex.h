@@ -87,9 +87,19 @@ public:
 
     static CjdIndexer *GetInstance();
 
-    SymbolLocation GetSymbolDeclaration(SymbolID id, const std::string& fullPkgName);
+    // Looks up the CJD symbol by id in the given package and returns it, or nullptr if absent.
+    // Works on both the fresh-build and cache-restore paths, since it reads pkgSymsMap.
+    // Callers must ensure the indexer has finished building (GetRunningState() == false) so that
+    // pkgSymsMap is not concurrently mutated while the returned pointer is in use.
+    const Symbol *GetSymbol(SymbolID id, const std::string& fullPkgName);
 
-    CommentGroups GetSymbolComments(SymbolID id, const std::string& fullPkgName);
+    // Extracts the declaration signature text from the cached CJD source.
+    // Used while indexing the CJD packages themselves, where pkgMap is populated.
+    // `filePath` is an optional hint to locate the exact source buffer; when it does not match,
+    // fall back to scanning all buffers of the package (correctness is preserved).
+    std::string ExtractSignatureFromSource(const std::string& identifier, const Position& begin,
+                                           const Position& end, const std::string& fullPkgName,
+                                           const std::string& filePath = "");
 
     std::unordered_map<std::string, std::unique_ptr<DPkgInfo>> &GetPkgMap()
     {
@@ -108,6 +118,11 @@ public:
     }
 
 private:
+    // Precomputes per-line byte offsets for every cached CJD source file, so signature extraction
+    // no longer re-splits a whole file per symbol. Must be called once (single-threaded) after
+    // LoadAllCJDResource and before the concurrent BuildCJDIndex.
+    void BuildSourceLineIndex();
+
     void ReadCJDSource(const std::string &rootPath, const std::string &modulePath,
                        std::map<int, std::vector<std::string>> &fileMap, const std::string &parentPkg = "");
 
@@ -140,6 +155,9 @@ private:
 
     std::map<std::string, SymbolSlab> pkgSymsMap{};
     std::unordered_map<std::string, std::unique_ptr<DPkgInfo>> pkgMap;
+    // Per package -> per source file -> line-start byte offsets (index into the file content
+    // stored in pkgMap's bufferCache). Built once by BuildSourceLineIndex, then read-only.
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<size_t>>> pkgLineIndex;
     std::unordered_map<std::string, std::unique_ptr<DCompilerInstance>> ciMap;
 };
 } // namespace lsp

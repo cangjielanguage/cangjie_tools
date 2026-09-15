@@ -27,7 +27,7 @@ constexpr uint32_t DIGEST_BYTES = 8;
 using FileDigest = std::array<uint8_t, DIGEST_BYTES>;
 constexpr bool RESULT_NEXT = true;
 constexpr bool RESULT_DONE = false;
-const unsigned int MUTI_INSERT_MAX_SIZE = 900;
+const unsigned int MUTI_INSERT_MAX_SIZE = 800;
 
 class IndexDatabase {
     class DatabaseConnection;

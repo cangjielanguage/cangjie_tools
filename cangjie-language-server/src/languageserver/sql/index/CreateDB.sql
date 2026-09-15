@@ -9,7 +9,7 @@
 #include "../Prologue.inc.sql"
 
 #define DATABASE_MAGIC 0xDB2012
-#define DATABASE_VERSION 14
+#define DATABASE_VERSION 15
 
 
 #define LINE(Location) ((Location) >> 12)
@@ -108,7 +108,8 @@ SQL(
     MacroCallStartLine INTEGER,
     MacroCallStartColumn INTEGER,
     MacroCallEndLine INTEGER,
-    MacroCallEndColumn INTEGER
+    MacroCallEndColumn INTEGER,
+    CjdSignature TEXT
   );
 
   DROP TRIGGER IF EXISTS symbols_after_insert;
@@ -179,7 +180,8 @@ SQL(
     MacroCallStartLine,
     MacroCallStartColumn,
     MacroCallEndLine,
-    MacroCallEndColumn
+    MacroCallEndColumn,
+    CjdSignature
   )
   AS SELECT
     ID,
@@ -217,7 +219,8 @@ SQL(
     MacroCallStartLine,
     MacroCallStartColumn,
     MacroCallEndLine,
-    MacroCallEndColumn
+    MacroCallEndColumn,
+    CjdSignature
   FROM _symbols;
 
   DROP TRIGGER IF EXISTS symbols_instead_of_insert;
@@ -259,7 +262,8 @@ SQL(
 	  NEW.MacroCallStartLine,
 	  NEW.MacroCallStartColumn,
 	  NEW.MacroCallEndLine,
-	  NEW.MacroCallEndColumn
+	  NEW.MacroCallEndColumn,
+	  NEW.CjdSignature
     );
   END;
 )

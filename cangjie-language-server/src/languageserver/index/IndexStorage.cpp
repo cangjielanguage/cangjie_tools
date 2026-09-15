@@ -190,6 +190,9 @@ void ReadSymbol(Symbol &res, const IdxFormat::Symbol *sym)
     if (sym->return_type() != nullptr) {
         res.returnType = sym->return_type()->str();
     }
+    if (sym->cjd_signature() != nullptr) {
+        res.cjdSignature = sym->cjd_signature()->str();
+    }
     res.isMemberParam = sym->is_member_param();
     res.modifier = Modifier(sym->modifier());
     res.isCjoSym = sym->is_cjo_sym();
@@ -353,6 +356,7 @@ auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
     auto decl_loc = IdxFormat::CreateLocation(builder, &decl_begin, &decl_end, decl_uri);
     auto sig = builder.CreateString(sym.signature);
     auto ret = builder.CreateString(sym.returnType);
+    auto cjdSig = builder.CreateString(sym.cjdSignature);
     auto module = builder.CreateString(sym.curModule);
     auto macro_call_begin = IdxFormat::Position(sym.curMacroCall.begin.fileID,
                                                 sym.curMacroCall.begin.line, sym.curMacroCall.begin.column);
@@ -376,7 +380,7 @@ auto StoreSymbol(flatbuffers::FlatBufferBuilder &builder, const Symbol &sym)
                                    static_cast<uint16_t>(sym.kind), sig, ret, sym.isMemberParam,
                                    static_cast<uint8_t>(sym.modifier), sym.isCjoSym, sym.isDeprecated,
                                    module, macro, completion_items, comments, syscap,
-                                   static_cast<uint8_t>(sym.pkgModifier));
+                                   static_cast<uint8_t>(sym.pkgModifier), cjdSig);
 }
 
 auto StoreRef(flatbuffers::FlatBufferBuilder &builder, const Ref &ref)

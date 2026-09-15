@@ -475,39 +475,10 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
         }
     }
     std::string signature;
-    if (auto fd = DynamicCast<FuncDecl>(decl)) {
-        signature += fd->identifier.Val();
-        if (!fd->funcBody) { return ""; }
-        if (fd->funcBody->generic) {
-            signature += "<";
-            bool firstGeneric = true;
-            for (const auto &type : fd->funcBody->generic->typeParameters) {
-                if (!firstGeneric) {
-                    signature += ", ";
-                }
-                signature += type->identifier;
-                firstGeneric = false;
-            }
-            signature += ">";
-        }
-        signature += '(';
-        bool firstTy = true;
-        for (const auto &param : fd->funcBody->paramLists[0]->params) {
-            if (!firstTy) {
-                signature += ", ";
-            }
-            std::string paramType;
-            if (param->type) {
-                paramType = ItemResolverUtil::ResolveTypeSignature(*param->type);
-            }
-
-            if (paramType.empty()) {
-                paramType = GetString(*param->GetTy());
-            }
-            signature += paramType;
-            firstTy = false;
-        }
-        signature += ')';
+    if (auto index = CompilerCangjieProject::GetInstance()->GetIndex()) {
+        signature = index->GetAimSymbol(*decl).cjdSignature;
+    }
+    if (!signature.empty()) {
         apiKey += signature + "\r\n";
         return apiKey;
     }

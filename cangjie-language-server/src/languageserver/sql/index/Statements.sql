@@ -138,7 +138,8 @@ SQL(InsertSymbol,
     :MacroCallStartLine,
     :MacroCallStartColumn,
     :MacroCallEndLine,
-    :MacroCallEndColumn
+    :MacroCallEndColumn,
+    :CjdSignature
   )
 );
 
@@ -148,6 +149,7 @@ SQL(MultiInsertSymbolsHead,
 
 SQL(MultiInsertSymbolsValue,
   (
+    ?,
     ?,
     ?,
     ?,
