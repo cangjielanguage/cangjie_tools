@@ -116,9 +116,13 @@ func lackPackageCheck(topoData: DepModel) {
         }
     }
     if (lackPackage.size != 0) {
+        sort(lackPackage, by: cmpStr, stable: true)
         eprintln("Error: can not find the following dependencies")
         for (packageName in lackPackage) {
-            eprintln("    ${packageName}")
+            let importers = ArrayList<String>(topoData.edges[packageName])
+            sort(importers, by: cmpStr, stable: true)
+            let importedBy = String.join(importers.toArray(), delimiter: ", ")
+            eprintln("    ${packageName} (imported by: ${importedBy})")
         }
         return false
     }
