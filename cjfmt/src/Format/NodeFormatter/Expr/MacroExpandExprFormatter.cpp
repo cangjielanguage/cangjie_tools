@@ -40,8 +40,9 @@ void MacroExpandExprFormatter::AddMacroExpandExpr(
 
     doc.members.emplace_back(DocType::STRING, level, macroStr);
     if (macroExpandExpr.invocation.decl != nullptr) {
-        if (macroExpandExpr.invocation.decl->begin.line ==
-            macroExpandExpr.invocation.macroCallDiagInfo.identifierPos.line) {
+        bool preserveLineBreakBeforeDecl = macroExpandExpr.invocation.decl->begin.line !=
+            macroExpandExpr.invocation.macroCallDiagInfo.identifierPos.line;
+        if (!preserveLineBreakBeforeDecl) {
             doc.members.emplace_back(DocType::STRING, level, " ");
         } else {
             doc.members.emplace_back(DocType::LINE, level, "");

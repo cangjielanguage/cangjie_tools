@@ -86,8 +86,10 @@ public:
     void EditMacroStr(const Token& attr, std::string& macroStr, TokenKind& preTokenKind);
     bool WithoutSpace(TokenKind preTokenKind) const;
     bool IsMultipleLineArg(const std::vector<OwnedPtr<Cangjie::AST::FuncArg>>& args);
-    bool IsMultipleLineCallExpr(const Cangjie::AST::CallExpr& callExpr) const;
-    bool IsMultipleLineArrayLit(const int& rightSquarePosLine,
+    // These policies intentionally preserve an explicitly expanded container. Keep them separate from width-driven
+    // line breaking so source-layout dependencies remain visible and can be migrated independently.
+    bool ShouldPreserveMultilineCallLayout(const Cangjie::AST::CallExpr& callExpr) const;
+    bool ShouldPreserveMultilineArrayLayout(const int& rightSquarePosLine,
         const std::vector<OwnedPtr<Cangjie::AST::Expr>>& children) const;
     bool IsMultipleLineExpr(const std::vector<OwnedPtr<Cangjie::AST::Expr>>& children);
     bool IsMultipleLine(const OwnedPtr<Cangjie::AST::Expr>& expr);

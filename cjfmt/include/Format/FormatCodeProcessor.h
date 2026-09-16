@@ -14,6 +14,7 @@
 #include "cangjie/Utils/FileUtil.h"
 
 #include <dirent.h>
+#include <cstddef>
 #include <fstream>
 #include <istream>
 #include <map>
@@ -29,7 +30,30 @@ const int DEPTH_OF_RECURSION = 0;
  * configuration option later. */
 const int MAX_RECURSION_DEPTH = -1;
 
+struct ByteRange {
+    // UTF-8 byte offsets in the half-open interval [start, end).
+    size_t start{};
+    size_t end{};
+};
+
+struct TextEdit {
+    ByteRange range;
+    std::string replacement;
+};
+
+struct FormatResult {
+    std::string formattedText;
+    // The line-based request converted to byte offsets in the input text.
+    ByteRange requestedRange;
+    // requestedRange mapped through edits into formattedText.
+    ByteRange formattedRange;
+    // At most one minimal contiguous replacement; empty when the text is unchanged.
+    std::vector<TextEdit> edits;
+};
+
 int FmtDir(const std::string& fmtDirPath, const std::string& dirOutputPath);
+std::optional<FormatResult> FormatTextWithEdits(
+    const std::string& rawCode, const std::string& filepath, Region regionToFormat);
 std::optional<std::string> FormatText(const std::string& rawCode, const std::string& filepath, Region regionToFormat);
 bool FormatFile(std::string& rawCode, const std::string& filepath, std::string& sourceFormat, Region regionToFormat);
 bool HasEnding(std::string const& fullString, std::string const& ending);

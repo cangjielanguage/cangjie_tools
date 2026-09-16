@@ -22,7 +22,7 @@ void ArrayLitFormatter::AddArrayLit(Doc& doc, const Cangjie::AST::ArrayLit& arra
     doc.type = DocType::CONCAT;
     doc.indent = level;
     doc.members.emplace_back(DocType::STRING, level, "[");
-    if (astToFormatSource.IsMultipleLineArrayLit(arrayLit.rightSquarePos.line, arrayLit.children) ||
+    if (astToFormatSource.ShouldPreserveMultilineArrayLayout(arrayLit.rightSquarePos.line, arrayLit.children) ||
         astToFormatSource.IsMultipleLineExpr(arrayLit.children)) {
         AddBreakLineArrayLit(doc, arrayLit, level);
         return;

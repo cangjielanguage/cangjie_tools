@@ -19,7 +19,8 @@ public:
 private:
     void AddFuncParamList(Doc& doc, const AST::FuncParamList& funcParamList, int level, FuncOptions funcOptions);
     bool IsMultipleLineMacroExpandParam(const AST::FuncParamList& funcParamList);
-    bool IsMultipleLine(const int& rightParentPosLine, const std::vector<OwnedPtr<AST::FuncParam>>& params) const;
+    bool ShouldPreserveMultilineLayout(
+        const int& rightParentPosLine, const std::vector<OwnedPtr<AST::FuncParam>>& params) const;
     void AddEmptyParam(Doc& doc, int level);
 };
 } // namespace Cangjie::Format

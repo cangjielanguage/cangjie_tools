@@ -24,7 +24,8 @@ void BinaryExprFormatter::AddBinaryExpr(Doc& doc, const Cangjie::AST::BinaryExpr
 
     Doc group(DocType::GROUP, level, "");
     group.members.emplace_back(astToFormatSource.ASTToDoc(binaryExpr.leftExpr.get(), level));
-    binaryExpr.leftExpr->end.line < binaryExpr.operatorPos.line
+    bool preserveOperatorLineBreak = binaryExpr.leftExpr->end.line < binaryExpr.operatorPos.line;
+    preserveOperatorLineBreak
         ? group.members.emplace_back(DocType::LINE, level + 1, "")
         : group.members.emplace_back(DocType::STRING, level, " ");
     group.members.emplace_back(DocType::STRING, level, TOKENS[static_cast<int>(binaryExpr.op)]);

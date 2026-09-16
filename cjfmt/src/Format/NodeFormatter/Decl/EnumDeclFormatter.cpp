@@ -34,8 +34,9 @@ void EnumDeclFormatter::AddEnumDecl(Doc& doc, const Cangjie::AST::EnumDecl& enum
     }
     doc.members.emplace_back(DocType::STRING, level, " {");
     doc.members.emplace_back(DocType::LINE, level + 1, "");
-    if (enumDecl.constructors.size() > 1 &&
-        enumDecl.constructors.front()->begin.line != enumDecl.constructors.back()->begin.line) {
+    bool preserveMultilineConstructors = enumDecl.constructors.size() > 1 &&
+        enumDecl.constructors.front()->begin.line != enumDecl.constructors.back()->begin.line;
+    if (preserveMultilineConstructors) {
         AddEnumBreakLineConstructors(doc, enumDecl, level);
         return;
     }
