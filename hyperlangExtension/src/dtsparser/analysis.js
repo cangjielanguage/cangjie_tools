@@ -468,7 +468,8 @@ class ASTVisitor {
 
             rjson[rjson.length - 1].info.name = declaration.name.escapedText;
             if (!declaration.initializer || !declaration.initializer.getText()) {
-                rjson[rjson.length - 1].info.comment = '/*\n' + comment;
+                const safeComment = comment.replace(/\*\//g, '*\\/').replace(/\/\*/g, '/\\*');
+                rjson[rjson.length - 1].info.comment = '/*\n' + safeComment;
                 rjson[rjson.length - 1].info.value = fixme + '\n*/';
             } else {
                 rjson[rjson.length - 1].info.comment = comment;

@@ -70,7 +70,7 @@ private func toCJType(ty: TsType): String {
         case TsVoid => unit
         case TsBoolean => bool
         case TsBigInt => "BigInt"
-        case TsAny => "JSValue/* FIXME: `${ty}` */"
+        case TsAny => "JSValue/* FIXME: `${escapeComment(ty.toString())}` */"
 
         case TsFunction(ret, params, generics) =>
             if (generics.size > 0) {
@@ -87,7 +87,7 @@ private func toCJType(ty: TsType): String {
             }
             "(${params.map {it => "${opt(it)}${toCJType(it.ty)}"} |> collectString<String>(delimiter: ", ")}) -> ${toCJType(ret)}" +
                 if (generics.size > 0) {
-                "/* FIXME: `${ty}` */"
+                "/* FIXME: `${escapeComment(ty.toString())}` */"
             } else {
                 ""
             }
@@ -106,24 +106,24 @@ private func toCJType(ty: TsType): String {
                 return "Option<${toCJType(nonNullTypes[0])}>"
             }
             println("WARNING: type is not supported - ${ty}")
-            "JSValue/* FIXME: `${ty}` */"
+            "JSValue/* FIXME: `${escapeComment(ty.toString())}` */"
         case TsTypeRef(x) =>
             if (isUserDefinedName(x) || x.startsWith("AutoGenType")) {
                 return x
             } else {
-                return "JSValue/* FIXME: `${x}` */"
+                return "JSValue/* FIXME: `${escapeComment(x)}` */"
             }
-        case TsTypeRef("Promise", _) => "JSValue/* FIXME: `${ty}` */"
+        case TsTypeRef("Promise", _) => "JSValue/* FIXME: `${escapeComment(ty.toString())}` */"
         case TsTypeRef(x, arr) =>
              if (isUserDefinedName(x) || x.startsWith("AutoGenType")) {
                 "${x}<${arr.map(toCJType) |> collectString<String>(delimiter: ", ")}>"
             } else {
-                "JSValue/* FIXME: `${x}` */"
+                "JSValue/* FIXME: `${escapeComment(x)}` */"
             }
 
         case _ =>
             println("WARNING: type is not supported - ${ty}")
-            "JSValue/* FIXME: `${ty}` */"
+            "JSValue/* FIXME: `${escapeComment(ty.toString())}` */"
     }
 }
 
