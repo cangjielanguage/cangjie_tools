@@ -801,6 +801,27 @@ TEST_F(IndexStorageTest, StoreAndReadSymbol_CjdSignature) {
     EXPECT_EQ(restored.cjdSignature, source.cjdSignature);
 }
 
+TEST_F(IndexStorageTest, StoreAndReadSymbol_EmptyCjdSignature) {
+    flatbuffers::FlatBufferBuilder builder;
+    Symbol source;
+    source.id = 8;
+    source.name = "compare";
+    source.signature = "compare(Ordering)";
+    source.cjdSignature = "";
+
+    auto offset = StoreSymbol(builder, source);
+    builder.Finish(offset);
+
+    auto encoded = flatbuffers::GetRoot<IdxFormat::Symbol>(builder.GetBufferPointer());
+    Symbol restored;
+    ReadSymbol(restored, encoded);
+
+    EXPECT_EQ(restored.id, source.id);
+    EXPECT_EQ(restored.name, source.name);
+    EXPECT_EQ(restored.signature, source.signature);
+    EXPECT_TRUE(restored.cjdSignature.empty());
+}
+
 // --- 10. AstFileHandler Dynamic Cast Coverage ---
 
 TEST_F(IndexStorageTest, AstFileHandler_StoreShard_InvalidType) {
