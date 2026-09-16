@@ -2287,7 +2287,7 @@ void CompilerCangjieProject::CheckPackageNameByAbsName(const File &needCheckedFi
 
 void CompilerCangjieProject::ReportModuleNameConflict(const File &file) const
 {
-    if (!moduleManager || !file.package) {
+    if (!moduleManager || !file.package || !FileUtil::FileExist(file.filePath)) {
         return;
     }
     ModuleNameConflict conflict;
