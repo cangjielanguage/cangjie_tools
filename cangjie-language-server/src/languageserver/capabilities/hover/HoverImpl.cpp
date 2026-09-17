@@ -457,11 +457,18 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
     std::string apiKey = "apiKey:";
     apiKey += decl->fullPackageName + '/';
     if (decl->outerDecl) {
-        apiKey += decl->outerDecl->identifier.Val();
-        if (decl->outerDecl->generic) {
+        Ptr<Decl> outer = decl->outerDecl;
+        if (auto extendDecl = DynamicCast<ExtendDecl*>(outer.get())) {
+            if (auto realDecl = ItemResolverUtil::GetDeclByTy(extendDecl->GetTy())) {
+                outer = realDecl;
+            }
+        }
+
+        apiKey += outer->identifier.Val();
+        if (outer->generic) {
             apiKey += "<";
             bool firstGeneric = true;
-            for (const auto &type : decl->outerDecl->generic->typeParameters) {
+            for (const auto &type : outer->generic->typeParameters) {
                 if (!firstGeneric) {
                     apiKey += ", ";
                 }
@@ -470,13 +477,18 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
             }
             apiKey += ">";
         }
-        if (!decl->outerDecl->identifier.Val().empty()) {
+        if (!outer->identifier.Val().empty()) {
             apiKey += ".";
         }
     }
     std::string signature;
     if (auto index = CompilerCangjieProject::GetInstance()->GetIndex()) {
         signature = index->GetAimSymbol(*decl).cjdSignature;
+    }
+    if (signature.empty()) {
+        if (auto fd = DynamicCast<FuncDecl>(decl)) {
+            signature = BuildFuncDeclSignature(fd);
+        }
     }
     if (!signature.empty()) {
         apiKey += signature + "\r\n";
@@ -486,6 +498,47 @@ std::string HoverImpl::GetDeclApiKey(const Ptr<Decl> &decl)
     return "apiKey:\r\n";
 }
 // LCOV_EXCL_STOP
+
+std::string HoverImpl::BuildFuncDeclSignature(FuncDecl *fd)
+{
+    std::string signature;
+    signature += fd->identifier.Val();
+    if (fd->funcBody == nullptr || fd->funcBody->paramLists.empty() ||
+        fd->funcBody->paramLists[0] == nullptr) {
+        return signature;
+    }
+    if (fd->funcBody->generic) {
+        signature += "<";
+        bool firstGeneric = true;
+        for (const auto &type : fd->funcBody->generic->typeParameters) {
+            if (!firstGeneric) {
+                signature += ", ";
+            }
+            signature += type->identifier;
+            firstGeneric = false;
+        }
+        signature += ">";
+    }
+    signature += '(';
+    bool firstTy = true;
+    for (const auto &param : fd->funcBody->paramLists[0]->params) {
+        if (!firstTy) {
+            signature += ", ";
+        }
+        std::string paramType;
+        if (param->type) {
+            paramType = ItemResolverUtil::ResolveTypeSignature(*param->type);
+        }
+        if (paramType.empty() && param->GetTy()) {
+            paramType = GetString(*param->GetTy());
+        }
+        signature += paramType;
+        firstTy = false;
+    }
+    signature += ')';
+    return signature;
+}
+
 int HoverImpl::FindHover(const ArkAST &ast, Hover &result, Cangjie::Position pos)
 {
     Logger &logger = Logger::Instance();

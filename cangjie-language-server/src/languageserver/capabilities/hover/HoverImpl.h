@@ -47,6 +47,8 @@ private:
 
     static std::string GetDeclApiKey(const Ptr<Decl> &decl);
 
+    static std::string BuildFuncDeclSignature(FuncDecl *fd);
+
     static bool IsAnnoAPILevel(Ptr<Annotation> anno, Ptr<ASTContext> ctx);
 
     static std::string GetDeclApiLevelAnnoInfo(Decl &decl, const ArkAST &ast);
