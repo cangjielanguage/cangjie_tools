@@ -22,6 +22,12 @@ bool IsClosing(const Token &token)
     return token.kind == TokenKind::RCURL || token.kind == TokenKind::RPAREN || token.kind == TokenKind::RSQUARE;
 }
 
+bool IsBlockContinuationKeyword(const Token &token)
+{
+    return token.kind == TokenKind::ELSE || token.kind == TokenKind::CATCH ||
+        token.kind == TokenKind::FINALLY || token.kind == TokenKind::WHILE;
+}
+
 bool IsMultilineComment(const Token &token)
 {
     // Extract first two characters (start at position 0, max length 2)
@@ -190,6 +196,12 @@ private:
             return sameIndent;
         }
         if (!isFirstOnThisLine) {
+            // A comment can split "} else/catch/finally/while" across lines.
+            // Keep the continuation keyword aligned with the preceding block.
+            if (!isComment && std::prev(tokenToIndent)->kind == TokenKind::RCURL &&
+                IsBlockContinuationKeyword(*tokenToIndent)) {
+                return sameIndent;
+            }
             // pattern matching 'case' always creats indented region
             if (firstOnThisLine->kind == TokenKind::CASE) {
                 return oneLevelIndented;
