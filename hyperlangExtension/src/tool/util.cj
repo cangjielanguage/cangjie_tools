@@ -9,10 +9,24 @@ package hle.tool
 import std.ast.*
 import std.collection.*
 
+// Escape comment delimiters in untrusted content to prevent block-comment
+// injection (e.g. a d.ts string literal containing "*/" would prematurely
+// close an enclosing /* ... */ comment and leak code outside it).
+public func escapeComment(s: String): String {
+    s.replace("*/", "*\\/").replace("/*", "/\\*")
+}
+
+// Safely wrap raw d.ts comment text (which may include its own // or /* */
+// delimiters) into a single escaped block comment, preventing injection
+// from "*/" sequences inside the original comment content.
+public func escapeRawComment(comment: String): String {
+    "/* " + escapeComment(comment) + " */"
+}
+
 public func addComment(msg: String, reason!: ?String = None): Tokens {
-    let safeMsg = msg.replace("*/", "*\\/").replace("/*", "/\\*")
+    let safeMsg = escapeComment(msg)
     if (let Some(r) <- reason) {
-        Tokens([Token(TokenKind.COMMENT, "// ${r}"), nl, Token(TokenKind.COMMENT, "/*${safeMsg}*/"), nl])
+        Tokens([Token(TokenKind.COMMENT, "// ${escapeComment(r)}"), nl, Token(TokenKind.COMMENT, "/*${safeMsg}*/"), nl])
     } else {
         Tokens([Token(TokenKind.COMMENT, "/*${safeMsg}*/"), nl])
     }
@@ -73,13 +87,14 @@ public func isNumberArray(typeStr: String): Bool {
 }
 
 public func mergeCommentToken(arkComment: String, brief: String): Token {
+    let safeBrief = escapeComment(brief)
     let sinceIdx = arkComment.indexOf("@since") ?? arkComment.size
     let subArkComment = arkComment[sinceIdx..]
     let nextCRLF = subArkComment.indexOf("\n") ?? 0
 
-    var comment = "/**\n\t * " + "@brief ${brief}" + "\n\t */"
+    var comment = "/**\n\t * " + "@brief ${safeBrief}" + "\n\t */"
     if (arkComment.contains("@since")) {
-        comment = arkComment[..sinceIdx] + "@brief ${brief}" + subArkComment[nextCRLF..]
+        comment = arkComment[..sinceIdx] + "@brief ${safeBrief}" + subArkComment[nextCRLF..]
     } else {
         if (arkComment.size != 0) {
             comment = comment + "\n\t" + arkComment
