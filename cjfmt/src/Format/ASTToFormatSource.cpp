@@ -17,10 +17,6 @@ using namespace Cangjie::Format;
 
 namespace Cangjie::Format {
 const Region Region::wholeFile = Region(1, std::numeric_limits<int>::max(), true);
-}
-
-namespace {
-const int MIN_MUL_MEMBERS = 2;
 // this is a workaround for parser treating annotation and modifiers
 // as if they're outside declarations [begin, end] range
 Cangjie::Position GetBegin(Ptr<Node> n)
@@ -42,6 +38,10 @@ Cangjie::Position GetBegin(Ptr<Node> n)
     }
     return begin;
 }
+} // namespace Cangjie::Format
+
+namespace {
+const int MIN_MUL_MEMBERS = 2;
 
 inline Cangjie::Position GetEnd(Ptr<Node> n)
 {

@@ -23,6 +23,9 @@
 namespace Cangjie::Format {
 static const Cangjie::Position INVALID_POSITION = Cangjie::Position{0, 0, 0};
 
+// Include annotations and modifiers when locating the start of a declaration.
+Cangjie::Position GetBegin(Ptr<Cangjie::AST::Node> node);
+
 struct Region {
     int startLine;
     int endLine;
@@ -214,7 +217,7 @@ public:
         int lastEndLine = -1;
         for (auto& n : members) {
             if (lastEndLine != -1) {
-                if (n->begin.line > lastEndLine + 1) {
+                if (GetBegin(n.get()).line > lastEndLine + 1) {
                     doc.members.emplace_back(DocType::SEPARATE, level, "");
                 }
                 doc.members.emplace_back(DocType::LINE, level, "");

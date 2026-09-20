@@ -31,13 +31,16 @@ void BlockFormatter::AddBlock(Doc& doc, const Cangjie::AST::Block& block, int le
         return;
     }
 
+    if (block.TestAttr(Attribute::UNSAFE)) {
+        doc.members.emplace_back(DocType::STRING, level, "unsafe");
+    }
+
     if (block.body.empty()) {
         astToFormatSource.AddEmptyBody(doc, block, level, block.leftCurlPos.line == block.rightCurlPos.line);
         return;
     }
 
     if (block.TestAttr(Attribute::UNSAFE)) {
-        doc.members.emplace_back(DocType::STRING, level, "unsafe");
         bool preserveSingleLineUnsafe =
             block.body.size() == 1 && block.body.back()->end.line == block.rightCurlPos.line;
         preserveSingleLineUnsafe ?
