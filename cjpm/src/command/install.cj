@@ -43,16 +43,18 @@ let SKIP_BUILD_WARNING = "Warning: cannot skip building while installing binary 
     "--skip-build will be ignored"
 let INSTALL_TYPE_CONFLICT = "Error: cjpm install can have at most one type of configuration " +
     "between name-version(from repository), --git(from git) and --path(local project)"
+let INSTALL_SHORT_OPTION: String = "Vm:gj:"
+let INSTALL_LONG_OPTION: Array<String> = ["verbose", "member=", "path=", "root=", "git=", "branch=", "tag=",
+    "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script"]
 
 class InstallCommand <: Handle {
-    private let INSTALL_SHORT_OPTION: String = "Vm:gj:"
-    private let INSTALL_LONG_OPTION: Array<String> = ["verbose", "member=", "path=", "root=", "git=", "branch=", "tag=",
-        "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script"]
     public var installConfig: InstallConfig = InstallConfig()
 
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..]
+        this.shortOptionSpec = INSTALL_SHORT_OPTION
+        this.longOptionSpecs = INSTALL_LONG_OPTION
     }
 
     public override func printHelp(): Unit {

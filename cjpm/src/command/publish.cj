@@ -18,12 +18,15 @@ Available options:
   -h, --help              help for publish
   -V, --verbose           enable verbose."""
 
-let PUBLISH_LONG_OPTION: Array<String> = ["help", "verbose"]
+let PUBLISH_SHORT_OPTION: String = "V"
+let PUBLISH_LONG_OPTION: Array<String> = ["verbose"]
 
 class PublishCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..]
+        this.shortOptionSpec = PUBLISH_SHORT_OPTION
+        this.longOptionSpecs = PUBLISH_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -32,7 +35,7 @@ class PublishCommand <: Handle {
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparsedArgs) = getParseOption(this.arguments, "V", PUBLISH_LONG_OPTION)
+        let (argMap, unparsedArgs) = getParseOption(this.arguments, PUBLISH_SHORT_OPTION, PUBLISH_LONG_OPTION)
 
         if (unparsedArgs.size != 0) {
             eprintln("Error: unknown command '${unparsedArgs[0]}' for cjpm publish")

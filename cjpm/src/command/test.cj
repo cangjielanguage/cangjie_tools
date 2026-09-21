@@ -16,6 +16,7 @@ public let TEST_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclu
     "random-seed=", "timeout-each=", "parallel=", "member=", "report-format=", "report-path=", "skip-script",
     "no-capture-output", "show-all-output", "module=", "incremental", "dry-run", "no-progress", "progress-brief",
     "progress-entries-limit=", "show-tags"]
+let TEST_SHORT_OPTION: String = "gVj:m:i"
 let TEST_USAGE: String = """
 Build and run unittest for all packages in current module.
 If you specify some package paths, it will only test those specified packages.
@@ -62,6 +63,8 @@ class TestCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove subcommand itself
+        this.shortOptionSpec = TEST_SHORT_OPTION
+        this.longOptionSpecs = TEST_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -94,7 +97,7 @@ class TestCommand <: Handle {
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparseArgs) = getParseOption(this.arguments, "gVj:m:i", TEST_LONG_OPTION)
+        let (argMap, unparseArgs) = getParseOption(this.arguments, TEST_SHORT_OPTION, TEST_LONG_OPTION)
 
         let testConfig = processTestCliOptions(argMap, unparseArgs) ?? return false
 

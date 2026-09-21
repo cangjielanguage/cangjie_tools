@@ -11,8 +11,9 @@ import std.convert.*
 import cjpm.implement.*
 import cjpm.config.*
 
-let TREE_LONG_OPTION: Array<String> = ["help", "verbose", "depth=", "package=", "invert=", "target=", "no-tests",
+let TREE_LONG_OPTION: Array<String> = ["verbose", "depth=", "package=", "invert=", "target=", "no-tests",
     "skip-script"]
+let TREE_SHORT_OPTION: String = "p:V"
 let TREE_VALUE_OPTIONS = ["-p", "--depth", "--package", "--invert", "--target"]
 let TREE_USAGE: String = """
 Display a tree visualization of a dependency graph
@@ -34,6 +35,8 @@ class TreeCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove tree itself
+        this.shortOptionSpec = TREE_SHORT_OPTION
+        this.longOptionSpecs = TREE_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -67,7 +70,7 @@ class TreeCommand <: Handle {
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparseArgs) = getParseOption(this.arguments, "p:Vh", TREE_LONG_OPTION)
+        let (argMap, unparseArgs) = getParseOption(this.arguments, TREE_SHORT_OPTION, TREE_LONG_OPTION)
         let treeConfig = TreeConfig()
         treeConfig.isVerbose = getBoolOption(argMap, "-V", "--verbose")
         treeConfig.noTest = getBoolOption(argMap, "--no-tests")

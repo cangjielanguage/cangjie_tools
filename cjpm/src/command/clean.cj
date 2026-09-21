@@ -9,6 +9,9 @@ package cjpm.command
 import cjpm.implement.*
 import cjpm.config.*
 
+let CLEAN_SHORT_OPTION: String = "g"
+let CLEAN_LONG_OPTION: Array<String> = ["target-dir=", "skip-script"]
+
 // CleanCommand represents the clean command
 class CleanCommand <: Handle {
     private let CLEAN_USAGE: String = """
@@ -27,6 +30,8 @@ Available options:
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove clean itself
+        this.shortOptionSpec = CLEAN_SHORT_OPTION
+        this.longOptionSpecs = CLEAN_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -35,7 +40,7 @@ Available options:
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparseArgs) = getParseOption(this.arguments, "g", ["target-dir=", "skip-script"])
+        let (argMap, unparseArgs) = getParseOption(this.arguments, CLEAN_SHORT_OPTION, CLEAN_LONG_OPTION)
 
         if (unparseArgs.size != 0) {
             if (unparseArgs.contains("--target-dir")) {

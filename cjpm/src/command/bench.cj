@@ -11,6 +11,7 @@ import cjpm.implement.*
 let BENCH_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclude-tags=", "verbose", "no-run", "skip-build",
     "target=", "target-dir=", "jobs=", "no-color", "random-seed=", "member=", "report-format=", "report-path=",
     "baseline-path=", "skip-script", "module=", "incremental", "dry-run", "show-tags"]
+let BENCH_SHORT_OPTION: String = "gVj:m:i"
 let BENCH_USAGE: String = """
 Build and run benchmarks for all packages.
 If you specify some package paths, it will only execute benchmarks in those specified packages.
@@ -48,6 +49,8 @@ class BenchCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove subcommand itself
+        this.shortOptionSpec = BENCH_SHORT_OPTION
+        this.longOptionSpecs = BENCH_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -56,7 +59,7 @@ class BenchCommand <: Handle {
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparseArgs) = getParseOption(this.arguments, "gVj:m:i", BENCH_LONG_OPTION)
+        let (argMap, unparseArgs) = getParseOption(this.arguments, BENCH_SHORT_OPTION, BENCH_LONG_OPTION)
 
         let testConfig = TestCommand.processTestCliOptions(argMap, unparseArgs) ?? return false
 

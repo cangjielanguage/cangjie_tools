@@ -23,15 +23,16 @@ Arguments:
 Available option:
   -h, --help                help for uninstall
   --root <value>            specify path of uninstalled binary"""
+let UNINSTALL_LONG_OPTION: Array<String> = ["root="]
 
 class UninstallCommand <: Handle {
-    private let UNINSTALL_LONG_OPTION: Array<String> = ["root="]
     private var uninstallList: ArrayList<String> = ArrayList<String>()
     private var root: String = Path(DEFAULT_CONFIG_LOCATION).join(".cjpm").toString()
 
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..]
+        this.longOptionSpecs = UNINSTALL_LONG_OPTION
     }
 
     public override func printHelp(): Unit {

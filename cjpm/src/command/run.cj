@@ -10,6 +10,10 @@ import std.collection.*
 import cjpm.implement.*
 import cjpm.config.*
 
+let RUN_SHORT_OPTION: String = "gV"
+let RUN_LONG_OPTION: Array<String> = ["verbose", "skip-build", "name=", "build-args=", "run-args=", "target-dir=",
+    "skip-script", "enable-features=", "no-feature-deduce"]
+
 class RunCommand <: Handle {
     private let RUN_USAGE: String = """
 Compile and run an executable product.
@@ -35,39 +39,12 @@ Available options:
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove run itself
+        this.shortOptionSpec = RUN_SHORT_OPTION
+        this.longOptionSpecs = RUN_LONG_OPTION
     }
 
     public override func printPass(): Unit {
         print("\ncjpm run finished\n")
-    }
-
-    // Help detection is performed before handleCommand parses the arguments.
-    // Do not treat a value of an option (for example, `--run-args -h`) as a
-    // cjpm help request, and do not inspect arguments after `--`, which are
-    // passed to the executable product.
-    public override func isHelp(): Bool {
-        var index = 0
-        while (index < this.arguments.size) {
-            let arg = this.arguments[index]
-            if (arg == "--") {
-                return false
-            }
-            if (arg == "-h" || arg == "--help") {
-                return true
-            }
-
-            // These options consume the following argument as their value.
-            // That value may itself start with '-', so it must not be checked
-            // as a cjpm option.
-            if (arg == "--name" || arg == "--build-args" ||
-                arg == "--run-args" || arg == "--target-dir" ||
-                arg == "--enable-features") {
-                index += 2
-            } else {
-                index += 1
-            }
-        }
-        return false
     }
 
     func handleUnparseArgs(unparseArgs: Array<String>): Bool {
@@ -132,8 +109,7 @@ Available options:
                 afterRunArgs.add(nowArg)
             }
         }
-        var standardArgs: Array<String> = ["verbose", "skip-build", "name=", "build-args=", "run-args=", "target-dir=", "skip-script", "enable-features=", "no-feature-deduce"]
-        let (argMap, unparseArgs) = getParseOption(beforeRunArgs.toArray() , "gV", standardArgs)
+        let (argMap, unparseArgs) = getParseOption(beforeRunArgs.toArray(), RUN_SHORT_OPTION, RUN_LONG_OPTION)
 
         if (!handleUnparseArgs(unparseArgs)) {
             return false
