@@ -978,6 +978,7 @@ public class RunConfig {
 public struct TreeItem {
     public TreeItem(
         public let packagePath: CJMPSource,
+        public let binaryPath: String,
         public let version: String,
         public let requires: ReadOnlySet<String>
     ) {}
