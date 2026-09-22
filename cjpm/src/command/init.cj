@@ -34,6 +34,7 @@ class InitCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove init itself
+        this.longOptionSpecs = INIT_LONG_OPTION
         this.outputType = DEFAULT_INIT_TYPE
     }
 

@@ -8,6 +8,9 @@ package cjpm.command
 
 import cjpm.implement.*
 
+let CHECK_SHORT_OPTION: String = "m:"
+let CHECK_LONG_OPTION: Array<String> = ["member=", "no-tests", "skip-script"]
+
 class CheckCommand <: Handle {
     private let CHECK_USAGE: String = """
 Check the dependencies of the current project.
@@ -24,6 +27,8 @@ Available option:
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove check itself
+        this.shortOptionSpec = CHECK_SHORT_OPTION
+        this.longOptionSpecs = CHECK_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -43,7 +48,7 @@ Available option:
 func parseOptions(arguments: Array<String>): (Bool, String, Bool) {
     var memberModule = ""
     var testCheck = true
-    let (argMap, unparseArgs) = getParseOption(arguments, "m:", ["member=", "no-tests", "skip-script"])
+    let (argMap, unparseArgs) = getParseOption(arguments, CHECK_SHORT_OPTION, CHECK_LONG_OPTION)
     if (let Some(val) <- handleMemberOption(argMap)) {
         memberModule = val
     } else {

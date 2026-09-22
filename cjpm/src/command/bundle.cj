@@ -21,12 +21,15 @@ Available options:
   --skip-test             make tarball without running cjpm test
   --skip-lint             make tarball without running cjlint."""
 
-let BUNDLE_LONG_OPTION: Array<String> = ["help", "verbose", "skip-test", "skip-lint"]
+let BUNDLE_SHORT_OPTION: String = "V"
+let BUNDLE_LONG_OPTION: Array<String> = ["verbose", "skip-test", "skip-lint"]
 
 class BundleCommand <: Handle {
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..]
+        this.shortOptionSpec = BUNDLE_SHORT_OPTION
+        this.longOptionSpecs = BUNDLE_LONG_OPTION
     }
 
     public override func printHelp(): Unit {
@@ -35,7 +38,7 @@ class BundleCommand <: Handle {
     }
 
     public override func handleCommand(): Bool {
-        let (argMap, unparsedArgs) = getParseOption(this.arguments, "V", BUNDLE_LONG_OPTION)
+        let (argMap, unparsedArgs) = getParseOption(this.arguments, BUNDLE_SHORT_OPTION, BUNDLE_LONG_OPTION)
 
         if (unparsedArgs.size != 0) {
             eprintln("Error: unknown command '${unparsedArgs[0]}' for cjpm bundle")
