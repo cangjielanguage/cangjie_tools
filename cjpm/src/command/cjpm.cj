@@ -54,23 +54,21 @@ public open class Handle {
         let helpLongOptionSpecs = ArrayList<String>()
         helpLongOptionSpecs.add(all: this.longOptionSpecs)
         helpLongOptionSpecs.add("help")
-        let (argMap, _) = getParseOption(
-            this.arguments, "${this.shortOptionSpec}h", helpLongOptionSpecs.toArray())
-        if (!getBoolOption(argMap, "-h", "--help")) {
-            return false
-        }
-        // ArgOpt has already consumed values of declared value-taking options.
-        // Other unparsed arguments do not affect help mode. Only "--" stops
-        // parsing command options.
+
+        // ArgOpt keeps parsing options after "--", but those arguments belong
+        // to the command being run rather than to cjpm. Restrict help detection
+        // to the prefix before "--" so a pass-through "--help" cannot be
+        // confused with a preceding option value such as "--run-args -h".
+        let helpArguments = ArrayList<String>()
         for (arg in this.arguments) {
-            if (arg == "-h" || arg == "--help") {
-                return true
-            }
             if (arg == "--") {
-                return false
+                break
             }
+            helpArguments.add(arg)
         }
-        return false
+        let (argMap, _) = getParseOption(
+            helpArguments.toArray(), "${this.shortOptionSpec}h", helpLongOptionSpecs.toArray())
+        return getBoolOption(argMap, "-h", "--help")
     }
 
     public open func printHelp(): Unit {
