@@ -99,7 +99,9 @@ CodeCheckDiagnosticEngine::~CodeCheckDiagnosticEngine()
     try {
 #endif
         if (!reportFile.empty()) {
-            DiagnosticToFile();
+            if (!reportWriteAttempted) {
+                (void)DiagnosticToFile();
+            }
         } else {
             for (auto& diag : diagnosticList) {
                 DiagnosticPrint(diag);
@@ -133,43 +135,55 @@ std::string CodeCheckDiagnosticEngine::ConvertDiagListToJsonString()
 
 std::string CodeCheckDiagnosticEngine::ConvertDiagListToCsvString()
 {
-    std::string value = "SourceFile,Line,Column,Description,DefectType,DefectLevel\n";
+    std::string value = "SourceFile,Line,Column,EndLine,EndColumn,Description,DefectType,DefectLevel\n";
     for (auto &i : diagnosticList) {
         (void)value.append(i.ToCsvValue());
     }
     return value;
 }
 
-void CodeCheckDiagnosticEngine::DiagnosticToFile()
+bool CodeCheckDiagnosticEngine::DiagnosticToFile()
 {
+    reportWriteAttempted = true;
     if (!reportToFile) {
         Errorln("no set report path");
-        return;
+        return false;
     }
     size_t reportFileLength = reportFile.length();
     // 1 is the size of "."
     if (reportFileLength + format.size() + 1 > reportFile.max_size()) {
-        Errorln("The report file name is too long: %s", reportFile);
-        return;
+        Errorln("The report file name is too long: ", reportFile);
+        return false;
     }
-    std::string targetName = CommonFunc::HasEnding(reportFile, format) ? reportFile : reportFile + '.' + format;
+    std::string extension = "." + format;
+    std::string targetName = CommonFunc::HasEnding(reportFile, extension) ? reportFile : reportFile + extension;
     if (targetName.empty()) {
-        Errorln("Create target file %s error!", targetName.c_str());
-        return;
+        Errorln("Create target file ", targetName, " error!");
+        return false;
     }
     std::ofstream outStream(targetName, std::ios_base::app);
     if (!outStream.is_open()) {
-        Errorln("Create target file %s error!", targetName.c_str());
-        return;
+        Errorln("Create target file ", targetName, " error!");
+        return false;
     }
     auto source = format == "csv" ? ConvertDiagListToCsvString() : ConvertDiagListToJsonString();
     if (source.size() > static_cast<size_t>(std::numeric_limits<long>::max())) {
         // 检查source.size是否在long的范围内，防止后续类型转换后产生溢出
         Errorln("The size of the source is too large to write to the file.");
-        return;
+        return false;
     }
-    (void)outStream.write(source.data(), static_cast<long>(source.size()));
+    outStream.write(source.data(), static_cast<long>(source.size()));
+    if (!outStream.good()) {
+        Errorln("Write target file ", targetName, " error!");
+        outStream.close();
+        return false;
+    }
     outStream.close();
+    if (!outStream.good()) {
+        Errorln("Close target file ", targetName, " error!");
+        return false;
+    }
+    return true;
 }
 
 void CodeCheckDiagnosticEngine::DiagnosticPrint(const CodeCheckDiagnostic &diag)
