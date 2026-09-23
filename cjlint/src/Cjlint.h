@@ -16,8 +16,8 @@ namespace CjLint {
  *             if it is directory, default file name is cjReport
  * modulesDir: Directory path where the modules directory is located,
  *             it can be absolute path or relative path to the executable file
- * excludeRule: Excluded files, directories or configurations, splitted by ':'.
- *              Regular expressions are supported
+ * excludeRule: Excluded files, directories or configurations relative to the source directory;
+ *              path wildcards are supported and rules are separated by spaces
  * configFileDir: Directory path where the config directory is located,
  *                it can be absolute path or relative path to the
  * executable file reportFormat: Report file format, it can be csv or json, default is json

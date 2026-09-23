@@ -87,9 +87,8 @@ void PrintHelp(void)
     Println("                               eg: ./cjlint -v");
     Println("   -f <value>              Detected file directory, it can be absolute path or relative path");
     Println("                               eg: ./cjlint -f fileDir -c . -m .");
-    Println("   -e <v1:v2:...>          Excluded files, directories or configurations, splitted by ':'. "
-            "Regular expressions are supported");
-    Println("                               eg: ./cjlint -f fileDir -e fileDir/a/:fileDir/b/*.cj");
+    Println("   -e <rules>              Exclude files, directories or configurations relative to -f; "
+            "separate rules with spaces");
     Println("   -o <value>              Output file path, it can be absolute path or relative path, "
             "if it is directory, default file name is cjReport");
     Println("                               eg: ./cjlint -f fileDir -o ./out");
@@ -243,6 +242,9 @@ static int CheckCode()
 
     auto checker = Checker(&diagEngine);
     auto res = checker.CheckCode();
+    if (!reportFile.empty() && !diagEngine.DiagnosticToFile()) {
+        return ERR;
+    }
     return res;
 }
 
