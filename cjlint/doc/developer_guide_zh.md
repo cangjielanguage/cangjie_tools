@@ -141,8 +141,8 @@ Options:
                        eg: ./cjlint -v
    -f <value>      Detected file directory, it can be absolute path or relative path
                        eg: ./cjlint -f fileDir -c . -m .
-   -e <v1:v2:...>  Excluded files, directories or configurations, splitted by ':'. Regular expressions are supported
-                       eg: ./cjlint -f fileDir -e fileDir/a/:fileDir/b/*.cj
+   -e <v1:v2:...>  Excluded files, directories or configurations relative to -f; separate rules with spaces
+                       eg: ./cjlint -f fileDir -e fileDir/a/ fileDir/b/*.cj
    -o <value>      Output file path, it can be absolute path or relative path, if it is directory, default file name is cjReport
                        eg: ./cjlint -f fileDir -o ./out
    -r [csv|json]   Report file format, it can be csv or json, default is json

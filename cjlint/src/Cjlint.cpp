@@ -89,6 +89,7 @@ void PrintHelp(void)
     Println("                               eg: ./cjlint -f fileDir -c . -m .");
     Println("   -e <rules>              Exclude files, directories or configurations relative to -f; "
             "separate rules with spaces");
+    Println("                               eg: ./cjlint -f fileDir -e fileDir/a/ fileDir/b/*.cj");
     Println("   -o <value>              Output file path, it can be absolute path or relative path, "
             "if it is directory, default file name is cjReport");
     Println("                               eg: ./cjlint -f fileDir -o ./out");
