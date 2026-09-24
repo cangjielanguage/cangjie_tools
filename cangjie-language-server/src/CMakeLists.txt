@@ -66,6 +66,7 @@ if (COMPILER_TYPE MATCHES "MINGW")    #Compiling Using the MinGW
     set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-insert-timestamp")
 
     add_executable(LSPServer launcher/main.cpp)
+    target_link_options(LSPServer PRIVATE -Wl,--stack,16777216)
     # link library
     target_link_libraries(LSPServer
             pthread
@@ -172,7 +173,7 @@ elseif (COMPILER_TYPE MATCHES "Ninja")    #Compiling Using the ninja
                 IMPORTED_IMPLIB ${CANGJIE_LIB_DIR}/libcangjie-lsp.dll.a
                 )
         target_compile_options(LSPServer PRIVATE -fno-common)
-        target_link_options(LSPServer PRIVATE -Wl,--allow-multiple-definition)
+        target_link_options(LSPServer PRIVATE -Wl,--allow-multiple-definition -Wl,--stack,16777216)
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-insert-timestamp")
         set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-insert-timestamp")
     else()
