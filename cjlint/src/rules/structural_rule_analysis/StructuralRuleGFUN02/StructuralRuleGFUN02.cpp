@@ -36,6 +36,14 @@ void StructuralRuleGFUN02::FuncParamFinder(Ptr<Node> node)
                     }
                 }
 
+                for (auto& paramList : funcDecl.funcBody->paramLists) {
+                    for (auto& param : paramList->params) {
+                        if (param->assignment != nullptr) {
+                            EraseUsedParams(param->assignment.get(), paramMap);
+                        }
+                    }
+                }
+
                 FuncParamFinderHelper(funcDecl.funcBody->body.get(), paramMap);
                 if (funcDecl.funcBody->body == nullptr) {
                     return VisitAction::SKIP_CHILDREN;
@@ -59,11 +67,7 @@ void StructuralRuleGFUN02::EraseItemOfMap(const std::string& id, std::map<std::s
         (void)paramMap.erase(id);
     }
 }
-/*
- * The function that find the param which is used and delete it from param map.
- *
- */
-void StructuralRuleGFUN02::FuncParamFinderHelper(Ptr<Node> node, std::map<std::string, PositionPair>& paramMap)
+void StructuralRuleGFUN02::EraseUsedParams(Ptr<Node> node, std::map<std::string, PositionPair>& paramMap)
 {
     if (node == nullptr) {
         return;
@@ -85,6 +89,19 @@ void StructuralRuleGFUN02::FuncParamFinderHelper(Ptr<Node> node, std::map<std::s
         return VisitAction::WALK_CHILDREN;
     });
     walker.Walk();
+}
+
+/*
+ * The function that find the param which is used and delete it from param map.
+ *
+ */
+void StructuralRuleGFUN02::FuncParamFinderHelper(Ptr<Node> node, std::map<std::string, PositionPair>& paramMap)
+{
+    if (node == nullptr) {
+        return;
+    }
+
+    EraseUsedParams(node, paramMap);
 
     // if the paramMap is not empty that means the param which in map is not be used, throw error.
     if (!paramMap.empty()) {
