@@ -23,6 +23,10 @@ protected:
     void MatchPattern(ASTContext &ctx, Ptr<Cangjie::AST::Node> node) override;
     void FindMemberAccess(Ptr<Cangjie::AST::Node> node);
     void CheckMemberAccessAttribute(const Cangjie::AST::MemberAccess &memberAccess);
+    bool IsCatchingNoneValueException(const Cangjie::AST::TryExpr &tryExpr);
+
+private:
+    int inNoneValueExceptionTry = 0;
 };
 }
 #endif // CANGJIECODECHECK_STRUCTURALRULEGERR03_H
