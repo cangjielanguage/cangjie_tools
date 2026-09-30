@@ -8,6 +8,7 @@
 #include "Format/SimultaneousIterator.h"
 #include "cangjie/Basic/DiagnosticEngine.h"
 
+#include <algorithm>
 #include <optional>
 
 namespace Cangjie::Format {
@@ -32,6 +33,13 @@ bool IsMultilineComment(const Token &token)
 {
     // Extract first two characters (start at position 0, max length 2)
     return token.Value().substr(0, 2) == "/*" && token.Value().find('\n') != std::string::npos;
+}
+
+int GetCommentEndLine(const Token &token)
+{
+    // Token::End() does not reliably account for newlines inside block comments.
+    const auto &value = token.Value();
+    return token.Begin().line + static_cast<int>(std::count(value.begin(), value.end(), '\n'));
 }
 
 struct InsertData {
@@ -317,6 +325,7 @@ private:
                 prevTokenPos = insertData.tokenBefore ? insertData.tokenBefore->End() : Position(1, 1);
             } else {
                 prevTokenPos = std::prev(it)->End();
+                prevTokenPos.line = GetCommentEndLine(*std::prev(it));
             }
 
             auto lineBreaksBefore = token.Begin().line - prevTokenPos.line;
@@ -342,11 +351,9 @@ private:
 
         // manage whitespace characters after the last comment
 
-        auto lineBreaksAfter = nextNonCommentTokenPosition.line - comments.back().End().line;
-        if (lineBreaksAfter > 0 && IsMultilineComment(comments.back()) && insertData.tokenBefore) {
-            // End() is incorrect for multiline comments, we can be more precise after parser is fixed
-            lineBreaksAfter = 1;
-        }
+        auto lastCommentEndLine =
+            insertData.tokenAfter ? GetCommentEndLine(comments.back()) : comments.back().End().line;
+        auto lineBreaksAfter = nextNonCommentTokenPosition.line - lastCommentEndLine;
 
         Insert('\n', std::min(!isReadyInsertNL ? MAX_LINEBREAKS : MAX_LINEBREAKS - 1, lineBreaksAfter));
         if (lineBreaksAfter == 0) {

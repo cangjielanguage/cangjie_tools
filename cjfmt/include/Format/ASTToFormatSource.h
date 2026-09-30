@@ -25,6 +25,7 @@ static const Cangjie::Position INVALID_POSITION = Cangjie::Position{0, 0, 0};
 
 // Include annotations and modifiers when locating the start of a declaration.
 Cangjie::Position GetBegin(Ptr<Cangjie::AST::Node> node);
+bool IsVariableDecl(Ptr<Cangjie::AST::Node> node);
 
 struct Region {
     int startLine;
@@ -79,6 +80,7 @@ public:
     Doc ASTToDoc(Ptr<Cangjie::AST::Node> node, int level = 0, FuncOptions funcOptions = FuncOptions());
     std::string DocToString(Doc& doc);
     std::string DocToString(Doc& doc, int& pos, std::string& formatted);
+    bool ShouldAddEmptyLineBetween(Ptr<Cangjie::AST::Node> previous, Ptr<Cangjie::AST::Node> current) const;
     void AddAnnotations(Doc& doc, const std::vector<OwnedPtr<Cangjie::AST::Annotation>>& annotations, int level,
         bool changeLine = true);
     void AddGenericParams(Doc& doc, const Cangjie::AST::Generic& generic, int level);
@@ -214,16 +216,16 @@ public:
 
     template <typename T> void AddBodyMembers(Doc& doc, const std::vector<T>& members, int level)
     {
-        int lastEndLine = -1;
+        Ptr<Cangjie::AST::Node> previous = nullptr;
         for (auto& n : members) {
-            if (lastEndLine != -1) {
-                if (GetBegin(n.get()).line > lastEndLine + 1) {
+            if (previous) {
+                if (ShouldAddEmptyLineBetween(previous, n.get())) {
                     doc.members.emplace_back(DocType::SEPARATE, level, "");
                 }
                 doc.members.emplace_back(DocType::LINE, level, "");
             }
             doc.members.emplace_back(ASTToDoc(n.get(), level));
-            lastEndLine = n->end.line;
+            previous = n.get();
         }
     };
 

@@ -128,8 +128,7 @@ void AddBlockSuffix(Doc& doc, int level)
 void ShouldLastBlockADDSpearate(
     Doc& doc, int level, const File& file, std::vector<OwnedPtr<Cangjie::AST::Decl>>::const_iterator it)
 {
-    if (it->get()->astKind == AST::ASTKind::VAR_DECL && it != file.decls.end() - 1 &&
-        std::next(it)->get()->astKind == AST::ASTKind::VAR_DECL) {
+    if (IsVariableDecl(it->get()) && it != file.decls.end() - 1 && IsVariableDecl(std::next(it)->get())) {
         doc.members.emplace_back(DocType::SEPARATE, level, "");
     }
 }
@@ -164,8 +163,8 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
     std::unordered_map<Cangjie::Position, int, PositionHasher> modifierOrAnnoToPosMap;
     SetModifierOrAnnoToPosMap(file, modifierOrAnnoToPosMap);
 
-    auto preDeclIsVar = false;
-    int notComplierAddNum = 0;
+    Ptr<Decl> previousDecl = nullptr;
+    bool preDeclIsLastInBlock = false;
     auto mapCopy(modifierOrAnnoToPosMap);
     for (auto it = file.decls.begin(); it != file.decls.end(); ++it) {
         if (it->get()->TestAttr(Attribute::COMPILER_ADD)) {
@@ -190,24 +189,27 @@ void FileFormatter::AddFile(Doc& doc, const Cangjie::AST::File& file, int level)
         }
 
         auto declarationLevel = beforeBlockAnnotationsPositions.empty() ? level : level + 1;
-        if (*it != file.decls.front() && notComplierAddNum != 0) {
-            if (preDeclIsVar) {
-                if (it->get()->astKind != AST::ASTKind::VAR_DECL) {
-                    doc.members.emplace_back(DocType::SEPARATE, level, "");
-                }
-                doc.members.emplace_back(DocType::LINE, isFirstInBlock ? level : declarationLevel, "");
-            } else {
+        if (!isFirstInBlock) {
+            // Shared annotations and modifiers belong to the block, not this member's source range.
+            EraseModifiersAndAnnotationsForDecl(*it, beforeBlockAnnotationsPositions);
+        }
+        if (previousDecl) {
+            // Block boundaries keep their existing separators; only preserve gaps within the same scope.
+            bool shouldSeparate = !IsVariableDecl(previousDecl) || !IsVariableDecl(it->get()) ||
+                (!isFirstInBlock && !preDeclIsLastInBlock &&
+                    astToFormatSource.ShouldAddEmptyLineBetween(previousDecl, it->get()));
+            if (shouldSeparate) {
                 doc.members.emplace_back(DocType::SEPARATE, level, "");
-                doc.members.emplace_back(DocType::LINE, isFirstInBlock ? level : declarationLevel, "");
             }
+            doc.members.emplace_back(DocType::LINE, isFirstInBlock ? level : declarationLevel, "");
         }
 
         if (isFirstInBlock) {
             AddBlockPrefix(*it, beforeBlockAnnotationsPositions, doc, astToFormatSource, level);
+            EraseModifiersAndAnnotationsForDecl(*it, beforeBlockAnnotationsPositions);
         }
-        EraseModifiersAndAnnotationsForDecl(*it, beforeBlockAnnotationsPositions);
-        preDeclIsVar = it->get()->astKind == ASTKind::VAR_DECL;
-        notComplierAddNum++;
+        previousDecl = it->get();
+        preDeclIsLastInBlock = isLastInBlock;
         doc.members.emplace_back(astToFormatSource.ASTToDoc(*it, declarationLevel));
         if (isLastInBlock) {
             AddBlockSuffix(doc, level);
