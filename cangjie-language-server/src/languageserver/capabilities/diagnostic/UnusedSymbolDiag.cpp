@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "UnusedSymbolDiag.h"
+#include "../../CompilerCangjieProject.h"
 #include "../../common/FindDeclUsage.h"
 #include "../../common/Utils.h"
 #include "cangjie/AST/Node.h"
@@ -39,6 +40,72 @@ namespace {
     constexpr const char* ABOUT_TO_APPEAR = "aboutToAppear";
     constexpr const char* ABOUT_TO_DISAPPEAR = "aboutToDisappear";
 }
+
+namespace {
+bool MatchesRawUnusedDiagnostic(Ptr<const Decl> decl, const DiagnosticToken& diagnostic, const ArkAST& ast)
+{
+    if (!decl || !decl->identifier.IsRaw() || decl->curMacroCall || decl->isInMacroCall ||
+        decl->identifier.Begin().fileID != ast.fileID) {
+        return false;
+    }
+    auto pos = decl->GetIdentifierPos();
+    if (decl->astKind != ASTKind::FUNC_PARAM && !decl->TestAttr(Attribute::ENUM_CONSTRUCTOR) &&
+        (IsGlobalOrMember(*decl) || decl->astKind == ASTKind::FUNC_DECL ||
+        (isLambda(*decl) && diagnostic.message.find("Lambda '") == 0))) {
+        PositionUTF8ToIDE(ast.tokens, pos, *decl);
+    }
+    const auto name = std::string(decl->identifier);
+    return pos.line == diagnostic.range.start.line + 1 && pos.column == diagnostic.range.start.column + 1 &&
+        diagnostic.message.find("'" + name + "'") != std::string::npos;
+}
+
+std::optional<int> GetRawUnusedDiagnosticLength(const DiagnosticToken& diagnostic, const ArkAST& ast)
+{
+    if (!diagnostic.diagFix || !diagnostic.diagFix->removeUnusedSymbol || !ast.sourceManager || !ast.file) {
+        return std::nullopt;
+    }
+    std::optional<int> length;
+    ConstWalker(ast.file, [&](Ptr<const Node> node) {
+        auto decl = DynamicCast<const Decl*>(node);
+        if (!MatchesRawUnusedDiagnostic(decl, diagnostic, ast)) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        const auto begin = decl->identifier.Begin();
+        const auto end = decl->identifier.End();
+        if (begin.line <= 0 || begin.column <= 0 || end.fileID != begin.fileID || end.line != begin.line ||
+            end.column <= begin.column) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        const auto sourceName = ast.sourceManager->GetContentBetween(begin, end);
+        if (sourceName.empty() || sourceName.size() != static_cast<size_t>(end.column - begin.column)) {
+            return VisitAction::WALK_CHILDREN;
+        }
+        length = CountUnicodeCharacters(sourceName);
+        return VisitAction::STOP_NOW;
+    }).Walk();
+    return length;
+}
+
+void UpdateRawUnusedDiagnosticRanges(std::vector<DiagnosticToken>& diagnostics, const std::string& filePath)
+{
+    if (diagnostics.empty()) {
+        return;
+    }
+    auto* project = CompilerCangjieProject::GetInstance();
+    auto* ast = project ? project->GetArkAST(filePath) : nullptr;
+    if (!ast || !std::any_of(ast->tokens.begin(), ast->tokens.end(), [](const Token& token) {
+        return token.Value().find('`') != std::string::npos;
+    })) {
+        return;
+    }
+    for (auto& diagnostic : diagnostics) {
+        if (auto length = GetRawUnusedDiagnosticLength(diagnostic, *ast)) {
+            // Use the source spelling for the length without changing the diagnostic start.
+            diagnostic.range.end.column = diagnostic.range.start.column + *length;
+        }
+    }
+}
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Helper: Check if a function name matches macro-generated patterns
@@ -134,7 +201,7 @@ std::unordered_set<SymbolID> UnusedSymbolDiag::CollectExcludedMacroDecls(
 // ---------------------------------------------------------------------------
 static bool ShouldExcludeByTypeOrModifier(const Symbol& symbol)
 {
-    if ((symbol.modifier == Modifier::PUBLIC || symbol.modifier == Modifier::PROTECTED) &&
+    if ((symbol.modifier == lsp::Modifier::PUBLIC || symbol.modifier == lsp::Modifier::PROTECTED) &&
         symbol.kind != ASTKind::TYPE_ALIAS_DECL) {
         return true;
     }
@@ -290,6 +357,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::Analyze(
         return true;
     });
 
+    UpdateRawUnusedDiagnosticRanges(diagnostics, filePath);
     return diagnostics;
 }
 
@@ -740,6 +808,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
         };
 
     Walker(const_cast<File*>(&file), collector).Walk();
+    UpdateRawUnusedDiagnosticRanges(diagnostics, file.filePath);
     return diagnostics;
 }
 

@@ -74,6 +74,13 @@ void GetVarDecl(Ptr<Node> node, std::vector<SemanticHighlightToken> &result, con
     Position pos = decl->identifier.Begin();
     Range range = {pos, {pos.fileID, pos.line, pos.column + CountUnicodeCharacters(decl->identifier)}};
     UpdateRange(tokens, range, *decl);
+    if (sourceManager && decl->identifier.IsRaw()) {
+        const auto sourceName = sourceManager->GetContentBetween(
+            decl->identifier.Begin(), decl->identifier.End());
+        if (!sourceName.empty()) {
+            range.end.column = range.start.column + CountUnicodeCharacters(sourceName);
+        }
+    }
     result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(range)});
     AddAnnoToken(decl, result, tokens, sourceManager);
 }
