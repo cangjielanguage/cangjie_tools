@@ -30,19 +30,7 @@ void StructuralRuleGERR03::FindMemberAccess(Ptr<Cangjie::AST::Node> node)
                 if (!IsCatchingNoneValueException(tryExpr)) {
                     return;
                 }
-                inNoneValueExceptionTry++;
-                if (tryExpr.tryBlock != nullptr) {
-                    FindMemberAccess(tryExpr.tryBlock.get());
-                }
-                inNoneValueExceptionTry--;
-                for (auto &catchBlock : tryExpr.catchBlocks) {
-                    if (catchBlock != nullptr) {
-                        FindMemberAccess(catchBlock.get());
-                    }
-                }
-                if (tryExpr.finallyBlock != nullptr) {
-                    FindMemberAccess(tryExpr.finallyBlock.get());
-                }
+                ProcessTryExpr(tryExpr);
                 action = VisitAction::SKIP_CHILDREN;
             });
         return action;
@@ -59,21 +47,38 @@ bool StructuralRuleGERR03::IsCatchingNoneValueException(const Cangjie::AST::TryE
         if (catchPattern->astKind == ASTKind::WILDCARD_PATTERN) {
             return true;
         }
-        if (catchPattern->astKind == ASTKind::EXCEPT_TYPE_PATTERN) {
-            auto etp = static_cast<const ExceptTypePattern *>(catchPattern.get().get());
-            for (auto &type : etp->types) {
-                if (type == nullptr) {
-                    continue;
-                }
-                if (auto refType = dynamic_cast<const RefType *>(type.get().get()); refType != nullptr) {
-                    if (refType->ref.identifier.Val() == "NoneValueException") {
-                        return true;
-                    }
-                }
+        if (catchPattern->astKind != ASTKind::EXCEPT_TYPE_PATTERN) {
+            continue;
+        }
+        auto etp = static_cast<const ExceptTypePattern *>(catchPattern.get().get());
+        for (auto &type : etp->types) {
+            if (type == nullptr) {
+                continue;
+            }
+            auto refType = dynamic_cast<const RefType *>(type.get().get());
+            if (refType != nullptr && refType->ref.identifier.Val() == "NoneValueException") {
+                return true;
             }
         }
     }
     return false;
+}
+
+void StructuralRuleGERR03::ProcessTryExpr(const Cangjie::AST::TryExpr &tryExpr)
+{
+    inNoneValueExceptionTry++;
+    if (tryExpr.tryBlock != nullptr) {
+        FindMemberAccess(tryExpr.tryBlock.get());
+    }
+    inNoneValueExceptionTry--;
+    for (auto &catchBlock : tryExpr.catchBlocks) {
+        if (catchBlock != nullptr) {
+            FindMemberAccess(catchBlock.get());
+        }
+    }
+    if (tryExpr.finallyBlock != nullptr) {
+        FindMemberAccess(tryExpr.finallyBlock.get());
+    }
 }
 
 void StructuralRuleGERR03::CheckMemberAccessAttribute(const Cangjie::AST::MemberAccess &memberAccess)

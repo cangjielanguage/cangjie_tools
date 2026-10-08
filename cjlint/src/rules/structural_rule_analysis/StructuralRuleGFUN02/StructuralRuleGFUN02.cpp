@@ -25,39 +25,41 @@ void StructuralRuleGFUN02::FuncParamFinder(Ptr<Node> node)
     Walker walker(node, [this](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [this](const FuncDecl& funcDecl) {
-                if (!funcDecl.funcBody) {
-                    return VisitAction::SKIP_CHILDREN;
-                }
-                std::map<std::string, PositionPair> paramMap;
-                for (auto& paramList : funcDecl.funcBody->paramLists) {
-                    for (auto& param : paramList->params) {
-                        paramMap[param->identifier] =
-                            std::make_pair(param->identifier.Begin(), param->identifier.End());
-                    }
-                }
-
-                for (auto& paramList : funcDecl.funcBody->paramLists) {
-                    for (auto& param : paramList->params) {
-                        if (param->assignment != nullptr) {
-                            EraseUsedParams(param->assignment.get(), paramMap);
-                        }
-                    }
-                }
-
-                FuncParamFinderHelper(funcDecl.funcBody->body.get(), paramMap);
-                if (funcDecl.funcBody->body == nullptr) {
-                    return VisitAction::SKIP_CHILDREN;
-                }
-                for (auto& item : funcDecl.funcBody->body->body) {
-                    if (item->astKind == ASTKind::FUNC_DECL) {
-                        FuncParamFinder(item.get());
-                    }
-                }
+                ProcessFuncDecl(funcDecl);
                 return VisitAction::SKIP_CHILDREN;
             },
             []() { return VisitAction::WALK_CHILDREN; });
     });
     walker.Walk();
+}
+
+void StructuralRuleGFUN02::ProcessFuncDecl(const Cangjie::AST::FuncDecl &funcDecl)
+{
+    if (!funcDecl.funcBody) {
+        return;
+    }
+    std::map<std::string, PositionPair> paramMap;
+    for (auto &list : funcDecl.funcBody->paramLists) {
+        for (auto &param : list->params) {
+            paramMap[param->identifier] = {param->identifier.Begin(), param->identifier.End()};
+        }
+    }
+    for (auto &list : funcDecl.funcBody->paramLists) {
+        for (auto &param : list->params) {
+            if (param->assignment != nullptr) {
+                EraseUsedParams(param->assignment.get(), paramMap);
+            }
+        }
+    }
+    FuncParamFinderHelper(funcDecl.funcBody->body.get(), paramMap);
+    if (!funcDecl.funcBody->body) {
+        return;
+    }
+    for (auto &item : funcDecl.funcBody->body->body) {
+        if (item->astKind == ASTKind::FUNC_DECL) {
+            FuncParamFinder(item.get());
+        }
+    }
 }
 
 void StructuralRuleGFUN02::EraseItemOfMap(const std::string& id, std::map<std::string, PositionPair>& paramMap)

@@ -24,6 +24,7 @@ protected:
     void FindMemberAccess(Ptr<Cangjie::AST::Node> node);
     void CheckMemberAccessAttribute(const Cangjie::AST::MemberAccess &memberAccess);
     bool IsCatchingNoneValueException(const Cangjie::AST::TryExpr &tryExpr);
+    void ProcessTryExpr(const Cangjie::AST::TryExpr &tryExpr);
 
 private:
     int inNoneValueExceptionTry = 0;
