@@ -50,14 +50,15 @@ bool ASTToFormatSource::ShouldAddEmptyLineBetween(Ptr<Node> previous, Ptr<Node> 
     if (begin.line <= previous->end.line + 1) {
         return false;
     }
-    if (!IsVariableDecl(previous) || !IsVariableDecl(current)) {
-        return true;
-    }
 
-    // Comments are restored with their original spacing by CommentHandler. Adding a separator here can
-    // duplicate that spacing, or mistake an intervening comment line for an empty line.
+    // Comments are restored with their original spacing by CommentHandler. Do not treat a comment line as
+    // an empty-line separator here: doing so makes the AST formatter and comment restoration add the same
+    // line break independently.
     auto between = sm.GetContentBetween(previous->end, begin);
-    return between.find("//") == std::string::npos && between.find("/*") == std::string::npos;
+    if (between.find("//") != std::string::npos || between.find("/*") != std::string::npos) {
+        return false;
+    }
+    return true;
 }
 } // namespace Cangjie::Format
 

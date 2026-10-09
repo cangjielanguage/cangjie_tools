@@ -29,10 +29,37 @@ bool IsBlockContinuationKeyword(const Token &token)
         token.kind == TokenKind::FINALLY || token.kind == TokenKind::WHILE;
 }
 
-bool IsMultilineComment(const Token &token)
+void EnsureSpaceAfterStar(std::string &line, size_t starPosition)
 {
-    // Extract first two characters (start at position 0, max length 2)
-    return token.Value().substr(0, 2) == "/*" && token.Value().find('\n') != std::string::npos;
+    auto firstNonStarSymbolPosition = line.find_first_not_of('*', starPosition);
+    if (firstNonStarSymbolPosition == 0 || firstNonStarSymbolPosition == std::string::npos ||
+        line.size() <= firstNonStarSymbolPosition || std::isspace(line[firstNonStarSymbolPosition]) ||
+        line[firstNonStarSymbolPosition] == '/') {
+        return;
+    }
+    (void)line.insert(firstNonStarSymbolPosition, " ");
+}
+
+void FormatLineFromMultilineComment(std::string &line, int lineNumber, int linesCount, int indent,
+    std::string &output)
+{
+    if (lineNumber == 0) {
+        output.append(static_cast<size_t>(std::max(indent, 0)), ' ');
+        EnsureSpaceAfterStar(line, 1);
+        return;
+    }
+    int originalIndentation = static_cast<int>(line.find_first_not_of(' '));
+    Utils::TrimString(line);
+    if (line.empty()) {
+        return;
+    }
+    auto startsWithStar = line.front() == '*';
+    auto isSimpleLastLine = lineNumber == linesCount - 1 && line == "*/";
+    int minIndentationFromFirstLine = isSimpleLastLine ? 1 : (startsWithStar ? 1 : 0);
+    auto indentation = startsWithStar ? indent + minIndentationFromFirstLine :
+        std::max(originalIndentation, indent + minIndentationFromFirstLine);
+    output.append(static_cast<size_t>(std::max(indentation, 0)), ' ');
+    EnsureSpaceAfterStar(line, 0);
 }
 
 int GetCommentEndLine(const Token &token)
@@ -57,8 +84,9 @@ class CommentHandler : private SimultaneousIterator {
 public:
     // Formatting options are loaded per invocation, so the configured width must not be cached in a global value.
     CommentHandler(const std::vector<Token> &originalTokens, const std::vector<Token> &outputTokens, SourceManager &sm,
-        int indentWidth)
-        : SimultaneousIterator(originalTokens, outputTokens), sm(sm), indentWidth(indentWidth)
+        int indentWidth, std::optional<std::pair<int, int>> selectedLines)
+        : SimultaneousIterator(originalTokens, outputTokens), sm(sm), indentWidth(indentWidth),
+          selectedLines(selectedLines)
     {
         this->outputText = "";
     }
@@ -116,6 +144,7 @@ public:
 private:
     SourceManager &sm;
     int indentWidth;
+    std::optional<std::pair<int, int>> selectedLines;
     std::string outputText;
 
     void Insert(char character, int times)
@@ -243,57 +272,16 @@ private:
         return InsertData(tokenBefore, tokenAfter, commentsBetween);
     }
 
-    void EnsureSpaceAfterStar(std::string &line, size_t starPosition)
-    {
-        auto firstNonStarSymbolPosition = line.find_first_not_of('*', starPosition);
-        if (firstNonStarSymbolPosition == 0) {
-            return;
-        }
-        if (firstNonStarSymbolPosition == std::string::npos || line.size() <= firstNonStarSymbolPosition) {
-            return;
-        }
-        if (std::isspace(line[firstNonStarSymbolPosition]) || line[firstNonStarSymbolPosition] == '/') {
-            return;
-        }
-        (void)line.insert(firstNonStarSymbolPosition, " ");
-    }
-
-    void FormatLineFromMultilineComment(std::string &line, int lineNumber, int linesCount, int indent)
-    {
-        if (lineNumber == 0) {
-            Insert(' ', indent);
-            EnsureSpaceAfterStar(line, 1);
-            return;
-        }
-        int originalIndentation = static_cast<int>(line.find_first_not_of(' '));
-        Utils::TrimString(line);
-        if (line.empty()) {
-            return;
-        }
-        auto startsWithStar = line.front() == '*';
-        auto isSimpleLastLine = lineNumber == linesCount - 1 && line == "*/";
-        int minIndentationFromFirstLine = isSimpleLastLine ? 1 : (startsWithStar ? 1 : 0);
-        Insert(' ', startsWithStar ? indent + minIndentationFromFirstLine :
-            std::max(originalIndentation, indent + minIndentationFromFirstLine));
-        EnsureSpaceAfterStar(line, 0);
-    }
-
     void InsertComment(const Token &token, int indent)
     {
-        if (!IsMultilineComment(token)) {
+        auto commentEndLine = GetCommentEndLine(token);
+        auto format = !selectedLines.has_value() ||
+            (token.Begin().line <= selectedLines->second && commentEndLine >= selectedLines->first);
+        if (format) {
+            (void)outputText.append(FormatCommentToken(token, indent));
+        } else {
             Insert(' ', indent);
             (void)outputText.append(token.Value());
-            return;
-        }
-
-        auto lines = Utils::SplitLines(token.Value());
-        for (size_t i = 0; i < lines.size(); ++i) {
-            std::string line = lines[i];
-            FormatLineFromMultilineComment(line, (int)i, (int)lines.size(), indent);
-            (void)outputText.append(line);
-            if (i != lines.size() - 1) {
-                Insert('\n', 1);
-            }
         }
     }
 
@@ -363,10 +351,28 @@ private:
 };
 }
 
-std::string InsertComments(const std::vector<Token> &originalTokens, const std::vector<Token> &formattedTokens,
-    SourceManager &sm, const FormattingOptions &options)
+std::string FormatCommentToken(const Token &token, int indent)
 {
-    auto commentHandler = CommentHandler(originalTokens, formattedTokens, sm, options.indentWidth);
+    if (token.Value().rfind("/*", 0) != 0 || token.Value().find('\n') == std::string::npos) {
+        return std::string(static_cast<size_t>(std::max(indent, 0)), ' ') + token.Value();
+    }
+    auto lines = Utils::SplitLines(token.Value());
+    std::string output;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        std::string line = lines[i];
+        FormatLineFromMultilineComment(line, static_cast<int>(i), static_cast<int>(lines.size()), indent, output);
+        output.append(line);
+        if (i + 1 != lines.size()) {
+            output.push_back('\n');
+        }
+    }
+    return output;
+}
+
+std::string InsertComments(const std::vector<Token> &originalTokens, const std::vector<Token> &formattedTokens,
+    SourceManager &sm, const FormattingOptions &options, std::optional<std::pair<int, int>> selectedLines)
+{
+    auto commentHandler = CommentHandler(originalTokens, formattedTokens, sm, options.indentWidth, selectedLines);
     return commentHandler.DoInsert();
 }
 } // namespace Cangjie::Format

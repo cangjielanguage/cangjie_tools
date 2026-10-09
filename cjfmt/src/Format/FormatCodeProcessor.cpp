@@ -342,6 +342,9 @@ public:
         } else {
             // couldn't find any ast nodes to format, should report this to user?
             result = rawCode;
+            if (!regionToFormat.isWholeFile) {
+                FormatSelectedCommentsInText(inputTokens, result);
+            }
         }
 
         if (result.back() != '\n') {
@@ -417,6 +420,9 @@ private:
         auto formattedEnd = tracker.actuallyFormattedEnd.value();
         auto originalFragmentTokens = GetTokensBetweenPositions(originalFileAllTokens, formattedBegin, formattedEnd);
         auto formattedFragmentTokens = formattedTextTokens;
+        if (originalFragmentTokens.empty() || formattedFragmentTokens.empty()) {
+            return rawCode;
+        }
         auto preciseFragmentBounds = tracker.GetPreciseFragmentBounds(sm);
         if (preciseFragmentBounds.has_value()) {
             auto smallerFragments = ExtractTokensBetweenPositions(originalFragmentTokens, formattedFragmentTokens,
@@ -426,7 +432,8 @@ private:
             }
         }
 
-        auto fragmentText = InsertComments(originalFragmentTokens, formattedFragmentTokens, sm, options);
+        auto fragmentText = InsertComments(originalFragmentTokens, formattedFragmentTokens, sm, options,
+            std::make_pair(regionToFormat.startLine, regionToFormat.endLine));
         auto contentBefore =
             sm.GetContentBetween(originalFileAllTokens.front().Begin(), originalFragmentTokens.front().Begin());
         auto contentAfter =
@@ -453,13 +460,49 @@ private:
         return contentBefore + fragmentText + contentAfter;
     }
 
+    void FormatSelectedCommentsInText(const std::vector<Token> &inputTokens, std::string &text)
+    {
+        size_t searchFrom = 0;
+        for (const auto &token : inputTokens) {
+            if (token.kind != TokenKind::COMMENT || token.Value().find("\n") == std::string::npos) {
+                continue;
+            }
+            auto commentEndLine = token.Begin().line +
+                static_cast<int>(std::count(token.Value().begin(), token.Value().end(), '\n'));
+            if (token.Begin().line > regionToFormat.endLine || commentEndLine < regionToFormat.startLine) {
+                continue;
+            }
+            auto begin = text.find(token.Value(), searchFrom);
+            if (begin == std::string::npos) {
+                continue;
+            }
+            auto replacement = FormatCommentToken(token, token.Begin().column - 1);
+            auto lineStart = text.rfind('\n', begin == 0 ? 0 : begin - 1);
+            lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+            auto prefix = text.substr(lineStart, begin - lineStart);
+            auto leadingIndent = prefix.find_first_not_of(" \t") == std::string::npos ? prefix.size() : 0;
+            if (leadingIndent != 0) {
+                begin = lineStart;
+            }
+            text.replace(begin, token.Value().size() + leadingIndent, replacement);
+            searchFrom = begin + replacement.size();
+        }
+    }
+
     std::string ConstructResultingText(OwnedPtr<File>&, const std::vector<Token>& inputTokens, std::string& formatted)
     {
         (void)formatted.erase(0, formatted.find_first_not_of(" \t\n"));
         (void)formatted.erase(formatted.find_last_not_of(" \t\n") + 1);
         auto formattedTokens = RunLexer(formatted, "___formattedSnippet.cj");
         if (!regionToFormat.isWholeFile) {
-            return ConstructTextForCodeFragment(inputTokens, formattedTokens);
+            if (!tracker.actuallyFormattedStart.has_value() || !tracker.actuallyFormattedEnd.has_value()) {
+                auto result = rawCode;
+                FormatSelectedCommentsInText(inputTokens, result);
+                return result;
+            }
+            auto result = ConstructTextForCodeFragment(inputTokens, formattedTokens);
+            FormatSelectedCommentsInText(inputTokens, result);
+            return result;
         } else {
             return InsertComments(inputTokens, formattedTokens, sm, options);
         }
@@ -525,6 +568,26 @@ private:
 } // namespace
 
 namespace {
+constexpr char UTF8_BOM[] = "\xEF\xBB\xBF";
+
+bool HasUtf8Bom(const std::string& text)
+{
+    return text.size() >= sizeof(UTF8_BOM) - 1 && text.compare(0, sizeof(UTF8_BOM) - 1, UTF8_BOM) == 0;
+}
+
+std::string StripUtf8Bom(const std::string& text)
+{
+    return HasUtf8Bom(text) ? text.substr(sizeof(UTF8_BOM) - 1) : text;
+}
+
+std::string RestoreUtf8Bom(std::string text, bool hasBom)
+{
+    if (hasBom) {
+        text.insert(0, UTF8_BOM, sizeof(UTF8_BOM) - 1);
+    }
+    return text;
+}
+
 size_t GetLineStartOffset(const std::string& text, int line)
 {
     if (line <= 1) {
@@ -616,14 +679,18 @@ ByteRange MapRange(const ByteRange& range, const TextEdit& edit)
 std::optional<FormatResult> FormatTextWithEdits(
     const std::string& rawCode, const std::string& filepath, const Region region)
 {
-    auto formatCode = FormatCodeProcessor(rawCode, filepath, region);
+    // UTF-8 BOM is a file signature, not source text. Keep it outside the lexer/parser pipeline and restore it
+    // on the complete formatted result, as formatters such as Prettier do.
+    bool hasBom = HasUtf8Bom(rawCode);
+    auto sourceCode = StripUtf8Bom(rawCode);
+    auto formatCode = FormatCodeProcessor(sourceCode, filepath, region);
     auto formatted = formatCode.Run();
     if (!formatted) {
         return std::nullopt;
     }
 
     FormatResult result;
-    result.formattedText = std::move(formatted.value());
+    result.formattedText = RestoreUtf8Bom(std::move(formatted.value()), hasBom);
     result.requestedRange = GetRequestedByteRange(rawCode, region);
     result.formattedRange = result.requestedRange;
     if (result.formattedText != rawCode) {
