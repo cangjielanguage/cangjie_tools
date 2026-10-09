@@ -1,0 +1,7 @@
+{"caseFolder":"normalTest//RawUnusedIdentifier"}
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"processId":null,"rootPath":"/workspace/RawUnusedIdentifier","rootUri":"file:///workspace/RawUnusedIdentifier","capabilities":{"textDocument":{"publishDiagnostics":{"tagSupport":{"valueSet":[1,2]}},"semanticTokens":{"requests":{"full":true},"tokenTypes":[],"tokenModifiers":[],"formats":["relative"]}}},"initializationOptions":{"multiModuleOption":{"file:///workspace/RawUnusedIdentifier":{"name":"RawUnusedIdentifier","requires":{}}},"conditionCompileOption":{},"singleConditionCompileOption":{}},"workspaceFolders":[{"uri":"file:///workspace/RawUnusedIdentifier","name":"RawUnusedIdentifier"}]}}
+{"jsonrpc":"2.0","method":"initialized","params":{}}
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///workspace/RawUnusedIdentifier/src/main.cj","languageId":"Cangjie","version":1,"text":"// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.\n// This source file is part of the Cangjie project, licensed under Apache-2.0\n// with Runtime Library Exception.\n//\n// See https://cangjie-lang.cn/pages/LICENSE for license information.\n\npackage RawUnusedIdentifier\n\nconst `à֮̅̕b` = 1\nconst `abc` = 2\n\nmain(): Int64 {\n    return 0\n}\n"}}}
+{"jsonrpc":"2.0","id":999,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///workspace/RawUnusedIdentifier/src/main.cj"}}}
+{"jsonrpc":"2.0","id":1,"method":"shutdown","params":{}}
+{"jsonrpc":"2.0","method":"exit","params":{}}
