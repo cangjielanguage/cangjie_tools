@@ -38,6 +38,27 @@ Cangjie::Position GetBegin(Ptr<Node> n)
     }
     return begin;
 }
+
+bool IsVariableDecl(Ptr<Node> node)
+{
+    return node->astKind == ASTKind::VAR_DECL || node->astKind == ASTKind::VAR_WITH_PATTERN_DECL;
+}
+
+bool ASTToFormatSource::ShouldAddEmptyLineBetween(Ptr<Node> previous, Ptr<Node> current) const
+{
+    auto begin = GetBegin(current);
+    if (begin.line <= previous->end.line + 1) {
+        return false;
+    }
+    if (!IsVariableDecl(previous) || !IsVariableDecl(current)) {
+        return true;
+    }
+
+    // Comments are restored with their original spacing by CommentHandler. Adding a separator here can
+    // duplicate that spacing, or mistake an intervening comment line for an empty line.
+    auto between = sm.GetContentBetween(previous->end, begin);
+    return between.find("//") == std::string::npos && between.find("/*") == std::string::npos;
+}
 } // namespace Cangjie::Format
 
 namespace {
