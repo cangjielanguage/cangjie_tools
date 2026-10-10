@@ -46,7 +46,7 @@ private:
         // Identify implicit let variables
         auto pos = varDecl->keywordPos;
         bool isImplict = pos.fileID == 0 && pos.line == 0 && pos.column == 0;
-        if (!isImplict && !varDecl->isVar) {
+        if (!isImplict && !varDecl->isVar && !varDecl->isConst) {
             Diagnose(
                 node.begin, node.end, CodeCheckDiagKind::G_SYN_01_disable_syntax_information_01, syntaxNameMap[syntax]);
         }

@@ -18,7 +18,7 @@ using namespace CodeCheck;
 
 void StructuralRuleGVAR03::CheckVarDecl(const VarDecl &varDecl)
 {
-    if (varDecl.TestAttr(Attribute::GLOBAL)) {
+    if (varDecl.TestAttr(Attribute::GLOBAL) && !varDecl.isConst) {
         Diagnose(varDecl.begin, varDecl.end, CodeCheckDiagKind::G_VAR_03_global_variable_declaration_information,
             varDecl.identifier.Val());
     }

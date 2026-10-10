@@ -24,7 +24,9 @@ protected:
 private:
     using PositionPair = std::pair<Position, Position>;
     void FuncParamFinder(Ptr<Cangjie::AST::Node> node);
+    void ProcessFuncDecl(const Cangjie::AST::FuncDecl &funcDecl);
     void FuncParamFinderHelper(Ptr<Cangjie::AST::Node> node, std::map<std::string, PositionPair> &paramMap);
+    void EraseUsedParams(Ptr<Cangjie::AST::Node> node, std::map<std::string, PositionPair> &paramMap);
     static void EraseItemOfMap(const std::string& id, std::map<std::string, PositionPair>& paramMap);
 };
 } // namespace Cangjie::CodeCheck
