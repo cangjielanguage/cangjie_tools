@@ -1,0 +1,1 @@
+{"id":"9","jsonrpc":"2.0","result":[{"deprecated":false,"detail":"public let innerOnly: UInt16","documentation":"","filterText":"innerOnly","insertText":"innerOnly","insertTextFormat":1,"kind":6,"label":"innerOnly","sortText":""}]}

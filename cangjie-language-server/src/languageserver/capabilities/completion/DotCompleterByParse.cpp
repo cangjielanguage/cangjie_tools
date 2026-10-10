@@ -802,6 +802,17 @@ void DotCompleterByParse::FindVarPattern(Ptr<Node> node, const Position &pos, st
     }
 }
 
+void DotCompleterByParse::FindParenExpr(Ptr<Node> node, const Position &pos,
+                                        std::string &scopeName, bool &isInclude)
+{
+    auto parenExpr = DynamicCast<ParenExpr *>(node.get());
+    if (!parenExpr) { return; }
+    DeepFind(parenExpr->expr.get(), pos, scopeName, isInclude);
+    if (scopeName == "a") {
+        isInclude = false;
+    }
+}
+
 void DotCompleterByParse::FindBinaryExpr(Ptr<Node> node, const Position &pos,
                                          std::string &scopeName, bool &isInclude)
 {
@@ -1080,6 +1091,7 @@ void DotCompleterByParse::InitMap() const
     DotMatcher::GetInstance().RegFunc(ASTKind::LAMBDA_EXPR, &ark::DotCompleterByParse::FindLambdaExpr);
     DotMatcher::GetInstance().RegFunc(ASTKind::MATCH_EXPR, &ark::DotCompleterByParse::FindMatchExpr);
     DotMatcher::GetInstance().RegFunc(ASTKind::VAR_PATTERN, &ark::DotCompleterByParse::FindVarPattern);
+    DotMatcher::GetInstance().RegFunc(ASTKind::PAREN_EXPR, &ark::DotCompleterByParse::FindParenExpr);
     DotMatcher::GetInstance().RegFunc(ASTKind::BINARY_EXPR, &ark::DotCompleterByParse::FindBinaryExpr);
     DotMatcher::GetInstance().RegFunc(ASTKind::OPTIONAL_CHAIN_EXPR, &ark::DotCompleterByParse::FindOptionalChainExpr);
     DotMatcher::GetInstance().RegFunc(ASTKind::ASSIGN_EXPR, &ark::DotCompleterByParse::FindAssignExpr);
