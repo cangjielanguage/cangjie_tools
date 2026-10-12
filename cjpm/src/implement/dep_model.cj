@@ -886,22 +886,28 @@ class DepModel {
         let triple = Triple.fromString(target).getOrThrow { err =>
             CliFailError("Error: invalid target '${target}': ${err}")
         }
-        for (name in this.depAnalysisEngine.finalDepMap.keys()) {
-            let alwaysEnabledFeatures = verifiedModuleMap[name].alwaysEnabledFeatures
-            let mapping = verifiedModuleMap[name].mapping
-            let features = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
-                .addFeature(this.globalConfig.verifiedEnabledFeatures)
-                .addFeature(alwaysEnabledFeatures)
-                .deduceTargetFeatures(triple)
-                .setFeatureMapping(mapping)
-                .collect()
+        var changed = true
+        while (changed) {
+            changed = false
+            for (name in this.depAnalysisEngine.finalDepMap.keys()) {
+                let alwaysEnabledFeatures = verifiedModuleMap[name].alwaysEnabledFeatures
+                let mapping = verifiedModuleMap[name].mapping
+                let features = FeatureDeducer(enabled: !this.globalConfig.noFeatureDeduce)
+                    .addFeature(this.globalConfig.verifiedEnabledFeatures)
+                    .addFeature(alwaysEnabledFeatures)
+                    .addFeature(propagatedFeatures[name].toArray())
+                    .deduceTargetFeatures(triple)
+                    .setFeatureMapping(mapping)
+                    .collect()
 
-            propagatedFeatures[name].add(all: features)
-            for (feature in features) {
-                if (
-                    let Some(fname) <- feature.depName &&
-                    let Some(featureset) <- propagatedFeatures.get(fname)
-                ) { featureset.add(feature) }
+                propagatedFeatures[name].add(all: features)
+                for (feature in features) {
+                    if (
+                        let Some(fname) <- feature.depName &&
+                        let Some(featureSet) <- propagatedFeatures.get(fname) &&
+                        featureSet.add(feature)
+                    ) { changed = true }
+                }
             }
         }
     }
@@ -1477,7 +1483,7 @@ func constructSource(modulePath: String, srcDir: String, sourceSets: SourceLocat
     if (sourceSets.isEmpty) {
         return Ok((CJMPSource(modulePath, srcDir), localFeatures))
     } else {
-        return sourceSets.selectSourceSets(modulePath, localFeatures, globalFeatures).map { it => (it, localFeatures) }
+        return sourceSets.selectSourceSets(modulePath, globalFeatures).map { it => (it, localFeatures) }
     }
 }
 
