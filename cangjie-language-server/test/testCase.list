@@ -1303,3 +1303,8 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_Module_Name_Conflict.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Module_Name_Conflict_No_Relation.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_RawUnusedIdentifier_001.test"}}
+{"completion":{"testFile":"LSP_Completion_Paren_Assign_Dot.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Paren_Assign_Prefix.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Paren_As_Prefix.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Paren_Lambda_Shadow.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Paren_Nested_Return.test","id":"9"}}
