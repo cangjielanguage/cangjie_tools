@@ -23,6 +23,25 @@ bool IsModifier(const Token &tok)
 {
     return tok.kind >= TokenKind::STATIC && tok.kind <= TokenKind::OPERATOR;
 }
+
+bool AdvanceToStartPosition(SimultaneousIterator &simIter, const Cangjie::Position &startPosition)
+{
+    while (simIter.originalIterator != simIter.originalTokens.end() &&
+        simIter.outputIterator != simIter.outputTokens.end()) {
+        if (simIter.originalIterator->Begin() > startPosition) {
+            return false;
+        }
+        if (simIter.originalIterator->Begin() == startPosition) {
+            return true;
+        }
+        if (simIter.originalIterator->End() == startPosition) {
+            (void)simIter.Advance();
+            return true;
+        }
+        (void)simIter.Advance();
+    }
+    return false;
+}
 }
 
 SimultaneousIterator::SimultaneousIterator(
@@ -125,27 +144,12 @@ std::optional<std::pair<std::vector<Token>, std::vector<Token>>> ExtractTokensBe
     )
 {
     auto simIter = SimultaneousIterator(originalTokens, formattedTokens);
-    std::vector<Token>::const_iterator originalTokensSubsetFirst;
-    std::vector<Token>::const_iterator outputTokensSubsetFirst;
     (void)simIter.IterateAndCollectComments(); // skip comments at the begining of original text
-    while (true) {
-        if (simIter.originalIterator == simIter.originalTokens.end() ||
-            simIter.outputIterator == simIter.outputTokens.end() || simIter.originalIterator->Begin() > startPosition) {
-            return std::nullopt;
-        }
-        if (simIter.originalIterator->Begin() == startPosition) {
-            originalTokensSubsetFirst = simIter.originalIterator;
-            outputTokensSubsetFirst = simIter.outputIterator;
-            break;
-        }
-        if (simIter.originalIterator->End() == startPosition) {
-            (void)simIter.Advance();
-            originalTokensSubsetFirst = simIter.originalIterator;
-            outputTokensSubsetFirst = simIter.outputIterator;
-            break;
-        }
-        (void)simIter.Advance();
+    if (!AdvanceToStartPosition(simIter, startPosition)) {
+        return std::nullopt;
     }
+    auto originalTokensSubsetFirst = simIter.originalIterator;
+    auto outputTokensSubsetFirst = simIter.outputIterator;
     std::vector<Token>::const_iterator originalTokensSubsetEnd;
     std::vector<Token>::const_iterator outputTokensSubsetEnd;
     while (true) {
@@ -167,11 +171,17 @@ std::optional<std::pair<std::vector<Token>, std::vector<Token>>> ExtractTokensBe
     }
     auto origFragment = std::vector<Token>(originalTokensSubsetFirst, originalTokensSubsetEnd);
     auto outputFragment = std::vector<Token>(outputTokensSubsetFirst, outputTokensSubsetEnd);
+    if (origFragment.empty() || outputFragment.empty()) {
+        return std::nullopt;
+    }
     while (origFragment.back().kind == TokenKind::NL) {
         origFragment.pop_back();
     }
     while (outputFragment.back().kind == TokenKind::NL) {
         outputFragment.pop_back();
+    }
+    if (origFragment.empty() || outputFragment.empty()) {
+        return std::nullopt;
     }
     return std::make_pair(std::move(origFragment), std::move(outputFragment));
 }
