@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///unused-default-params/src/helper_reads.cj","diagnostics":[{"range":{"start":{"line":13,"character":8},"end":{"line":13,"character":19}},"severity":4,"code":0,"source":"Cangjie","message":"Variable 'unusedValue' is declared but never used","tags":[1]}]}}
