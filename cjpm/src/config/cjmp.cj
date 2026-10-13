@@ -950,8 +950,7 @@ public class SourceLocations {
         result.toArray()
     }
 
-    public func selectSourceSets(modulePath: String, localFeatures: HashSet<Feature>, globalFeatures: HashSet<Feature>): Result<CJMPSource, String> {
-        assertion { globalFeatures.contains(all: localFeatures) }
+    public func selectSourceSets(modulePath: String, globalFeatures: HashSet<Feature>): Result<CJMPSource, String> {
         let allSelected = toposort.iterator().filter { it => globalFeatures.contains(all: it.features) } |> collectArray
         let globalBelow = below(toposort, globalFeatures)
 
@@ -963,11 +962,10 @@ public class SourceLocations {
             return Err("Cannot compile multiple source sets without common parent source set\n${printer}")
         }
 
-        let localBelow = below(toposort, localFeatures)
-        if (localBelow.size == 0) {
+        if (globalBelow.size == 0) {
             let printer = SourceLocationsPrinter(
                 toposort.map { it => CJMPPackageInfo.fromSourceSetEntry(modulePath, it)} |> collectArray,
-                localFeatures
+                globalFeatures
             )
             return Err("No source set was selected\n${printer}")
         }
@@ -980,9 +978,7 @@ public class SourceLocations {
                 globalFeatures
             )
             return Err("Provided feature set doesn't specify product to compile\n${printer}")
-        } 
-
-        let resultFeatures = globalBelow[0].features
+        }
 
         let indegGraph = HashMap<String, ArrayList<String>>()
         for (i in allSelected.map { it => it.srcDir.toString() }) {
