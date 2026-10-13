@@ -53,7 +53,6 @@ void FuncParamListFormatter::AddFuncParamList(
         return;
     }
     doc.members.emplace_back(DocType::STRING, level, "(");
-    doc.members.emplace_back(DocType::SOFTLINE, level + 1, "");
 
     bool isMultipleLineMacroExpandParam = IsMultipleLineMacroExpandParam(funcParamList);
     if (isMultipleLineMacroExpandParam ||
@@ -62,18 +61,19 @@ void FuncParamListFormatter::AddFuncParamList(
         return;
     }
 
+    // Keep separators outside each parameter so fitting measures one complete parameter and comma.
+    Doc args(DocType::FILL, level + 1, "");
     for (auto& n : funcParamList.params) {
-        Doc group(DocType::GROUP, level + 1, "");
-        group.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1, funcOptions));
+        args.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1, funcOptions));
         if (n != funcParamList.params.back()) {
-            group.members.emplace_back(DocType::STRING, level + 1, ",");
-            group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            args.members.emplace_back(DocType::STRING, level + 1, ",");
+            args.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
         }
         if (n == funcParamList.params.back() && n->commaPos != INVALID_POSITION) {
-            group.members.emplace_back(DocType::STRING, level + 1, ", ...");
+            args.members.emplace_back(DocType::STRING, level + 1, ", ...");
         }
-        doc.members.emplace_back(group);
     }
+    doc.members.emplace_back(std::move(args));
     doc.members.emplace_back(DocType::STRING, level, ")");
 }
 

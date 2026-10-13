@@ -26,6 +26,7 @@ public:
 
 protected:
     bool Fits(const std::pair<Doc, Mode>& next, int rem);
+    bool Fits(const std::vector<std::pair<Doc, Mode>>& commands, int rem);
     int CalculateDocLen(Doc& doc);
 
     FormattingOptions& options;

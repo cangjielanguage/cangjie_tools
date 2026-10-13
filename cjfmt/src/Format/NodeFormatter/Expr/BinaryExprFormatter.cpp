@@ -19,21 +19,41 @@ void BinaryExprFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int l
 
 void BinaryExprFormatter::AddBinaryExpr(Doc& doc, const Cangjie::AST::BinaryExpr& binaryExpr, int level)
 {
-    doc.type = DocType::CONCAT;
+    doc.type = DocType::FILL;
     doc.indent = level;
 
-    Doc group(DocType::GROUP, level, "");
-    group.members.emplace_back(astToFormatSource.ASTToDoc(binaryExpr.leftExpr.get(), level));
-    bool preserveOperatorLineBreak = binaryExpr.leftExpr->end.line < binaryExpr.operatorPos.line;
-    preserveOperatorLineBreak
-        ? group.members.emplace_back(DocType::LINE, level + 1, "")
-        : group.members.emplace_back(DocType::STRING, level, " ");
-    group.members.emplace_back(DocType::STRING, level, TOKENS[static_cast<int>(binaryExpr.op)]);
-    group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
-    doc.members.emplace_back(group);
-    doc.members.emplace_back(astToFormatSource.ASTToDoc(binaryExpr.rightExpr.get(), level));
-    if (binaryExpr.hasSemi) {
-        doc.members.emplace_back(DocType::STRING, level, ";");
+    // Follow only an existing left-associated chain of the same operator. Parentheses, precedence and
+    // right-associated subexpressions remain intact; this changes layout without regrouping the AST.
+    std::vector<const BinaryExpr*> chain;
+    const auto* current = &binaryExpr;
+    while (true) {
+        chain.emplace_back(current);
+        auto left = As<ASTKind::BINARY_EXPR>(current->leftExpr.get());
+        if (!left || left->op != binaryExpr.op || left->hasSemi) {
+            break;
+        }
+        current = left;
     }
+
+    Ptr<Expr> operand = current->leftExpr.get();
+    for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+        const auto& operation = **it;
+        Doc chunk(DocType::CONCAT, level, "");
+        chunk.members.emplace_back(astToFormatSource.ASTToDoc(operand, level));
+        bool preserveOperatorLineBreak = operation.leftExpr->end.line < operation.operatorPos.line;
+        preserveOperatorLineBreak
+            ? chunk.members.emplace_back(DocType::LINE, level + 1, "")
+            : chunk.members.emplace_back(DocType::STRING, level, " ");
+        chunk.members.emplace_back(DocType::STRING, level, TOKENS[static_cast<int>(operation.op)]);
+        doc.members.emplace_back(std::move(chunk));
+        doc.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+        operand = operation.rightExpr.get();
+    }
+    Doc last(DocType::CONCAT, level, "");
+    last.members.emplace_back(astToFormatSource.ASTToDoc(operand, level));
+    if (binaryExpr.hasSemi) {
+        last.members.emplace_back(DocType::STRING, level, ";");
+    }
+    doc.members.emplace_back(std::move(last));
 }
 } // namespace Cangjie::Format

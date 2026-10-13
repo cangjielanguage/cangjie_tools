@@ -291,6 +291,8 @@ void RegisterDocProcessors(ASTToFormatSource& toSourceManager, FormattingOptions
 {
     toSourceManager.RegisterDocProcessors<StringTypeProcessor>(DocType::STRING, options);
     toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::CONCAT, options);
+    // Fill consists of complete chunks separated by soft breaks. Each break probes the whole next chunk.
+    toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::FILL, options);
     toSourceManager.RegisterDocProcessors<LineProcessor>(DocType::LINE, options);
     toSourceManager.RegisterDocProcessors<ArgsProcessor>(DocType::ARGS, options);
     toSourceManager.RegisterDocProcessors<FuncArgProcessor>(DocType::FUNC_ARG, options);

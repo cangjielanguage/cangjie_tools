@@ -17,6 +17,29 @@ void IncreaseIndent(Doc& doc)
         IncreaseIndent(member);
     }
 }
+
+void AppendInlineSuffix(Doc& chunk, std::vector<std::pair<Doc, Mode>>& commands)
+{
+    while (!commands.empty() && commands.back().second == Mode::MODE_FLAT) {
+        auto type = commands.back().first.type;
+        if (type == DocType::CONCAT || type == DocType::GROUP || type == DocType::FILL ||
+            type == DocType::FUNC_ARG) {
+            // A postfix expression (for example an array index) can contain nested Docs. Expose its
+            // inline prefix, preserving the next soft/hard break as the boundary of this suffix.
+            auto command = std::move(commands.back());
+            commands.pop_back();
+            for (auto it = command.first.members.rbegin(); it != command.first.members.rend(); ++it) {
+                commands.emplace_back(std::move(*it), command.second);
+            }
+        } else if (type == DocType::STRING || type == DocType::DOT || type == DocType::BREAK_PARENT ||
+            type == DocType::ARGS || type == DocType::MEMBER_ACCESS) {
+            chunk.members.emplace_back(std::move(commands.back().first));
+            commands.pop_back();
+        } else {
+            break;
+        }
+    }
+}
 } // namespace
 
 void ArgsProcessor::SoftLineProcessor(
@@ -41,7 +64,9 @@ void ArgsProcessor::SoftLineWithSpaceProcessor(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, size_t& i, bool& haveNotChangedLine)
 {
     std::pair<Doc, Mode> next(current.first.members[i + 1], current.second);
-    if (!Fits(next, options.lineLength - pos)) {
+    bool addSpace = next.first.type != DocType::LINE && next.first.type != DocType::HARDLINE;
+    auto rem = options.lineLength - pos - (addSpace ? 1 : 0);
+    if (!Fits(next, rem)) {
         formatted += options.newLine;
         formatted += std::string(current.first.members[i].indent * options.indentWidth, ' ');
         pos = current.first.members[i].indent * options.indentWidth;
@@ -53,7 +78,7 @@ void ArgsProcessor::SoftLineWithSpaceProcessor(
         }
         haveNotChangedLine = false;
     } else {
-        if (next.first.type != DocType::LINE) {
+        if (addSpace) {
             formatted += " ";
             pos += 1;
         }
@@ -63,7 +88,26 @@ void ArgsProcessor::SoftLineWithSpaceProcessor(
 void ArgsProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
-    (void)leftCmd;
+    // Keep commas and closing delimiters in the same candidate as their argument. Nested expression
+    // printers otherwise run with an isolated command stack and cannot reserve the columns for them.
+    std::vector<Doc> members;
+    for (auto& member : current.first.members) {
+        if (member.type == DocType::SOFTLINE || member.type == DocType::SOFTLINE_WITH_SPACE) {
+            members.emplace_back(std::move(member));
+        } else if (members.empty() || members.back().type == DocType::SOFTLINE ||
+            members.back().type == DocType::SOFTLINE_WITH_SPACE) {
+            Doc chunk(member.type == DocType::FUNC_ARG ? DocType::FUNC_ARG : DocType::CONCAT, member.indent, "");
+            chunk.members.emplace_back(std::move(member));
+            members.emplace_back(std::move(chunk));
+        } else {
+            members.back().members.emplace_back(std::move(member));
+        }
+    }
+    if (!members.empty() && members.back().type != DocType::SOFTLINE &&
+        members.back().type != DocType::SOFTLINE_WITH_SPACE) {
+        AppendInlineSuffix(members.back(), leftCmd);
+    }
+    current.first.members = std::move(members);
     bool haveNotChangedLine = true;
     for (size_t i = 0; i < current.first.members.size(); ++i) {
         if (current.first.members[i].type == DocType::SOFTLINE) {

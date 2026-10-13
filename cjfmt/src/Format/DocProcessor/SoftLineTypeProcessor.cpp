@@ -13,8 +13,10 @@ using namespace Cangjie::AST;
 void Cangjie::Format::SoftLineTypeProcessor::DocToString(std::string &formatted, int &pos,
     std::pair<Doc, Mode> &current, std::vector<std::pair<Doc, Mode>> &leftCmd)
 {
-    auto next = leftCmd.back();
-    if (!Fits(next, options.lineLength - pos)) {
+    if (leftCmd.empty()) {
+        return;
+    }
+    if (!Fits(leftCmd, options.lineLength - pos)) {
         formatted += options.newLine;
         formatted += std::string(current.first.indent * options.indentWidth, ' ');
         pos = current.first.indent * options.indentWidth;
