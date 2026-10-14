@@ -1317,3 +1317,4 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_016_NamedScopeCrossFile.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_017_NamedScopeMacro.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_018_HelperReadsAndLocal.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Tracked_DotCj_Delete.test"}}

@@ -812,12 +812,12 @@ void ArkLanguageServer::OnDocumentLink(const DocumentLinkParams &params, nlohman
 // LCOV_EXCL_START
 bool ArkLanguageServer::CheckIsCangjieWatchedFile(const std::string &file, FileChangeType type) const
 {
+    if (type == FileChangeType::DELETED) {
+        // Use tracked paths for deletion since HasExtension rejects ".cj".
+        return DocMgr.ContainsFile(file);
+    }
     if (!FileUtil::HasExtension(file, CANGJIE_FILE_EXTENSION())) {
         return false;
-    }
-    if (type == FileChangeType::DELETED) {
-        // The path no longer exists, so use the state recorded before deletion.
-        return DocMgr.ContainsFile(file);
     }
     return FileUtil::FileExist(file) && !CheckIsDirectory(file);
 }
