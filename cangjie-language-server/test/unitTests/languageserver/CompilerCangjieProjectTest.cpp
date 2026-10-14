@@ -412,6 +412,22 @@ TEST_F(CompilerCangjieProjectTest, RealCangjieFileKeepsCreateChangeAndDeleteEven
     fs::remove_all(testRoot);
 }
 
+TEST_F(CompilerCangjieProjectTest, TrackedExtensionOnlyCangjieFileKeepsDeleteEvent)
+{
+    const auto file = std::filesystem::temp_directory_path() / "cangjie_lsp_dot_cj_delete" / ".cj";
+    // The file is already absent, but didOpen previously registered this document.
+    server->AddDocWhenInitCompile(FileStore::NormalizePath(file.string()));
+    DidChangeWatchedFilesParam params;
+    params.changes = {CreateWatchedEvent(file, FileChangeType::DELETED)};
+    std::vector<FileWatchedEvent> changes;
+
+    server->WrapClientWatchedFiles(changes, params);
+
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_EQ(changes[0].type, FileChangeType::DELETED);
+    EXPECT_EQ(changes[0].textDocument.uri.file, params.changes[0].textDocument.uri.file);
+}
+
 TEST(DocCacheTest, TrackedFilesUnderPathUseDirectoryBoundary)
 {
     DocCache cache;
