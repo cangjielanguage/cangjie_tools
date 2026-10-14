@@ -1308,3 +1308,12 @@
 {"completion":{"testFile":"LSP_Completion_Paren_As_Prefix.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_Paren_Lambda_Shadow.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_Paren_Nested_Return.test","id":"9"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_001_UserDefaultUsed.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_003_TrueUnusedParameter.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_005_MultipleDefaults.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_007_MethodGenericConstructor.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_012_IncrementalAddDefault.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_015_NamedScopeEnumAndCapture.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_016_NamedScopeCrossFile.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_017_NamedScopeMacro.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_018_HelperReadsAndLocal.test"}}

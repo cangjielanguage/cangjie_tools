@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///unused-default-params/src/user_default.cj","diagnostics":[]}}

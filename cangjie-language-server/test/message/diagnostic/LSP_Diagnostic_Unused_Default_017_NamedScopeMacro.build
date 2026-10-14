@@ -1,0 +1,3 @@
+cd ${caseProPath}
+mkdir -p macroBin/unusedDefaultParamsMacro
+cjc --import-path=./macroBin/unusedDefaultParamsMacro --no-sub-pkg --output-dir=./macroBin/unusedDefaultParamsMacro -p ./src/macroPkg --compile-macro

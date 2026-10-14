@@ -429,24 +429,57 @@ static bool IsInComponentMacro(const Node* node)
 // with a single package walk that populates these sets up front.
 // ---------------------------------------------------------------------------
 namespace {
+struct FuncParamSourceHash {
+    size_t operator()(const FuncParam* param) const noexcept
+    {
+        return param->begin.Hash64();
+    }
+};
+
+struct FuncParamSourceEqual {
+    bool operator()(const FuncParam* lhs, const FuncParam* rhs) const noexcept
+    {
+        return lhs == rhs ||
+            (lhs->begin == rhs->begin && lhs->end == rhs->end && lhs->curFile == rhs->curFile);
+    }
+};
+
 struct UsageSets {
     // Decls referenced directly via node->GetTarget() (pointer match).
     std::unordered_set<const Decl*> usedByPtr;
-    // FuncParams referenced indirectly via named-arg call sites.
-    // Collected when a NameReferenceExpr targets a FuncDecl whose
-    // callOrPattern is a CallExpr with named args matching the
-    // function's named params. Mirrors FindNamedFuncParamUsage's
-    // second walk, but uses node->GetTarget() (not ce->resolvedFunction)
-    // to match the original's less-aggressive matching.
-    std::unordered_set<const Decl*> usedByNamedArg;
+    // Default-argument lowering can clone parameters. Match only parameter
+    // targets by their original declaration range and file, not call labels.
+    std::unordered_set<const FuncParam*, FuncParamSourceHash, FuncParamSourceEqual> usedDefaultParamSources;
     // Decls referenced from a source position different from the decl's
     // own position. Used by enum-variant detection to filter out
     // self-position matches (macro artifacts where a decl references itself).
     std::unordered_set<const Decl*> usedByPtrExternal;
 
+    void RecordDefaultParamSource(const Decl& target)
+    {
+        if (target.astKind != ASTKind::FUNC_PARAM) {
+            return;
+        }
+        auto param = DynamicCast<const FuncParam*>(&target);
+        if (!param) {
+            return;
+        }
+        auto outerFunc = DynamicCast<const FuncDecl*>(param->outerDecl);
+        if (outerFunc && outerFunc->ownerFunc) {
+            (void)usedDefaultParamSources.insert(param);
+        }
+    }
+
     bool IsUsed(const Decl& decl) const
     {
-        return usedByPtr.count(&decl) > 0 || usedByNamedArg.count(&decl) > 0;
+        if (usedByPtr.count(&decl) > 0) {
+            return true;
+        }
+        if (decl.astKind != ASTKind::FUNC_PARAM) {
+            return false;
+        }
+        auto param = DynamicCast<const FuncParam*>(&decl);
+        return param && usedDefaultParamSources.count(param) > 0;
     }
 
     bool IsUsedExternal(const Decl& decl) const
@@ -534,6 +567,12 @@ static void CheckUnusedFuncParam(FuncParam* funcParam,
     const std::string& filePath, std::vector<DiagnosticToken>& diagnostics,
     const UsageSets& usage)
 {
+    auto outerFunc = DynamicCast<const FuncDecl*>(funcParam->outerDecl);
+    if (outerFunc && outerFunc->ownerFunc) {
+        // Default-value helper parameters are copies of source parameters.
+        // Diagnose only the source declaration, while still walking the body.
+        return;
+    }
     bool isComponentGen = IsComponentGeneratedParam(funcParam);
     bool isInCompMacro = IsInComponentMacro(funcParam);
     bool isInMacroGenFunc = IsInMacroGeneratedFunc(funcParam);
@@ -679,71 +718,9 @@ static VisitAction CollectUnusedLocalDiags(
     return VisitAction::WALK_CHILDREN;
 }
 
-// ---------------------------------------------------------------------------
-// Helper: Find a named param in a FuncDecl that matches the given arg name.
-// Returns the matching FuncParam Decl, or nullptr if no match.
-// ---------------------------------------------------------------------------
-static const Decl* FindNamedParam(const FuncDecl& fd, const SrcIdentifier& name)
-{
-    if (name.Empty()) {
-        return nullptr;
-    }
-    for (auto& param : fd.funcBody->paramLists[0]->params) {
-        if (param && param->isNamedParam && param->identifier == name) {
-            return param.get();
-        }
-    }
-    return nullptr;
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Collect named-arg indirect references for FuncParams.
-// If a NameReferenceExpr targets a FuncDecl whose callOrPattern is a
-// CallExpr with named args, mark the corresponding named params as used.
-// Uses node->GetTarget() (not ce->resolvedFunction) to match the
-// original FindNamedFuncParamUsage's matching logic.
-// ---------------------------------------------------------------------------
-static void CollectNamedArgUsage(Ptr<Node> node, Decl* target, UsageSets& usage)
-{
-    auto ref = DynamicCast<NameReferenceExpr*>(node.get());
-    if (!ref) {
-        return;
-    }
-    auto fd = DynamicCast<const FuncDecl*>(target);
-    if (!fd || !fd->funcBody || fd->funcBody->paramLists.empty() ||
-        !fd->funcBody->paramLists[0]) {
-        return;
-    }
-    auto ce = DynamicCast<CallExpr*>(ref->callOrPattern);
-    if (!ce) {
-        return;
-    }
-    for (auto& arg : ce->args) {
-        if (!arg) {
-            continue;
-        }
-        auto param = FindNamedParam(*fd, arg->name);
-        if (param) {
-            (void)usage.usedByNamedArg.insert(param);
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Single-pass usage set builder: walks the whole package once and records
-// all decl usage references. Replaces O(D) per-decl FindDeclUsage walks
-// (each of which scanned the whole package) with one O(P x F) walk + O(D)
-// hash lookups in the Check* helpers above.
-//
-// Captures three categories of usage, matching the matching rules used by
-// FindUsage / FindNamedFuncParamUsage / HasDeclUsageExcludingSelfPos:
-//   1. usedByPtr          -- direct target pointer refs (FindUsage fast path)
-//   2. usedByNamedArg     -- named-arg indirect refs (FindNamedFuncParamUsage
-//                            2nd walk, via node->GetTarget() + callOrPattern)
-//   3. usedByPtrExternal  -- refs from a different source position than the
-//                            target decl (HasDeclUsageExcludingSelfPos filter,
-//                            for enum-variant self-position edge cases)
-// ---------------------------------------------------------------------------
+// Collect declaration usage in one package walk for the diagnostic hash lookups.
+// Track direct references, source parameter reads in default-value helpers,
+// and references outside declaration positions used to filter enum self-references.
 static void BuildUsageSets(Package& package, UsageSets& usage)
 {
     std::function<VisitAction(Ptr<Node>)> collector =
@@ -758,15 +735,14 @@ static void BuildUsageSets(Package& package, UsageSets& usage)
                 Walker(it.get(), collector).Walk();
             }
         }
-        // Direct target reference. For local decls this is the only FindUsage
-        // matching path that fires (partialDecl=true forces continueNext=true,
-        // so the slow CheckDeclEqual path is unreachable).
+        // Only default-value helper targets need source-identity matching.
         if (auto target = node->GetTarget()) {
-            (void)usage.usedByPtr.insert(target);
+            if (usage.usedByPtr.insert(target).second) {
+                usage.RecordDefaultParamSource(*target);
+            }
             if (node->begin != target->begin || node->end != target->end) {
                 (void)usage.usedByPtrExternal.insert(target);
             }
-            CollectNamedArgUsage(node, target, usage);
         } else if (DynamicCast<NameReferenceExpr*>(node.get()) != nullptr) {
             // DEBUG: log RefExpr nodes with null target
             auto filePath = node->curFile ? node->curFile->filePath : "null";
