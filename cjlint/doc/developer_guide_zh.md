@@ -392,7 +392,7 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
 - G.EXP.07 比较两个表达式时，左侧倾向于变化，右侧倾向于不变。
 - G.ERR.01 恰当地使用异常或错误处理机制。
 - G.ERR.02 防止通过异常抛出的内容泄露敏感信息。
-- G.ERR.03 避免对 Option 类型使用 getorthrow 函数。
+- G.ERR.03 避免对 Option 类型使用 getorthrow 函数，已捕获 NoneValueException 处理的场景除外。
 - G.ERR.04 不要使用 return、break、continue 或抛出异常使 finally 块非正常结束。
 - G.PKG.01 避免在 import 声明中使用通配符*。
 - G.CON.01 禁止将系统内部使用的锁对象暴露给不可信代码。
@@ -444,7 +444,7 @@ func foo(a: Int64, b: Int64, c: Int64, d: Int64) {
    | 禁用语法     | 关键词          | 说明                                             |
    | ------------ | --------------- | ------------------------------------------------ |
    | 导入包       | Import          | 不允许随意导入包                                 |
-   | let 变量     | Let             | 只用 var 变量，不引入不可写变量的概念            |
+   | let 变量     | Let             | 只用 var 或 const 变量                          |
    | 创建线程     | Spawn           | 不允许创建线程                                   |
    | 线程同步     | Synchronized    | 防止死锁                                         |
    | 主函数       | Main            | 禁止提供入口主函数                               |
