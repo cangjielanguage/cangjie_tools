@@ -1,0 +1,247 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+// This source file is part of the Cangjie project, licensed under Apache-2.0
+// with Runtime Library Exception.
+//
+// See https://cangjie-lang.cn/pages/LICENSE for license information.
+
+package my_module
+
+import ohos.ark_interop.*
+import ohos.ark_interop_helper.*
+import ohos.base.*
+
+/***********ENUM***********/
+// this is systemapi
+/*// S3: systemapi 枚举（整体被注释掉，重包裹转义）
+// @systemapi
+/\* enum SysapiEnum {
+	 SysapiMember = 0
+	}*\/
+public enum SysapiEnum <: ToString & Equatable < SysapiEnum > {
+    | SysapiMember 
+
+    func get(): Int32 {
+        match(this) {
+            case SysapiMember => 0 
+        }
+    }
+    
+    static func parse(val: Int32): SysapiEnum {
+        match(val) {
+            case 0 => SysapiMember 
+            case _ => throw IllegalArgumentException("unknown value ${val}")
+        }
+    }
+    
+    static func tryParse(val: ?Int32): ?SysapiEnum {
+        match(val) {
+            case Some(v) => parse(v)
+            case None => None
+        }
+    }
+    
+    public func toString(): String {
+        match(this) {
+            case SysapiMember => "SysapiMember"
+        }
+    }
+    
+    public override operator func ==(that: SysapiEnum): Bool {
+        match((this, that)) {
+            case(SysapiMember, SysapiMember) => true
+            case _ => false
+        }
+    }
+    
+    public override operator func !=(that: SysapiEnum): Bool {
+        !(this == that)
+    }
+}
+*/
+
+// S5: 字符串枚举成员单引号含载荷（quote() 自动加引号 → 载荷位于字符串字面量内，安全）
+/* enum SingleQuoteEnum {
+	 EvilSingle = *\/single_quote_payload/\*,
+	 NormalSingle = ok
+	}*/
+public enum SingleQuoteEnum <: ToString & Equatable < SingleQuoteEnum > {
+    | EvilSingle
+    | NormalSingle 
+
+    func get(): String {
+        match(this) {
+            case EvilSingle => "*/single_quote_payload/*" 
+            case NormalSingle => "ok" 
+        }
+    }
+    
+    static func parse(val: String): SingleQuoteEnum {
+        match(val) {
+            case "*/single_quote_payload/*" => EvilSingle 
+            case "ok" => NormalSingle 
+            case _ => throw IllegalArgumentException("unknown value ${val}")
+        }
+    }
+    
+    static func tryParse(val: ?String): ?SingleQuoteEnum {
+        match(val) {
+            case Some(v) => parse(v)
+            case None => None
+        }
+    }
+    
+    public func toString(): String {
+        get()
+    }
+    
+    public override operator func ==(that: SingleQuoteEnum): Bool {
+        match((this, that)) {
+            case(EvilSingle, EvilSingle) => true
+            case(NormalSingle, NormalSingle) => true
+            case _ => false
+        }
+    }
+    
+    public override operator func !=(that: SingleQuoteEnum): Bool {
+        !(this == that)
+    }
+}
+
+// S6: 字符串枚举成员双引号含载荷（quote() 自动加引号，行为与 S5 一致）
+/* enum DoubleQuoteEnum {
+	 EvilDouble = *\/double_quote_payload/\*,
+	 NormalDouble = ok
+	}*/
+public enum DoubleQuoteEnum <: ToString & Equatable < DoubleQuoteEnum > {
+    | EvilDouble
+    | NormalDouble 
+
+    func get(): String {
+        match(this) {
+            case EvilDouble => "*/double_quote_payload/*" 
+            case NormalDouble => "ok" 
+        }
+    }
+    
+    static func parse(val: String): DoubleQuoteEnum {
+        match(val) {
+            case "*/double_quote_payload/*" => EvilDouble 
+            case "ok" => NormalDouble 
+            case _ => throw IllegalArgumentException("unknown value ${val}")
+        }
+    }
+    
+    static func tryParse(val: ?String): ?DoubleQuoteEnum {
+        match(val) {
+            case Some(v) => parse(v)
+            case None => None
+        }
+    }
+    
+    public func toString(): String {
+        get()
+    }
+    
+    public override operator func ==(that: DoubleQuoteEnum): Bool {
+        match((this, that)) {
+            case(EvilDouble, EvilDouble) => true
+            case(NormalDouble, NormalDouble) => true
+            case _ => false
+        }
+    }
+    
+    public override operator func !=(that: DoubleQuoteEnum): Bool {
+        !(this == that)
+    }
+}
+
+
+/***********OBJECT***********/
+// S4: default 标签带引号值（defValue 原样透传为字符串字面量，编译安全；
+//     属性注释本身被 interface 路径丢弃，锁定 defValue 落点）
+/*interface ExportKeyword IDefaultInjection {
+    defaultProp?: String;
+    }*/
+
+public open class IDefaultInjection {
+    public var defaultProp: String = "safe*/quoted/*default"
+    protected init(defaultProp!: String = "safe*/quoted/*default") {
+        this.defaultProp = defaultProp
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        if (let Some(v) <- defaultProp) {
+            obj["defaultProp"] = v.toJSValue(context)
+        }
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): IDefaultInjection {
+        let obj = input.asObject()
+        IDefaultInjection(
+        defaultProp: String.fromJSValue(context, obj["defaultProp"])
+        )
+    }
+}
+
+// this api is deprecated
+/*// S2: deprecated 标签 + 载荷（整体被注释掉，重包裹转义；
+//     interface 属性注释被丢弃，属性随类一起注释）
+// @deprecated
+/\*interface ExportKeyword IDeprecatedInjection {
+    depProp: String;
+    }*\/
+
+public open class IDeprecatedInjection {
+    public var depProp: String
+    protected init(depProp: String) {
+        this.depProp = depProp
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        obj["depProp"] = depProp.toJSValue(context)
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): IDeprecatedInjection {
+        let obj = input.asObject()
+        IDeprecatedInjection(
+        String.fromJSValue(context, obj["depProp"])
+        )
+    }
+}
+*/
+
+
+/***********METHOD***********/
+// this is systemapi
+/*/\**
+	 * @brief sysapiFunc(mode: "*\/sysapi_param/\*"): void
+	 *\/
+	// 测试用例：注释注入 — 语义标签（systemapi/deprecated/since/default）与值位置载荷
+// 覆盖路径：
+//   - util.cj checkAPIAndCommentOut → addComment 重包裹（整体转义）
+//   - common.cj @default 提取 → Property.defValue 透传（Token(IDENTIFIER) 直接插入）
+//   - trans_enum.cj 字符串枚举值 → quote() 自动加引号（载荷位于字符串字面量内）
+// 注意：@default 未加引号的 *\/ 载荷为已知未修复的代码注入漏洞（见覆盖文档），
+//       本用例仅使用带引号的安全值，锁定 defValue 透传行为
+// S1: systemapi 标签 + 行注释载荷 + 字面量参数（整体被注释掉，重包裹转义）
+// @systemapi
+// S1 sysapi payload *\/
+public func sysapiFunc(mode: JSValue/\* FIXME: `"*\/sysapi_param/\*"` *\/): Unit {
+    hmsGlobalApiCall < Unit >( "my_module_comment_injection_semantic", "sysapiFunc", { ctx =>[mode] })
+}
+*/
+
+// S7: JSDoc since 标签正常形式 + 参数/返回值字面量载荷
+//     （mergeCommentToken 在首个 since 标签处拆分）
+/**
+ * @brief jsdocSinceFunc(mode: "*\/jsdoc_param/\*"): "*\/jsdoc_return/\*"
+ */
+public func jsdocSinceFunc(mode: JSValue/* FIXME: `"*\/jsdoc_param/\*"` */): JSValue/* FIXME: `"*\/jsdoc_return/\*"` */ {
+    hmsGlobalApiCall < JSValue/* FIXME: `"*\/jsdoc_return/\*"` */ >( "my_module_comment_injection_semantic", "jsdocSinceFunc", { ctx =>[mode] }) { ctx, info => info }
+}
+
+
