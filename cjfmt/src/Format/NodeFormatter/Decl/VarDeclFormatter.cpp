@@ -36,8 +36,7 @@ void VarDeclFormatter::AddVarDecl(Doc& doc, const Cangjie::AST::VarDecl& varDecl
         doc.members.emplace_back(astToFormatSource.ASTToDoc(varDecl.type.get(), level));
     }
     if (varDecl.initializer) {
-        doc.members.emplace_back(DocType::STRING, level, " = ");
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(varDecl.initializer.get(), level));
+        astToFormatSource.AddAssignment(doc, astToFormatSource.ASTToDoc(varDecl.initializer.get(), level), level);
     }
 }
 } // namespace Cangjie::Format

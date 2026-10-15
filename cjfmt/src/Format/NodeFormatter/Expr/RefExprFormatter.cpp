@@ -23,16 +23,7 @@ void RefExprFormatter::AddRefExpr(Doc& doc, const Cangjie::AST::RefExpr& refExpr
     doc.indent = level;
 
     doc.members.emplace_back(DocType::STRING, level, refExpr.ref.identifier.GetRawText());
-    if (!refExpr.typeArguments.empty()) {
-        doc.members.emplace_back(DocType::STRING, level, "<");
-        for (auto& n : refExpr.typeArguments) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
-            if (n != refExpr.typeArguments.back()) {
-                doc.members.emplace_back(DocType::STRING, level + 1, ", ");
-            }
-        }
-        doc.members.emplace_back(DocType::STRING, level, ">");
-    }
+    astToFormatSource.AddTypeArguments(doc, refExpr.typeArguments, level);
     if (refExpr.hasSemi) {
         doc.members.emplace_back(DocType::STRING, level, ";");
     }

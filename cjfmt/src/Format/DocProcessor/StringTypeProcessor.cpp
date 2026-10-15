@@ -14,6 +14,6 @@ void Cangjie::Format::StringTypeProcessor::DocToString(std::string &formatted, i
     std::vector<std::pair<Doc, Mode>> &)
 {
     formatted += current.first.value;
-    pos += static_cast<int>(DisplayWidth(current.first.value));
+    pos = AdvanceColumn(current.first.value, pos);
 }
 }

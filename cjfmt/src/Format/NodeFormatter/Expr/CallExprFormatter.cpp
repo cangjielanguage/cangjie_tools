@@ -42,12 +42,16 @@ void CallExprFormatter::AddCallExpr(
     args.members.emplace_back(DocType::SOFTLINE, level + 1, "");
     if (!callExpr.args.empty()) {
         for (auto& n : callExpr.args) {
-            args.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level));
+            // A nested call's own continuation should be one level deeper than
+            // the continuation of its containing argument list.
+            args.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
             if (n->commaPos != INVALID_POSITION) {
                 args.members.emplace_back(DocType::STRING, level, ",");
             }
             if (n != callExpr.args.back()) {
-                args.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+                Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+                separator.breakKind = BreakKind::LIST;
+                args.members.emplace_back(std::move(separator));
             }
         }
     }

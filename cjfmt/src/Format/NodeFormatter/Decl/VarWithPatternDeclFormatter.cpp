@@ -40,8 +40,8 @@ void VarWithPatternDeclFormatter::AddVarWithPatternDecl(
     }
 
     if (varWithPatternDecl.initializer) {
-        doc.members.emplace_back(DocType::STRING, level, " = ");
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(varWithPatternDecl.initializer.get(), level));
+        auto initializer = astToFormatSource.ASTToDoc(varWithPatternDecl.initializer.get(), level);
+        astToFormatSource.AddAssignment(doc, std::move(initializer), level);
     }
 }
 } // namespace Cangjie::Format

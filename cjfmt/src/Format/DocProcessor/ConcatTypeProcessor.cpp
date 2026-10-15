@@ -11,8 +11,11 @@
 using namespace Cangjie::Format;
 
 void ConcatTypeProcessor::DocToString(
-    std::string&, int&, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
+    std::string& formatted, int&, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
+    if (current.first.type == DocType::ALIGN) {
+        RebaseToOutputLine(current.first, formatted, options.indentWidth);
+    }
     for (auto it = current.first.members.rbegin(); it != current.first.members.rend(); ++it) {
         leftCmd.emplace_back(*it, current.second);
     }

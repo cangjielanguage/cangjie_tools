@@ -83,6 +83,8 @@ public:
     bool ShouldAddEmptyLineBetween(Ptr<Cangjie::AST::Node> previous, Ptr<Cangjie::AST::Node> current) const;
     void AddAnnotations(Doc& doc, const std::vector<OwnedPtr<Cangjie::AST::Annotation>>& annotations, int level,
         bool changeLine = true);
+    void AddTypeArguments(Doc& doc, const std::vector<OwnedPtr<Cangjie::AST::Type>>& types, int level);
+    void AddAssignment(Doc& doc, Doc right, int level, const std::string& op = "=");
     void AddGenericParams(Doc& doc, const Cangjie::AST::Generic& generic, int level);
     void AddGenericBound(Doc& doc, const Cangjie::AST::Generic& generic, int level);
     void AddBreakLineParam(

@@ -26,16 +26,6 @@ void RefTypeFormatter::AddRefType(Doc& doc, const Cangjie::AST::RefType& refType
         doc.members.emplace_back(DocType::STRING, level, ": ");
     }
     doc.members.emplace_back(DocType::STRING, level, refType.ref.identifier.GetRawText());
-    if (!refType.typeArguments.empty()) {
-        doc.members.emplace_back(DocType::STRING, level, "<");
-        for (auto& arg : refType.typeArguments) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(arg.get(), level));
-            if (arg != refType.typeArguments.back()) {
-                doc.members.emplace_back(DocType::STRING, level, ",");
-                doc.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
-            }
-        }
-        doc.members.emplace_back(DocType::STRING, level, ">");
-    }
+    astToFormatSource.AddTypeArguments(doc, refType.typeArguments, level);
 }
 } // namespace Cangjie::Format

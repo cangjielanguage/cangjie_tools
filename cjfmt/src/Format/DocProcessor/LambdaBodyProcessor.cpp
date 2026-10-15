@@ -5,53 +5,23 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "Format/DocProcessor/LambdaBodyProcessor.h"
-#include "Format/ASTToFormatSource.h"
 
 using namespace Cangjie::Format;
 
-namespace {
-bool hasLineType(Doc& doc)
+void LambdaBodyProcessor::DocToString(std::string&, int& pos, std::pair<Doc, Mode>& current,
+    std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
-    for (auto& member : doc.members) {
-        if (member.type == DocType::LINE) {
-            return true;
-        }
-        if (hasLineType(member)) {
-            return true;
-        }
+    int width = MeasureFlat(current.first);
+    int suffix = MeasureInlineSuffix(leftCmd);
+    bool expand = current.first.members.size() == 1 &&
+        (width < 0 || suffix < 0 || pos + width + suffix > options.lineLength);
+    if (expand) {
+        leftCmd.emplace_back(Doc(DocType::LINE, current.first.indent, ""), Mode::MODE_FLAT);
     }
-    return false;
-}
-} // namespace
-
-void LambdaBodyProcessor::DocToString(
-    std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
-{
-    (void)leftCmd;
-    if (current.first.members.size() == 1) {
-        auto hasLine = hasLineType(current.first);
-        auto rem = options.lineLength - pos;
-        bool overLength;
-        if (!hasLine) {
-            auto length = CalculateDocLen(current.first);
-            overLength = rem - length <= 0 ? true : false;
-        }
-        if (hasLine || overLength) {
-            formatted += options.newLine;
-            formatted += std::string((current.first.indent + 1) * options.indentWidth, ' ');
-            pos = (current.first.indent + 1) * options.indentWidth;
-        }
-        for (auto& member : current.first.members) {
-            astToFormatSource.DocToString(member, pos, formatted);
-        }
-        if (hasLine || overLength) {
-            formatted += options.newLine;
-            formatted += std::string(current.first.indent * options.indentWidth, ' ');
-            pos = current.first.indent * options.indentWidth;
-        }
-    } else {
-        for (auto& member : current.first.members) {
-            astToFormatSource.DocToString(member, pos, formatted);
-        }
+    for (auto it = current.first.members.rbegin(); it != current.first.members.rend(); ++it) {
+        leftCmd.emplace_back(*it, Mode::MODE_FLAT);
+    }
+    if (expand) {
+        leftCmd.emplace_back(Doc(DocType::LINE, current.first.indent + 1, ""), Mode::MODE_FLAT);
     }
 }

@@ -22,9 +22,7 @@ void AssignExprFormatter::AddAssignExpr(Doc& doc, const Cangjie::AST::AssignExpr
     doc.type = DocType::CONCAT;
     doc.indent = level;
     doc.members.emplace_back(astToFormatSource.ASTToDoc(assignExpr.leftValue.get(), level));
-    doc.members.emplace_back(DocType::STRING, level, " ");
-    doc.members.emplace_back(DocType::STRING, level, TOKENS[static_cast<int>(assignExpr.op)]);
-    doc.members.emplace_back(DocType::STRING, level, " ");
-    doc.members.emplace_back(astToFormatSource.ASTToDoc(assignExpr.rightExpr.get(), level));
+    astToFormatSource.AddAssignment(doc, astToFormatSource.ASTToDoc(assignExpr.rightExpr.get(), level),
+        level, TOKENS[static_cast<int>(assignExpr.op)]);
 }
 } // namespace Cangjie::Format

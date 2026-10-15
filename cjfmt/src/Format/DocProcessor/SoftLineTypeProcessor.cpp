@@ -16,7 +16,10 @@ void Cangjie::Format::SoftLineTypeProcessor::DocToString(std::string &formatted,
     if (leftCmd.empty()) {
         return;
     }
-    if (!Fits(leftCmd, options.lineLength - pos)) {
+    if (current.second == Mode::MODE_GROUP_FLAT) {
+        return;
+    }
+    if (current.second == Mode::MODE_BREAK || !Fits(leftCmd, options.lineLength - pos)) {
         formatted += options.newLine;
         formatted += std::string(current.first.indent * options.indentWidth, ' ');
         pos = current.first.indent * options.indentWidth;

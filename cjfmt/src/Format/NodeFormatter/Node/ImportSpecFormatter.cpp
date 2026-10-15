@@ -55,8 +55,11 @@ void ImportSpecFormatter::AddImportSpec(Doc& doc, const Cangjie::AST::ImportSpec
         ++it;
     }
     for (; it != ic.items.end(); ++it) {
-        doc.members.emplace_back(DocType::STRING, level, ", ");
-        doc.members.emplace_back(DocType::SOFTLINE, level + 1, "");
+        // Keep the space conditional: when the list wraps, the separator must
+        // end at the comma instead of leaving a trailing space before the line
+        // break.
+        doc.members.emplace_back(DocType::STRING, level, ",");
+        doc.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
         AddImportContent(doc, *it, level);
     }
     if (ic.rightCurlPos != INVALID_POSITION) {

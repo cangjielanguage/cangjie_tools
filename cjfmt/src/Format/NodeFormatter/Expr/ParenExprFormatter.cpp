@@ -20,6 +20,7 @@ void ParenExprFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int le
 void ParenExprFormatter::AddParenExpr(Doc& doc, const Cangjie::AST::ParenExpr& parenExpr, int level)
 {
     doc.type = DocType::GROUP;
+    doc.layout = LayoutPolicy::GROUP;
     doc.indent = level;
     if (parenExpr.leftParenPos != INVALID_POSITION) {
         doc.members.emplace_back(DocType::STRING, level, "(");

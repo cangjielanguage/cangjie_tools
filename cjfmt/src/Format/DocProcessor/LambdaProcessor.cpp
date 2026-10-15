@@ -10,8 +10,12 @@ using namespace Cangjie::Format;
 void LambdaProcessor::DocToString(
     std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
-    (void)formatted;
     (void)pos;
+    // Inline callbacks follow the line selected for their opening brace.
+    // Trailing closures keep the semantic call indentation set by their AST.
+    if (current.first.rebaseToOutputLine) {
+        RebaseToOutputLine(current.first, formatted, options.indentWidth);
+    }
     for (auto it = current.first.members.rbegin(); it != current.first.members.rend(); ++it) {
         leftCmd.emplace_back(*it, current.second);
     }

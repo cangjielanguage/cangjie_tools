@@ -63,13 +63,25 @@ void FuncBodyFormatter::AddFuncBodyIsLambda(
 {
     if (funcOptions.isLambda) {
         auto paramList = funcBody.paramLists[0].get();
+        Doc params(DocType::GROUP, level, "");
+        params.layout = LayoutPolicy::LAMBDA_HEADER;
         for (auto& it : paramList->params) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(it.get(), level, funcOptions));
+            auto param = astToFormatSource.ASTToDoc(it.get(), level, funcOptions);
+            // This list owns the breaks between parameters. A parameter's
+            // leading soft line would duplicate the comma separator's break
+            // when the lambda body requires the compatibility layout.
+            if (!param.members.empty() && param.members.front().type == DocType::SOFTLINE) {
+                param.members.erase(param.members.begin());
+            }
+            params.members.emplace_back(std::move(param));
             if (it != paramList->params.back()) {
-                doc.members.emplace_back(DocType::STRING, level, ", ");
-                doc.members.emplace_back(DocType::SOFTLINE, level + 1, "");
+                params.members.emplace_back(DocType::STRING, level, ",");
+                Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+                separator.breakKind = BreakKind::LIST;
+                params.members.emplace_back(std::move(separator));
             }
         }
+        doc.members.emplace_back(std::move(params));
     } else {
         for (auto& it : funcBody.paramLists) {
             doc.members.emplace_back(astToFormatSource.ASTToDoc(it.get(), level, funcOptions));

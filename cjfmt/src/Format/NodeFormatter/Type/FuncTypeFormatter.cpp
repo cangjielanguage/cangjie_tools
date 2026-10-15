@@ -30,12 +30,14 @@ void FuncTypeFormatter::AddFuncType(Doc& doc, const Cangjie::AST::FuncType& func
     }
     doc.members.emplace_back(DocType::STRING, level, "(");
     if (!funcType.paramTypes.empty()) {
-        Doc group(DocType::GROUP, level, "");
+        Doc group(DocType::ARGS, level, "");
         for (auto& paramType : funcType.paramTypes) {
             group.members.emplace_back(astToFormatSource.ASTToDoc(paramType.get(), level + 1));
             if (paramType != funcType.paramTypes.back()) {
                 group.members.emplace_back(DocType::STRING, level + 1, ",");
-                group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+                Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+        separator.breakKind = BreakKind::LIST;
+        group.members.emplace_back(std::move(separator));
             }
         }
         doc.members.emplace_back(group);

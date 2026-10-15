@@ -19,7 +19,8 @@ void Cangjie::Format::SoftLineWithSpaceTypeProcessor::DocToString(std::string &f
     const auto& next = leftCmd.back();
     bool addSpace = next.first.type != DocType::LINE && next.first.type != DocType::HARDLINE;
     auto rem = options.lineLength - pos - (addSpace ? 1 : 0);
-    if (!Fits(leftCmd, rem)) {
+    if (current.second == Mode::MODE_BREAK ||
+        (current.second != Mode::MODE_GROUP_FLAT && !Fits(leftCmd, rem))) {
         formatted += options.newLine;
         formatted += std::string(current.first.indent * options.indentWidth, ' ');
         pos = current.first.indent * options.indentWidth;

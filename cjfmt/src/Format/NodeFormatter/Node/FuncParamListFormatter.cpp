@@ -6,10 +6,10 @@
 
 #include "Format/NodeFormatter/Node/FuncParamListFormatter.h"
 #include "Format/ASTToFormatSource.h"
+#include "Format/NodeFormatter/ListLayout.h"
 #include "cangjie/AST/Node.h"
 
 namespace Cangjie::Format {
-const int MIN_MUL_MEMBERS = 2;
 using namespace Cangjie::AST;
 
 void FuncParamListFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int level, FuncOptions& funcOptions)
@@ -67,7 +67,9 @@ void FuncParamListFormatter::AddFuncParamList(
         args.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1, funcOptions));
         if (n != funcParamList.params.back()) {
             args.members.emplace_back(DocType::STRING, level + 1, ",");
-            args.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            separator.breakKind = BreakKind::LIST;
+            args.members.emplace_back(std::move(separator));
         }
         if (n == funcParamList.params.back() && n->commaPos != INVALID_POSITION) {
             args.members.emplace_back(DocType::STRING, level + 1, ", ...");
@@ -80,13 +82,7 @@ void FuncParamListFormatter::AddFuncParamList(
 bool FuncParamListFormatter::ShouldPreserveMultilineLayout(const int& rightParentPosLine,
     const std::vector<OwnedPtr<AST::FuncParam>>& params) const
 {
-    if (params.size() < MIN_MUL_MEMBERS) {
-        return false;
-    }
-    if (rightParentPosLine == params.back()->end.line) {
-        return false;
-    }
-    return true;
+    return PreserveExpandedList(rightParentPosLine, params);
 }
 
 void FuncParamListFormatter::AddEmptyParam(Doc& doc, int level)
