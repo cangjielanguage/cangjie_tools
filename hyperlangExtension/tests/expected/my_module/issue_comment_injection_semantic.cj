@@ -192,6 +192,54 @@ public open class IDefaultInjection {
     }
 }
 
+// S8: default 标签未加引号载荷（值含 */ 无法成为合法表达式，且会在注释包裹
+//     路径中提前闭合块注释构成注入；isSafeDefaultValue 拒绝透传并打印警告，
+//     属性降级为 Option<T> 无默认值形态，锁定拒绝降级行为；
+//     未加引号的合法字面量（浮点/布尔）不受过滤误杀，正常透传）
+/*interface ExportKeyword IDefaultInjectionUnsafe {
+    unsafeProp?: String;
+    safeNumericProp?: number;
+    safeBoolProp?: boolean;
+    }*/
+
+public open class IDefaultInjectionUnsafe {
+    public var unsafeProp: Option<String> = None
+    public var safeNumericProp: Float64 = 3.14
+    public var safeBoolProp: Bool = true
+    protected init(
+    unsafeProp!: Option<String> = None,
+    safeNumericProp!: Float64 = 3.14,
+    safeBoolProp!: Bool = true) {
+        this.unsafeProp = unsafeProp
+        this.safeNumericProp = safeNumericProp
+        this.safeBoolProp = safeBoolProp
+    }
+    
+    public open func toJSValue(context: JSContext): JSValue {
+        let obj = context.object()
+        if (let Some(v) <- unsafeProp) {
+            obj["unsafeProp"] = v.toJSValue(context)
+        }
+        obj["safeNumericProp"] = safeNumericProp.toJSValue(context)
+        obj["safeBoolProp"] = safeBoolProp.toJSValue(context)
+        obj.toJSValue()
+    }
+    
+    public static func fromJSValue(context: JSContext, input: JSValue): IDefaultInjectionUnsafe {
+        let obj = input.asObject()
+        IDefaultInjectionUnsafe(
+        unsafeProp:
+        if (obj["unsafeProp"].isNull()) {
+            None < String >
+        } else {
+            String.fromJSValue(context, obj["unsafeProp"])
+        },
+        safeNumericProp: Float64.fromJSValue(context, obj["safeNumericProp"]),
+        safeBoolProp: Bool.fromJSValue(context, obj["safeBoolProp"])
+        )
+    }
+}
+
 // this api is deprecated
 /*// S2: deprecated 标签 + 载荷（整体被注释掉，重包裹转义；
 //     interface 属性注释被丢弃，属性随类一起注释）
@@ -231,9 +279,10 @@ public open class IDeprecatedInjection {
 // 覆盖路径：
 //   - util.cj checkAPIAndCommentOut → addComment 重包裹（整体转义）
 //   - common.cj @default 提取 → Property.defValue 透传（Token(IDENTIFIER) 直接插入）
+//   - common.cj isSafeDefaultValue → 未加引号且含注释定界符的值被拒绝，降级为无默认值
 //   - trans_enum.cj 字符串枚举值 → quote() 自动加引号（载荷位于字符串字面量内）
-// 注意：@default 未加引号的 *\/ 载荷为已知未修复的代码注入漏洞（见覆盖文档），
-//       本用例仅使用带引号的安全值，锁定 defValue 透传行为
+// 注意：@default 未加引号的 *\/ 载荷曾经是代码注入漏洞，现已修复（isSafeDefaultValue
+//       过滤 + 警告拒绝），S8 锁定拒绝降级行为，S4 锁定带引号值的透传行为
 // S1: systemapi 标签 + 行注释载荷 + 字面量参数（整体被注释掉，重包裹转义）
 // @systemapi
 // S1 sysapi payload *\/
