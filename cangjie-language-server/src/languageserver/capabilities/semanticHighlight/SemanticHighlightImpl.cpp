@@ -126,35 +126,31 @@ void GetMemberAccess(
         return;
     }
 
-    Position pos = mAccess->GetEnd();
     Position fieldPos = mAccess->GetFieldPos();
-    PositionUTF8ToIDE(tokens, pos, *node);
     PositionUTF8ToIDE(tokens, fieldPos, *node);
-    Range leftRange = {{pos.fileID, pos.line, pos.column - static_cast<int>(CountUnicodeCharacters(mAccess->field))},
-                       pos};
-    Range rightRange = {fieldPos, {fieldPos.line, fieldPos.column + static_cast<int>(
-                                                                        CountUnicodeCharacters(mAccess->field))}};
+    Range fieldRange = {fieldPos, {fieldPos.line, fieldPos.column + static_cast<int>(
+                                                                      CountUnicodeCharacters(mAccess->field))}};
 
     if (mAccess->target != nullptr && mAccess->target->identifier == "init") {
-        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(leftRange)});
+        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(fieldRange)});
     } else if (ark::Is<ClassLikeDecl>(mAccess->target.get()) || ark::Is<EnumDecl>(mAccess->target.get()) ||
                ark::Is<StructDecl>(mAccess->target.get()) || ark::Is<TypeAliasDecl>(mAccess->target.get())) {
-        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(leftRange)});
+        result.push_back({HighlightKind::CLASS_H, TransformFromChar2IDE(fieldRange)});
     } else if (ark::Is<PackageDecl>(mAccess->target.get())) {
-        leftRange = {node->GetBegin(), node->end};
-        result.push_back({HighlightKind::PACKAGE_H, TransformFromChar2IDE(leftRange)});
+        Range nodeRange = {node->GetBegin(), node->end};
+        result.push_back({HighlightKind::PACKAGE_H, TransformFromChar2IDE(nodeRange)});
     } else if (ark::Is<FuncDecl>(mAccess->target.get()) || (!mAccess->field.Empty() && !(mAccess->isAlone))) {
         /** the if condition contains two cases:
          * case1: access an existing function;
          * case2: access the function that modified externally.
          */
         if (ark::Is<VarDecl>(mAccess->target.get())) {
-            result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(rightRange)});
+            result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(fieldRange)});
         } else {
-            result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(rightRange)});
+            result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(fieldRange)});
         }
     } else {
-        result.push_back({HighlightKind::FIELD_H, TransformFromChar2IDE(rightRange)});
+        result.push_back({HighlightKind::FIELD_H, TransformFromChar2IDE(fieldRange)});
     }
 }
 // LCOV_EXCL_START
@@ -206,8 +202,9 @@ bool SpecialTarget(const Ptr<Node> node)
  *
  * @param range
  * @param sourceManager
+ * @param sourcePos UTF-8 source position before UpdateRange converts the range to UTF-16.
  */
-void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager)
+void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager, const Position &sourcePos)
 {
     if (!sourceManager) {
         return;
@@ -215,8 +212,8 @@ void HandleInterpolationExpr(Range &range, Cangjie::SourceManager *sourceManager
     if (range.start.column + 1 > range.end.column) {
         return;
     }
-    Position end(range.start.fileID, range.start.line, range.start.column + 1);
-    std::string result = sourceManager->GetContentBetween(range.start.fileID, range.start, end);
+    Position end(sourcePos.fileID, sourcePos.line, sourcePos.column + 1);
+    std::string result = sourceManager->GetContentBetween(sourcePos.fileID, sourcePos, end);
     if (result == "$") {
         range.start.column = range.start.column + 1;
         range.end.column = range.end.column + 1;
@@ -259,7 +256,7 @@ void GetRefExpr(Ptr<Node> node, std::vector<SemanticHighlightToken> &result, con
             result.push_back({HighlightKind::FUNCTION_H, TransformFromChar2IDE(range)});
         }
     } else {
-        HandleInterpolationExpr(range, sourceManager);
+        HandleInterpolationExpr(range, sourceManager, pos);
         result.push_back({HighlightKind::VARIABLE_H, TransformFromChar2IDE(range)});
     }
 }
@@ -398,8 +395,7 @@ void GetQualifiedType(Ptr<Node> node, std::vector<SemanticHighlightToken> &resul
     auto qualifiedType = dynamic_cast<QualifiedType*>(node.get());
     if (!qualifiedType) { return; }
 
-    Position pos = {qualifiedType->GetBegin().fileID, qualifiedType->GetBegin().line,
-        qualifiedType->end.column - static_cast<int>(qualifiedType->field.Val().size())};
+    Position pos = qualifiedType->GetFieldPos();
     Range range = {pos, {pos.fileID, pos.line,
         pos.column + static_cast<int>(CountUnicodeCharacters(qualifiedType->field))}};
     UpdateRange(tokens, range, *node);
