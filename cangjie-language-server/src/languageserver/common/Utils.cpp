@@ -1229,6 +1229,10 @@ Range GetProperRange(const Ptr<Node>& node, const std::vector<Cangjie::Token> &t
     }
     range.start = node->GetBegin();
     range.end = node->GetEnd();
+    if (auto refExpr = DynamicCast<RefExpr*>(node);
+        refExpr && !refExpr->ref.identifier.Empty() && (!node->symbol || node->symbol->name.empty())) {
+        range.end = range.start + CountUnicodeCharacters(refExpr->ref.identifier);
+    }
     UpdateRange(tokens, range, *node);
     return TransformFromChar2IDE(range);
 }

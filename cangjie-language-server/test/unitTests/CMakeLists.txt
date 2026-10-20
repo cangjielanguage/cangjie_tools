@@ -24,6 +24,7 @@ set(UNIT_TESTS_SRC
         languageserver/common/ModuleManagerTest.cpp
         languageserver/common/PositionResolverTest.cpp
         languageserver/common/SyscapCheckTest.cpp
+        languageserver/common/UnicodeReferenceRangeTest.cpp
         languageserver/common/UtilsTest.cpp
         languageserver/common/UtilsTest2.cpp
         languageserver/index/IndexStorageTest.cpp
