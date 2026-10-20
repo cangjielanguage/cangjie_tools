@@ -24,6 +24,10 @@ public class DepInfo <: Serializable<DepInfo> & Equatable<DepInfo> {
     public var isSimpleConfig: Bool = false
     public var importedPath: String = ""
     public var importedModuleName: String = ""
+    // Resolved lock metadata; not part of cjpm.toml dependency declarations.
+    public var source: ?String = None
+    public var checksum: ?String = None
+    public var dependencies: Array<String> = []
 
     public init() {}
 

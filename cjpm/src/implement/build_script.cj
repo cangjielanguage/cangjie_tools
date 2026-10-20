@@ -169,10 +169,13 @@ public func runMultiScriptPost(globalConfig: GlobalConfig): Bool {
     return true
 }
 
+// Script resolution runs before normal resolution; merge its metadata at the existing lock write.
+let resolvedScriptDeps = HashMap<String, HashMap<String, DepInfo>>()
+
 func getDepPath(modulePath: String, depName: String, depInfo: DepInfo): Option<String> {
     if (let Some(depPath) <- depInfo.path) {
         return getPath(modulePath, depPath)
-    } else if (let Some(version) <- depInfo.version) {
+    } else if (depInfo.isCenterRepoDep() && let Some(version) <- depInfo.version) {
         return "${modulePath}${SCRIPT_DEPENDENCIES_MARK}${depName}-${version}"
     } else {
         return if (let Some((path, commit, _)) <- downloadGitDep(depName, depInfo)) {
@@ -205,23 +208,17 @@ func writeScriptLock(rootPath: String, scriptDeps: HashMap<String, DepInfo>): Bo
         return true
     }
 
-    let (loadFlag, lockFile) = loadLockFile(rootPath)
-    if (!loadFlag) {
-        return false
-    }
-
-    scriptDeps.removeIf {_, v => v.path.isSome()}
-    var lockFilePath: String = Path(rootPath).join(LOCK_FILE_NAME).toString()
-    // Overwrite file only if we have meaningful changes in case field serialization order got changed
-    if (lockFile.scripts != scriptDeps || !fileExists(lockFilePath)) {
-        if (!lockFile.scripts.isEmpty() && !deleteFile(lockFilePath)) {
-            return false
-        }
-
-        if (!creatLockFile(rootPath, ModuleLock(lockFile.requires, scriptDeps))) {
-            return false
+    let deps = resolvedScriptDeps[getCanonicalPath(rootPath)]
+    for ((name, dep) in scriptDeps) {
+        if (dep.isGitDep()) {
+            let resolved = deps[name]
+            dep.version = resolved.version
+            dep.dependencies = resolved.dependencies
+            dep.source = gitLockSource(dep)
+            deps[name] = dep
         }
     }
+    deps.removeIf {_, v => v.path.isSome()}
 
     return true
 }

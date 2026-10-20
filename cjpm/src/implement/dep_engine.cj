@@ -73,7 +73,7 @@ public class DepAnalysisEngine {
     // record repo-dep from cjpm.lock
     public func recordLock(locked: HashMap<String, DepInfo>): Unit {
         for ((name, depInfo) in locked) {
-            if (let Some(version) <- depInfo.version) {
+            if (depInfo.isCenterRepoDep() && let Some(version) <- depInfo.version) {
                 this.lockRepoDepMap.add(name, version)
             }
         }
@@ -505,7 +505,29 @@ public class DepAnalysisEngine {
     public func getDepMap(): HashMap<String, DepInfo> {
         let depMap = HashMap<String, DepInfo>()
         for ((name, depModule) in finalDepMap) {
-            depMap.add(name, depModule.sourceInfo)
+            // Copy: lock metadata must not change dependency declarations used by the build.
+            let dep = DepInfo.deserialize(depModule.sourceInfo.serialize())
+            dep.pathDepInGit = depModule.sourceInfo.pathDepInGit
+            let names = HashSet<String>()
+            if (dep.isCenterRepoDep()) {
+                let version = dep.version.getOrThrow()
+                dep.source = "registry+${this.depot.baseUrl.removeSuffix("/")}"
+                let checksum = this.indexMap[name][version].sha256sum.toAsciiLower()
+                dep.checksum = if (checksum.isEmpty()) { "" } else { "sha256:${checksum}" }
+                names.add(all: this.collectDepMap(name, version).keys())
+            } else {
+                dep.version = depModule.tomlInfo.pkg.version
+                if (dep.isGitDep()) {
+                    dep.source = gitLockSource(dep)
+                }
+                names.add(all: depModule.tomlInfo.dependencies.keys())
+                if (this.isTest) {
+                    names.add(all: depModule.tomlInfo.testDependencies.keys())
+                }
+            }
+            dep.dependencies = names.toArray()
+            sort(dep.dependencies)
+            depMap.add(name, dep)
         }
         return depMap
     }

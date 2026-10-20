@@ -38,10 +38,6 @@ public func doUpdate(): Bool {
         return false
     }
 
-    if (!deleteFile(LOCK_FILE_NAME)) {
-        return false
-    }
-
     // update 'cjpm.lock' file
     var checkFlag: Bool = updateDepMap(DIR_CURRENT, "", "", None)
     if (!COMMON_INFO.inWorkspace) {
@@ -84,7 +80,8 @@ public func doUpdate(): Bool {
     let depMap = UPDATE_ANALYSIS_ENGINE.getDepMap()
     depMap.removeIf {_, v => v.path.isSome()}
 
-    return creatLockFile(DIR_CURRENT, ModuleLock(depMap, lockFile.scripts))
+    let scripts = resolvedScriptDeps.get(getCanonicalPath(DIR_CURRENT)) ?? lockFile.scripts
+    return creatLockFile(DIR_CURRENT, ModuleLock(depMap, scripts))
 }
 
 func updateDepMap(path: String, preName: String, prePath: String, requires: ?DepInfo): Bool {
@@ -128,6 +125,7 @@ func updateDepMap(path: String, preName: String, prePath: String, requires: ?Dep
         UPDATE_ANALYSIS_ENGINE.addDepInfo(tomlInfo.pkg.name, DepInfo(getCanonicalPath(curModulePath)))
     }
     UPDATE_ANALYSIS_ENGINE.addDepPath(tomlInfo.pkg.name, curModulePath)
+    UPDATE_ANALYSIS_ENGINE.addDepToml(tomlInfo.pkg.name, tomlInfo)
 
     tomlInfo.pkg.path = curModulePath
     return updateDepModule(tomlInfo.dependencies, curModulePath, tomlInfo.pkg.name, "dependencies") &&
