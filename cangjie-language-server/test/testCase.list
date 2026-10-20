@@ -1318,3 +1318,7 @@
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_017_NamedScopeMacro.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Unused_Default_018_HelperReadsAndLocal.test"}}
 {"diagnostic":{"testFile":"LSP_Diagnostic_Tracked_DotCj_Delete.test"}}
+{"rename":{"testFile":"LSP_Rename_UnicodeControlFlow_Declaration.test","preId":"5","id":"9"}}
+{"rename":{"testFile":"LSP_Rename_UnicodeControlFlow_Reference.test","preId":"5","id":"9"}}
+{"rename":{"testFile":"LSP_Rename_UnicodeControlFlow_ASCII.test","preId":"5","id":"9"}}
+{"references":{"testFile":"LSP_References_UnicodeControlFlow.test","id":"9"}}
