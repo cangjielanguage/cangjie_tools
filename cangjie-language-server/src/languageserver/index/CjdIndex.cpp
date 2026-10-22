@@ -206,9 +206,25 @@ std::string CjdIndexer::ExtractSignatureFromSource(const std::string& identifier
             const std::string_view line(content.data() + start, lineEnd - start);
             const size_t first = lineNo == begin.line ? byteOffset(line, begin.column) : 0;
             const size_t last  = lineNo == end.line   ? byteOffset(line, end.column)   : line.size();
-            if (first > last) { return {}; }
-            signature += line.substr(first, last - first);
-            if (lineNo != end.line) { signature += ' '; }
+            if (first > last) {
+                return {};
+            }
+            // Trim layout whitespace at line boundaries only. In particular, do not
+            // collapse spaces inside default-value strings on the same line.
+            const auto fragment = line.substr(first, last - first);
+            const auto fragmentBegin = fragment.find_first_not_of(" \t");
+            if (fragmentBegin == std::string_view::npos) {
+                continue;
+            }
+            const auto fragmentEnd = fragment.find_last_not_of(" \t");
+            const auto trimmed = fragment.substr(fragmentBegin, fragmentEnd - fragmentBegin + 1);
+            // A wrapped parameter list must have the same spelling as an inline
+            // one: no space immediately after '(' or immediately before ')' / ','.
+            if (!signature.empty() && signature.back() != '('
+                && trimmed.front() != ')' && trimmed.front() != ',') {
+                signature += ' ';
+            }
+            signature += trimmed;
         }
         return signature;
     };
