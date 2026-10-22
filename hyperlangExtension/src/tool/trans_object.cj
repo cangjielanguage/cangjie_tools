@@ -103,8 +103,12 @@ public class TransObject {
             genfieldSign(property, arkProp, proName, proType, last: isLast)
 
             // generate toJS statement for this field
+            // Only a field declared as Option<T> (optional without default value)
+            // can be pattern-matched with `let Some(v) <- ...`; an optional field
+            // with a default value is declared as plain T = def, so it must take
+            // the direct serialization path.
             getPropertyItem.append(
-                if (arkProp.isOptional) {
+                if (arkProp.isOptional && arkProp.defValue.isNone()) {
                     let toJs = tsType.toJSValue(gconfig, quote(v), ctxToken)
                     quote(if$(space)(let Some(v) <- $(proName)) {
                             obj[$(arkProp.propKey)] = $(toJs)

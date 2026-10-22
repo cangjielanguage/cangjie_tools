@@ -24,6 +24,7 @@ private func getBusinessExceptionHeader(moduleName: String): String {
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
+${disclaimer}
 
 package ${moduleName}
 

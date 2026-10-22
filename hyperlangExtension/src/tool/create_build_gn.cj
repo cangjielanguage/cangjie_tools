@@ -17,6 +17,7 @@ public func createBuildGn(gconfig: GlobalConfig): String {
 // with Runtime Library Exception.
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
+${disclaimer}
 
 import("//build/ohos.gni")
 import("//third_party/cangjie/build/cjc.gni")
