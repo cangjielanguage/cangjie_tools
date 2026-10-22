@@ -7,7 +7,6 @@
 package cjpm.implement
 
 import std.collection.*
-import std.fs.*
 import cjpm.config.*
 
 // Dependency resolve.
@@ -34,17 +33,12 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false,
     // Don't lock path dependencies since it would only cause problems for transitive path dependencies
     depMap.removeIf {_, v => v.path.isSome()}
 
-    if (!isScriptDep) {
-        var lockFilePath: String = Path(globalConfig.rootPath).join(LOCK_FILE_NAME).toString()
-        // Overwrite file only if we have meaningful changes in case field serialization order got changed
-        if (lockFile.requires != depMap || !fileExists(lockFilePath)) {
-            if (!lockFile.requires.isEmpty() && !deleteFile(lockFilePath)) {
-                return (dm, false, mockUsed)
-            }
-
-            if (!creatLockFile(globalConfig.rootPath, ModuleLock(depMap, lockFile.scripts))) {
-                return (dm, false, mockUsed)
-            }
+    if (isScriptDep) {
+        resolvedScriptDeps[getCanonicalPath(globalConfig.rootPath)] = dm.depAnalysisEngine.getDepMap()
+    } else {
+        let scripts = resolvedScriptDeps.get(getCanonicalPath(globalConfig.rootPath)) ?? lockFile.scripts
+        if (!creatLockFile(globalConfig.rootPath, ModuleLock(depMap, scripts))) {
+            return (dm, false, mockUsed)
         }
     }
 

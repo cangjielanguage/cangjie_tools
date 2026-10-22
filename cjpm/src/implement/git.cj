@@ -16,6 +16,13 @@ const WINDOWS_LOCAL_FILE_REGEX = "^[A-Za-z]:.+$"
 const URL_WITH_SPACE = "^.*\\s+.*$"
 
 public class GitCli {
+    func resolvedCommit(path: String): ?String {
+        let (ok, output, _) = execWithOutput("git", ArrayList<String>([
+            "--git-dir=${Path(path).join(".git")}", "rev-parse", "HEAD"
+        ]))
+        return if (ok) { Some(output.trimAscii()) } else { None }
+    }
+
     func getRemoteRef(url: String, ref: String): ?String {
         setVariable("GIT_TERMINAL_PROMPT", "0")
         setVariable("GIT_SSH_COMMAND", "ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=ask")
@@ -103,7 +110,7 @@ public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
     let targetCommit = v.commitId ?? git.getCommitHashFromName(url, v.branch ?? v.tag) ?? return None
     let dependencyPath = gitStoragePath.join(swapOrgName(name)).join(targetCommit).toString()
     if (directoryExists(dependencyPath)) {
-        return (dependencyPath, targetCommit, false)
+        return (dependencyPath, git.resolvedCommit(dependencyPath) ?? return None, false)
     } else {
         try {
             Directory.create(dependencyPath, recursive: true)
@@ -113,7 +120,8 @@ public func downloadGitDep(name: String, v: DepInfo): ?(String, String, Bool) {
 
         let result = git.clone(url, dependencyPath, targetCommit)
         if (result) {
-            return checkGitWorkspace(url, dependencyPath, targetCommit, gitStoragePath)
+            let resolved = git.resolvedCommit(dependencyPath) ?? return None
+            return checkGitWorkspace(url, dependencyPath, resolved, gitStoragePath)
         }
 
         deleteDirectory(dependencyPath)

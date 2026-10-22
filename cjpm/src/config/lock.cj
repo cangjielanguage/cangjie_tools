@@ -9,12 +9,14 @@ package cjpm.config
 import std.collection.*
 import std.fs.*
 import std.io.*
+import std.sort.*
+import std.regex.*
 import stdx.serialization.serialization.*
 import cjpm.toml.*
 import cjpm.toml.Decoder as DecoderToml
 import cjpm.toml.Encoder as EncoderToml
 
-let MODULE_LOCK_VERSION: UInt64 = 0
+let MODULE_LOCK_VERSION: UInt64 = 1
 // Controls only the per-read I/O buffer and does not limit the lock file size.
 const LOCK_READ_BUFFER_SIZE: Int64 = 8 * 1024
 
@@ -48,10 +50,10 @@ public class ModuleLock <: Serializable<ModuleLock> {
 
     public func serialize(): DataModel {
         let res = DataModelStruct()
-        res.add(field<UInt64>(VERSION, this.version))
-        res.add(field<HashMap<String, DepInfo>>("requires", this.requires))
+        res.add(field<UInt64>(VERSION, MODULE_LOCK_VERSION))
+        res.add(Field("requires", serializeLockDeps(this.requires)))
         if (!this.scripts.isEmpty()) {
-            res.add(field<HashMap<String, DepInfo>>("scripts", this.scripts))
+            res.add(Field("scripts", serializeLockDeps(this.scripts)))
         }
         return res
     }
@@ -62,13 +64,13 @@ public class ModuleLock <: Serializable<ModuleLock> {
             case _ => throw Exception("this data is not DataModelStruct")
         }
         let version = UInt64.deserialize(dms.get(VERSION));
-        if (version != MODULE_LOCK_VERSION) {
+        if (version > MODULE_LOCK_VERSION) {
             throw Exception("cjpm.lock file has incompatible version")
         }
-        var result = ModuleLock(HashMap<String, DepInfo>.deserialize(dms.get("requires")))
+        var result = ModuleLock(deserializeLockDeps(dms.get("requires"), version))
         result.version = version
-        result.scripts = HashMap<String, DepInfo>.deserialize(
-            (dms.get("scripts") as DataModelStruct) ?? DataModelStruct())
+        result.scripts = deserializeLockDeps(
+            (dms.get("scripts") as DataModelStruct) ?? DataModelStruct(), version)
         return result
     }
 }
@@ -129,7 +131,7 @@ class LockLineReader {
 
 // Decodes the canonical format emitted by Encoder without building a TOML tree for the whole file.
 // Each dependency line is converted directly to DepInfo before its temporary TOML objects are released.
-func decodeCanonicalLock(file: File): ModuleLock {
+func decodeCanonicalLock(file: File, lockFilePath: String): ModuleLock {
     let reader = LockLineReader(file)
     let requires = HashMap<String, DepInfo>()
     let scripts = HashMap<String, DepInfo>()
@@ -172,6 +174,10 @@ func decodeCanonicalLock(file: File): ModuleLock {
 
         if (section.isEmpty()) {
             let parts = trimmed.split("=")
+            if (parts.size >= 2 && parts[0].trimAscii() == "version" &&
+                parts[1].split("#")[0].trimAscii() == "1") {
+                return ModuleLock.deserialize(DataModel.fromToml(DecoderToml(File.readFrom(lockFilePath)).decode()))
+            }
             if (parts.size != 2 || parts[0].trimAscii() != "version" || parts[1].trimAscii() != "0") {
                 throw Exception("invalid top-level field in ${LOCK_FILE_NAME}; expected 'version = 0'")
             }
@@ -214,6 +220,7 @@ func decodeCanonicalLock(file: File): ModuleLock {
         throw Exception("missing '[requires]' table in ${LOCK_FILE_NAME}")
     }
     let result = ModuleLock()
+    result.version = 0
     result.requires = requires
     result.scripts = scripts
     return result
@@ -229,7 +236,7 @@ public func loadLockFile(rootPath: String): (Bool, ModuleLock) {
     }
 
     try (file = File(lockFile, Read)) {
-        res = decodeCanonicalLock(file)
+        res = decodeCanonicalLock(file, lockFile)
     } catch (e: Exception) {
         eprintln("Error: ${e.message}")
         eprintln("Error: parse the '${LOCK_FILE_NAME}' file failed")
@@ -247,11 +254,19 @@ public func creatLockFile(rootPath: String, lockFile: ModuleLock): Bool {
     }
 
     try {
-        var f = File(lockFilePath, Write)
-        let enc = EncoderToml(f)
-        enc.encode(lockFile.serialize())
-        f.close()
+        let buffer = ByteBuffer()
+        buffer.write("version = ${MODULE_LOCK_VERSION}\n".toArray())
+        writeLockSection(buffer, "requires", lockFile.requires)
+        if (!lockFile.scripts.isEmpty()) {
+            writeLockSection(buffer, "scripts", lockFile.scripts)
+        }
+        // Serialize before opening the file so incomplete v0 metadata cannot truncate it.
+        let bytes = buffer.bytes()
+        if (!fileExists(lockFilePath) || File.readFrom(lockFilePath) != bytes) {
+            File.writeTo(lockFilePath, bytes)
+        }
     } catch (e: Exception) {
+        eprintln("Error: ${e.message}")
         eprintln("Error: generate the '${LOCK_FILE_NAME}' file failed")
         return false
     }
@@ -261,4 +276,147 @@ public func creatLockFile(rootPath: String, lockFile: ModuleLock): Bool {
     }
 
     return true
+}
+
+// Keep lock fields separate from DepInfo.serialize(), which also writes cjpm.toml.
+func serializeLockDep(dep: DepInfo): DataModelStruct {
+    if (dep.version.isNone() || dep.source.isNone()) {
+        throw Exception("resolve dependencies before migrating cjpm.lock to v1")
+    }
+    validateLockSource(dep)
+    let result = DataModelStruct()
+    result.add(field("version", dep.version.getOrThrow()))
+    result.add(field("source", dep.source.getOrThrow()))
+    if (let Some(checksum) <- dep.checksum) {
+        result.add(field("checksum", checksum))
+    }
+    if (let Some(outputType) <- dep.outputType) {
+        result.add(field(OUTPUT_TYPE, outputType))
+    }
+    let names = HashSet<String>(dep.dependencies).toArray()
+    sort(names)
+    result.add(field("dependencies", names))
+    return result
+}
+
+func serializeLockDeps(deps: HashMap<String, DepInfo>): DataModelStruct {
+    let result = DataModelStruct()
+    let names = deps.keys().toArray()
+    sort(names)
+    for (name in names) {
+        result.add(Field(name, serializeLockDep(deps[name])))
+    }
+    return result
+}
+
+func writeLockSection(buffer: ByteBuffer, section: String, deps: HashMap<String, DepInfo>): Unit {
+    if (deps.isEmpty()) {
+        buffer.write("\n[${section}]\n".toArray())
+        return
+    }
+    let names = deps.keys().toArray()
+    sort(names)
+    for (name in names) {
+        buffer.write("\n[${section}.${TomlString(name)}]\n".toArray())
+        EncoderToml(buffer).encode(serializeLockDep(deps[name]))
+    }
+}
+
+func deserializeLockDeps(dm: DataModel, version: UInt64): HashMap<String, DepInfo> {
+    if (version == 0) {
+        return HashMap<String, DepInfo>.deserialize(dm)
+    }
+    let table = (dm as DataModelStruct) ?? throw Exception("invalid cjpm.lock dependency table")
+    let result = HashMap<String, DepInfo>()
+    for (entry in table.getFields()) {
+        let fields = (entry.getData() as DataModelStruct) ?? throw Exception("invalid v1 lock entry")
+        let dep = DepInfo.deserialize(fields)
+        dep.version = String.deserialize(fields.get("version"))
+        dep.source = String.deserialize(fields.get("source"))
+        dep.checksum = Option<String>.deserialize(fields.get("checksum"))
+        dep.dependencies = Array<String>.deserialize(fields.get("dependencies"))
+        validateLockSource(dep)
+        result.add(entry.getName(), dep)
+    }
+    return result
+}
+
+func validateLockSource(dep: DepInfo): Unit {
+    let source = dep.source ?? throw Exception("missing source in v1 lock entry")
+    if (source.startsWith("registry+")) {
+        if (source.removePrefix("registry+").isEmpty()) {
+            throw Exception("empty registry URL in cjpm.lock")
+        }
+        let checksum = dep.checksum ?? throw Exception("missing checksum in registry lock entry")
+        if (!checksum.isEmpty() && !Regex("^sha256:[0-9a-f]{64}$").matches(checksum)) {
+            throw Exception("registry checksum must be sha256: followed by 64 lowercase hexadecimal digits")
+        }
+    } else if (source.startsWith("git+")) {
+        if (dep.checksum.isSome()) {
+            throw Exception("Git lock entry cannot contain checksum")
+        }
+        let parts = source.removePrefix("git+").split("#")
+        if (parts.size != 2 || parts[0].isEmpty() || !Regex("^([0-9a-f]{40}|[0-9a-f]{64})$").matches(parts[1])) {
+            throw Exception("Git source must contain a URL and full resolved commit")
+        }
+        let url = parts[0].split("?")
+        dep.git = url[0]
+        dep.commitId = parts[1]
+        if (url.size == 2) {
+            if (url[1].startsWith("branch=")) {
+                dep.branch = decodeLockRef(url[1].removePrefix("branch="))
+            } else if (url[1].startsWith("tag=")) {
+                dep.tag = decodeLockRef(url[1].removePrefix("tag="))
+            } else {
+                throw Exception("invalid Git selector in cjpm.lock")
+            }
+        } else if (url.size != 1) {
+            throw Exception("invalid Git selector in cjpm.lock")
+        }
+    } else {
+        throw Exception("lock source must start with registry+ or git+")
+    }
+}
+
+public func gitLockSource(dep: DepInfo): String {
+    let selector = if (let Some(branch) <- dep.branch) {
+        "?branch=" + encodeLockRef(branch)
+    } else if (let Some(tag) <- dep.tag) {
+        "?tag=" + encodeLockRef(tag)
+    } else { "" }
+    return "git+${dep.git.getOrThrow()}${selector}#${dep.commitId.getOrThrow()}"
+}
+
+func encodeLockRef(ref: String): String {
+    let result = StringBuilder()
+    let hex = "0123456789ABCDEF".toArray()
+    for (value in ref.toArray()) {
+        if ((value >= b'a' && value <= b'z') || (value >= b'A' && value <= b'Z') ||
+            (value >= b'0' && value <= b'9') || "-._~".toArray().contains(value)) {
+            result.append(String.fromUtf8([value]))
+        } else {
+            result.append(String.fromUtf8([b'%', hex[Int64(value / 16)], hex[Int64(value % 16)]]))
+        }
+    }
+    return result.toString()
+}
+
+func decodeLockRef(ref: String): String {
+    let bytes = ref.toArray()
+    let result = ByteBuffer()
+    var i: Int64 = 0
+    while (i < bytes.size) {
+        if (bytes[i] == b'%') {
+            if (i + 2 >= bytes.size) { throw Exception("invalid Git selector in cjpm.lock") }
+            let hex = "0123456789abcdef"
+            let hi = hex.indexOf(ref[i + 1..i + 2].toAsciiLower()) ?? throw Exception("invalid Git selector in cjpm.lock")
+            let lo = hex.indexOf(ref[i + 2..i + 3].toAsciiLower()) ?? throw Exception("invalid Git selector in cjpm.lock")
+            result.writeByte(UInt8(hi * 16 + lo))
+            i += 3
+        } else {
+            result.writeByte(bytes[i])
+            i++
+        }
+    }
+    return String.fromUtf8(result.bytes())
 }
