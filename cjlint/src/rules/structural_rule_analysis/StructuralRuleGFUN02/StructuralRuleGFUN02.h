@@ -22,12 +22,18 @@ protected:
     void MatchPattern(ASTContext &ctx, Ptr<Cangjie::AST::Node> node) override;
 
 private:
-    using PositionPair = std::pair<Position, Position>;
+    struct ParamInfo {
+        Position begin;
+        Position end;
+        const Cangjie::AST::Node *decl;
+    };
     void FuncParamFinder(Ptr<Cangjie::AST::Node> node);
     void ProcessFuncDecl(const Cangjie::AST::FuncDecl &funcDecl);
-    void FuncParamFinderHelper(Ptr<Cangjie::AST::Node> node, std::map<std::string, PositionPair> &paramMap);
-    void EraseUsedParams(Ptr<Cangjie::AST::Node> node, std::map<std::string, PositionPair> &paramMap);
-    static void EraseItemOfMap(const std::string& id, std::map<std::string, PositionPair>& paramMap);
+    void ProcessLambdaExpr(const Cangjie::AST::LambdaExpr &lambdaExpr);
+    void ProcessNestedLambdas(Ptr<Cangjie::AST::Node> node);
+    void FuncParamFinderHelper(Ptr<Cangjie::AST::Node> node, std::map<std::string, ParamInfo> &paramMap);
+    void EraseUsedParams(Ptr<Cangjie::AST::Node> node, std::map<std::string, ParamInfo> &paramMap);
+    static void EraseItemOfMap(const Cangjie::AST::RefExpr &ref, std::map<std::string, ParamInfo>& paramMap);
 };
 } // namespace Cangjie::CodeCheck
 

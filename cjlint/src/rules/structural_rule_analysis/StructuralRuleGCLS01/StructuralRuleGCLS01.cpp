@@ -102,31 +102,28 @@ bool StructuralRuleGCLS01::CheckFuncCall(Ptr<FuncDecl> funcDecl,
     if (!funcDecl->funcBody || !funcDecl->funcBody->body) {
         return false;
     }
-    if (funcDecl->funcBody->body->body.size() > 1) {
-        return false;
-    }
-
-    for (auto &node : funcDecl->funcBody->body->body) {
+    bool increasesAccessibility = false;
+    Walker walker(funcDecl->funcBody->body.get(), [&](Ptr<Node> node) -> VisitAction {
         if (node->astKind != ASTKind::CALL_EXPR) {
-            continue;
+            return VisitAction::WALK_CHILDREN;
         }
         auto callExpr = As<ASTKind::CALL_EXPR>(node.get());
-        if (!callExpr || callExpr->baseFunc == nullptr) {
-            continue;
+        if (!callExpr || callExpr->baseFunc == nullptr || callExpr->baseFunc->astKind != ASTKind::MEMBER_ACCESS) {
+            return VisitAction::WALK_CHILDREN;
         }
-        if (callExpr->baseFunc->astKind == ASTKind::MEMBER_ACCESS) {
-            auto ma = As<ASTKind::MEMBER_ACCESS>(callExpr->baseFunc.get());
-            if (ma == nullptr || ma->target == nullptr || ma->target->astKind != ASTKind::FUNC_DECL) {
-                continue;
-            }
-            auto func = As<ASTKind::FUNC_DECL>(ma->target);
-            if (func == nullptr) {
-                continue;
-            }
-            return CheckFuncCallHelper(func, funcAccessibility, parentClassName, subClassName, access);
+        auto ma = As<ASTKind::MEMBER_ACCESS>(callExpr->baseFunc.get());
+        if (ma == nullptr || ma->target == nullptr || ma->target->astKind != ASTKind::FUNC_DECL) {
+            return VisitAction::WALK_CHILDREN;
         }
-    }
-    return false;
+        auto func = As<ASTKind::FUNC_DECL>(ma->target);
+        if (func != nullptr && CheckFuncCallHelper(func, funcAccessibility, parentClassName, subClassName, access)) {
+            increasesAccessibility = true;
+            return VisitAction::SKIP_CHILDREN;
+        }
+        return VisitAction::WALK_CHILDREN;
+    });
+    walker.Walk();
+    return increasesAccessibility;
 }
 
 bool StructuralRuleGCLS01::CheckFuncCallHelper(Ptr<FuncDecl> funcDecl,

@@ -147,12 +147,22 @@ void StructuralRuleP01::SynchronizedExprHandler(SynchronizedExpr &expr, const st
     Walker walker(&expr, [&blockSeq](Ptr<Node> node) -> VisitAction {
         return match(*node)(
             [&blockSeq](const SynchronizedExpr& exprInner) {
-                if (auto refExpr = DynamicCast<RefExpr*>(exprInner.mutex.get().get()); refExpr) {
+                auto lockExpr = exprInner.mutex.get().get();
+                if (auto refExpr = DynamicCast<RefExpr*>(lockExpr); refExpr) {
                     auto targetLine = 0;
                     if (refExpr->ref.target != nullptr) {
                         targetLine = refExpr->ref.target->identifier.Begin().line;
                     }
                     blockSeq.push_back(std::make_pair(refExpr->ref.identifier.Val(), targetLine));
+                } else if (auto memberAccess = DynamicCast<MemberAccess*>(lockExpr); memberAccess) {
+                    auto targetLine = 0;
+                    if (memberAccess->target != nullptr) {
+                        targetLine = memberAccess->target->identifier.Begin().line;
+                    }
+                    // Include the receiver in the lock identity: `a.mtx` and `b.mtx`
+                    // are distinct locks even though their fields have the same name.
+                    std::string receiver = memberAccess->baseExpr != nullptr ? memberAccess->baseExpr->ToString() : "";
+                    blockSeq.push_back(std::make_pair(receiver + "." + memberAccess->field.Val(), targetLine));
                 }
                 return VisitAction::WALK_CHILDREN;
             },
