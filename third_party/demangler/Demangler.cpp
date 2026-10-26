@@ -542,11 +542,6 @@ T DemangleInfo<T>::GetFullName(const T& scopeRes, const uint32_t argsNum) const
             } else {
                 fullDemangledName += identifier;
             }
-            const T paramList = T{ LEFT_BRACKET } + args + T{ RIGHT_BRACKET };
-            if (IsFunctionLike() && type == TypeKind::FUNCTION_DECL && !args.IsEmpty() &&
-                demangled.Find(paramList.Str()) != -1) {
-                return fullDemangledName;
-            }
             fullDemangledName += GetGenericTypes();
             fullDemangledName += GetArgTypesName(argsNum);
             fullDemangledName += GetGenericConstraints();
@@ -602,12 +597,47 @@ T GetArgTypesFullName(const std::array<T, MAX_ARGS_SIZE>& args, uint32_t argSize
 }
 
 template<typename T>
+bool EndsWithModeWord(const T& text, const char* word)
+{
+    auto wordLen = strlen(word);
+    return text.Length() >= wordLen && text.SubStr(text.Length() - wordLen, wordLen) == T{word};
+}
+
+// Detach a trailing demangled mode-set text (" @ local!" / " @ local?") from \p text and
+// return it; return an empty T when \p text does not end with a mode-set. The element of
+// Array/VArray/CPointer never carries its own <mode-set> and these bodies are not
+// 'E'-terminated, so a mode-set after the element body belongs to the container.
+template<typename T>
+T TakeTrailingModeSet(T& text)
+{
+    static const char* axisWords[] = {" local!", " local?"};
+    T mode;
+    T rest = text;
+    bool strippedWord = true;
+    while (strippedWord) {
+        strippedWord = false;
+        for (const char* word : axisWords) {
+            if (EndsWithModeWord(rest, word)) {
+                mode = T{word} + mode;
+                rest = rest.SubStr(0, rest.Length() - strlen(word));
+                strippedWord = true;
+                break;
+            }
+        }
+    }
+    if (!EndsWithModeWord(rest, " @")) {
+        // No mode-set leader: \p text does not end with a mode-set, keep it untouched.
+        return T{};
+    }
+    rest = rest.SubStr(0, rest.Length() - strlen(" @"));
+    text = rest;
+    return T{" @"} + mode;
+}
+
+template<typename T>
 T DemangleInfo<T>::GetArgTypesName(const uint32_t argsNum) const
 {
     if (args.IsEmpty()) {
-        if (type == TypeKind::FUNCTION_DECL && IsFunctionLike() && !functionParameterTypes.IsEmpty()) {
-            return T{ LEFT_BRACKET } + functionParameterTypes + RIGHT_BRACKET;
-        }
         return IsFunctionLike() ? "()" : T{};
     }
     if (IsFunctionLike()) {
@@ -642,7 +672,8 @@ bool DemangleInfo<T>::IsValid() const
 template<typename T>
 T DemangleInfo<T>::GetFunctionName() const
 {
-    return GetArgTypesName() + " -> " + GetReturnType();
+    // Keep the <mode-set> suffix of a modal function type, e.g. `(Int64) -> Int32 @ local?`.
+    return GetArgTypesName() + " -> " + GetReturnType() + GetGenericConstraints();
 }
 
 template<typename T>
@@ -1046,7 +1077,9 @@ T Demangler<T>::DemangleArgTypes(const T& delimiter, uint32_t size)
 template<typename T>
 DemangleInfo<T> Demangler<T>::DemangleNestedDecls(bool isClass, bool isParamInit)
 {
-    (void)isParamInit;
+    // Nested levels render their names only; the innermost function's parameter list is
+    // rendered once by the caller from `functionParameterTypes`. The param-init owner
+    // context (`isParamInit`) additionally renders the owner's own parameter list.
     auto delimiter = T{ scopeResolution };
     auto i = 0u;
     T result;
@@ -1122,9 +1155,6 @@ DemangleInfo<T> Demangler<T>::DemangleNestedDecls(bool isClass, bool isParamInit
             // DemangleFunctionParameterTypes and folded into the leading "this ..." argument.
             auto funcTys = DemangleFunctionParameterTypes().args;
             curDi.functionParameterTypes = funcTys;
-            if (!funcTys.IsEmpty()) {
-                curDi.type = TypeKind::FUNCTION_DECL;
-            }
             SkipOptionalChar(END);
             AppendModeTypeIfExists(curDi);
         }
@@ -1137,7 +1167,14 @@ DemangleInfo<T> Demangler<T>::DemangleNestedDecls(bool isClass, bool isParamInit
             result.Truncate(result.Length() - delimiter.Length());
         }
         ++i;
-        argsArr[j] = curDi.GetFullName(scopeResolution);
+        if (isParamInit && IsNotEndOfMangledName() && curDi.functionParameterTypes.Length() > 0) {
+            // Param-init owner context (e.g. `pkg.A.init(pkg.A)::a`): the owner keeps its
+            // own parameter list; the innermost decl is the param itself.
+            argsArr[j] = curDi.GetFullName(scopeResolution) + LEFT_BRACKET + curDi.functionParameterTypes +
+                    RIGHT_BRACKET;
+        } else {
+            argsArr[j] = curDi.GetFullName(scopeResolution);
+        }
         lastElement = curDi;
     }
     uint32_t remainingLength = i == 0 ? 0 : ((i - 1) % MAX_ARGS_SIZE) + 1;
@@ -1214,7 +1251,11 @@ DemangleInfo<T> Demangler<T>::DemangleRawArray()
     while (dim--) {
         di.genericConstraints += "[]";
     }
-    di.args = DemangleNextUnit().GetFullName(scopeResolution);
+    auto elemDi = DemangleNextUnit();
+    // A mode-set after the element body belongs to this array (see TakeTrailingModeSet);
+    // relocating on the element info keeps a function-type element's inner modal intact.
+    di.genericConstraints += TakeTrailingModeSet(elemDi.genericConstraints);
+    di.args = elemDi.GetFullName(scopeResolution);
     AppendModeTypeIfExists(di);
     return di;
 }
@@ -1225,7 +1266,10 @@ DemangleInfo<T> Demangler<T>::DemangleVArray()
     DemangleInfo<T> di{ MANGLE_VARRAY_STR, TypeKind::TUPLE };
     SkipChar(MANGLE_VARRAY_PREFIX);
     uint32_t num = static_cast<uint32_t>(DemangleManglingNumber());
-    di.genericTypes = DemangleGenericTypes().GetFullName(scopeResolution, num);
+    auto genericDi = DemangleGenericTypes();
+    // A mode-set after the last element body belongs to this VArray (see TakeTrailingModeSet).
+    di.genericConstraints += TakeTrailingModeSet(genericDi.args);
+    di.genericTypes = genericDi.GetFullName(scopeResolution, num);
     AppendModeTypeIfExists(di);
     return di;
 }
@@ -1235,7 +1279,10 @@ DemangleInfo<T> Demangler<T>::DemangleCPointer()
 {
     DemangleInfo<T> di{ MANGLE_PTR_STR, TypeKind::CPOINTER };
     SkipChar(MANGLE_PTR_PREFIX);
-    auto generic = DemangleType().GetFullName(scopeResolution);
+    auto elemDi = DemangleType();
+    // A mode-set after the pointee body belongs to this CPointer (see TakeTrailingModeSet).
+    di.genericConstraints += TakeTrailingModeSet(elemDi.args);
+    auto generic = elemDi.GetFullName(scopeResolution);
     di.genericTypes = genericTypefilter(generic);
     AppendModeTypeIfExists(di);
     return di;
