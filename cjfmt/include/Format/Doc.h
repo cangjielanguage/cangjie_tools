@@ -52,6 +52,7 @@ enum class DocType {
     LAMBDA,
     LAMBDA_BODY,
     MEMBER_ACCESS,
+    CHOICE,
     FILL,
     IF_BREAK,
     BREAK_PARENT,
@@ -75,15 +76,29 @@ enum class DocType {
 
 enum class Mode {
     MODE_FLAT,  // don't do line break, use space
+    MODE_GROUP_FLAT, // a semantic Group has selected its complete flat layout
     MODE_BREAK, // do line break as much as possible
     INVALID,
 };
+
+// Legacy groups are transparent. Semantic groups describe complete syntax nodes and protect their
+// flat layout; Fill groups permit independent breaks between complete operands or list items.
+// LAMBDA_HEADER groups decide parameter breaks from the parameters' flat width at the current column,
+// independently of the following body or method chain.
+enum class LayoutPolicy { LEGACY, GROUP, FILL, LAMBDA_HEADER };
+enum class BreakKind { GENERIC, LOGICAL, BINARY, LIST, OPEN, MEMBER, ASSIGNMENT };
 
 struct Doc {
     DocType type = DocType::INVALID;
     int indent{};
     std::string value;
     std::vector<Doc> members;
+    LayoutPolicy layout = LayoutPolicy::LEGACY;
+    bool rebaseToOutputLine = true;
+    bool isStringLiteral = false;
+    BreakKind breakKind = BreakKind::GENERIC;
+    int breakPenalty = 0; // zero selects the default for breakKind
+    size_t choiceBreakAt = 0; // index of RHS for the assignment fallback candidate
     Doc() = default;
     Doc(DocType ty, int ind, std::string val)
     {

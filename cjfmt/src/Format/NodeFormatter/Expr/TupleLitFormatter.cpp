@@ -19,15 +19,18 @@ void TupleLitFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int lev
 
 void TupleLitFormatter::AddTupleLit(Doc& doc, const Cangjie::AST::TupleLit& tupleLit, int level)
 {
-    doc.type = DocType::CONCAT;
+    doc.type = DocType::GROUP;
+    doc.layout = LayoutPolicy::GROUP;
     doc.indent = level;
     doc.members.emplace_back(DocType::STRING, level, "(");
-    Doc group(DocType::GROUP, level + 1, "");
+    Doc group(DocType::ARGS, level + 1, "");
     for (auto& expr : tupleLit.children) {
         group.members.emplace_back(astToFormatSource.ASTToDoc(expr.get(), level + 1));
         if (expr != tupleLit.children.back()) {
             group.members.emplace_back(DocType::STRING, level + 1, ",");
-            group.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+        separator.breakKind = BreakKind::LIST;
+        group.members.emplace_back(std::move(separator));
         }
     }
     doc.members.emplace_back(group);

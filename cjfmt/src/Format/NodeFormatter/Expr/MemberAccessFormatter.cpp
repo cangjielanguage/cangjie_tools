@@ -39,16 +39,7 @@ void MemberAccessFormatter::AddMemberAccess(
 
     doc.members.emplace_back(DocType::STRING, level,
         memberAccess.field.IsRaw() ? memberAccess.field.GetRawText() : memberAccess.field.Val());
-    if (!memberAccess.typeArguments.empty()) {
-        doc.members.emplace_back(DocType::STRING, level, "<");
-        for (auto& n : memberAccess.typeArguments) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
-            if (n != memberAccess.typeArguments.back()) {
-                doc.members.emplace_back(DocType::STRING, level + 1, ", ");
-            }
-    }
-        doc.members.emplace_back(DocType::STRING, level, ">");
-    }
+    astToFormatSource.AddTypeArguments(doc, memberAccess.typeArguments, level);
     if (memberAccess.hasSemi) {
         doc.members.emplace_back(DocType::STRING, level, ";");
     }

@@ -26,15 +26,19 @@ void SubscriptExprFormatter::AddSubscriptExpr(
     if (subscriptExpr.baseExpr) {
         doc.members.emplace_back(astToFormatSource.ASTToDoc(subscriptExpr.baseExpr.get(), level, funcOptions));
     }
-    doc.members.emplace_back(DocType::STRING, level, "[");
+    Doc indices(DocType::FILL, level + 1, "");
+    indices.members.emplace_back(DocType::STRING, level, "[");
     for (auto& n : subscriptExpr.indexExprs) {
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
+        indices.members.emplace_back(astToFormatSource.ASTToDoc(n.get(), level + 1));
         if (n != subscriptExpr.indexExprs.back()) {
-            doc.members.emplace_back(DocType::STRING, level + 1, ",");
-            doc.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            indices.members.emplace_back(DocType::STRING, level + 1, ",");
+            Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            separator.breakKind = BreakKind::LIST;
+            indices.members.emplace_back(std::move(separator));
         }
     }
-    doc.members.emplace_back(DocType::STRING, level, "]");
+    indices.members.emplace_back(DocType::STRING, level, "]");
+    doc.members.emplace_back(std::move(indices));
     if (subscriptExpr.hasSemi) {
         doc.members.emplace_back(DocType::STRING, level, ";");
     }

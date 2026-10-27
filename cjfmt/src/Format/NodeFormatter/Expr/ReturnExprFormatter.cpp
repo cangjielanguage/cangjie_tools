@@ -19,7 +19,8 @@ void ReturnExprFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int l
 
 void ReturnExprFormatter::AddReturnExpr(Doc& doc, const Cangjie::AST::ReturnExpr& returnExpr, int level)
 {
-    doc.type = DocType::CONCAT;
+    doc.type = DocType::FILL;
+    doc.layout = LayoutPolicy::FILL;
     doc.indent = level;
 
     if (!returnExpr.TestAttr(Attribute::COMPILER_ADD)) {

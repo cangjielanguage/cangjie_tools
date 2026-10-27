@@ -19,18 +19,23 @@ void GenericConstraintFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node
 void GenericConstraintFormatter::AddGenericConstraint(
     Doc& doc, const Cangjie::AST::GenericConstraint& genericConstraint, int level)
 {
-    doc.type = DocType::GROUP;
+    doc.type = DocType::FILL;
+    doc.layout = LayoutPolicy::FILL;
     doc.indent = level;
 
     if (genericConstraint.wherePos != INVALID_POSITION) {
         doc.members.emplace_back(DocType::STRING, level, " where ");
     }
-    doc.members.emplace_back(astToFormatSource.ASTToDoc(genericConstraint.type.get()));
-    doc.members.emplace_back(DocType::STRING, level, " <: ");
+    doc.members.emplace_back(astToFormatSource.ASTToDoc(genericConstraint.type.get(), level));
+    doc.members.emplace_back(DocType::STRING, level, " <:");
+    Doc separator(DocType::SOFTLINE_WITH_SPACE, level, "");
+    separator.breakKind = BreakKind::BINARY;
+    doc.members.emplace_back(separator);
     for (auto& ub : genericConstraint.upperBounds) {
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(ub.get()));
+        doc.members.emplace_back(astToFormatSource.ASTToDoc(ub.get(), level));
         if (ub != genericConstraint.upperBounds.back()) {
-            doc.members.emplace_back(DocType::STRING, level, " & ");
+            doc.members.emplace_back(DocType::STRING, level, " &");
+            doc.members.emplace_back(separator);
         }
     }
 }

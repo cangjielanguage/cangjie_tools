@@ -26,13 +26,17 @@ void TupleTypeFormatter::AddTupleType(Doc& doc, const Cangjie::AST::TupleType& t
         doc.members.emplace_back(DocType::STRING, level, ": ");
     }
     doc.members.emplace_back(DocType::STRING, level, "(");
+    Doc items(DocType::ARGS, level, "");
     for (auto& field : tupleType.fieldTypes) {
-        doc.members.emplace_back(astToFormatSource.ASTToDoc(field.get(), level));
+        items.members.emplace_back(astToFormatSource.ASTToDoc(field.get(), level));
         if (field != tupleType.fieldTypes.back()) {
-            doc.members.emplace_back(DocType::STRING, level, ", ");
-            doc.members.emplace_back(DocType::SOFTLINE, level + 1, "");
+            items.members.emplace_back(DocType::STRING, level, ",");
+            Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            separator.breakKind = BreakKind::LIST;
+            items.members.emplace_back(std::move(separator));
         }
     }
+    doc.members.emplace_back(std::move(items));
     doc.members.emplace_back(DocType::STRING, level, ")");
 }
 } // namespace Cangjie::Format

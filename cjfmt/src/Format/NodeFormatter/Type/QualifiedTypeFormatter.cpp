@@ -30,15 +30,6 @@ void QualifiedTypeFormatter::AddQualifiedType(Doc& doc, const QualifiedType& qua
     }
     doc.members.emplace_back(DocType::STRING, level, ".");
     doc.members.emplace_back(DocType::STRING, level, qualifiedType.field);
-    if (qualifiedType.leftAnglePos != INVALID_POSITION) {
-        doc.members.emplace_back(DocType::STRING, level, "<");
-        for (auto& argument : qualifiedType.typeArguments) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(argument.get(), level));
-            if (argument != qualifiedType.typeArguments.back()) {
-                doc.members.emplace_back(DocType::STRING, level, ", ");
-            }
-        }
-        doc.members.emplace_back(DocType::STRING, level, ">");
-    }
+    astToFormatSource.AddTypeArguments(doc, qualifiedType.typeArguments, level);
 }
 } // namespace Cangjie::Format

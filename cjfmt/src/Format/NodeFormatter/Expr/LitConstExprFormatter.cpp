@@ -32,6 +32,8 @@ void LitConstExprFormatter::AddLitConstExpr(Doc& doc, const Cangjie::AST::LitCon
 {
     doc.type = DocType::CONCAT;
     doc.indent = level;
+    doc.isStringLiteral = litConstExpr.kind == LitConstKind::STRING ||
+        litConstExpr.kind == LitConstKind::JSTRING;
 
     std::string strValue;
     std::string quote = litConstExpr.isSingleQuote ? "'" : "\"";
@@ -70,20 +72,26 @@ void LitConstExprFormatter::AddLitConstExpr(Doc& doc, const Cangjie::AST::LitCon
 void LitConstExprFormatter::MultiLineInterpolationExprProcessor(Doc& doc, Ptr<Expr> expr, int level)
 {
     auto interpolationExpr = As<ASTKind::INTERPOLATION_EXPR>(expr);
+    // A multiline string's interpolation is embedded in literal text. Its
+    // enclosing AST level therefore does not describe the column where `${`
+    // is emitted. Align the interpolation to that output line before applying
+    // the relative body indentation.
+    Doc interpolation(DocType::ALIGN, level, "");
     if (interpolationExpr->block->body.size() > 1) {
-        doc.members.emplace_back(DocType::LINE, level + 1, "");
+        interpolation.members.emplace_back(DocType::LINE, level + 1, "");
         for (auto& node : interpolationExpr->block->body) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(node, level + 1));
+            interpolation.members.emplace_back(astToFormatSource.ASTToDoc(node, level + 1));
             if (node != interpolationExpr->block->body.back()) {
-                doc.members.emplace_back(DocType::LINE, level + 1, "");
+                interpolation.members.emplace_back(DocType::LINE, level + 1, "");
             }
         }
-        doc.members.emplace_back(DocType::LINE, level, "");
+        interpolation.members.emplace_back(DocType::LINE, level, "");
     } else if (interpolationExpr->block->body.size() == 1) {
         for (auto& node : interpolationExpr->block->body) {
-            doc.members.emplace_back(astToFormatSource.ASTToDoc(node, level));
+            interpolation.members.emplace_back(astToFormatSource.ASTToDoc(node, level));
         }
     }
+    doc.members.emplace_back(std::move(interpolation));
 }
 
 void LitConstExprFormatter::AddSiPartExpr(Doc& doc, Ptr<Expr> expr, std::string& strValue, int level, bool isSingleLine)

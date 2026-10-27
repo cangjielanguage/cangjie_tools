@@ -61,10 +61,11 @@ void ArrayLitFormatter::AddArrayLitChildren(Doc& doc, const Cangjie::AST::ArrayL
         args.members.emplace_back(group);
         if (n != arrayLit.children.back()) {
             args.members.emplace_back(DocType::STRING, level, ",");
-            args.members.emplace_back(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            Doc separator(DocType::SOFTLINE_WITH_SPACE, level + 1, "");
+            separator.breakKind = BreakKind::LIST;
+            args.members.emplace_back(std::move(separator));
         }
     }
     doc.members.emplace_back(args);
-    doc.members.emplace_back(DocType::BREAK_PARENT, level, "");
 }
 } // namespace Cangjie::Format

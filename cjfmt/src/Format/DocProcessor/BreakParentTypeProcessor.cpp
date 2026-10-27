@@ -10,13 +10,9 @@
 
 namespace Cangjie::Format {
 using namespace Cangjie::AST;
-void Cangjie::Format::BreakParentTypeProcessor::DocToString(std::string &formatted, int &pos,
-    std::pair<Doc, Mode> &current, std::vector<std::pair<Doc, Mode>> &)
+void Cangjie::Format::BreakParentTypeProcessor::DocToString(std::string &, int &,
+    std::pair<Doc, Mode> &, std::vector<std::pair<Doc, Mode>> &)
 {
-    if (current.second == Mode::MODE_BREAK) {
-        formatted += options.newLine;
-        formatted += std::string(current.first.indent * options.indentWidth, ' ');
-        pos = current.first.indent * options.indentWidth;
-    }
+    // Layout marker only. MeasureFlat rejects it, forcing the enclosing semantic Group to break.
 }
 }

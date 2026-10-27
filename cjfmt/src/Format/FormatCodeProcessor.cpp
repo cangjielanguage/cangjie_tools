@@ -7,11 +7,14 @@
 #include "Format/FormatCodeProcessor.h"
 #include <regex>
 #include "Format/CommentHandler.h"
+#include "Format/CommentLayout.h"
 #include "Format/DocProcessor/ArgsProcessor.h"
+#include "Format/DocProcessor/ChoiceProcessor.h"
 #include "Format/DocProcessor/BreakParentTypeProcessor.h"
 #include "Format/DocProcessor/ConcatTypeProcessor.h"
 #include "Format/DocProcessor/DotProcessor.h"
 #include "Format/DocProcessor/FuncArgProcessor.h"
+#include "Format/DocProcessor/FillTypeProcessor.h"
 #include "Format/DocProcessor/GroupProcessor.h"
 #include "Format/DocProcessor/LambdaBodyProcessor.h"
 #include "Format/DocProcessor/LambdaProcessor.h"
@@ -290,7 +293,13 @@ void RegisterTypeNode(ASTToFormatSource& toSourceManager, FormattingOptions& opt
 void RegisterDocProcessors(ASTToFormatSource& toSourceManager, FormattingOptions& options)
 {
     toSourceManager.RegisterDocProcessors<StringTypeProcessor>(DocType::STRING, options);
+    toSourceManager.RegisterDocProcessors<ChoiceProcessor>(DocType::CHOICE, options);
     toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::CONCAT, options);
+    toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::ALIGN, options);
+    toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::LINE_SUFFIX, options);
+    toSourceManager.RegisterDocProcessors<ConcatTypeProcessor>(DocType::LINE_SUFFIX_BOUNDARY, options);
+    // Fill plans complete chunks and nested syntax breaks with a deterministic cost comparison.
+    toSourceManager.RegisterDocProcessors<FillTypeProcessor>(DocType::FILL, options);
     toSourceManager.RegisterDocProcessors<LineProcessor>(DocType::LINE, options);
     toSourceManager.RegisterDocProcessors<ArgsProcessor>(DocType::ARGS, options);
     toSourceManager.RegisterDocProcessors<FuncArgProcessor>(DocType::FUNC_ARG, options);
@@ -336,7 +345,7 @@ public:
         }
 
         std::string result;
-        auto formatted = TransformAstToText(file);
+        auto formatted = TransformAstToText(file, inputTokens);
         if (tracker.actuallyFormattedStart.has_value() && tracker.actuallyFormattedEnd.has_value()) {
             result = ConstructResultingText(file, inputTokens, formatted);
         } else {
@@ -362,11 +371,12 @@ private:
     RegionFormattingTracker tracker;
     FormattingOptions options;
 
-    std::string TransformAstToText(const OwnedPtr<File>& file)
+    std::string TransformAstToText(const OwnedPtr<File>& file, const std::vector<Token>& tokens)
     {
         ASTToFormatSource astTransformer(tracker, sm);
         SetupTranformer(astTransformer);
         Doc doc = astTransformer.ASTToDoc(file.get());
+        AddCommentBudgets(doc, tokens);
         return astTransformer.DocToString(doc);
     }
 

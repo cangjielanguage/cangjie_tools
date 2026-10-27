@@ -7,155 +7,159 @@
 #include "Format/DocProcessor/MemberAccessProcessor.h"
 #include "Format/ASTToFormatSource.h"
 
+#include <algorithm>
+
 using namespace Cangjie::Format;
 
 namespace {
-void ParserCurrent(Doc& doc, Doc& ma)
+bool ContainsForcedBreak(const Doc& doc)
 {
-    if (doc.type == DocType::CONCAT || doc.type == DocType::GROUP || doc.type == DocType::MEMBER_ACCESS) {
-        for (auto& member : doc.members) {
-            ParserCurrent(member, ma);
+    switch (doc.type) {
+        case DocType::LINE:
+        case DocType::HARDLINE:
+        case DocType::LINE_DOT:
+        case DocType::SEPARATE:
+        case DocType::BREAK_PARENT:
+        case DocType::LINE_SUFFIX_BOUNDARY:
+        case DocType::LITERALLINE:
+            return true;
+        case DocType::STRING:
+            // A raw multiline literal cannot be flattened. It is represented
+            // as a STRING rather than a LINE doc, so detect its embedded line
+            // ending here as well.
+            return doc.value.find_first_of("\r\n") != std::string::npos;
+        default:
+            break;
+    }
+    return std::any_of(doc.members.begin(), doc.members.end(), [](const Doc& member) {
+        return ContainsForcedBreak(member);
+    });
+}
+
+void FlattenChain(const Doc& doc, std::vector<Doc>& parts)
+{
+    if (doc.type == DocType::MEMBER_ACCESS || doc.type == DocType::CONCAT ||
+        (doc.type == DocType::GROUP && doc.layout == LayoutPolicy::LEGACY)) {
+        for (const auto& member : doc.members) {
+            FlattenChain(member, parts);
         }
     } else {
-        ma.members.emplace_back(doc);
+        parts.emplace_back(doc);
     }
 }
 
-void SplitVectorByFisrtDot(const std::vector<Doc>& original, std::vector<Doc>& firstHalf, std::vector<Doc>& secondHalf)
+bool g_expandTransparentCommand(std::vector<std::pair<Doc, Mode>>& commands)
 {
-    auto it = std::find_if(original.begin(), original.end(), [](const Doc& doc) { return doc.value == "."; });
-    if (it != original.end()) {
-        auto index = std::distance(original.begin(), it);
-        if (index > 0 && original[index - 1].type == DocType::LINE) {
-            index--;
+    auto type = commands.back().first.type;
+    if (type != DocType::CONCAT &&
+        !(type == DocType::GROUP && commands.back().first.layout == LayoutPolicy::LEGACY)) {
+        return false;
+    }
+    auto command = std::move(commands.back());
+    commands.pop_back();
+    for (auto it = command.first.members.rbegin(); it != command.first.members.rend(); ++it) {
+        commands.emplace_back(std::move(*it), command.second);
+    }
+    return true;
+}
+
+void AppendParenthesizedCall(std::vector<Doc>& parts, std::vector<std::pair<Doc, Mode>>& commands)
+{
+    int depth = 0;
+    do {
+        // Expose comment-wrapped delimiters before counting parentheses, so
+        // an annotated ')' cannot consume following statements or block ends.
+        if (g_expandTransparentCommand(commands)) {
+            continue;
         }
-        firstHalf.assign(original.begin(), original.begin() + index);
-        secondHalf.assign(original.begin() + index, original.end());
+        auto part = std::move(commands.back().first);
+        commands.pop_back();
+        depth += part.value == "(" ? 1 : part.value == ")" ? -1 : 0;
+        parts.emplace_back(std::move(part));
+    } while (!commands.empty() && depth > 0);
+}
+
+void AppendCallSuffix(std::vector<Doc>& parts, std::vector<std::pair<Doc, Mode>>& commands)
+{
+    constexpr size_t trailingClosureParts = 2;
+    if (!commands.empty() && commands.back().first.value == "(") {
+        AppendParenthesizedCall(parts, commands);
+    }
+    // Keep trailing closures inside the method segment's ALIGN scope, anchored
+    // before arguments wrap, so the closure inherits the method's base indent.
+    if (commands.size() >= trailingClosureParts && commands.back().first.type == DocType::STRING &&
+        commands.back().first.value == " " &&
+        commands[commands.size() - trailingClosureParts].first.type == DocType::LAMBDA) {
+        parts.emplace_back(std::move(commands.back().first));
+        commands.pop_back();
+        parts.emplace_back(std::move(commands.back().first));
+        commands.pop_back();
     }
 }
 
-void IncreaseIndent(Doc& doc)
+Doc BuildMemberChain(const std::vector<Doc>& parts, int indent, bool expand)
 {
-    for (auto& member : doc.members) {
-        member.indent++;
-        IncreaseIndent(member);
-    }
-}
-
-void MemberAccessAddParentheses(std::vector<std::pair<Doc, Mode>>& leftCmd, Doc& ma)
-{
-    if (!leftCmd.empty() && leftCmd.back().first.value == "(") {
-        ma.members.emplace_back(leftCmd.back().first);
-        leftCmd.pop_back();
-        while (leftCmd.back().first.value != ")") {
-            ma.members.emplace_back(leftCmd.back().first);
-            leftCmd.pop_back();
-        }
-        ma.members.emplace_back(leftCmd.back().first);
-        leftCmd.pop_back();
-    }
-
-    if (!leftCmd.empty() && leftCmd.back().first.value == " ") {
-        ma.members.emplace_back(leftCmd.back().first);
-        leftCmd.pop_back();
-        if (!leftCmd.empty() && leftCmd.back().first.type == DocType::LAMBDA) {
-            ma.members.emplace_back(leftCmd.back().first);
-            leftCmd.pop_back();
-        }
-    }
-}
-
-int SplitVectorByDOT(Doc& secondHalf, Doc& contact, std::vector<Doc>& lst)
-{
-    int count = 0;
-    for (auto& member : secondHalf.members) {
-        if (member.value == ".") {
-            count++;
-            if (!contact.members.empty()) {
-                lst.emplace_back(contact);
-                contact.members.clear();
+    Doc chain(DocType::FILL, indent, "");
+    chain.layout = LayoutPolicy::FILL;
+    Doc segment(DocType::ALIGN, indent, "");
+    bool continuation = false;
+    for (const auto& part : parts) {
+        if (part.type == DocType::DOT || part.type == DocType::LINE_DOT) {
+            if (continuation) {
+                chain.members.emplace_back(std::move(segment));
+                segment = Doc(DocType::ALIGN, indent, "");
             }
-            lst.emplace_back(member);
+            continuation = true;
+            bool forced = expand || part.type == DocType::LINE_DOT;
+            Doc separator(forced ? DocType::LINE : DocType::SOFTLINE, indent + 1, "");
+            separator.breakKind = BreakKind::MEMBER;
+            chain.members.emplace_back(std::move(separator));
+            chain.members.emplace_back(DocType::STRING, indent + 1, ".");
         } else {
-            contact.members.emplace_back(member);
-        }
-    }
-    if (!contact.members.empty()) {
-        lst.emplace_back(contact);
-    }
-    return count;
-}
-
-void MethodChainProcessor(Doc& member)
-{
-    if (member.type == DocType::DOT) {
-        member.indent++;
-        member.type = DocType::LINE_DOT;
-    }
-    for (auto& mem : member.members) {
-        mem.indent++;
-        IncreaseIndent(mem);
-    }
-}
-}
-
-void MemberAccessProcessor::NonMethodChianProcessor(Doc& member, int& pos, std::string& formatted)
-{
-    if (member.type == DocType::DOT) {
-        int l = 0;
-        for (auto& item : std::next(&member)->members) {
-            if (item.type == DocType::LINE || item.type == DocType::SOFTLINE ||
-                item.type == DocType::SOFTLINE_WITH_SPACE || item.type == DocType::DOT ||
-                item.type == DocType::LINE_DOT) {
-                break;
+            if (continuation) {
+                segment.members.emplace_back(part);
+            } else {
+                chain.members.emplace_back(part);
             }
-            l += static_cast<int>(DisplayWidth(item.value));
         }
-        if (options.lineLength - pos - l <= 0) {
-            formatted += options.newLine;
-            formatted += std::string((member.indent + 1) * options.indentWidth, ' ');
-            pos = (member.indent + 1) * options.indentWidth;
-            IncreaseIndent(*std::next(&member));
-        }
-    } else if (member.type == DocType::LINE_DOT) {
-        IncreaseIndent(*std::next(&member));
     }
+    if (continuation) {
+        chain.members.emplace_back(std::move(segment));
+    }
+    return chain;
 }
+} // namespace
 
-void MemberAccessProcessor::DocToString(
-    std::string& formatted, int& pos, std::pair<Doc, Mode>& current, std::vector<std::pair<Doc, Mode>>& leftCmd)
+void MemberAccessProcessor::DocToString(std::string& formatted, int& pos, std::pair<Doc, Mode>& current,
+    std::vector<std::pair<Doc, Mode>>& leftCmd)
 {
-    Doc ma;
-    for (auto& member : current.first.members) {
-        ParserCurrent(member, ma);
+    std::vector<Doc> parts;
+    FlattenChain(current.first, parts);
+    AppendCallSuffix(parts, leftCmd);
+    size_t count = 0;
+    for (const auto& part : parts) {
+        count += part.type == DocType::DOT || part.type == DocType::LINE_DOT;
     }
-
-    // if methodChain expr is a.b().c(xxx)
-    // ma will be a.b().c, so need to add (xxx) to ma;
-    MemberAccessAddParentheses(leftCmd, ma);
-
-    // e.g. a.b().c().d()
-    Doc firstHalf;  // firstHalf is a
-    Doc secondHalf; // secondHalf is .b().c().d()
-    SplitVectorByFisrtDot(ma.members, firstHalf.members, secondHalf.members);
-
-    firstHalf.type = DocType::CONCAT;
-    astToFormatSource.DocToString(firstHalf, pos, formatted);
-
-    auto rem = options.lineLength - pos;
-    auto length = CalculateDocLen(secondHalf);
-
-    std::vector<Doc> lst;
-    Doc contact;
-    contact.type = DocType::CONCAT;
-    int count = SplitVectorByDOT(secondHalf, contact, lst);
-
-    for (auto& member : lst) {
-        if (rem - length <= 0 && count > 1 && options.multipleLineMethodChainOverLineLength) {
-            MethodChainProcessor(member);
-        } else {
-            NonMethodChianProcessor(member, pos, formatted);
-        }
-        astToFormatSource.DocToString(member, pos, formatted);
-    }
+    auto firstDot = std::find_if(parts.begin(), parts.end(), [](const Doc& part) {
+        return part.type == DocType::DOT || part.type == DocType::LINE_DOT;
+    });
+    std::vector<Doc> receiverParts(parts.begin(), firstDot);
+    std::vector<Doc> chainParts(firstDot, parts.end());
+    Doc receiver(DocType::CONCAT, current.first.indent, std::move(receiverParts));
+    Doc suffixChain(DocType::CONCAT, current.first.indent, std::move(chainParts));
+    astToFormatSource.DocToString(receiver, pos, formatted);
+    int width = MeasureFlat(suffixChain);
+    int suffix = MeasureInlineSuffix(leftCmd);
+    bool chainHasForcedBreak = ContainsForcedBreak(suffixChain);
+    // Print the complete receiver first: calls and closures can wrap while
+    // printing. Use its actual final column, independent of source newlines,
+    // to decide whether the following chain needs one method per line.
+    // An outer expression may already force a break after this chain. In that
+    // case its suffix has no usable flat width, but the chain still needs to
+    // be checked against the current line by itself.
+    int suffixWidth = suffix < 0 ? 0 : suffix;
+    bool expand = count > 1 && options.multipleLineMethodChainOverLineLength &&
+        (chainHasForcedBreak || (width >= 0 && pos + width + suffixWidth > options.lineLength));
+    auto chain = BuildMemberChain(suffixChain.members, current.first.indent, expand);
+    leftCmd.emplace_back(std::move(chain), Mode::MODE_FLAT);
 }

@@ -32,7 +32,12 @@ void TrailingClosureExprFormatter::AddTrailingClosureExpr(
     FuncOptions funcOptions;
     funcOptions.isLambda = true;
     if (trailingClosureExpr.lambda) {
-        group.members.emplace_back(astToFormatSource.ASTToDoc(trailingClosureExpr.lambda.get(), level, funcOptions));
+        auto lambda = astToFormatSource.ASTToDoc(trailingClosureExpr.lambda.get(), level, funcOptions);
+        // A trailing closure belongs to the call's indentation level. Its brace
+        // may follow a nested, continued argument line, which is not the right
+        // base for rebasing the closure body.
+        lambda.rebaseToOutputLine = false;
+        group.members.emplace_back(std::move(lambda));
     }
     doc.members.emplace_back(group);
 }

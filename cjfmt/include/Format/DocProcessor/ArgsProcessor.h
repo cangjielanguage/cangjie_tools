@@ -15,10 +15,6 @@ public:
         : DocProcessor(astToFormatSource, options){};
     void DocToString(std::string& formatted, int& pos, std::pair<Doc, Mode>& current,
         std::vector<std::pair<Doc, Mode>>& leftCmd) override;
-    void SoftLineProcessor(
-        std::string& formatted, int& pos, std::pair<Doc, Mode>& current, size_t& i, bool& haveNotChangedLine);
-    void SoftLineWithSpaceProcessor(
-        std::string& formatted, int& pos, std::pair<Doc, Mode>& current, size_t& i, bool& haveNotChangedLine);
 };
 } // namespace Cangjie::Format
 #endif // CJFMT_ARGSPROCESSOR_H

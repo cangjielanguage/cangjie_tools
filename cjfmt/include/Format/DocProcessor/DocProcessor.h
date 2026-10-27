@@ -23,10 +23,20 @@ public:
     virtual ~DocProcessor() = default;
     virtual void DocToString(std::string& formatted, int& pos, std::pair<Doc, Mode>& current,
         std::vector<std::pair<Doc, Mode>>& leftCmd) = 0;
+    static int AdvanceColumn(const std::string& text, int column);
+    static int MeasureFlat(const Doc& doc);
+    static int DefaultBreakPenalty(BreakKind kind);
 
 protected:
+    static void RebaseToOutputLine(Doc& doc, const std::string& formatted, int indentWidth);
     bool Fits(const std::pair<Doc, Mode>& next, int rem);
+    bool Fits(const std::vector<std::pair<Doc, Mode>>& commands, int rem);
+    int ConsumeFitCommand(const std::pair<const Doc*, Mode>& current, int& rem,
+        std::vector<std::pair<const Doc*, Mode>>& fitCmd);
     int CalculateDocLen(Doc& doc);
+    // Returns the flat display width when a document can be emitted without a hard line.
+    // A negative result means that the candidate contains a forced line break.
+    static int MeasureInlineSuffix(const std::vector<std::pair<Doc, Mode>>& commands);
 
     FormattingOptions& options;
     ASTToFormatSource& astToFormatSource;
