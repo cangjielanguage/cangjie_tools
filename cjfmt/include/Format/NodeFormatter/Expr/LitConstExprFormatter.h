@@ -16,7 +16,7 @@ public:
     void ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int level, FuncOptions&) override;
 
 private:
-    std::string CleanString(const std::string& input);
+    std::string FormatSingleLineInterpolation(const Doc& doc);
     void AddLitConstExpr(Doc& doc, const Cangjie::AST::LitConstExpr& litConstExpr, int level);
     void MultiLineInterpolationExprProcessor(Doc& doc, Ptr<Cangjie::AST::Expr> expr, int level);
     void AddSiPartExpr(Doc& doc, Ptr<Cangjie::AST::Expr> expr, std::string& strValue, int level, bool isSingleLine);
