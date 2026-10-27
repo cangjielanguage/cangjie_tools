@@ -2965,6 +2965,16 @@ std::string CompilerCangjieProject::GetModuleNameByFile(const std::string &fileP
     if (moduleManager && moduleManager->IsBuildScriptFile(filePath)) {
         return moduleManager->GetProjectModuleName();
     }
+    if (moduleManager && !filePath.empty()) {
+        // Use the configured module when package declarations disagree.
+        auto [fileKind, modulePath] = GetCangjieFileKind(filePath);
+        if (fileKind == CangjieFileKind::IN_OLD_PACKAGE || fileKind == CangjieFileKind::IN_NEW_PACKAGE) {
+            auto module = moduleManager->moduleInfoMap.find(modulePath);
+            if (module != moduleManager->moduleInfoMap.end() && !module->second.moduleName.empty()) {
+                return module->second.moduleName;
+            }
+        }
+    }
     std::string fullPkgName = pkgName.empty() ? GetFullPkgName(filePath) : pkgName;
     fullPkgName = GetRealPackageName(fullPkgName);
     if (fullPkgName.empty()) {

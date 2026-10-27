@@ -267,6 +267,8 @@
 {"completion":{"testFile":"LSP_Completion_ReExport_001.test","id":"6"}}
 {"completion":{"testFile":"LSP_Completion_ReExport_Alias_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_OrgAutoComplete_001.test","id":"6"}}
+{"completion":{"testFile":"LSP_Completion_Org_MixedPackage_001.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_Org_MixedPackage_002.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_MultiImport_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_ModifiedMultiImport_001.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_script_dependencies_build_only_001.test","id":"9"}}
