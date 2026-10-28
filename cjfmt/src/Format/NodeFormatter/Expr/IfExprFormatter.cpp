@@ -19,7 +19,9 @@ void IfExprFormatter::ASTToDoc(Doc& doc, Ptr<Cangjie::AST::Node> node, int level
 
 void IfExprFormatter::AddIfExpr(Doc& doc, const Cangjie::AST::IfExpr& ifExpr, int level)
 {
-    doc.type = DocType::CONCAT;
+    // An inline argument may carry a continuation level even when the call
+    // has not wrapped. Anchor the block to the line where `if` is emitted.
+    doc.type = DocType::ALIGN;
     doc.indent = level;
 
     doc.members.emplace_back(DocType::STRING, level, "if ");

@@ -5,20 +5,63 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "Format/NodeFormatter/Expr/LitConstExprFormatter.h"
-#include <regex>
 #include "Format/ASTToFormatSource.h"
 #include "cangjie/AST/Node.h"
 
 namespace Cangjie::Format {
 using namespace Cangjie::AST;
 
-std::string LitConstExprFormatter::CleanString(const std::string& input)
+namespace {
+void AppendInterpolationText(const std::string& text, std::string& result, bool& pendingSpace)
 {
-    std::string result = std::regex_replace(input, std::regex(R"()" + options.newLine + R"()"), "");
-    result = std::regex_replace(result, std::regex(R"(\s+\.)"), ".");
-    result = std::regex_replace(result, std::regex(R"(\s+)"), " ");
-    result = std::regex_replace(result, std::regex(R"(^\s+|\s+$)"), "");
+    if (text.empty()) {
+        return;
+    }
+    if (pendingSpace && !result.empty() && result.back() != ' ' && text.front() != ' ') {
+        result += ' ';
+    }
+    result += text;
+    pendingSpace = false;
+}
 
+void ProcessInterpolationDoc(const Doc& doc, std::vector<const Doc*>& pending,
+    std::string& result, bool& pendingSpace)
+{
+    switch (doc.type) {
+        case DocType::LINE:
+        case DocType::HARDLINE:
+        case DocType::SEPARATE:
+        case DocType::SOFTLINE_WITH_SPACE:
+            pendingSpace = true;
+            break;
+        case DocType::LINE_DOT:
+            pendingSpace = false;
+            [[fallthrough]];
+        case DocType::STRING:
+        case DocType::DOT:
+            AppendInterpolationText(doc.value, result, pendingSpace);
+            break;
+        default:
+            for (auto it = doc.members.rbegin(); it != doc.members.rend(); ++it) {
+                pending.emplace_back(&*it);
+            }
+            break;
+    }
+}
+} // namespace
+
+std::string LitConstExprFormatter::FormatSingleLineInterpolation(const Doc& doc)
+{
+    // Flatten layout Docs rather than rendered source. Rewriting whitespace in
+    // the source would also change nested string literals and their values.
+    std::string result;
+    bool pendingSpace = false;
+    std::vector<const Doc*> pending{&doc};
+    while (!pending.empty()) {
+        const auto* current = pending.back();
+        pending.pop_back();
+        ProcessInterpolationDoc(*current, pending, result, pendingSpace);
+    }
     return result;
 }
 
@@ -105,7 +148,7 @@ void LitConstExprFormatter::AddSiPartExpr(Doc& doc, Ptr<Expr> expr, std::string&
             auto interpolationExpr = As<ASTKind::INTERPOLATION_EXPR>(expr);
             for (auto& node : interpolationExpr->block->body) {
                 auto nodeDoc = astToFormatSource.ASTToDoc(node, level);
-                strValue += CleanString(astToFormatSource.DocToString(nodeDoc));
+                strValue += FormatSingleLineInterpolation(nodeDoc);
             }
             strValue += "}";
         } else {
