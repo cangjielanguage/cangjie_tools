@@ -64,7 +64,9 @@ void StructuralRuleGCON01::SynchronizedObjectFinder(Ptr<Node> node)
                 if (varDecl.GetTy() == nullptr) {
                     return VisitAction::SKIP_CHILDREN;
                 }
-                if (varDecl.GetTy()->name != "ReentrantMutex") {
+                // ReentrantMutex is deprecated; Mutex is the current synchronization type.
+                // Keep both names recognized so the rule covers existing and current code.
+                if (varDecl.GetTy()->name != "Mutex" && varDecl.GetTy()->name != "ReentrantMutex") {
                     return VisitAction::SKIP_CHILDREN;
                 }
 

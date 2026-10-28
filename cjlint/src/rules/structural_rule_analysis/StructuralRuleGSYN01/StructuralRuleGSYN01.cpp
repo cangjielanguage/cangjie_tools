@@ -17,6 +17,7 @@ constexpr const char* JSONPATH = "/config/structural_rule_G_SYN_01.json";
 void StructuralRuleGSYN01::InitDisabledSyntaxCheckMap()
 {
     disabledSyntaxCheckMap["Import"][AST::ASTKind::IMPORT_SPEC] = handleRestrictedSyntaxNode;
+    disabledSyntaxCheckMap["When"][AST::ASTKind::IMPORT_SPEC] = handleWhen;
     disabledSyntaxCheckMap["Let"][AST::ASTKind::VAR_DECL] = handleLet;
     // Disable check for if-let syntax, such as: if(let Some(v) <- x) {...}
     disabledSyntaxCheckMap["Let"][AST::ASTKind::LET_PATTERN_DESTRUCTOR] = handleRestrictedSyntaxNode;

@@ -71,6 +71,14 @@ void StructuralRuleGDCL01::FuncDeclProcessor(
     // get func param types
     auto types = DynamicCast<FuncTy*>(funcDecl.GetTy());
     if (!types) {
+        auto key = funcDecl.identifier.GetRawText();
+        if (funcContainer.count(key) != 0 && !funcContainer[key].empty()) {
+            Diagnose(funcDecl.identifier.GetRawPos(), funcDecl.identifier.GetRawEndPos(),
+                CodeCheckDiagKind::G_DCL_01_avoid_shadow, key,
+                funcContainer[key].top()->identifier.GetRawPos().line, key,
+                funcDecl.identifier.GetRawPos().line);
+        }
+        funcContainer[key].push(&funcDecl);
         return;
     }
     if (!funcDecl.funcBody) {
@@ -140,10 +148,31 @@ void StructuralRuleGDCL01::TraversingNode(std::vector<OwnedPtr<T>>& node,
     for (auto& decl : node) {
         if (decl->astKind == ASTKind::VAR_DECL) {
             auto pVarDecl = As<ASTKind::VAR_DECL>(decl.get());
+            // Variables and functions share the same declaration namespace. Check
+            // the other category before processing the category-specific stack.
+            auto varId = pVarDecl->identifier.GetRawText();
+            auto funcIt = std::find_if(container[FUNC_DECL].begin(), container[FUNC_DECL].end(),
+                [&varId](const auto& item) {
+                    return !item.second.empty() && item.second.top()->identifier.GetRawText() == varId;
+                });
+            if (funcIt != container[FUNC_DECL].end()) {
+                Diagnose(pVarDecl->identifier.GetRawPos(), pVarDecl->identifier.GetRawEndPos(),
+                    CodeCheckDiagKind::G_DCL_01_avoid_shadow, varId,
+                    funcIt->second.top()->identifier.GetRawPos().line, varId,
+                    pVarDecl->identifier.GetRawPos().line);
+            }
             // collect varDecl info
             VarDeclProcessor(*pVarDecl, container[VAR_DECL], tmpContainer[VAR_DECL], isStaticFunc);
         } else if (decl->astKind == ASTKind::FUNC_DECL) {
             auto pFuncDecl = As<ASTKind::FUNC_DECL>(decl.get());
+            auto funcName = pFuncDecl->identifier.GetRawText();
+            auto varIt = container[VAR_DECL].find(funcName);
+            if (varIt != container[VAR_DECL].end() && !varIt->second.empty()) {
+                Diagnose(pFuncDecl->identifier.GetRawPos(), pFuncDecl->identifier.GetRawEndPos(),
+                    CodeCheckDiagKind::G_DCL_01_avoid_shadow, funcName,
+                    varIt->second.top()->identifier.GetRawPos().line, funcName,
+                    pFuncDecl->identifier.GetRawPos().line);
+            }
             // collect funcDecl info
             FuncDeclProcessor(*pFuncDecl, container[FUNC_DECL]);
         }
