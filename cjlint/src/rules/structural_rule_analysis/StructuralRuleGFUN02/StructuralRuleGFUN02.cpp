@@ -110,8 +110,16 @@ void StructuralRuleGFUN02::EraseItemOfMap(const RefExpr &ref, std::map<std::stri
 {
     auto id = ref.ref.identifier.GetRawText();
     auto iter = paramMap.find(id);
-    if (iter != paramMap.end() && ref.ref.target.get() == iter->second.decl) {
+    if (iter == paramMap.end()) {
+        return;
+    }
+    // A reference to a same-named local variable must not count as parameter use.
+    if (ref.ref.target.get() == iter->second.decl) {
         (void)paramMap.erase(id);
+    } else if (!ref.ref.target) {
+        // Missing imports or semantic errors may leave the target unresolved.
+        // Suppress only this parameter's diagnosis without treating it as definitely used.
+        iter->second.usageUncertain = true;
     }
 }
 void StructuralRuleGFUN02::EraseUsedParams(Ptr<Node> node, std::map<std::string, ParamInfo>& paramMap)
@@ -121,6 +129,14 @@ void StructuralRuleGFUN02::EraseUsedParams(Ptr<Node> node, std::map<std::string,
     }
 
     Walker walker(node, [&paramMap](Ptr<Node> node) -> VisitAction {
+        if (node->IsInvalid() || node->TestAttr(Attribute::IS_BROKEN) ||
+            node->TestAttr(Attribute::HAS_BROKEN)) {
+            // Error recovery may discard parameter references, so all remaining parameters
+            // in this function or lambda become uncertain. Other functions are still checked.
+            for (auto& param : paramMap) {
+                param.second.usageUncertain = true;
+            }
+        }
         match (*node)(
             [&paramMap](const RefExpr& refExpr) {
                 EraseItemOfMap(refExpr, paramMap);
@@ -150,10 +166,10 @@ void StructuralRuleGFUN02::FuncParamFinderHelper(Ptr<Node> node, std::map<std::s
 
     EraseUsedParams(node, paramMap);
 
-    // if the paramMap is not empty that means the param which in map is not be used, throw error.
+    // Remaining parameters have no confirmed use; diagnose only those with reliable usage information.
     if (!paramMap.empty()) {
         for (auto& param : paramMap) {
-            if (param.first == "_") {
+            if (param.first == "_" || param.second.usageUncertain) {
                 continue;
             }
             Diagnose(param.second.begin, param.second.end, CodeCheckDiagKind::G_FUN_02_unused_param_information,

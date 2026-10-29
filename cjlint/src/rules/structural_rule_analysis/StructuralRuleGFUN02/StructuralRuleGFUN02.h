@@ -26,6 +26,8 @@ private:
         Position begin;
         Position end;
         const Cangjie::AST::Node *decl;
+        // Unresolved references or a broken AST prevent a reliable unused-parameter diagnosis.
+        bool usageUncertain = false;
     };
     void FuncParamFinder(Ptr<Cangjie::AST::Node> node);
     void ProcessFuncDecl(const Cangjie::AST::FuncDecl &funcDecl);
