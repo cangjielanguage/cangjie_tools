@@ -16,6 +16,7 @@
 package my_module
 
 public const X16_MACRO: Int64 = 16
+
 public const X17_MACRO: Int64 = 17
 
 @C
@@ -46,6 +47,7 @@ public const X8Mode_X8_A: X8Mode = 0
 
 //!< X10: enum 成员后的尾随 /// 注释（含 */ 载荷），绑定到 X8_B。
 public const X8Mode_X8_B: X8Mode = 1
+
 public const X8Mode_X8_C: X8Mode = 2
 
 public type X8Mode = UInt32
