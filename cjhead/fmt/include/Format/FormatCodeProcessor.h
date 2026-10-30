@@ -336,6 +336,7 @@ private:
     {
         auto fileID = sm.AddSource(path, code);
         auto lexer = Lexer(fileID, code, diag, sm);
+        lexer.SetLocalModeEnabled(true);
         return lexer.GetTokens();
     }
 
