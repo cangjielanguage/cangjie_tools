@@ -324,11 +324,11 @@ public:
             return "";
         }
 
-        Parser parser(inputTokens, diag, sm);
         GlobalOptions globalOptions;
         globalOptions.outputMode = GlobalOptions::OutputMode::CHIR;
         globalOptions.commonPartCjos = {"hasValue"};
-        parser.SetCompileOptions(globalOptions);
+        globalOptions.enableLocalMode = true;
+        Parser parser(inputTokens, diag, sm, false, &globalOptions);
         auto file = parser.ParseTopLevel();
         diag.EmitCategoryGroup();
         if (parser.GetDiagnosticEngine().GetErrorCount() > 0) {
@@ -469,6 +469,7 @@ private:
     {
         auto fileID = sm.AddSource(path, code);
         auto lexer = Lexer(fileID, code, diag, sm);
+        lexer.SetLocalModeEnabled(true);
         return lexer.GetTokens();
     }
 
