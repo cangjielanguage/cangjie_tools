@@ -76,8 +76,8 @@ cjhead 生成普通 API 视图：签名中的参数、返回类型、属性或�
 
 处理含 local 语法的源码时，应使用配套的编译器版本构建 cjhead，并显式传入
 `--enable-local-mode`。此选项默认关闭，普通源码保持原有解析行为；单文件、
-目录和 `-p` 合包模式均适用，宏展开沿用相同开关。输出仍为普通 API 视图，
-不生成带 local 模式的 API 声明。
+目录和 `-p` 合包模式均适用，宏展开沿用相同开关。此选项仅控制输入解析；
+无论是否开启，输出均为普通 API 视图，不导出 local 专属 API 声明。
 
 ## 参数说明
 
@@ -91,7 +91,8 @@ OPTION:
   -p,              Enable package mode, save all content in one package to one file
   --import-path,   Cjo path to scan
   --macro-path,    Macro path to resolve the macro
-  --enable-local-mode,  Accept local mode syntax (default: disabled)
+  --enable-local-mode,  Accept local syntax in input only (default: disabled)
+                       Local-only API declarations are never exported
   --exclude,       Config file describe files not to scan
   -h,              Print help
 ```
