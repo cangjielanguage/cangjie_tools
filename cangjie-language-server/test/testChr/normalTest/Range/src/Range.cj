@@ -17,7 +17,7 @@ let range10 = 0..=10:0 // error: the value of the step should not be zero.
 let range11 = 1..10   // Define an half-open range [1, 10) with step = 1.
 let range12 = 1..=10  // Define a closed range [1, 10] with step = 1.
 let range13 = ..10    // error: the start value is required.
-let range14 = 1..     // error: the end value is required.
+let range14 = 1..;    // error: the end value is required.
 let range15 = ..      // error: the start and end value are required.
 
 let range16: Range<Int64> = 0..10 // Define an half-open range [0,10) with step = 1

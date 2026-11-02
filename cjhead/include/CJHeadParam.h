@@ -20,6 +20,8 @@ struct CJHeadParam {
     std::string macro_path_;
 
     bool package_mode_;
+
+    bool enableLocalMode = false;
 };
 }  // namespace CJHead
 

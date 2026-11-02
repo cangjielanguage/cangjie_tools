@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include "common.h"
+#include "gtest/gtest.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -1267,46 +1268,33 @@ namespace test::common {
     }
 
     nlohmann::json ReadExpectedResult(std::string &baseFile) {
-        nlohmann::json result;
         SingleInstance *p = SingleInstance::GetInstance();
         std::string expectedFile = "";
         AdaptPathTest(baseFile, p, expectedFile);
-        nlohmann::json root;
-        std::string errs;
-        std::ifstream infile;
-        infile.open(expectedFile);
+        std::ifstream infile(expectedFile);
         if (!infile.is_open()) {
-            return result;
+            ADD_FAILURE() << "Cannot open expected result: " << expectedFile;
+            return {};
         }
 
-        while (infile.good() && !infile.eof()) {
-            char buf[MAX_LEN] = {0};
-            infile.getline(buf, MAX_LEN);
-            std::string message = std::string(buf);
-            if (message == "\r") {
+        std::string message;
+        size_t line = 0;
+        while (std::getline(infile, message)) {
+            ++line;
+            if (message.find_first_not_of(" \t\r") == std::string::npos) {
                 continue;
             }
-#ifndef NO_EXCEPTIONS
-            try {
-#endif
-                if (message.empty()) {
-                    continue;
-                }
-                root = nlohmann::json::parse(message);
-#ifndef NO_EXCEPTIONS
-            } catch (nlohmann::detail::parse_error &errs) {
-                continue;
+            // The test executable is also built with -fno-exceptions. Report bad
+            // goldens as failures instead of aborting the remaining test suite.
+            auto root = nlohmann::json::parse(message, nullptr, false);
+            if (root.is_discarded() || !root.is_object() || root.empty()) {
+                ADD_FAILURE() << "Invalid expected JSON object at " << expectedFile << ':' << line;
+                return {};
             }
-#endif
-            if (root.empty()) {
-                continue;
-            }
-            result = root;
-            break;
+            return root;
         }
-        infile.close();
-
-        return result;
+        ADD_FAILURE() << "Expected result is empty: " << expectedFile;
+        return {};
     }
 
     std::vector<ark::DocumentHighlight> ReadExpectedVector(std::string &baseFile) {

@@ -32,7 +32,7 @@ protected:
                 return true;
             }
             if (it->GetTy() && it->GetTy()->kind == AST::TypeKind::TYPE_CLASS) {
-                auto classDecl = StaticCast<AST::ClassTy>(it->GetTy())->decl;
+                auto classDecl = StaticCast<AST::ClassTy*>(it->GetTy().get())->decl;
                 if (declSet.count(classDecl) > 0) {
                     continue;
                 }
@@ -42,7 +42,7 @@ protected:
                 }
             }
             if (it->GetTy() && it->GetTy()->kind == AST::TypeKind::TYPE_INTERFACE) {
-                auto interfaceDecl = StaticCast<AST::InterfaceTy>(it->GetTy())->decl;
+                auto interfaceDecl = StaticCast<AST::InterfaceTy*>(it->GetTy().get())->decl;
                 if (declSet.count(interfaceDecl) > 0) {
                     continue;
                 }

@@ -178,6 +178,7 @@ CompletionItemKind ItemResolverUtil::ResolveKindByASTKind(Cangjie::AST::ASTKind 
             return CompletionItemKind::CIK_VARIABLE;
         case Cangjie::AST::ASTKind::MACRO_EXPAND_DECL:
             return CompletionItemKind::CIK_METHOD;
+        case Cangjie::AST::ASTKind::THIS_PARAM:
         default:
             return CompletionItemKind::CIK_MISSING;
     }
@@ -624,7 +625,7 @@ void ItemResolverUtil::ResolveVarDeclDetail(std::string &detail, const Cangjie::
             detail += ": ";
             detail += ResolveTypeSignature(*decl.type);
         } else {
-            GetDetailByTy(decl.GetTy(), detail);
+            GetDetailByTy(decl.GetTy().get(), detail);
         }
         return;
     }
@@ -1841,7 +1842,7 @@ std::string ItemResolverUtil::GetTypeString(const Cangjie::AST::Type &type)
         [](const RefType &type) {
             if (type.GetTy() && type.TyKind() == Cangjie::AST::TypeKind::TYPE_VARRAY && !type.typeArguments.empty()) {
                 auto paramType = type.typeArguments.begin()->get();
-                auto varrayTy = DynamicCast<VArrayTy>(type.GetTy());
+                auto varrayTy = DynamicCast<VArrayTy>(type.GetTy().Ty());
                 if (!varrayTy || !paramType) {
                     return type.ref.identifier.Val();
                 }

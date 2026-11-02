@@ -69,7 +69,7 @@ void StructuralRuleGDCL01::FuncDeclProcessor(
     FuncDecl& funcDecl, std::map<std::string, std::stack<Decl*>>& funcContainer)
 {
     // get func param types
-    auto types = DynamicCast<FuncTy*>(funcDecl.GetTy());
+    auto types = DynamicCast<FuncTy*>(funcDecl.GetTy().get());
     if (!types) {
         auto key = funcDecl.identifier.GetRawText();
         if (funcContainer.count(key) != 0 && !funcContainer[key].empty()) {
@@ -122,7 +122,7 @@ void StructuralRuleGDCL01::PostVarDeclProcessor(
 void StructuralRuleGDCL01::PostFuncDeclProcessor(
     FuncDecl& funcDecl, std::map<std::string, std::stack<Decl*>>& funcContainer)
 {
-    auto types = DynamicCast<FuncTy*>(funcDecl.GetTy());
+    auto types = DynamicCast<FuncTy*>(funcDecl.GetTy().get());
     if (!types) {
         return;
     }

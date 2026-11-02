@@ -56,33 +56,71 @@ std::unique_ptr<lsp::IndexDatabase> CreateTestIndexDatabase() {
     return std::unique_ptr<lsp::IndexDatabase>();
 }
 
+namespace {
+// InitInstance retains its first callback for the process lifetime. Keep a
+// thread-free callback alive while each fixture's real language server remains
+// short-lived, so repetitions do not retain scheduler threads or dangling pointers.
+class ProjectTestCallbacks : public Callbacks {
+public:
+    std::string publishedFile;
+    int64_t publishedVersion = -1;
+    std::vector<DiagnosticToken> publishedDiagnostics;
+
+    void Reset()
+    {
+        publishedFile.clear();
+        publishedVersion = -1;
+        publishedDiagnostics.clear();
+    }
+
+    std::vector<DiagnosticToken> GetDiagsOfCurFile(std::string) override { return {}; }
+    void UpdateDiagnostic(std::string, DiagnosticToken) override {}
+    void RemoveDiagOfCurPkg(const std::string&) override {}
+    void RemoveDiagOfCurFile(const std::string&) override {}
+    void RemoveUnusedDiagsOfCurFile(const std::string&) override {}
+    void RemoveDiagnostic(std::string, DiagnosticToken) override {}
+    void ReadyForDiagnostics(std::string file, int64_t version, std::vector<DiagnosticToken> diagnostics) override
+    {
+        publishedFile = std::move(file);
+        publishedVersion = version;
+        publishedDiagnostics = std::move(diagnostics);
+    }
+    std::string GetContentsByFile(const std::string&) override { return {}; }
+    int64_t GetVersionByFile(const std::string&) override { return -1; }
+    void RemoveDocByFile(const std::string&) override {}
+    bool NeedReParser(const std::string&) override { return false; }
+    void UpdateDocNeedReparse(const std::string&, int64_t, bool) override {}
+    void AddDocWhenInitCompile(const std::string&) override {}
+    void ReportCjoVersionErr(std::string) override {}
+    void PublishCompletionTip(const CompletionTip&) override {}
+    std::string CreateProgressToken() override { return "project-test"; }
+    void SendWorkDoneProgressCreate(const WorkDoneProgressCreateParams&) override {}
+    void SendWorkDoneProgressBegin(const std::string&, const WorkDoneProgressBegin&) override {}
+    void SendWorkDoneProgressReport(const std::string&, const WorkDoneProgressReport&) override {}
+    void SendWorkDoneProgressEnd(const std::string&, const WorkDoneProgressEnd&) override {}
+};
+
+ProjectTestCallbacks& GetProjectTestCallbacks()
+{
+    static ProjectTestCallbacks callbacks;
+    return callbacks;
+}
+} // namespace
+
 class CompilerCangjieProjectTest : public ::testing::Test {
 protected:
-    void SetUp() override {
-        workspace = "test_workspace";
-        stdLibPath = "test_stdlib";
-        useDB = false;
-
+    void SetUp() override
+    {
+        auto& callbacks = GetProjectTestCallbacks();
+        callbacks.Reset();
+        CompilerCangjieProject::InitInstance(&callbacks, nullptr);
+        ASSERT_EQ(CompilerCangjieProject::GetInstance()->GetCallback(), &callbacks);
         transport = std::make_unique<TestTransport>();
-
-        env = CreateTestEnvironment();
-
-        indexDB = CreateTestIndexDatabase();
-
-        server = std::make_unique<ArkLanguageServer>(*transport, env, indexDB.get());
-
-        CompilerCangjieProject::InitInstance(server.get(), indexDB.get());
+        server = std::make_unique<ArkLanguageServer>(*transport, CreateTestEnvironment(), nullptr);
     }
 
-    void TearDown() override {
-    }
-
-    std::string workspace;
-    std::string stdLibPath;
-    bool useDB;
+    // Destruction order is important: the server references its transport.
     std::unique_ptr<TestTransport> transport;
-    Environment env;
-    std::unique_ptr<lsp::IndexDatabase> indexDB;
     std::unique_ptr<ArkLanguageServer> server;
 };
 
@@ -335,7 +373,9 @@ TEST_F(CompilerCangjieProjectTest, GetDiagCurEditFileTest) {
 
     // Test diagnostics retrieval for current edit file
     CompilerCangjieProject::GetInstance()->GetDiagCurEditFile(file);
-    // Verify diagnostics processing
+    EXPECT_EQ(GetProjectTestCallbacks().publishedFile, file);
+    EXPECT_EQ(GetProjectTestCallbacks().publishedVersion, -1);
+    EXPECT_TRUE(GetProjectTestCallbacks().publishedDiagnostics.empty());
 }
 
 TEST_F(CompilerCangjieProjectTest, UpdateBuffCacheTest) {
