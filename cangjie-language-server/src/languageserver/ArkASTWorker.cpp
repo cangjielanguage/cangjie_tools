@@ -138,13 +138,14 @@ void ArkASTWorker::StartTask(std::string name, std::function<void()> task,
     {
         std::lock_guard<std::mutex> lock(mutex);
 
-        // remove old request with the same name
-        requests.erase(
-            std::remove_if(requests.begin(), requests.end(), [&name, &filePath](const Request& req) {
-                return req.name == name && req.filePath == filePath;
-            }),
-            requests.end()
-        );
+        if (name != "SemanticTokens") {
+            requests.erase(
+                std::remove_if(requests.begin(), requests.end(), [&name, &filePath](const Request& req) {
+                    return req.name == name && req.filePath == filePath;
+                }),
+                requests.end()
+            );
+        }
 
         // Allow this request to be cancelled if invalidated.
         requests.push_back({std::move(task), std::move(name), filePath, needDiag});
