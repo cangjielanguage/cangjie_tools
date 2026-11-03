@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include "CjoManager.h"
+#include "capabilities/diagnostic/InternalImportDiag.h"
 #include "capabilities/diagnostic/UnusedSymbolDiag.h"
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "cangjie/Option/Option.h"
@@ -38,6 +39,16 @@ using namespace Cangjie::Utils;
 using namespace Cangjie::Modules;
 
 namespace {
+bool HasSubPackages(const std::string &pkgPath)
+{
+    for (const auto &dir : GetDirectories(pkgPath)) {
+        if (!GetAllFilesUnderCurrentPath(dir.path, CANGJIE_FILE_EXTENSION()).empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 enum class PkgRelation { NONE, CHILD, SAME_MODULE };
 PkgRelation GetPkgRelation(const std::string &srcFullPackageName, const std::string &targetFullPackageName)
 {
@@ -163,16 +174,7 @@ PkgInfo::PkgInfo(const std::string &pkgPath,
         compilerInvocation->globalOptions.enableMacroInLSP = true;
         compilerInvocation->globalOptions.macroLib = CompilerCangjieProject::GetInstance()->GetMacroLibs();
         compilerInvocation->globalOptions.executablePath = CompilerCangjieProject::GetInstance()->GetCjc();
-        auto dirs = GetDirectories(pkgPath);
-        bool hasSubPkg = false;
-        for (auto &dir : dirs) {
-            auto files = GetAllFilesUnderCurrentPath(dir.path, CANGJIE_FILE_EXTENSION());
-            if (!files.empty()) {
-                hasSubPkg = true;
-                break;
-            }
-        }
-        compilerInvocation->globalOptions.noSubPkg = !hasSubPkg;
+        compilerInvocation->globalOptions.noSubPkg = !HasSubPackages(pkgPath);
         pkgType = packageType;
         if (packageType == PkgType::COMMON) {
             sourceSetName = "common";
@@ -264,6 +266,62 @@ void CompilerCangjieProject::IncrementForFileDelete(const std::string &fileName)
     }
     if (package->files.empty()) {
         ClearCacheForDelete(fullPkgName, isInModule ? dirPath : notInSrcCacheKey, isInModule);
+        if (isInModule) {
+            RefreshParentPackageAfterDelete(dirPath);
+        }
+    }
+}
+
+void CompilerCangjieProject::RefreshParentPackageAfterDelete(const std::string &deletedPackagePath)
+{
+    const auto parentPath = Normalize(GetDirPath(deletedPackagePath));
+    const auto parent = pathToFullPkgName.find(parentPath);
+    if (parent == pathToFullPkgName.end()) {
+        return;
+    }
+    const auto parentPkgName = parent->second;
+    const auto pkg = pkgInfoMap.find(parentPkgName);
+    if (pkg == pkgInfoMap.end()) {
+        return;
+    }
+    auto &pkgInfo = *pkg->second;
+    const bool noSubPkg = !HasSubPackages(parentPath);
+    if (pkgInfo.compilerInvocation->globalOptions.noSubPkg == noSubPkg) {
+        return;
+    }
+
+    // Keep future compilations consistent without invalidating the parent's semantic/CJO cache.
+    pkgInfo.compilerInvocation->globalOptions.noSubPkg = noSubPkg;
+    if (!pLRUCache->HasCache(parentPkgName) || cjoManager->GetStatus(parentPkgName) != DataStatus::FRESH) {
+        return;
+    }
+    auto &ci = pLRUCache->Get(parentPkgName);
+    if (!ci || !ci->importManager) {
+        return;
+    }
+    const auto packages = ci->GetSourcePackages();
+    if (packages.empty() || !packages.front()) {
+        return;
+    }
+
+    std::vector<std::string> files;
+    {
+        std::lock_guard<std::mutex> lock(pkgInfo.pkgInfoMutex);
+        for (const auto &file : pkgInfo.bufferCache) {
+            // Do not publish positions from a stale AST or files removed by a directory deletion.
+            if (!FileExist(file.first) || callback->NeedReParser(file.first)) {
+                return;
+            }
+            files.push_back(file.first);
+        }
+    }
+    if (files.empty()) {
+        return;
+    }
+
+    InternalImportDiag::Refresh(*packages.front(), *ci->importManager, ci->diag, *callback, noSubPkg);
+    for (const auto &file : files) {
+        EmitDiagsOfFile(file);
     }
 }
 

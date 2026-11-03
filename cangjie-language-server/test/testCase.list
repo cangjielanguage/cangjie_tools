@@ -1324,3 +1324,5 @@
 {"rename":{"testFile":"LSP_Rename_UnicodeControlFlow_Reference.test","preId":"5","id":"9"}}
 {"rename":{"testFile":"LSP_Rename_UnicodeControlFlow_ASCII.test","preId":"5","id":"9"}}
 {"references":{"testFile":"LSP_References_UnicodeControlFlow.test","id":"9"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Internal_Import_With_Child.test"}}
+{"diagnostic":{"testFile":"LSP_Diagnostic_Internal_Import_Without_Child.test"}}

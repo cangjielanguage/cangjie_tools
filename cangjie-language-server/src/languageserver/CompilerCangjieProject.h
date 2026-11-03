@@ -665,6 +665,8 @@ private:
 
     void ClearCacheForDelete(const std::string &fullPkgName, const std::string &dirPath, bool isInModule);
 
+    void RefreshParentPackageAfterDelete(const std::string &deletedPackagePath);
+
     bool UpdateDependencies(std::string &fullPkgName, const std::unique_ptr<LSPCompilerInstance> &ci);
 
     bool ParseAndUpdateNotInSrcDep(const std::string &dirPath, const std::unique_ptr<LSPCompilerInstance> &newCI);
