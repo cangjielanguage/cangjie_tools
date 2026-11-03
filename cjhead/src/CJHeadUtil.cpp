@@ -79,6 +79,8 @@ void CJHeadUtil::PrintHelp()
                  "  -p,              Enable package mode, save all content in one package to one file\n"
                  "  --import-path,   Cjo path to scan\n"
                  "  --macro-path,    Macro path to resolve the macro\n"
+                 "  --enable-local-mode,  Accept local syntax in input only (default: disabled)\n"
+                 "                       Local-only API declarations are never exported\n"
                  "  --exclude,       Config file describe files not to scan\n"
                  "  -h,              Print help\n";
 }

@@ -66,6 +66,23 @@
 
 - 宏展开的函数  
 
+### 处理含 local 语法的源码
+
+处理含 local 语法的源码时，使用配套编译器版本构建的 cjhead，并显式传入
+`--enable-local-mode`：
+
+```bash
+cjhead -i <Input Dir> -o <Output Dir> --enable-local-mode
+```
+
+此选项默认关闭，仅控制输入解析；单文件、目录、`-p` 合包及宏展开均适用。
+开启后仍不导出 local 专属声明，其余 API 按原有规则导出：
+
+- 签名的类型或显式 `this` 带 `@local!` / `@local?` 的声明不导出，类型别名
+  及嵌套函数类型中的这些标注也适用。`exclave` 修饰的函数同样不导出。
+- 同名的普通重载、仅在实现体中使用 local 的 API 继续按原有规则导出。
+- `@~local` 按普通模式处理；`demode` 普通字段继续按原有规则导出。
+
 ## 参数说明
 
 ```bash
@@ -78,6 +95,8 @@ OPTION:
   -p,              Enable package mode, save all content in one package to one file
   --import-path,   Cjo path to scan
   --macro-path,    Macro path to resolve the macro
+  --enable-local-mode,  Accept local syntax in input only (default: disabled)
+                       Local-only API declarations are never exported
   --exclude,       Config file describe files not to scan
   -h,              Print help
 ```

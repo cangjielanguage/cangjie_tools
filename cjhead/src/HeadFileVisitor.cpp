@@ -28,6 +28,124 @@ using namespace Cangjie;
 using namespace Cangjie::AST;
 
 namespace CJHead {
+namespace {
+bool HasLocalMode(const ASTModalInfo& modal)
+{
+    return modal.Local() == ASTMode::FULL || modal.Local() == ASTMode::HALF;
+}
+
+bool HasLocalType(ModalTy type, std::unordered_set<Ptr<Ty>>& visited)
+{
+    if (type.Mode().local == Mode::FULL || type.Mode().local == Mode::HALF) {
+        return true;
+    }
+    if (!type || !type.IsCorrect() || !visited.insert(type.Ty()).second) {
+        return false;
+    }
+    // FuncTy includes modal parameter/return types; nominal types include only
+    // their arguments. Do not follow members of a class used by an ordinary API.
+    return std::any_of(type->typeArgs.begin(), type->typeArgs.end(),
+        [&visited](const auto& arg) { return HasLocalType(arg, visited); });
+}
+
+bool HasLocalType(const Type* type)
+{
+    if (!type) {
+        return false;
+    }
+    bool found = false;
+    std::unordered_set<Ptr<Ty>> visited;
+    ConstWalker walker(type, [&found, &visited](Ptr<const Node> node) {
+        auto syntaxType = dynamic_cast<const Type*>(node.get());
+        if (!syntaxType) {
+            return VisitAction::SKIP_CHILDREN;
+        }
+        found = HasLocalMode(syntaxType->modal) || HasLocalType(syntaxType->GetTy(), visited);
+        return found ? VisitAction::STOP_NOW : VisitAction::WALK_CHILDREN;
+    });
+    walker.Walk();
+    return found;
+}
+
+bool HasLocalConstraints(const Generic* generic)
+{
+    if (!generic) {
+        return false;
+    }
+    for (const auto& constraint : generic->genericConstraints) {
+        if (std::any_of(constraint->upperBounds.begin(), constraint->upperBounds.end(),
+            [](const auto& bound) { return HasLocalType(bound.get()); })) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HasLocalSignature(const FuncBody* body)
+{
+    if (!body) {
+        return false;
+    }
+    for (const auto& list : body->paramLists) {
+        if (list->thisParam && HasLocalMode(list->thisParam->modal)) {
+            return true;
+        }
+        if (std::any_of(list->params.begin(), list->params.end(),
+            [](const auto& param) { return HasLocalType(param->type.get()); })) {
+            return true;
+        }
+    }
+    return HasLocalType(body->retType.get()) || HasLocalConstraints(body->generic.get());
+}
+
+bool IsLocalOnlyDeclaration(const Decl* decl)
+{
+    if (!decl) {
+        return false;
+    }
+    if (auto macro = dynamic_cast<const MacroExpandDecl*>(decl)) {
+        return IsLocalOnlyDeclaration(macro->invocation.decl.get());
+    }
+    if (HasLocalConstraints(decl->generic.get())) {
+        return true;
+    }
+    if (auto func = dynamic_cast<const FuncDecl*>(decl)) {
+        if (std::any_of(func->modifiers.begin(), func->modifiers.end(),
+            [](const auto& modifier) { return modifier.modifier == TokenKind::EXCLAVE; })) {
+            return true;
+        }
+        // Check inferred signatures and expanded aliases without following AST
+        // declaration targets, which may already have been pruned in another file.
+        std::unordered_set<Ptr<Ty>> visited;
+        return HasLocalSignature(func->funcBody.get()) ||
+            HasLocalType(func->GetTy().With(ModalInfo{}), visited);
+    }
+    if (auto macro = dynamic_cast<const MacroDecl*>(decl)) {
+        return HasLocalSignature(macro->funcBody.get());
+    }
+    if (auto ctor = dynamic_cast<const PrimaryCtorDecl*>(decl)) {
+        return HasLocalSignature(ctor->funcBody.get());
+    }
+    if (auto var = dynamic_cast<const VarDeclAbstract*>(decl)) {
+        std::unordered_set<Ptr<Ty>> visited;
+        return HasLocalType(var->type.get()) || HasLocalType(var->GetTy(), visited);
+    }
+    if (auto alias = dynamic_cast<const TypeAliasDecl*>(decl)) {
+        return HasLocalType(alias->type.get());
+    }
+    if (auto inheritable = dynamic_cast<const InheritableDecl*>(decl)) {
+        if (std::any_of(inheritable->inheritedTypes.begin(), inheritable->inheritedTypes.end(),
+            [](const auto& type) { return HasLocalType(type.get()); })) {
+            return true;
+        }
+        if (auto extend = dynamic_cast<const ExtendDecl*>(decl)) {
+            return HasLocalType(extend->extendedType.get());
+        }
+    }
+    return false;
+}
+} // namespace
+
 std::unordered_map<std::string, std::string> HeadFileVisitor::typealias_to_content_;
 
 std::unordered_map<std::string, int> HeadFileVisitor::typealias_to_line_;
@@ -94,7 +212,7 @@ void HeadFileVisitor::Run()
                 function_map.insert(x->identifier.Val());
                 return true;
             }
-            return false;
+            return IsLocalOnlyDeclaration(x.get());
         }),
 
         decls.end());
@@ -264,7 +382,9 @@ void HeadFileVisitor::VisitStructDecl(const OwnedPtr<Decl> &decl, const int &dep
         inherited_types.end());
 
     member_decls.erase(
-        std::remove_if(member_decls.begin(), member_decls.end(), [this](auto &x) { return !IsPublic(x); }),
+        std::remove_if(member_decls.begin(), member_decls.end(), [this](auto &x) {
+            return !IsPublic(x) || IsLocalOnlyDeclaration(x.get());
+        }),
         member_decls.end());
 
     for (const auto &member_decl : member_decls) {
@@ -320,7 +440,10 @@ void HeadFileVisitor::VisitClassDecl(const OwnedPtr<Decl> &decl, const int &dept
     member_decls.erase(
         std::remove_if(member_decls.begin(),
             member_decls.end(),
-            [&decl, this](auto &x) { return !(IsPublic(x) || (IsAbstractOrOpen(decl) && IsProtected(x))); }),
+            [&decl, this](auto &x) {
+                return !(IsPublic(x) || (IsAbstractOrOpen(decl) && IsProtected(x))) ||
+                    IsLocalOnlyDeclaration(x.get());
+            }),
         member_decls.end());
 
     member_decls.erase(
@@ -357,6 +480,8 @@ void HeadFileVisitor::VisitInterfaceDecl(const OwnedPtr<Decl> &decl, const int &
             inherited_types.begin(), inherited_types.end(), [this](auto &x) { return x->ToString() == "Object"; }),
         inherited_types.end());
 
+    member_decls.erase(std::remove_if(member_decls.begin(), member_decls.end(),
+        [](const auto& member) { return IsLocalOnlyDeclaration(member.get()); }), member_decls.end());
     for (const auto &member_decl : member_decls) {
         VisitNode(member_decl, depth + 1, true);
     }
@@ -375,7 +500,9 @@ void HeadFileVisitor::VisitEnumDecl(const OwnedPtr<Decl> &decl, const int &depth
         inherited_types.end());
 
     member_decls.erase(
-        std::remove_if(member_decls.begin(), member_decls.end(), [this](auto &x) { return !IsPublic(x); }),
+        std::remove_if(member_decls.begin(), member_decls.end(), [this](auto &x) {
+            return !IsPublic(x) || IsLocalOnlyDeclaration(x.get());
+        }),
         member_decls.end());
 
     for (const auto &member_decl : member_decls) {
@@ -395,7 +522,9 @@ void HeadFileVisitor::VisitEnumDecl(const OwnedPtr<Decl> &decl, const int &depth
 
 void HeadFileVisitor::VisitEnumConstructor(EnumDecl *enum_decl)
 {
-    const std::vector<OwnedPtr<Decl>> &constructors = enum_decl->constructors;
+    auto& constructors = enum_decl->constructors;
+    constructors.erase(std::remove_if(constructors.begin(), constructors.end(),
+        [](const auto& constructor) { return IsLocalOnlyDeclaration(constructor.get()); }), constructors.end());
     std::function<void(const OwnedPtr<Decl> &, size_t)> visit_constructor =
         [&constructors, &enum_decl, this, &visit_constructor](const OwnedPtr<Decl> &cons, size_t index) {
             auto macroCall = GetCurMacro(*cons.get().get());
@@ -423,7 +552,8 @@ void HeadFileVisitor::VisitExtendDecl(const OwnedPtr<Decl> &decl, const int &dep
         member_decls.erase(std::remove_if(member_decls.begin(),
             member_decls.end(),
             [this, &receiver_name](auto &x) {
-                return !(IsPublic(x) || abstract_class.count(receiver_name) != 0 && IsProtected(x));
+                return !(IsPublic(x) || abstract_class.count(receiver_name) != 0 && IsProtected(x)) ||
+                    IsLocalOnlyDeclaration(x.get());
             }),
             member_decls.end());
 
