@@ -46,11 +46,13 @@ public func doBuild(tomlInfo: TomlInfo, buildConfig: BuildConfig, isScriptDep!: 
     appendNativeData(buildConfig, curResolveData)
 
     if (buildConfig.globalConfig.isAnalysisCompilePerformance) {
-        buildConfig.globalConfig.compilePerformanceTargetDir = Path(buildConfig.globalConfig.targetDir).join(COMPILE_PERFORMANCE_DIR).toString()
-        deleteDirectory(buildConfig.globalConfig.compilePerformanceTargetDir)
-        if (!createDirectory(buildConfig.globalConfig.compilePerformanceTargetDir)) {
+        let performanceDir = Path(buildConfig.globalConfig.targetDir).join(COMPILE_PERFORMANCE_DIR).toString()
+        deleteDirectory(performanceDir)
+        if (!createDirectory(performanceDir)) {
             return false
         }
+        // A non-empty path indicates that the performance directory was successfully initialized.
+        buildConfig.globalConfig.compilePerformanceTargetDir = performanceDir
     }
 
     let (ldPath, cLibLinkMap, crossCLibLinkMap, cjPathList) = configureModuleResolveData(
@@ -137,8 +139,13 @@ func recordCjpmBuildStartTime(tomlInfo: TomlInfo) {
 
 func recordCjpmBuildEndTime(tomlInfo: TomlInfo, path: String) {
     if (tomlInfo.profile.build.analysisCompilePerformance) {
+        // Sampling starts before build validation, so stop it even if the build failed early.
         memProcess.cancel()
         memProcess.get()
+        // Early failure may leave the output path empty; skip writing statistics in that case.
+        if (path.isEmpty()) {
+            return
+        }
         var cjpmEndTime = DateTime.now().toUnixTimeStamp().toMilliseconds()
         SHOW_CACHE.add(PkgInfo("cjpm", "E", cjpmEndTime))
         CJPM_COMPILE_INFO.add(cjpmEndTime.toString(),getCoreCompilerMemInfo())
