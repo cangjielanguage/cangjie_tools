@@ -69,6 +69,11 @@ private:
 
     void StartTask(std::string name, std::function<void()> task, NeedDiagnostics needDiag, std::string filePath);
 
+    std::function<void()> CreateASTTask(const std::string &name, const std::string &file,
+        std::function<void(InputsAndAST)> action);
+
+    void PublishSemanticTokenDiagnostics(const std::string &file, int64_t version, ArkAST *ast);
+
     // Helper to unify file id fetching for completion path.
     int GetFileIDForCompletion(const std::string &file) const;
 
