@@ -10,7 +10,7 @@ import cjpm.implement.*
 
 let BENCH_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclude-tags=", "verbose", "no-run", "skip-build",
     "target=", "target-dir=", "jobs=", "no-color", "random-seed=", "member=", "report-format=", "report-path=",
-    "baseline-path=", "skip-script", "module=", "incremental", "dry-run", "show-tags"]
+    "baseline-path=", "skip-script", "module=", "incremental", "dry-run", "show-tags", "compat-version="]
 let BENCH_SHORT_OPTION: String = "gVj:m:i"
 let BENCH_USAGE: String = """
 Build and run benchmarks for all packages.
@@ -32,6 +32,7 @@ Available options:
   -m, --member <value>                    specify a member module of the workspace
   --target <value>                        unittest for the given target platform
   --target-dir <value>                    specify target directory
+  --compat-version <value>                compile benchmarks according to the specified compatibility version
   --dry-run                               print benchmarks without execution
   --filter <value>                        enable filter test
   --include-tags <value>                  run tests with specified tags
@@ -60,6 +61,9 @@ class BenchCommand <: Handle {
 
     public override func handleCommand(): Bool {
         let (argMap, unparseArgs) = getParseOption(this.arguments, BENCH_SHORT_OPTION, BENCH_LONG_OPTION)
+        if (!handleCompatVersionOption(this.arguments, BENCH_SHORT_OPTION, BENCH_LONG_OPTION, argMap)) {
+            return false
+        }
 
         let testConfig = TestCommand.processTestCliOptions(argMap, unparseArgs) ?? return false
 

@@ -15,7 +15,7 @@ public let TEST_LONG_OPTION: Array<String> = ["filter=", "include-tags=", "exclu
     "skip-build", "target=", "target-dir=", "enable-features=", "no-feature-deduce", "coverage", "jobs=", "no-color",
     "random-seed=", "timeout-each=", "parallel=", "member=", "report-format=", "report-path=", "skip-script",
     "no-capture-output", "show-all-output", "module=", "incremental", "dry-run", "no-progress", "progress-brief",
-    "progress-entries-limit=", "show-tags"]
+    "progress-entries-limit=", "show-tags", "compat-version="]
 let TEST_SHORT_OPTION: String = "gVj:m:i"
 let TEST_USAGE: String = """
 Build and run unittest for all packages in current module.
@@ -38,6 +38,7 @@ Available options:
   -m, --member <value>                    specify a member module of the workspace
   --target <value>                        unittest for the given target platform
   --target-dir <value>                    specify target directory
+  --compat-version <value>                compile tests according to the specified compatibility version
   --dry-run                               print tests without execution
   --enable-features <value>               explicitly specify comma-separated list of features to be enabled
   --no-feature-deduce                     disables auto-enabling of features, deduced from other options, machine properties, etc.
@@ -85,7 +86,7 @@ class TestCommand <: Handle {
 
         let options = ["--filter", "--include-tags", "--exclude-tags", "--target", "--target-dir", "--enable-features",
             "--random-seed", "--timeout-each", "--parallel", "--report-path", "--report-format", "--no-progress",
-            "--progress-brief", "--progress-entries-limit"]
+            "--progress-brief", "--progress-entries-limit", "--compat-version"]
         for (val in options) {
             if (unparseArgs.contains(val)) {
                 eprintln("Error: the '${val}' option needs a value")
@@ -98,6 +99,9 @@ class TestCommand <: Handle {
 
     public override func handleCommand(): Bool {
         let (argMap, unparseArgs) = getParseOption(this.arguments, TEST_SHORT_OPTION, TEST_LONG_OPTION)
+        if (!handleCompatVersionOption(this.arguments, TEST_SHORT_OPTION, TEST_LONG_OPTION, argMap)) {
+            return false
+        }
 
         let testConfig = processTestCliOptions(argMap, unparseArgs) ?? return false
 

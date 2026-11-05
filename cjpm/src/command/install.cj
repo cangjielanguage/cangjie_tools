@@ -34,6 +34,7 @@ Available option:
   -j, --jobs <N>            the number of jobs to spawn in parallel during the build process
   --cfg                     enable the customized option 'cfg'
   --target-dir <value>      specify target directory
+  --compat-version <value>  generate artifacts according to the specified compatibility version
   --name <value>            specify product name to install, default to install all products
   --skip-build              install binary in target directory directly without building
   --list                    list all installed modules and their versions
@@ -45,7 +46,7 @@ let INSTALL_TYPE_CONFLICT = "Error: cjpm install can have at most one type of co
     "between name-version(from repository), --git(from git) and --path(local project)"
 let INSTALL_SHORT_OPTION: String = "Vm:gj:"
 let INSTALL_LONG_OPTION: Array<String> = ["verbose", "member=", "path=", "root=", "git=", "branch=", "tag=",
-    "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script"]
+    "commit=", "jobs=", "target-dir=", "skip-build", "list", "name=", "skip-script", "compat-version="]
 
 class InstallCommand <: Handle {
     public var installConfig: InstallConfig = InstallConfig()
@@ -80,7 +81,7 @@ class InstallCommand <: Handle {
         }
 
         let options = ["--target-dir", "-m", "--member", "--path", "--root",
-            "--git", "--branch", "--tag", "--commit", "--name"]
+            "--git", "--branch", "--tag", "--commit", "--name", "--compat-version"]
         for (val in options) {
             if (unparseArgs.contains(val)) {
                 eprintln("Error: the '${val}' option needs a value")
@@ -198,19 +199,8 @@ class InstallCommand <: Handle {
         }
     }
 
-    public override func handleCommand(): Bool {
-        let (argMap, unparseArgs) = getParseOption(this.arguments, INSTALL_SHORT_OPTION, INSTALL_LONG_OPTION)
-
-        if (!handleRoot(argMap, unparseArgs)) {
-            return false
-        }
-
-        if (getBoolOption(argMap, "--list")) {
-            this.installConfig.list = true
-            doInstallList(this.installConfig.root)
-            return true
-        }
-
+    // Parse and validate the remaining install options into installConfig.
+    func handleInstallOptions(argMap: HashMap<String, String>, unparseArgs: Array<String>): Bool {
         if (!handleUnparseArgs(unparseArgs)) {
             return false
         }
@@ -246,6 +236,28 @@ class InstallCommand <: Handle {
                     eprintln("Warning: --target-dir will be ignored when installing central repository modules")
                 }
             case _ => ()
+        }
+        return true
+    }
+
+    public override func handleCommand(): Bool {
+        let (argMap, unparseArgs) = getParseOption(this.arguments, INSTALL_SHORT_OPTION, INSTALL_LONG_OPTION)
+        if (!handleCompatVersionOption(this.arguments, INSTALL_SHORT_OPTION, INSTALL_LONG_OPTION, argMap)) {
+            return false
+        }
+
+        if (!handleRoot(argMap, unparseArgs)) {
+            return false
+        }
+
+        if (getBoolOption(argMap, "--list")) {
+            this.installConfig.list = true
+            doInstallList(this.installConfig.root)
+            return true
+        }
+
+        if (!handleInstallOptions(argMap, unparseArgs)) {
+            return false
         }
 
         return doInstall(this.installConfig)

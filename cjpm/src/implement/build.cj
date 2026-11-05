@@ -549,6 +549,9 @@ func appendCommandOptions(compileTask: CompileTask, ignoreTestFlags!: Bool = fal
     if (compileTask.isCrossCompile) {
         res.add("--target=${crossCompileTarget}")
     }
+    if (!compatVersion.isEmpty()) {
+        res.add("--compat-version=${compatVersion}")
+    }
     if (compileTask.isDebug) {
         res.add("-g")
     }

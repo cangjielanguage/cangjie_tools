@@ -99,6 +99,8 @@ cjlint/
     ./cjlint -h
     ```
 
+    注意：`cjlint` 与其依赖的 `cangjie-lsp` 动态库由同一 SDK 配套发布，二者必须来自同一版本的 `CANGJIE_HOME`，请随 SDK 整体升级，不要将 `cjlint` 与其它版本 SDK 下的动态库混用，否则可能因内部对象布局差异导致行为异常或崩溃。
+
 6. 清理编译中间产物：
 
    ```shell

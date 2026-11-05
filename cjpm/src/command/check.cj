@@ -9,7 +9,6 @@ package cjpm.command
 import cjpm.implement.*
 
 let CHECK_SHORT_OPTION: String = "m:"
-let CHECK_LONG_OPTION: Array<String> = ["member=", "no-tests", "skip-script"]
 
 class CheckCommand <: Handle {
     private let CHECK_USAGE: String = """
@@ -19,16 +18,17 @@ Usage:
   cjpm check [option]
 
 Available option:
-  -m, --member <value>    specify a member module of the workspace
-  -h, --help              help for check
-  --no-tests              exclude the test-dependencies
-  --skip-script           disable script 'build.cj'."""
+  -m, --member <value>      specify a member module of the workspace
+  -h, --help                help for check
+  --no-tests                exclude the test-dependencies
+  --compat-version <value>  check dependencies according to the specified compatibility version
+  --skip-script             disable script 'build.cj'."""
 
     init(args: Array<String>) {
         this.cmdName = args[0]
         this.arguments = args[1..] // remove check itself
         this.shortOptionSpec = CHECK_SHORT_OPTION
-        this.longOptionSpecs = CHECK_LONG_OPTION
+        this.longOptionSpecs = ["member=", "no-tests", "skip-script", "compat-version="]
     }
 
     public override func printHelp(): Unit {
@@ -37,7 +37,7 @@ Available option:
     }
 
     public override func handleCommand(): Bool {
-        let (parseFlag, memberModule, testCheck) = parseOptions(this.arguments)
+        let (parseFlag, memberModule, testCheck) = parseOptions(this.arguments, this.longOptionSpecs)
         if (!parseFlag) {
             return false
         }
@@ -45,16 +45,19 @@ Available option:
     }
 }
 
-func parseOptions(arguments: Array<String>): (Bool, String, Bool) {
+func parseOptions(arguments: Array<String>, longArgList: Array<String>): (Bool, String, Bool) {
     var memberModule = ""
     var testCheck = true
-    let (argMap, unparseArgs) = getParseOption(arguments, CHECK_SHORT_OPTION, CHECK_LONG_OPTION)
+    let (argMap, unparseArgs) = getParseOption(arguments, CHECK_SHORT_OPTION, longArgList)
+    if (!handleCompatVersionOption(arguments, CHECK_SHORT_OPTION, longArgList, argMap)) {
+        return (false, memberModule, testCheck)
+    }
     if (let Some(val) <- handleMemberOption(argMap)) {
         memberModule = val
     } else {
         return (false, memberModule, testCheck)
     }
-    let options = ["-m", "--member"]
+    let options = ["-m", "--member", "--compat-version"]
     for (val in options) {
         if (unparseArgs.contains(val)) {
             eprintln("Error: the '${val}' option needs a value")

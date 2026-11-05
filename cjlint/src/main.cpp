@@ -34,7 +34,7 @@ int main(int argc, char **argv, const char **envp)
     while (i < argc) {
         std::string arg = argv[i];
         if (arg == "-v") {
-            PrintVersion();
+            CjLint::PrintVersion();
             return OK;
         }
         if (arg == "-h") {

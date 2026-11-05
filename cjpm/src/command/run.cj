@@ -12,7 +12,7 @@ import cjpm.config.*
 
 let RUN_SHORT_OPTION: String = "gV"
 let RUN_LONG_OPTION: Array<String> = ["verbose", "skip-build", "name=", "build-args=", "run-args=", "target-dir=",
-    "skip-script", "enable-features=", "no-feature-deduce"]
+    "skip-script", "enable-features=", "no-feature-deduce", "compat-version="]
 
 class RunCommand <: Handle {
     private let RUN_USAGE: String = """
@@ -28,6 +28,7 @@ Available options:
   --skip-build                skip compile, only run the executable product
   --run-args <value>          the arguments to pass to the executable product
   --target-dir <value>        specify target directory
+  --compat-version <value>    generate artifacts according to the specified compatibility version
   --enable-features <value>   explicitly specify comma-separated list of features to be enabled
   --no-feature-deduce         disables auto-enabling of features, deduced from other options, machine properties, etc.
   -g                          enable debug version
@@ -72,6 +73,11 @@ Available options:
             return false
         }
 
+        if (unparseArgs.contains("--compat-version")) {
+            eprintln("Error: the '--compat-version' option needs a value")
+            return false
+        }
+
         if (unparseArgs.contains("--enable-features")) {
             if (state.isExperimental) {
                 eprintln("Error: the '--enable-features' option needs a value")
@@ -92,15 +98,15 @@ Available options:
         return
     }
 
-    public override func handleCommand(): Bool {
-        let allArgs = this.arguments
+    // Split arguments at the first standalone '--': options before it, run arguments after it.
+    func splitRunArgs(allArgs: Array<String>): (Array<String>, ArrayList<String>) {
         var beforeRunArgs: ArrayList<String> = ArrayList<String>()
         var afterRunArgs: ArrayList<String> = ArrayList<String>()
         var isInRange: Bool = false
         for (nowArg in allArgs) {
             if (nowArg == "--" && !isInRange) {
                 isInRange = true
-                continue    
+                continue
             }
 
             if (!isInRange) {
@@ -109,13 +115,29 @@ Available options:
                 afterRunArgs.add(nowArg)
             }
         }
-        let (argMap, unparseArgs) = getParseOption(beforeRunArgs.toArray(), RUN_SHORT_OPTION, RUN_LONG_OPTION)
+        return (beforeRunArgs.toArray(), afterRunArgs)
+    }
 
-        if (!handleUnparseArgs(unparseArgs)) {
-            return false
+    // Parse run-specific options into runConfig; returns false when any option is invalid.
+    // Parses the run options, confirms the compat target and checks unknown arguments in
+    // sequence; returns the run config when all steps pass.
+    func prepareRunOptions(arguments: Array<String>): Option<RunConfig> {
+        let beforeArgs = splitRunArgs(arguments)[0]
+        let (argMap, unparseArgs) = getParseOption(beforeArgs, RUN_SHORT_OPTION, RUN_LONG_OPTION)
+        if (!handleCompatVersionOption(beforeArgs, RUN_SHORT_OPTION, RUN_LONG_OPTION, argMap)) {
+            return None
         }
-
+        if (!handleUnparseArgs(unparseArgs)) {
+            return None
+        }
         let runConfig = RunConfig()
+        if (!handleRunOptions(argMap, splitRunArgs(arguments)[1], runConfig)) {
+            return None
+        }
+        return Some(runConfig)
+    }
+
+    func handleRunOptions(argMap: HashMap<String, String>, afterRunArgs: ArrayList<String>, runConfig: RunConfig): Bool {
         runConfig.isVerbose = getBoolOption(argMap, "-V", "--verbose")
         runConfig.isDebug = getBoolOption(argMap, "-g")
         runConfig.skipBuild = getBoolOption(argMap, "--skip-build")
@@ -151,7 +173,11 @@ Available options:
         } else {
             return false
         }
+        return true
+    }
 
+    public override func handleCommand(): Bool {
+        let runConfig = prepareRunOptions(this.arguments) ?? return false
         if (!execPreRun(runConfig)) {
             return false
         }

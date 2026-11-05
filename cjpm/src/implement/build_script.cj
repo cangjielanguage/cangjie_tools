@@ -227,6 +227,16 @@ func buildScriptExe(scriptConfig: ScriptConfig): Bool {
     let crossCompileBackup: String = crossCompileTarget
     crossCompileTarget = ""
 
+    /*
+     * The compatibility target version applies to the main build only: neither the build.cj body
+     * nor its script-dependencies are compiled with '--compat-version' (design doc 3.3.1).
+     * Neutralize the value while the script scenario builds, so that dependency compilation
+     * (appendCommandOptions) and dependency scanning (scanDependency / scanCjoInfo /
+     * getScriptDepLink) run without the option, consistently with the body of build.cj.
+     */
+    let compatVersionBackup: String = compatVersion
+    compatVersion = ""
+
     let buildConfig = BuildConfig()
     let scriptDeps = getScriptDeps(scriptConfig)
     if (!scriptDeps.isEmpty()) {
@@ -270,6 +280,8 @@ func buildScriptExe(scriptConfig: ScriptConfig): Bool {
     if (checkParentDir(scriptConfig.moduleSrcPath, scriptConfig.scriptPath) && !relocateScript(scriptConfig)) {
         return false
     }
+
+    compatVersion = compatVersionBackup
 
     return writeScriptLock(scriptConfig.modulePath, scriptDeps)
 }
