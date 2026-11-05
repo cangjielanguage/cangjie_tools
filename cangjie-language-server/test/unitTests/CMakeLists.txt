@@ -18,6 +18,7 @@ set(UNIT_TESTS_SRC
         languageserver/capabilities/refactor/IntroduceParameterTest.cpp
         languageserver/capabilities/refactor/RefactorTweakMetadataTest.cpp
         languageserver/capabilities/semanticHighlight/SemanticHighlightImplTest.cpp
+        languageserver/capabilities/diagnostic/InternalImportDiagTest.cpp
         languageserver/common/BasicHelperTest.cpp
         languageserver/common/FindDeclUsageTest.cpp
         languageserver/common/ItemResolverUtilTest.cpp
