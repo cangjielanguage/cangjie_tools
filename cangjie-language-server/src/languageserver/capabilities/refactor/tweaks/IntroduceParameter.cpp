@@ -359,7 +359,7 @@ class IntroduceParameterRule : public TweakRule {
                 std::to_string(static_cast<int>(IntroduceParameter::IntroduceParameterError::INVALID_TYPE))));
             return false;
         }
-        if (selectedExpr && IntroducedParameterTypeBreaksPublicSignature(*funcDecl, selectedExpr->GetTy())) {
+        if (selectedExpr && IntroducedParameterTypeBreaksPublicSignature(*funcDecl, selectedExpr->GetTy().Ty())) {
             extraOptions.insert(std::make_pair("ErrorCode",
                 std::to_string(static_cast<int>(
                     IntroduceParameter::IntroduceParameterError::PUBLIC_DECL_USES_NON_PUBLIC_TYPE))));

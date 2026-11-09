@@ -83,6 +83,30 @@ cjhead/
 
 - 宏展开的函数
 
+### Local Mode 适配
+
+使用方式和导出规则见[用户指南](user_guide.md)。适配分为输入解析和声明过滤
+两部分，维护时需保证二者独立：输入开关不控制是否导出 local 专属声明。
+
+`FileHandler::ParseArguments()` 记录默认关闭的 `--enable-local-mode`。
+两条前端调用路径均将该值传给 `globalOptions.enableLocalMode`，宏展开沿用
+同一 invocation。构建时须使用提供 modal AST 和语义类型接口的匹配编译器
+头文件及前端库。
+
+声明过滤由 `HeadFileVisitor.cpp` 中的 `IsLocalOnlyDeclaration()` 实现：
+
+- 检查类型节点 `Type::modal` 和显式接收者 `thisParam->modal` 的
+  `ASTMode::FULL` / `ASTMode::HALF`，以及函数修饰符中的 `TokenKind::EXCLAVE`。
+- 检查签名中的类型语法，并沿语义类型的 `typeArgs` 递归，覆盖类型别名、
+  推断签名和嵌套函数类型；继承、extend 和泛型约束中的类型同样参与检查。
+- 从实际输出的声明数组中删除命中项，涵盖顶层、各类成员、enum 构造器及
+  宏包装声明。interface 保持隐式 public 规则，其他可见性规则沿用原实现。
+
+过滤不得遍历函数实现体、名义类型的成员或 AST declaration target；否则可能
+误删仅在实现体中使用 local 的 API，或访问已被剪枝的声明。local 过滤也不向
+`function_map` 写入声明名称，避免影响同名类型的 extend。formatter 沿用现有
+实现，不通过省略模式标注将 local 专属声明转换成普通声明。
+
 ## 编译构建
 
 ### 基于源代码构建

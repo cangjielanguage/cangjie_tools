@@ -43,7 +43,7 @@ bool StructuralRuleGNAM03::IsExceptionSubclass(const ClassDecl &classDecl, std::
             return true;
         }
         if (it->GetTy() && it->GetTy()->kind == TypeKind::TYPE_CLASS) {
-            Ptr<ClassDecl> claDecl = StaticCast<ClassTy>(it->GetTy())->decl;
+            Ptr<ClassDecl> claDecl = StaticCast<ClassTy*>(it->GetTy().get())->decl;
             if (declSet.count(claDecl) > 0) {
                 continue;
             }

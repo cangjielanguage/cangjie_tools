@@ -62,6 +62,8 @@ private:
 
     bool package_mode_;
 
+    bool enableLocalMode = false;
+
     std::string input_file_;
 
     std::string import_path_;

@@ -71,7 +71,7 @@ public:
         astMap = std::move(arkAstMap);
     }
 
-    SymbolID GetPrimaryTypeSymbolId(const Ptr<Ty> ty)
+    SymbolID GetPrimaryTypeSymbolId(const DataTy ty)
     {
         if (!ty || !ty->IsPrimitive()) {
             return INVALID_SYMBOL_ID;

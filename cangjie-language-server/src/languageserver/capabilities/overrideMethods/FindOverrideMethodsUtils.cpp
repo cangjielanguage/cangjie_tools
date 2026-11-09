@@ -133,7 +133,7 @@ std::unique_ptr<ClassLikeTypeDetail> ResolveGenericType(const T &t)
     detail->identifier = t.decl->identifier;
     if (t.decl->generic) {
         for (const auto &tyArg : t.typeArgs) {
-            detail->generics.emplace_back(ResolveType(tyArg));
+            detail->generics.emplace_back(ResolveType(tyArg.Ty()));
         }
     }
     return detail;
@@ -143,9 +143,9 @@ std::unique_ptr<FuncLikeTypeDetail> ResolveFuncType(const FuncTy& ty)
 {
     auto detail = std::make_unique<FuncLikeTypeDetail>();
     for (const auto& paramTy: ty.paramTys) {
-        detail->params.emplace_back(ResolveType(paramTy));
+        detail->params.emplace_back(ResolveType(paramTy.Ty()));
     }
-    detail->ret = ResolveType(ty.retTy);
+    detail->ret = ResolveType(ty.retTy.Ty());
     return detail;
 }
 
@@ -156,7 +156,7 @@ std::unique_ptr<VArrayTypeDetail> ResolveVarrayType(const VArrayTy& ty)
         return detail;
     }
     detail->identifier = ty.name;
-    detail->tyArg = ResolveType(ty.typeArgs[0]);
+    detail->tyArg = ResolveType(ty.typeArgs[0].Ty());
     detail->size = ty.size;
     return detail;
 }
@@ -165,7 +165,7 @@ std::unique_ptr<TupleTypeDetail> ResolveTupleType(const TupleTy& ty)
 {
     auto detail = std::make_unique<TupleTypeDetail>();
     for (auto& typeArg: ty.typeArgs) {
-        detail->params.emplace_back(ResolveType(typeArg));
+        detail->params.emplace_back(ResolveType(typeArg.Ty()));
     }
     return detail;
 }
@@ -253,7 +253,7 @@ FuncParamDetailList ResolveFuncParamList(const Ptr<FuncDecl>& funcDecl)
                 continue;
             }
             paramDetail.identifier = identifier;
-            paramDetail.type = ResolveType(param->GetTy());
+            paramDetail.type = ResolveType(param->GetTy().Ty());
             params.isVariadic = paramList->variadicArgIndex > 0;
             params.params.emplace_back(std::move(paramDetail));
         }
@@ -271,7 +271,7 @@ std::unique_ptr<TypeDetail> ResolveFuncRetType(const Ptr<FuncDecl>& funcDecl)
     if (!type) {
         return {};
     }
-    return ResolveType(type->GetTy());
+    return ResolveType(type->GetTy().Ty());
 }
 
 FuncDetail ResolveFuncDetail(const Ptr<FuncDecl>& funcDecl)
@@ -290,7 +290,7 @@ PropDetail ResolvePropDetail(const Ptr<PropDecl>& propDecl)
     PropDetail detail;
     detail.modifiers = ResolveDeclModifiers(propDecl);
     detail.identifier = ResolveDeclIdentifier(propDecl);
-    detail.type = ResolveType(propDecl->GetTy());
+    detail.type = ResolveType(propDecl->GetTy().Ty());
     return detail;
 }
 } // namespace ark

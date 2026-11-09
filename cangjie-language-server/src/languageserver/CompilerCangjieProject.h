@@ -315,7 +315,7 @@ public:
     };
     // LCOV_EXCL_STOP
     std::set<Ptr<Cangjie::AST::ExtendDecl> >
-    GetExtendDecls(const std::variant<Ptr<Cangjie::AST::Ty>, Ptr<Cangjie::AST::InheritableDecl> > &type,
+    GetExtendDecls(const std::variant<Cangjie::AST::ModalTy, Ptr<Cangjie::AST::InheritableDecl> > &type,
                    const std::string& packageName)
     {
         if (!pLRUCache) { return {}; }
@@ -329,7 +329,7 @@ public:
     };
 
     std::vector<Ptr<Cangjie::AST::Decl> >
-    GetAllVisibleExtendMembers(const std::variant<Ptr<Cangjie::AST::Ty>, Ptr<Cangjie::AST::InheritableDecl> > &type,
+    GetAllVisibleExtendMembers(const std::variant<Cangjie::AST::ModalTy, Ptr<Cangjie::AST::InheritableDecl> > &type,
                    const std::string& packageName, const AST::File& curFile)
     {
         if (!pLRUCache) { return {}; }

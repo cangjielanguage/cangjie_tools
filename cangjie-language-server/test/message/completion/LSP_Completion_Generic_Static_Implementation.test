@@ -1,0 +1,7 @@
+{"caseFolder":"normalTest/CompletionGenericStaticImplementation","id":"9"}
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"processId":null,"rootPath":"/completion-contract","rootUri":"file:///completion-contract","capabilities":{"textDocument":{"completion":{"completionItem":{"snippetSupport":true,"deprecatedSupport":true}}}},"initializationOptions":{"multiModuleOption":{"file:///completion-contract":{"name":"completion_generic_static","requires":{}}}}}}
+{"jsonrpc":"2.0","method":"initialized","params":{}}
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///completion-contract/src/main.cj","languageId":"Cangjie","version":1,"text":"// Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.\n// This source file is part of the Cangjie project, licensed under Apache-2.0\n// with Runtime Library Exception.\n//\n// See https://cangjie-lang.cn/pages/LICENSE for license information.\n\npackage completion_generic_static\n\npublic interface StableParsable<T> {\n    static func stableParse(value: String): T\n}\n\nextend Int64 <: StableParsable<Int64> {\n    public static func stableParse(data: String): Int64 { 0 }\n}\n\nmain(): Int64 {\n    Int64.stableParse\n    0\n}\n"}}}
+{"jsonrpc":"2.0","id":9,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///completion-contract/src/main.cj"},"position":{"line":17,"character":21},"context":{"triggerKind":1}}}
+{"jsonrpc":"2.0","id":10,"method":"shutdown","params":{}}
+{"jsonrpc":"2.0","method":"exit","params":{}}

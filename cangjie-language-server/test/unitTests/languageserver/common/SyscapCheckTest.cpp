@@ -11,6 +11,42 @@
 
 using namespace ark;
 
+
+// These production settings are process-wide. Keep every case independent of
+// suite order, other test suites, and --gtest_repeat.
+class SyscapCheckTest : public testing::Test {
+protected:
+    void SetUp() override
+    {
+        previousModules = std::move(SyscapCheck::module2SyscapsMap);
+        previousChecked = SyscapCheck::isChecked;
+        previousDeveco = MessageHeaderEndOfLine::GetIsDeveco();
+        SyscapCheck::module2SyscapsMap.clear();
+        SyscapCheck::isChecked = true;
+        MessageHeaderEndOfLine::SetIsDeveco(true);
+    }
+
+    void TearDown() override
+    {
+        SyscapCheck::module2SyscapsMap = std::move(previousModules);
+        SyscapCheck::isChecked = previousChecked;
+        MessageHeaderEndOfLine::SetIsDeveco(previousDeveco);
+    }
+
+    static void SeedExistingModules()
+    {
+        SyscapCheck::module2SyscapsMap = {
+            {"module1", {}}, {"module2", {}},
+            {"ohos_app_cangjie_module1", {}}, {"ohos_app_cangjie_module2", {}}
+        };
+    }
+
+private:
+    std::unordered_map<std::string, SysCapSet> previousModules;
+    bool previousChecked = false;
+    bool previousDeveco = false;
+};
+
 std::vector<uint8_t> StringToVector(const std::string &str)
 {
     std::vector<uint8_t> input;
@@ -20,7 +56,7 @@ std::vector<uint8_t> StringToVector(const std::string &str)
     return input;
 }
 
-TEST(SyscapCheckTest, ParseJsonStringTest001)
+TEST_F(SyscapCheckTest, ParseJsonStringTest001)
 {
     std::string str = "\"value\"";
     auto input = StringToVector(str);
@@ -30,7 +66,7 @@ TEST(SyscapCheckTest, ParseJsonStringTest001)
     EXPECT_EQ(obj, "value");
 }
 
-TEST(SyscapCheckTest, ParseJsonStringTest002)
+TEST_F(SyscapCheckTest, ParseJsonStringTest002)
 {
     std::string str = "\"value\"";
     auto input = StringToVector(str);
@@ -40,7 +76,7 @@ TEST(SyscapCheckTest, ParseJsonStringTest002)
     EXPECT_EQ(obj, "");
 }
 
-TEST(SyscapCheckTest, ParseJsonStringTest003)
+TEST_F(SyscapCheckTest, ParseJsonStringTest003)
 {
     std::string str = "value\"";
     auto input = StringToVector(str);
@@ -50,7 +86,7 @@ TEST(SyscapCheckTest, ParseJsonStringTest003)
     EXPECT_EQ(obj, "");
 }
 
-TEST(SyscapCheckTest, ParseJsonStringTest004)
+TEST_F(SyscapCheckTest, ParseJsonStringTest004)
 {
     std::string str = "\"value";
     auto input = StringToVector(str);
@@ -60,7 +96,7 @@ TEST(SyscapCheckTest, ParseJsonStringTest004)
     EXPECT_EQ(obj, "value");
 }
 
-TEST(SyscapCheckTest, ParseJsonNumberTest001)
+TEST_F(SyscapCheckTest, ParseJsonNumberTest001)
 {
     std::string str = "100";
     auto input = StringToVector(str);
@@ -70,7 +106,7 @@ TEST(SyscapCheckTest, ParseJsonNumberTest001)
     EXPECT_EQ(obj, 100);
 }
 
-TEST(SyscapCheckTest, ParseJsonNumberTest002)
+TEST_F(SyscapCheckTest, ParseJsonNumberTest002)
 {
     std::string str = "a00";
     auto input = StringToVector(str);
@@ -80,7 +116,7 @@ TEST(SyscapCheckTest, ParseJsonNumberTest002)
     EXPECT_EQ(obj, 0);
 }
 
-TEST(SyscapCheckTest, ParseJsonNumberTest003)
+TEST_F(SyscapCheckTest, ParseJsonNumberTest003)
 {
     std::string str = "10a";
     auto input = StringToVector(str);
@@ -90,7 +126,7 @@ TEST(SyscapCheckTest, ParseJsonNumberTest003)
     EXPECT_EQ(obj, 10);
 }
 
-TEST(SyscapCheckTest, ParseJsonNumberTest004)
+TEST_F(SyscapCheckTest, ParseJsonNumberTest004)
 {
     std::string str = "100";
     auto input = StringToVector(str);
@@ -100,7 +136,7 @@ TEST(SyscapCheckTest, ParseJsonNumberTest004)
     EXPECT_EQ(obj, 0);
 }
 
-TEST(SyscapCheckTest, ParseJsonNumberTest005)
+TEST_F(SyscapCheckTest, ParseJsonNumberTest005)
 {
     std::string str = "*100";
     auto input = StringToVector(str);
@@ -110,7 +146,7 @@ TEST(SyscapCheckTest, ParseJsonNumberTest005)
     EXPECT_EQ(obj, 0);
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest001)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest001)
 {
     std::string str = "]";
     auto input = StringToVector(str);
@@ -119,7 +155,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest001)
     ParseJsonArray(pos, input, value);
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest002)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest002)
 {
     std::string str = "[]";
     auto input = StringToVector(str);
@@ -128,7 +164,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest002)
     ParseJsonArray(pos, input, value);
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest003)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest003)
 {
     std::string str = "[\"array\" ";
     auto input = StringToVector(str);
@@ -137,7 +173,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest003)
     ParseJsonArray(pos, input, value);
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest001)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest001)
 {
     std::string str = R"({
         "key1": "value1",
@@ -154,7 +190,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest001)
     EXPECT_EQ(obj->pairs.size(), 6);
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest002)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest002)
 {
     std::string str = R"({
         "key1": "value1"
@@ -166,7 +202,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest002)
     EXPECT_EQ(obj, nullptr);
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest003)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest003)
 {
     std::string str = R"(
         "key1": "value1"
@@ -178,7 +214,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest003)
     EXPECT_EQ(obj, nullptr);
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest004)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest004)
 {
     std::string str = R"({
         "key1": "value1"
@@ -190,7 +226,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest004)
     EXPECT_EQ(obj->pairs.size(), 1);
 }
 
-TEST(SyscapCheckTest, GetJsonStringTest001)
+TEST_F(SyscapCheckTest, GetJsonStringTest001)
 {
     std::string str = R"({
         "key1": "value1",
@@ -207,7 +243,7 @@ TEST(SyscapCheckTest, GetJsonStringTest001)
     EXPECT_EQ(res.size(), 1);
 }
 
-TEST(SyscapCheckTest, GetJsonStringTest002)
+TEST_F(SyscapCheckTest, GetJsonStringTest002)
 {
     std::string str = R"({
         "key1": "value1",
@@ -224,7 +260,7 @@ TEST(SyscapCheckTest, GetJsonStringTest002)
     EXPECT_EQ(res.size(), 1);
 }
 
-TEST(SyscapCheckTest, GetJsonStringTest003)
+TEST_F(SyscapCheckTest, GetJsonStringTest003)
 {
     std::string str = R"({
     })";
@@ -236,7 +272,7 @@ TEST(SyscapCheckTest, GetJsonStringTest003)
     EXPECT_EQ(res.size(), 0);
 }
 
-TEST(SyscapCheckTest, GetJsonStringTest004)
+TEST_F(SyscapCheckTest, GetJsonStringTest004)
 {
     std::string str = R"({
         "key1": "value1",
@@ -253,7 +289,7 @@ TEST(SyscapCheckTest, GetJsonStringTest004)
     EXPECT_EQ(res.size(), 0);
 }
 
-TEST(SyscapCheckTest, GetJsonObjectTest001)
+TEST_F(SyscapCheckTest, GetJsonObjectTest001)
 {
     std::string str = R"({
         "key1": "value1",
@@ -270,7 +306,7 @@ TEST(SyscapCheckTest, GetJsonObjectTest001)
     EXPECT_EQ(res, nullptr);
 }
 
-TEST(SyscapCheckTest, GetJsonObjectTest002)
+TEST_F(SyscapCheckTest, GetJsonObjectTest002)
 {
     std::string str = R"({
         "key1": "value1",
@@ -287,7 +323,7 @@ TEST(SyscapCheckTest, GetJsonObjectTest002)
     EXPECT_NE(res, nullptr);
 }
 
-TEST(SyscapCheckTest, GetJsonObjectTest003)
+TEST_F(SyscapCheckTest, GetJsonObjectTest003)
 {
     std::string str = R"({
         "key1": "value1",
@@ -304,8 +340,9 @@ TEST(SyscapCheckTest, GetJsonObjectTest003)
     EXPECT_NE(res, nullptr);
 }
 
-TEST(SyscapCheckTest, ParseJsonFileTest001)
+TEST_F(SyscapCheckTest, ParseJsonFileTest001)
 {
+    MessageHeaderEndOfLine::SetIsDeveco(false);
     std::string json = R"({
         "Modules": {
             "module1": {
@@ -321,10 +358,14 @@ TEST(SyscapCheckTest, ParseJsonFileTest001)
     syscapCheck.ParseJsonFile(input);
 
     EXPECT_EQ(syscapCheck.module2SyscapsMap.size(), 2);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap.count("module1"), 1U);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap.count("module2"), 1U);
 }
 
-TEST(SyscapCheckTest, ParseJsonFileTest002)
+TEST_F(SyscapCheckTest, ParseJsonFileTest002)
 {
+    // Parsing in DevEco mode must add prefixed keys without replacing existing plain keys.
+    SyscapCheck::module2SyscapsMap = {{"module1", {}}, {"module2", {}}};
     std::string json = R"({
         "Modules": {
             "module1": {
@@ -341,10 +382,14 @@ TEST(SyscapCheckTest, ParseJsonFileTest002)
     syscapCheck.ParseJsonFile(input);
 
     EXPECT_EQ(syscapCheck.module2SyscapsMap.size(), 4);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap.count("ohos_app_cangjie_module1"), 1U);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap.count("ohos_app_cangjie_module2"), 1U);
 }
 
-TEST(SyscapCheckTest, ParseJsonFileTest003)
+TEST_F(SyscapCheckTest, ParseJsonFileTest003)
 {
+    SeedExistingModules();
+    const auto before = SyscapCheck::module2SyscapsMap;
     std::string json = R"({
         "Modules": {
             "module1": "value1"
@@ -354,11 +399,13 @@ TEST(SyscapCheckTest, ParseJsonFileTest003)
     SyscapCheck syscapCheck;
     syscapCheck.ParseJsonFile(input);
 
-    EXPECT_EQ(syscapCheck.module2SyscapsMap.size(), 4);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap, before);
 }
 
-TEST(SyscapCheckTest, ParseJsonFileTest004)
+TEST_F(SyscapCheckTest, ParseJsonFileTest004)
 {
+    SeedExistingModules();
+    const auto before = SyscapCheck::module2SyscapsMap;
     std::string json = R"({
         "Modules": {}
     })";
@@ -366,10 +413,10 @@ TEST(SyscapCheckTest, ParseJsonFileTest004)
     SyscapCheck syscapCheck;
     syscapCheck.ParseJsonFile(input);
 
-    EXPECT_EQ(syscapCheck.module2SyscapsMap.size(), 4);
+    EXPECT_EQ(syscapCheck.module2SyscapsMap, before);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest001)
+TEST_F(SyscapCheckTest, CheckSysCapTest001)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -389,7 +436,7 @@ TEST(SyscapCheckTest, CheckSysCapTest001)
     EXPECT_TRUE(hasAPILevel);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest002)
+TEST_F(SyscapCheckTest, CheckSysCapTest002)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -407,7 +454,7 @@ TEST(SyscapCheckTest, CheckSysCapTest002)
     EXPECT_TRUE(hasAPILevel);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest003)
+TEST_F(SyscapCheckTest, CheckSysCapTest003)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -429,7 +476,7 @@ TEST(SyscapCheckTest, CheckSysCapTest003)
     EXPECT_TRUE(hasAPILevel);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest004)
+TEST_F(SyscapCheckTest, CheckSysCapTest004)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -447,7 +494,7 @@ TEST(SyscapCheckTest, CheckSysCapTest004)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest005)
+TEST_F(SyscapCheckTest, CheckSysCapTest005)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -463,7 +510,7 @@ TEST(SyscapCheckTest, CheckSysCapTest005)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest006)
+TEST_F(SyscapCheckTest, CheckSysCapTest006)
 {
     auto declNode = new Decl();
     auto annotation = new Annotation();
@@ -483,7 +530,7 @@ TEST(SyscapCheckTest, CheckSysCapTest006)
     EXPECT_FALSE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest007)
+TEST_F(SyscapCheckTest, CheckSysCapTest007)
 {
     const SyscapCheck syscapCheck;
     auto result = syscapCheck.CheckSysCap(nullptr);
@@ -491,7 +538,7 @@ TEST(SyscapCheckTest, CheckSysCapTest007)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest012)
+TEST_F(SyscapCheckTest, CheckSysCapTest012)
 {
     const std::string& syscapName = "syscap1";
     SyscapCheck syscapCheck;
@@ -501,7 +548,7 @@ TEST(SyscapCheckTest, CheckSysCapTest012)
     EXPECT_EQ(res, false);
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest004)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest004)
 {
     // Test parsing array with string values
     std::string str = "[\"value1\", \"value2\"]";
@@ -515,7 +562,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest004)
     EXPECT_EQ(value->valueStr[1], "value2");
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest005)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest005)
 {
     // Test parsing array with object values
     std::string str = "[{\"key\": \"value\"}]";
@@ -528,7 +575,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest005)
     EXPECT_NE(value->valueObj[0], nullptr);
 }
 
-TEST(SyscapCheckTest, ParseJsonArrayTest006)
+TEST_F(SyscapCheckTest, ParseJsonArrayTest006)
 {
     // Test parsing empty array
     std::string str = "[]";
@@ -541,7 +588,7 @@ TEST(SyscapCheckTest, ParseJsonArrayTest006)
     EXPECT_TRUE(value->valueObj.empty());
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest005)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest005)
 {
     // Test parsing object with number values
     std::string str = R"({"numberKey": 123})";
@@ -554,7 +601,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest005)
     EXPECT_EQ(obj->pairs[0]->valueNum[0], 123);
 }
 
-TEST(SyscapCheckTest, ParseJsonObjectTest006)
+TEST_F(SyscapCheckTest, ParseJsonObjectTest006)
 {
     // Test parsing nested objects
     std::string str = R"({"outer": {"inner": "value"}})";
@@ -567,7 +614,7 @@ TEST(SyscapCheckTest, ParseJsonObjectTest006)
     EXPECT_NE(obj->pairs[0]->valueObj[0], nullptr);
 }
 
-TEST(SyscapCheckTest, GetJsonObjectTest004)
+TEST_F(SyscapCheckTest, GetJsonObjectTest004)
 {
     // Test getting nested JSON object
     std::string str = R"({
@@ -585,7 +632,7 @@ TEST(SyscapCheckTest, GetJsonObjectTest004)
     EXPECT_NE(res, nullptr);
 }
 
-TEST(SyscapCheckTest, GetJsonObjectTest005)
+TEST_F(SyscapCheckTest, GetJsonObjectTest005)
 {
     // Test getting non-existent JSON object
     std::string str = R"({"key": "value"})";
@@ -597,7 +644,7 @@ TEST(SyscapCheckTest, GetJsonObjectTest005)
     EXPECT_EQ(res, nullptr);
 }
 
-TEST(SyscapCheckTest, ParseSyscapTest001)
+TEST_F(SyscapCheckTest, ParseSyscapTest001)
 {
     // Test parsing syscap from valid JSON structure
     auto deviceSysCapObj = MakeOwned<JsonObject>();
@@ -612,7 +659,7 @@ TEST(SyscapCheckTest, ParseSyscapTest001)
     EXPECT_TRUE(result.empty());
 }
 
-TEST(SyscapCheckTest, SetIntersectionSetTest001)
+TEST_F(SyscapCheckTest, SetIntersectionSetTest001)
 {
     // Test setting intersection set for existing module
     SyscapCheck::module2SyscapsMap["testModule"] = {"syscap1", "syscap2"};
@@ -625,7 +672,7 @@ TEST(SyscapCheckTest, SetIntersectionSetTest001)
     EXPECT_TRUE(syscapCheck.CheckSysCap("syscap2"));
 }
 
-TEST(SyscapCheckTest, SetIntersectionSetTest002)
+TEST_F(SyscapCheckTest, SetIntersectionSetTest002)
 {
     // Test setting intersection set for non-existent module
     SyscapCheck syscapCheck;
@@ -636,7 +683,7 @@ TEST(SyscapCheckTest, SetIntersectionSetTest002)
     EXPECT_FALSE(syscapCheck.CheckSysCap("anySyscap"));
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest008)
+TEST_F(SyscapCheckTest, CheckSysCapTest008)
 {
     // Test CheckSysCap with non-Decl node
     auto nonDeclNode = MakeOwned<Expr>();
@@ -646,7 +693,7 @@ TEST(SyscapCheckTest, CheckSysCapTest008)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest009)
+TEST_F(SyscapCheckTest, CheckSysCapTest009)
 {
     // Test CheckSysCap with Decl containing non-APILevel annotation
     auto declNode = MakeOwned<Decl>();
@@ -660,7 +707,7 @@ TEST(SyscapCheckTest, CheckSysCapTest009)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest010)
+TEST_F(SyscapCheckTest, CheckSysCapTest010)
 {
     // Test CheckSysCap with APILevel annotation but non-syscap argument
     auto declNode = MakeOwned<Decl>();
@@ -677,7 +724,7 @@ TEST(SyscapCheckTest, CheckSysCapTest010)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest013)
+TEST_F(SyscapCheckTest, CheckSysCapTest013)
 {
     // Test CheckSysCap with nullptr decl parameter
     const SyscapCheck syscapCheck;
@@ -686,7 +733,7 @@ TEST(SyscapCheckTest, CheckSysCapTest013)
     EXPECT_TRUE(result);
 }
 
-TEST(SyscapCheckTest, CheckSysCapTest014)
+TEST_F(SyscapCheckTest, CheckSysCapTest014)
 {
     // Test CheckSysCap with valid syscap name
     SyscapCheck::module2SyscapsMap["testModule"] = {"testSyscap"};

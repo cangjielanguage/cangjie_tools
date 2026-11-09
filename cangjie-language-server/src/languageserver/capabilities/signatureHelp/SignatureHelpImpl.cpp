@@ -528,7 +528,7 @@ int SignatureHelpImpl::GetFuncNameIndex() const
     return -1;
 }
 
-void SignatureHelpImpl::FindFuncDeclByDeclType(Ptr<Ty> declTy, const std::string& funcName)
+void SignatureHelpImpl::FindFuncDeclByDeclType(Cangjie::AST::DataTy declTy, const std::string& funcName)
 {
     auto id = Ty::GetDeclPtrOfTy<InheritableDecl>(declTy);
     if (!id) { return; }
@@ -547,7 +547,7 @@ void SignatureHelpImpl::FindFuncDeclByDeclType(Ptr<Ty> declTy, const std::string
     auto inheritableDecl = DynamicCast<InheritableDecl>(id);
     if (!inheritableDecl) { return; }
     auto extendMembers = CompilerCangjieProject::GetInstance()->GetAllVisibleExtendMembers(
-        declTy, packageNameForPath, *ast->file);
+        Cangjie::AST::ModalTy{declTy}, packageNameForPath, *ast->file);
     for (auto &decl : extendMembers) {
         // LCOV_EXCL_START
         // Make sure extend has access

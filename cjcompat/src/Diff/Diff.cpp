@@ -193,7 +193,7 @@ static std::string GetTypeName(const Ty* ty)
     if (!aliasTy->declPtr || !aliasTy->declPtr->type || !aliasTy->declPtr->type->GetTy()) {
         return Ty::ToString(ty);
     }
-    return GetTypeName(aliasTy->declPtr->type->GetTy());
+    return GetTypeName(aliasTy->declPtr->type->GetTy().get());
 }
 
 static std::string GetExtendTypeName(const AST::ExtendDecl* ed)
@@ -207,7 +207,7 @@ static std::string GetExtendTypeName(const AST::ExtendDecl* ed)
     }
     // The extend type is RefType, and may be an alias type.
     if (ed->extendedType->GetTy() && ed->extendedType->GetTy()->kind == TypeKind::TYPE) {
-        return GetTypeName(ed->extendedType->GetTy());
+        return GetTypeName(ed->extendedType->GetTy().get());
     }
     if (ed->extendedType->astKind != AST::ASTKind::REF_TYPE) {
         return "";
@@ -287,8 +287,8 @@ void Diff::Print() const
         for (auto decl : potentiallyModified) {
             auto first = static_cast<Cangjie::AST::Decl*>(decl.first);
             auto second = static_cast<Cangjie::AST::Decl*>(decl.second);
-            std::cout << "  " << first->identifier << Cangjie::AST::Ty::ToString(first->GetTy()) << " - "
-                      << second->identifier << Cangjie::AST::Ty::ToString(second->GetTy()) << std::endl;
+            std::cout << "  " << first->identifier << Cangjie::AST::Ty::ToString(first->GetTy().Ty()) << " - "
+                      << second->identifier << Cangjie::AST::Ty::ToString(second->GetTy().Ty()) << std::endl;
         }
     }
     std::cout << std::endl;

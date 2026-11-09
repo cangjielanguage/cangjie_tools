@@ -84,6 +84,11 @@ auto FileHandler::ParseArguments() -> bool
             CJHeadUtil::PrintHelp();
             return false;
         }
+        if (arg == "--enable-local-mode") {
+            params.enableLocalMode = true;
+            ++index;
+            continue;
+        }
         if (arg == "-p") {
             params.package_mode_ = true;
             ++index;
@@ -116,6 +121,7 @@ auto FileHandler::ParseArguments() -> bool
         ParseExcludeConfig();
     }
     package_mode_ = params.package_mode_;
+    enableLocalMode = params.enableLocalMode;
     import_path_ = params.import_path_;
     macro_path_ = params.macro_path_;
     return true;
@@ -179,6 +185,7 @@ auto FileHandler::TraverseAllFiles(const fs::path &input_dir) -> bool
         invocation->globalOptions.enableAddCommentToAst = true;
         invocation->globalOptions.enableMacroDebug = true;
         invocation->globalOptions.enableMacroInLSP = true;
+        invocation->globalOptions.enableLocalMode = enableLocalMode;
         auto compiler_instance = std::make_unique<CJHeadCompilerInstance>(*invocation, diag);
         bool is_succeed = compiler_instance->Compile(CompileStage::SEMA);
         auto source_packages = compiler_instance->GetSourcePackages();
@@ -257,6 +264,7 @@ auto FileHandler::HandlePackage(const fs::path &input_dir) -> bool
     invocation->globalOptions.enableAddCommentToAst = true;
     invocation->globalOptions.enableMacroDebug = true;
     invocation->globalOptions.enableMacroInLSP = true;
+    invocation->globalOptions.enableLocalMode = enableLocalMode;
     auto compiler_instance = std::make_unique<CJHeadCompilerInstance>(*invocation, diag);
     bool is_succeed = compiler_instance->Compile(CompileStage::SEMA);
     auto source_packages = compiler_instance->GetSourcePackages();

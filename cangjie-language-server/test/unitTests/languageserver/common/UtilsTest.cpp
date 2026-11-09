@@ -197,51 +197,39 @@ TEST(UtilsTest, UtilsTest020) {
 
 // std::string GetFilterText(const std::string &name, const std::string &prefix)
 TEST(UtilsTest, UtilsTest021) {
-    int argc = 1;
-    const char* argv[] = {"program"};
-    ark::Options::GetInstance().Parse(argc, argv);
-    MessageHeaderEndOfLine::SetIsDeveco(false);
-    std::string name = "testName";
-    std::string prefix = "prefix";
-    std::string expected = prefix + "_" + name;
-    std::string result = GetFilterText(name, prefix);
-    EXPECT_EQ(expected, result);
+    EXPECT_EXIT(([] {
+        const char* argv[] = {"program"};
+        ark::Options::GetInstance().Parse(1, argv);
+        MessageHeaderEndOfLine::SetIsDeveco(false);
+        std::exit(GetFilterText("testName", "prefix") == "prefix_testName" ? 0 : 1);
+    })(), testing::ExitedWithCode(0), "");
 }
 
 TEST(UtilsTest, UtilsTest022) {
-    MessageHeaderEndOfLine::SetIsDeveco(true);
-    int argc = 1;
-    const char* argv[] = {"program"};
-    ark::Options::GetInstance().Parse(argc, argv);
-    std::string name = "testName";
-    std::string prefix = "prefix";
-    std::string expected = name;
-    std::string result = GetFilterText(name, prefix);
-    EXPECT_EQ(expected, result);
+    EXPECT_EXIT(([] {
+        const char* argv[] = {"program"};
+        ark::Options::GetInstance().Parse(1, argv);
+        MessageHeaderEndOfLine::SetIsDeveco(true);
+        std::exit(GetFilterText("testName", "prefix") == "testName" ? 0 : 1);
+    })(), testing::ExitedWithCode(0), "");
 }
 
 TEST(UtilsTest, UtilsTest023) {
-    int argc = 2;
-    const char* argv[] = {"program", "--test"};
-    ark::Options::GetInstance().Parse(argc, argv);
-    MessageHeaderEndOfLine::SetIsDeveco(false);
-    std::string name = "testName";
-    std::string prefix = "prefix";
-    std::string expected = name;
-    std::string result = GetFilterText(name, prefix);
-    EXPECT_EQ(expected, result);
+    EXPECT_EXIT(([] {
+        const char* argv[] = {"program", "--test"};
+        ark::Options::GetInstance().Parse(2, argv);
+        MessageHeaderEndOfLine::SetIsDeveco(false);
+        std::exit(GetFilterText("testName", "prefix") == "testName" ? 0 : 1);
+    })(), testing::ExitedWithCode(0), "");
 }
 
 TEST(UtilsTest, UtilsTest024) {
-    int argc = 2;
-    const char* argv[] = {"program", "--test"};
-    ark::Options::GetInstance().Parse(argc, argv);
-    MessageHeaderEndOfLine::SetIsDeveco(true);
-    std::string name = "testName";
-    std::string prefix = "prefix";
-    std::string expected = name;
-    std::string result = GetFilterText(name, prefix);
-    EXPECT_EQ(expected, result);
+    EXPECT_EXIT(([] {
+        const char* argv[] = {"program", "--test"};
+        ark::Options::GetInstance().Parse(2, argv);
+        MessageHeaderEndOfLine::SetIsDeveco(true);
+        std::exit(GetFilterText("testName", "prefix") == "testName" ? 0 : 1);
+    })(), testing::ExitedWithCode(0), "");
 }
 
 // Range GetNamedFuncArgRange(const Cangjie::AST::Node &node)
@@ -844,8 +832,8 @@ ark::TypeCompatibility CheckTypeCompatibility(Ptr<Ty> a, Ptr<Ty> b) {
 
 struct FakeFuncTy : public Cangjie::AST::FuncTy {
     // Default to empty parameter list, null return, and default Config
-    FakeFuncTy(const std::vector<Ptr<Ty>> &params = {},
-        Ptr<Ty> ret = nullptr,
+    explicit FakeFuncTy(const std::vector<ModalTy> &params = {},
+        ModalTy ret = ModalTy{},
         const Config &cfg = {})
         : FuncTy(params, ret, cfg) {}
 };

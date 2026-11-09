@@ -41,7 +41,7 @@ private:
 
     void FindFunDeclByNode(Cangjie::AST::Node &node);
 
-    void FindFuncDeclByDeclType(Ptr<Cangjie::AST::Ty> declTy, const std::string& funcName);
+    void FindFuncDeclByDeclType(Cangjie::AST::DataTy declTy, const std::string& funcName);
 
     void FillingDeclsInPackage(std::string &packageName, const std::string &funcName,
                                const Cangjie::AST::Node &curNode);

@@ -56,10 +56,10 @@ TEST(FindDeclUsageTest, CheckParamListEqual_SameParamLists) {
 
     // Add identical parameters
     auto param1 = new FuncParam();
-    param1->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param1->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     auto param2 = new FuncParam();
-    param2->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param2->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     srcList->params.emplace_back(param1);
     targetList->params.emplace_back(param2);
@@ -73,13 +73,13 @@ TEST(FindDeclUsageTest, CheckParamListEqual_DifferentParamCount) {
     auto targetList = new FuncParamList();
 
     auto param1 = new FuncParam();
-    param1->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param1->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     auto param2 = new FuncParam();
-    param2->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param2->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     auto param3 = new FuncParam();
-    param3->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    param3->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     srcList->params.emplace_back(param1);
     targetList->params.emplace_back(param2);
@@ -391,8 +391,8 @@ TEST(FindDeclUsageTest, CheckParamListEqual_NullParamType) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->SetTy(nullptr);
-    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
+    srcParam->SetTy(ModalTy{});
+    targetParam->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
 
     srcList->params.emplace_back(srcParam);
     targetList->params.emplace_back(targetParam);
@@ -408,8 +408,8 @@ TEST(FindDeclUsageTest, CheckParamListEqual_DifferentParamTypes) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
-    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT64));
+    srcParam->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
+    targetParam->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT64)}});
 
     srcList->params.emplace_back(srcParam);
     targetList->params.emplace_back(targetParam);
@@ -433,8 +433,8 @@ TEST(FindDeclUsageTest, CheckFunctionEqual_DifferentParamLists) {
     auto srcParam = new FuncParam();
     auto targetParam = new FuncParam();
 
-    srcParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT32));
-    targetParam->SetTy(new PrimitiveTy(TypeKind::TYPE_INT64));
+    srcParam->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT32)}});
+    targetParam->SetTy(ModalTy{DataTy{new PrimitiveTy(TypeKind::TYPE_INT64)}});
 
     srcParamList->params.emplace_back(srcParam);
     targetParamList->params.emplace_back(targetParam);

@@ -3,8 +3,8 @@
     "default": {
       "deviceSysCap": {
         "phone": [
-          "/home/project/open_source/lsp/test/testChr/newFeature/syscapCompletion/sysconfig/phone.json",
-          "/home/project/open_source/lsp/test/testChr/newFeature/syscapCompletion/sysconfig/phone-hmos.json"
+          "/root/workspace/cangjie/modal/cangjie_tools_private/cangjie-language-server/test/testChr/newFeature/syscapCompletion/sysconfig/phone.json",
+          "/root/workspace/cangjie/modal/cangjie_tools_private/cangjie-language-server/test/testChr/newFeature/syscapCompletion/sysconfig/phone-hmos.json"
         ]
       }
     }
