@@ -138,7 +138,7 @@ void ArkASTWorker::StartTask(std::string name, std::function<void()> task,
     {
         std::lock_guard<std::mutex> lock(mutex);
 
-        if (name != "SemanticTokens") {
+        if (name != "SemanticTokens" && name != "DocumentSymbol") {
             requests.erase(
                 std::remove_if(requests.begin(), requests.end(), [&name, &filePath](const Request& req) {
                     return req.name == name && req.filePath == filePath;
@@ -167,7 +167,28 @@ void ArkASTWorker::RunWithAST(const std::string &name,
         this->onEditName = file;
     }
 
-    auto task = [this, file, action = std::move(action), name]() mutable {
+    StartTask(name, CreateASTTask(name, file, std::move(action)), needDiag, file);
+}
+
+void ArkASTWorker::PublishSemanticTokenDiagnostics(const std::string &file, int64_t version, ArkAST *ast)
+{
+    if (FileUtil::FileExist(file)) {
+        if (ast && ast->file && ast->packageInstance &&
+            ast->packageInstance->package) {
+            CompilerCangjieProject::GetInstance()->AnalyzeUnusedSymbolsForFile(
+                file, *ast->file, *ast->packageInstance->package.get());
+        }
+        std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
+        callback->ReadyForDiagnostics(file, version, diagnostics);
+    } else {
+        callback->ReadyForDiagnostics(file, version, {});
+    }
+}
+
+std::function<void()> ArkASTWorker::CreateASTTask(const std::string &name, const std::string &file,
+    std::function<void(InputsAndAST)> action)
+{
+    return [this, file, action = std::move(action), name]() mutable {
         bool needReParser = this->callback->NeedReParser(file);
         bool useASTCache = true;
         ParseInputs inputs;
@@ -211,22 +232,10 @@ void ArkASTWorker::RunWithAST(const std::string &name,
         }
         Logger::Instance().CleanKernelLog(std::this_thread::get_id());
         if (name == "SemanticTokens") {
-            if (FileUtil::FileExist(file)) {
-                if (ast && ast->file && ast->packageInstance &&
-                    ast->packageInstance->package) {
-                    CompilerCangjieProject::GetInstance()->AnalyzeUnusedSymbolsForFile(
-                        file, *ast->file, *ast->packageInstance->package.get());
-                }
-                std::vector<DiagnosticToken> diagnostics = callback->GetDiagsOfCurFile(file);
-                callback->ReadyForDiagnostics(file, inputs.version, diagnostics);
-            } else {
-                callback->ReadyForDiagnostics(file, inputs.version, {});
-            }
+            PublishSemanticTokenDiagnostics(file, inputs.version, ast);
         }
         action(InputsAndAST{inputs, ast, curOnEditName, useASTCache});
     };
-
-    StartTask(name, std::move(task), needDiag, file);
 }
 
 void ArkASTWorker::RunWithASTCache(
