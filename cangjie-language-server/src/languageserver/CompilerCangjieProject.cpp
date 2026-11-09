@@ -468,6 +468,10 @@ void CompilerCangjieProject::ClearDiagnosticsForPkg(const PkgInfo &pkgInfo)
 {
     for (const auto &file : pkgInfo.bufferCache) {
         callback->RemoveDiagOfCurFile(file.first);
+        if (isSingleFileMode) {
+            // Single-file compilation skips BuildIndex, so invalidate unused analysis with its diagnostics.
+            (void)unusedSymbolsAnalyzedFileSet.erase(FileStore::NormalizePath(file.first));
+        }
     }
     if (FileUtil::GetFileExtension(pkgInfo.packagePath) == CANGJIE_FILE_EXTENSION()) {
         return;
