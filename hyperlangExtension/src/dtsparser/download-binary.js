@@ -10,11 +10,11 @@ const https = require('https');
 const { execSync } = require('child_process');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
-const RELEASE_TAG = 'v1.0.0';
+const RELEASE_TAG = 'v0.3.7';
 const BINARY_URLS = {
-    linux: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/ohosV1.3.0-alpha.08/cjbind-linux-x64',
-    win32: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/ohosV1.3.0-alpha.08/cjbind-windows-x64.exe',
-    darwin: 'https://gitcode.com/Cangjie-SIG/cjbind-cangjie/releases/download/ohosV1.3.0-alpha.08/cjbind-darwin-arm64'
+    linux: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.3.7/cjbind-linux-x64-static',
+    win32: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.3.7/cjbind-windows-x64-static.exe',
+    darwin: 'https://gitcode.com/Cangjie-TPC/cjbind/releases/download/v0.3.7/cjbind-darwin-arm64-static'
 };
 
 

@@ -25,10 +25,10 @@
             </filefilter>
             <filefilter name="defaultPolicyFilter" desc="Files that do not need to be applied specified policy, will be merged with the filter items which has the same filefilter name">
                 <filteritem type="filepath" name=".*/doc/.*" desc="doc目录过滤"/>
-
+                <filteritem type="filepath" name="hyperlangExtension/tests/expected/c_module/.*" desc="cjbind生成基线, 排除许可证头检查"/>
             </filefilter>
             <filefilter name="copyrightPolicyFilter" desc="">
-
+                <filteritem type="filepath" name="hyperlangExtension/tests/expected/c_module/.*" desc="cjbind生成基线, 排除版权检查"/>
             </filefilter>
             <filefilter name="readmeFileNamePolicyFilter" desc="Filters for README file policies">
             </filefilter>
