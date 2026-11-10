@@ -85,27 +85,22 @@ cjhead/
 
 ### Local Mode 适配
 
-使用方式和导出规则见[用户指南](user_guide.md)。适配分为输入解析和声明过滤
-两部分，维护时需保证二者独立：输入开关不控制是否导出 local 专属声明。
+用户可见的导出规则见[用户指南](user_guide.md)。`--enable-local-mode` 只传给前端的 `globalOptions.enableLocalMode`，控制能否解析 local 语法，不影响声明过滤；构建时须使用支持 local mode 的配套编译器头文件和前端库。
 
-`FileHandler::ParseArguments()` 记录默认关闭的 `--enable-local-mode`。
-两条前端调用路径均将该值传给 `globalOptions.enableLocalMode`，宏展开沿用
-同一 invocation。构建时须使用提供 modal AST 和语义类型接口的匹配编译器
-头文件及前端库。
+声明过滤由 `HeadFileVisitor.cpp` 中的 `IsLocalOnlyDeclaration()` 统一判定，命中的声明从输出用的声明数组中删除，涵盖顶层声明、各类成员、enum 构造器及宏展开声明。判定只看声明签名，规则如下：
 
-声明过滤由 `HeadFileVisitor.cpp` 中的 `IsLocalOnlyDeclaration()` 实现：
+| 判定依据 | AST 位置 |
+|---|---|
+| 类型节点的模式为 `@ local!` / `@ local?`，即 `Type::modal.Local()` 为 `ASTMode::FULL` / `ASTMode::HALF` | 参数类型、返回类型 `FuncBody::retType`、变量和属性类型、类型别名目标、`InheritableDecl::inheritedTypes`、`ExtendDecl::extendedType`、`GenericConstraint::upperBounds`，并递归检查其中嵌套的类型节点（如函数类型的参数和返回类型） |
+| 显式 `this` 的模式为 `@ local!` / `@ local?` | `FuncParamList::thisParam->modal` |
+| `exclave` 修饰 | `FuncDecl::modifiers` 中的 `TokenKind::EXCLAVE` |
+| 语义类型的模式为 `Mode::FULL` / `Mode::HALF` | `FuncDecl`、`VarDeclAbstract` 的 `GetTy()`，沿 `typeArgs` 递归；用于覆盖推断的返回类型和类型别名展开 |
 
-- 检查类型节点 `Type::modal` 和显式接收者 `thisParam->modal` 的
-  `ASTMode::FULL` / `ASTMode::HALF`，以及函数修饰符中的 `TokenKind::EXCLAVE`。
-- 检查签名中的类型语法，并沿语义类型的 `typeArgs` 递归，覆盖类型别名、
-  推断签名和嵌套函数类型；继承、extend 和泛型约束中的类型同样参与检查。
-- 从实际输出的声明数组中删除命中项，涵盖顶层、各类成员、enum 构造器及
-  宏包装声明。interface 保持隐式 public 规则，其他可见性规则沿用原实现。
+以下内容不参与判定：函数体 `FuncBody::body`、名义类型所引用声明的成员、`Ref` 等引用指向的目标声明。前者避免误删只在实现中使用 local 的 API，后两者避免跨文件访问已被剪枝的声明。未写模式的类型（`ASTMode::NONE`，等价于 `@ ~local`）、显式写 `@ ~local` 的类型（`ASTMode::NOT`）及 `demode` 修饰符不触发过滤。
 
-过滤不得遍历函数实现体、名义类型的成员或 AST declaration target；否则可能
-误删仅在实现体中使用 local 的 API，或访问已被剪枝的声明。local 过滤也不向
-`function_map` 写入声明名称，避免影响同名类型的 extend。formatter 沿用现有
-实现，不通过省略模式标注将 local 专属声明转换成普通声明。
+按模态类型的语言规则，模式只能出现在变量、函数参数和返回值、函数类型以及属性的类型中，其他需要类型的位置只能写数据类型。类型别名目标、enum 构造器参数、extend 的被扩展类型、实例成员变量、泛型实参等位置标注 `@ local!` / `@ local?` 会被编译器拒绝，全局变量和静态成员变量自身只能采用 `@ ~local`（函数类型内部的参数和返回类型除外），cjhead 无需单独处理。父类型和泛型约束上界中的模式目前仍能通过编译，因此保留对 `inheritedTypes` 和 `upperBounds` 的检查。
+
+formatter 输出时不保留模式标注、显式 `this` 和 `exclave`，因此 local 专属声明必须删除，否则会以普通签名输出，并与同名的普通重载重复。
 
 ## 编译构建
 
