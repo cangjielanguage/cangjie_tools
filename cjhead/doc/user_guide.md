@@ -68,20 +68,35 @@
 
 ### 处理含 local 语法的源码
 
-处理含 local 语法的源码时，使用配套编译器版本构建的 cjhead，并显式传入
-`--enable-local-mode`：
+处理含 local 语法的源码时，使用配套编译器版本构建的 cjhead，并显式传入 `--enable-local-mode`：
 
 ```bash
 cjhead -i <Input Dir> -o <Output Dir> --enable-local-mode
 ```
 
-此选项默认关闭，仅控制输入解析；单文件、目录、`-p` 合包及宏展开均适用。
-开启后仍不导出 local 专属声明，其余 API 按原有规则导出：
+local mode 目前是实验特性，编译器前端默认不识别 local 相关语法。只有开启此选项，cjhead 才能解析 `@ local!`、`this @ local?`、`exclave` 等写法，从而识别出需要过滤的 local 专属 API。未开启时，前端会报告 `local mode is disabled`，这些声明无法被正确识别，生成的头文件可能有误，例如推断出 local 返回类型的函数被导出、`demode` 成员变量缺失。
 
-- 签名的类型或显式 `this` 带 `@local!` / `@local?` 的声明不导出，类型别名
-  及嵌套函数类型中的这些标注也适用。`exclave` 修饰的函数同样不导出。
-- 同名的普通重载、仅在实现体中使用 local 的 API 继续按原有规则导出。
-- `@~local` 按普通模式处理；`demode` 普通字段继续按原有规则导出。
+此选项默认关闭，适用于单文件、目录、`-p` 合包及宏展开。开启后 `exclave`、`demode` 成为关键字，因此仅在源码使用 local 语法时开启。此选项不会使 local 专属 API 被导出。
+
+#### 不导出的 API
+
+只要 API 的对外签名需要使用方开启 local 模式才能书写或调用，该 API 就不导出，即使它满足上文的可见性规则。具体包括：
+
+| 情形 | 示例 |
+|---|---|
+| 参数类型或返回类型带 `@ local!` / `@ local?` 的函数、成员函数、构造函数，包括函数类型参数中的标注 | `public func total(xs: Array<Int64> @ local?): Int64`<br>`public func each(f: (String @ local?) -> Unit): Unit` |
+| 显式声明 `this @ local!` / `this @ local?` 的成员函数、构造函数 | `public func size(this @ local?): Int64`<br>`public exclave init(this @ local!, item: String @ local!)` |
+| 类型带 `@ local!` / `@ local?` 的实例成员属性 | `public prop last: Option<T> @ local!` |
+| `exclave` 修饰的函数、构造函数 | `public exclave func redirect(paths: Array<String> @ local!, target: String @ local!): Unit` |
+| 类型为带上述标注的函数类型的全局变量、常量 | `public let handler: (String @ local?) -> Unit = ...` |
+| 未写返回类型、但推断出的返回类型带 `@ local!` / `@ local?` 的函数 | `public func makeSquares(n: Int64) { exclave { Array<Int64>(n, {i => i * i}) @ local! } }` |
+
+以下 API 按原有规则导出：
+
+- 只在函数体内使用 local 的 API，例如函数体内创建 `Array<Int64>(n, {i => i}) @ local!`。头文件不包含函数体。
+- 与不导出的 API 同名的普通重载。例如同时存在 `func f(x: String)` 和 `func f(x: String @ local?)` 时，前者照常导出。
+- 显式写 `@ ~local` 的 API：`@ ~local` 与不写模式等价，生成的头文件中省略该标注。
+- `demode` 修饰的成员变量：生成的头文件中省略 `demode` 修饰符。
 
 ## 参数说明
 
@@ -95,8 +110,7 @@ OPTION:
   -p,              Enable package mode, save all content in one package to one file
   --import-path,   Cjo path to scan
   --macro-path,    Macro path to resolve the macro
-  --enable-local-mode,  Accept local syntax in input only (default: disabled)
-                       Local-only API declarations are never exported
+  --enable-local-mode, Accept local syntax in input; local-only APIs are not exported
   --exclude,       Config file describe files not to scan
   -h,              Print help
 ```

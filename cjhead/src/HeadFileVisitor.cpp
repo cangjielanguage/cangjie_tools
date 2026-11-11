@@ -214,7 +214,6 @@ void HeadFileVisitor::Run()
             }
             return IsLocalOnlyDeclaration(x.get());
         }),
-
         decls.end());
 
     for (const auto &decl : decls) {
