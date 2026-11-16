@@ -260,16 +260,15 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
     res.add(all: allOptions)
 
     let binOptions = ArrayList<String>()
-    binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, linkSort, compileTask), at: 0)
-    binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, linkSort, compileTask), at: 0)
+    binOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), linkSort, compileTask), at: 0)
     res.add(all: binOptions)
 
     let otherBinOptions = ArrayList<String>()
     binDepSet.remove(all: linkSort)
     let compileTarget = compileTask.target
     if (isIosProjectCombineCompileTask(compileTask)) {
-        otherBinOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
-        otherBinOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
+        otherBinOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet,
+            compileTask), at: 0)
         res.add(all: otherBinOptions)
     } else {
         otherBinOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet))
