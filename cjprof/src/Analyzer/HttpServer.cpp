@@ -138,15 +138,13 @@ bool HttpServer::isPortInUse(int port)
     return result != 0;
 }
 
-void HttpServer::start()
+bool HttpServer::start()
 {
     if (running_) {
-        return;
+        return true;
     }
-    running_ = true;
 
     auto svr = std::make_unique<httplib::Server>();
-    serverPtr_ = svr.get();
     auto ctx = context_;
 
     // API routes
@@ -257,12 +255,19 @@ void HttpServer::start()
         }
     });
 
-    serverThread_ = std::thread([this, svr = std::move(svr)]() mutable {
+    if (!svr->bind_to_port("127.0.0.1", port_)) {
+        LOG_ERROR("Failed to bind HTTP server on port {}", port_);
+        return false;
+    }
+    server_ = std::move(svr);
+    running_ = true;
+    serverThread_ = std::thread([this]() {
         LOG_DEBUG("HTTP server starting on port {}", port_);
-        if (!svr->listen("127.0.0.1", port_)) {
+        if (!server_->listen_after_bind()) {
             LOG_ERROR("Failed to start HTTP server on port {}", port_);
         }
     });
+    return true;
 }
 
 void HttpServer::stop()
@@ -271,13 +276,13 @@ void HttpServer::stop()
         return;
     }
     running_ = false;
-    if (serverPtr_) {
-        static_cast<httplib::Server*>(serverPtr_)->stop();
+    if (server_) {
+        server_->stop();
     }
     if (serverThread_.joinable()) {
         serverThread_.join();
     }
-    serverPtr_ = nullptr;
+    server_ = nullptr;
 }
 
 void HttpServer::setContext(std::shared_ptr<HttpContext> ctx)

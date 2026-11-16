@@ -65,6 +65,9 @@ bool LinuxRecorder::Start()
     while (!m_sampleThreads.empty() && !m_stop) {
         int status = 0;
         auto pid = wait(&status);
+        if (pid == -1) {
+            break;
+        }
         if (traceEventChecker(status, PTRACE_EVENT_CLONE)) {
             pid_t spid = 0;
             ptrace(PTRACE_GETEVENTMSG, pid, nullptr, &spid);

@@ -126,6 +126,9 @@ void HprofParserV2::ParseStackTrace(bool verbose)
     }
 
     // V2: frames are fixed u4 (regardless of idSize)
+    if (!CountFitsInRemaining(frameNum, sizeof(u4))) {
+        return;
+    }
     for (size_t i = 0; i < frameNum; i++) {
         m_dataRef.stackTraces[idx].frames.push_back(ReadAndSwap<u4>());
     }
@@ -346,6 +349,9 @@ void HprofParserV1::ParseStackTrace(bool verbose)
     }
 
     // V1: frames are fixed u8
+    if (!CountFitsInRemaining(frameNum, sizeof(u8))) {
+        return;
+    }
     for (size_t i = 0; i < frameNum; i++) {
         m_dataRef.stackTraces[idx].frames.push_back(ReadAndSwap<u8>());
     }
@@ -407,8 +413,10 @@ void HprofParserV1::ParseHeapDumpInstanceDump(bool verbose, ObjectCategory categ
     u8 id = ReadAndSwap<u8>();
     u8 cls = ReadAndSwap<u8>();
     u4 num = ReadAndSwap<u4>();
-
     // V1: values are fixed u8
+    if (!CountFitsInRemaining(num, sizeof(u8))) {
+        return;
+    }
     for (size_t i = 0; i < num; i++) {
         m_dataRef.instances[id].fields.push_back(ReadAndSwap<u8>());
     }
@@ -439,6 +447,9 @@ void HprofParserV1::ParseHeapDumpObjectArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
     m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::OBJECT_ARRAY : category;
+    if (!CountFitsInRemaining(num, sizeof(u8))) {
+        return;
+    }
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }
@@ -468,6 +479,9 @@ void HprofParserV1::ParseHeapDumpStructArrayDump(bool verbose, ObjectCategory ca
     m_dataRef.arrays[id].cls = cls;
     m_dataRef.arrays[id].num = num;
     m_dataRef.objectCategories[id] = category == ObjectCategory::INSTANCE_OBJECT ? ObjectCategory::STRUCT_ARRAY : category;
+    if (!CountFitsInRemaining(num, sizeof(u8))) {
+        return;
+    }
     for (size_t i = 0; i < num; i++) {
         m_dataRef.arrays[id].elements.push_back(ReadAndSwap<u8>());
     }

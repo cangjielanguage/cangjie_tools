@@ -1247,7 +1247,10 @@ bool HeapAnalyzer::StartReportServer(int port)
     // Start server
     HttpServer server(actualPort);
     server.setContext(context);
-    server.start();
+    if (!server.start()) {
+        LOG_ERROR("Failed to start HTTP report server on port {}", actualPort);
+        return false;
+    }
     g_covServerPtr = &server;
 
     // Background cache save (does not block ready time)

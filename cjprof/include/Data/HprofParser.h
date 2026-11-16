@@ -63,6 +63,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
+#include <cstdio>
 #include "Data/HprofData.h"
 
 // Forward declaration
@@ -107,11 +108,13 @@ public:
     void SetData(const std::string &data);
     size_t GetCurPos() const { return m_curPos; }
     void SetCurPos(size_t pos) { m_curPos = pos; }
+    size_t GetDataSize() const { return m_data.size(); }
 
     template <typename T>
     T *ReadAs()
     {
-        return m_data.size() - m_curPos >= sizeof(T) ? (T *)(m_data.data() + m_curPos) : nullptr;
+        return (m_curPos <= m_data.size()) && (m_data.size() - m_curPos >= sizeof(T)) ?
+            (T *)(m_data.data() + m_curPos) : nullptr;
     }
 
     template <typename T>
@@ -159,12 +162,27 @@ public:
     // Helper: read multiple IDs into a vector
     void ReadIdVector(std::vector<ID>& vec, size_t count)
     {
+        if (!CountFitsInRemaining(count, m_dataRef.idSize)) {
+            return;
+        }
         for (size_t i = 0; i < count; i++) {
             vec.push_back(ReadId());
         }
     }
 
 protected:
+    bool CountFitsInRemaining(size_t count, size_t elemSize)
+    {
+        size_t remaining = (m_curPos <= m_data.size()) ? m_data.size() - m_curPos : 0;
+        if ((elemSize != 0) && (count <= remaining / elemSize)) {
+            return true;
+        }
+        fprintf(stderr, "error: Record element count %zu exceeds remaining data at offset 0x%zx.\n",
+            count, m_curPos);
+        m_curPos = m_data.size();
+        return false;
+    }
+
     std::string m_data;        // input data for parsing
     std::string m_outputData;  // output data for generation (WriteAs)
     size_t m_curPos;
