@@ -522,8 +522,12 @@ func appendLinkOption(option: String): Array<String> {
     return []
 }
 
-// Collect bin-dependencies link options for cjpm test (native + cross bin deps).
-func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto: Bool): ArrayList<String> {
+// Collect bin-dependencies link options for cjpm test.
+// A test binary is linked for exactly one platform: cross-compiled tests must use the
+// target-platform table, every other test the host-platform table. There is no fallback
+// across the two tables, mirroring the choice made for regular compile/link tasks.
+func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto: Bool,
+    isCrossCompile: Bool): ArrayList<String> {
     let binOptions = ArrayList<String>()
 
     func appendBinDeps(binDeps: HashMap<String, BinDeps>): Unit {
@@ -541,8 +545,11 @@ func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto
         }
     }
 
-    appendBinDeps(res.binDeps)
-    appendBinDeps(res.crossBinDeps)
+    if (isCrossCompile) {
+        appendBinDeps(res.crossBinDeps)
+    } else {
+        appendBinDeps(res.binDeps)
+    }
     return binOptions
 }
 
@@ -551,7 +558,7 @@ func getLinkList(res: ModuleResolve, fullName: String, requires: HashSet<String>
     let cLibNameList = HashSet<String>()
     let validCommand = ArrayList<String>()
 
-    validCommand.add(all: appendBinOptionForTest(res, requires, testConfig.isLto))
+    validCommand.add(all: appendBinOptionForTest(res, requires, testConfig.isLto, testConfig.isCrossCompile))
 
     for (r in res.resolves) {
         if (!requires.contains(r.fullName) && r.fullName != fullName) {
