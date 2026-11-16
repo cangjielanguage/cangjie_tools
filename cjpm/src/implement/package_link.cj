@@ -13,7 +13,7 @@ import cjpm.config.*
 // Package link argument builders shared by normal build, module combine, and project lto-combine.
 // Used from build.cj (getBuildArgs/getForcedLibArgs), test.cj, and lto-combine root linking.
 
-// iosCombineBitcodeOnly: iOS lto-combine root — link .bc only, no .a/-L/-l fallback.
+// iosCombineBitcodeOnly: iOS static lto-combine root — no native-library fallback.
 func linkPackageImpl(libName: String, libPath: String, isLto: Bool, iosCombineBitcodeOnly: Bool): ArrayList<String> {
     let processedLibName = swapOrgName(libName)
     let res = ArrayList<String>()
@@ -40,7 +40,18 @@ func linkPackageImpl(libName: String, libPath: String, isLto: Bool, iosCombineBi
 
 // Build package link arguments according to the compile task's LTO and iOS combine mode.
 public func linkPackage(libName: String, libPath: String, compileTask: CompileTask): ArrayList<String> {
-    linkPackageImpl(libName, libPath, compileTask.combineFlags.isLto, isIosLtoCombineLinkTask(compileTask))
+    linkPackageImpl(libName, libPath, compileTask.combineFlags.isLto, isIosStaticLtoCombineLinkTask(compileTask))
+}
+
+// A source combined root must use this build's dylib even if older bitcode remains.
+func linkSourcePackage(libName: String, libPath: String, compileTask: CompileTask,
+    buildConfig: BuildConfig): ArrayList<String> {
+    if (isIosLtoCombineLinkTask(compileTask) && buildConfig.superPkgMap.contains(libName) &&
+        buildConfig.superPkgMap[libName].outputType == Dynamic) {
+        // cjc requires -L/-l for dylibs; a positional dylib path is not a link input.
+        return ArrayList<String>(["-L", libPath, "-l${swapOrgName(libName)}"])
+    }
+    linkPackage(libName, libPath, compileTask)
 }
 
 // For test / cross-compile test paths that have no CompileTask.
@@ -63,9 +74,12 @@ public func forcedLinkPackageForLinuxOrWin(libName: String, libPath: String, com
     return linkPackage(libName, libPath, compileTask)
 }
 
-// Build forced-link arguments for Apple targets, preferring native static libraries.
+// Apple native archives use force_load; iOS LTO roots can also consume bitcode directly.
 public func forcedLinkPackageForMac(libName: String, libPath: String, compileTask: CompileTask): ArrayList<String> {
-    if (isIosModuleLtoCombineRootCompileTask(compileTask)) {
+    // Preserve static-module selection; dynamic roots prefer LTO bitcode when available.
+    if ((isIosModuleLtoCombineRootCompileTask(compileTask) && compileTask.outputType == Static) ||
+        (isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic &&
+        fileExists(Path(libPath).join(makeLtoName(swapOrgName(libName)))))) {
         return linkPackage(libName, libPath, compileTask)
     }
     var res = ArrayList<String>()
@@ -206,10 +220,10 @@ func getCLibLinkMap(compileTask: CompileTask, buildConfig: BuildConfig): HashMap
     }
 }
 
-// Append cLib for forced-link flows. Skipped on iOS lto-combine roots (linked in Xcode).
+// Static iOS roots defer native C libraries to the final application link.
 func appendForcedCLibLinkOptions(options: ArrayList<String>, compileTask: CompileTask, buildConfig: BuildConfig,
     cLibNameList: ArrayList<String>): Unit {
-    if (isIosLtoCombineLinkTask(compileTask)) {
+    if (isIosStaticLtoCombineLinkTask(compileTask)) {
         return
     }
     let cLibLinkMap = getCLibLinkMap(compileTask, buildConfig)
@@ -222,7 +236,7 @@ func appendForcedCLibLinkOptions(options: ArrayList<String>, compileTask: Compil
 }
 
 // Link arguments for project lto-combine root (combine-all-deps).
-// Links all LTO bitcode deps, then bin-deps; iOS skips native cLib (linked in Xcode).
+// Links all LTO bitcode deps, then binary and native C dependencies.
 func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
     let res = ArrayList<String>()
     let cLibNameList = ArrayList<String>([compileTask.rootPkgName])
@@ -232,6 +246,10 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
     let binDepSet = HashSet<String>()
     for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
         let depName = buildConfig.packageList.all[index]
+        // The current root is being compiled; its previous output must not be a link input.
+        if (depName == compileTask.fullName) {
+            continue
+        }
         if (linkSort.contains(depName)) {
             linkSort.add(all: getDepSet(depName, buildConfig))
         }
@@ -266,14 +284,15 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
     let otherBinOptions = ArrayList<String>()
     binDepSet.remove(all: linkSort)
     let compileTarget = compileTask.target
-    if (isIosProjectCombineCompileTask(compileTask)) {
+    if (isIosProjectCombineCompileTask(compileTask) && compileTask.outputType == Static) {
         otherBinOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet,
             compileTask), at: 0)
         res.add(all: otherBinOptions)
     } else {
         otherBinOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet))
         appendForcedCLibLinkOptions(otherBinOptions, compileTask, buildConfig, cLibNameList)
-        addForcedLibArgs(res, otherBinOptions, compileTarget)
+        addForcedLibArgs(res, otherBinOptions, compileTarget,
+            iosDynamic: isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic)
     }
 
     return res

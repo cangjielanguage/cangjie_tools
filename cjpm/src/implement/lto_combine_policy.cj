@@ -7,6 +7,7 @@
 package cjpm.implement
 
 import std.collection.*
+import std.fs.Path
 import cjpm.config.*
 
 // LTO/combine validation and user-facing messages, grouped by build pipeline phase:
@@ -18,27 +19,6 @@ import cjpm.config.*
 
 private func combineAllDepsField(rootName: String): String {
     "'package.package-configuration.${rootName}.combine-all-deps = true'"
-}
-
-// Whether LTO is enabled for the current build (root module or workspace members).
-func isBuildLtoConfigured(dm: DepModel): Bool {
-    if (!COMMON_INFO.inWorkspace) {
-        let rootName = dm.globalConfig.rootName
-        if (!dm.depAnalysisEngine.finalDepMap.contains(rootName)) {
-            return false
-        }
-        return isLtoConfiguredInToml(dm.depAnalysisEngine.finalDepMap[rootName].tomlInfo)
-    }
-    for (memberPath in COMMON_INFO.currentMembers) {
-        let canonicalMemberPath = getCanonicalPath(memberPath)
-        for ((_, finalDep) in dm.depAnalysisEngine.finalDepMap) {
-            if (getCanonicalPath(finalDep.tomlInfo.pkg.path) == canonicalMemberPath &&
-                isLtoConfiguredInToml(finalDep.tomlInfo)) {
-                return true
-            }
-        }
-    }
-    false
 }
 
 // Prefer struct lto.level over deprecated string profile.build.lto.
@@ -147,27 +127,67 @@ func validateProjectCombineRootDependency(buildConfig: BuildConfig, depPkgName: 
     true
 }
 
-func validateIosLtoCombineRootOutputType(superPkgName: String, outputType: OutputType,
-    configFilePath: String, isProjectCombine: Bool): Bool {
-    // iOS lto-combine root must be static; linked as native staticlib in Xcode later.
-    if (outputType == Static) {
-        return true
+// Missing combined configuration is an error; falling back to package.output-type would hide it.
+func getConfiguredCombinedOutputType(tomlInfo: TomlInfo, moduleName: String): ?OutputType {
+    let outputType = tomlInfo.profile.build.combined.get(moduleName)
+    if (outputType.isNone()) {
+        eprintln("Error: field 'profile.build.combined.${moduleName}' must be configured in " +
+            "${Path(tomlInfo.pkg.path).join(CONFIG_FILE_NAME)}")
     }
-    if (isProjectCombine) {
-        eprintln("Error: output-type of combined root package '${superPkgName}' in " +
-            "${configFilePath} is not 'static' for iOS " +
-            "when field 'combine-all-deps = true' is valid")
-    } else {
-        eprintln("Error: output-type of combined root package '${superPkgName}' in " +
-            "${configFilePath} is not 'static' for iOS " +
-            "when field 'profile.build.combined' is valid with LTO enabled")
-    }
-    false
+    outputType
 }
 
-func validateIosProjectCombineRootOutputType(superPkgName: String, outputType: OutputType,
-    configFilePath: String): Bool {
-    validateIosLtoCombineRootOutputType(superPkgName, outputType, configFilePath, true)
+// Only iOS project roots choose their output type; other platforms keep dynamic output.
+// For builds without project combine, the returned default is unused.
+func resolveProjectCombineOutputType(buildConfig: BuildConfig, tomlInfo: TomlInfo): ?OutputType {
+    if (!buildConfig.globalConfig.isProjectCombine || !isIosTarget(getCompileTarget())) {
+        return Dynamic
+    }
+    getConfiguredCombinedOutputType(tomlInfo, buildConfig.globalConfig.rootName)
+}
+
+// All selected workspace entries must agree before propagating their combined output type.
+func resolveIosCombinedOutputType(dm: DepModel): ?OutputType {
+    if (!COMMON_INFO.inWorkspace) {
+        let rootName = dm.globalConfig.rootName
+        if (let Some(rootModule) <- dm.depAnalysisEngine.finalDepMap.get(rootName)) {
+            return getConfiguredCombinedOutputType(rootModule.tomlInfo, rootName)
+        }
+        eprintln("Error: cannot find source module '${rootName}' for iOS lto-combine")
+        return None
+    }
+    // Match selected members and resolved modules using canonical paths.
+    let memberPaths = HashSet<String>()
+    for (memberPath in COMMON_INFO.currentMembers) {
+        memberPaths.add(getCanonicalPath(memberPath))
+    }
+    var outputType: ?OutputType = None
+    for ((moduleName, finalDep) in dm.depAnalysisEngine.finalDepMap) {
+        let memberPath = getCanonicalPath(finalDep.tomlInfo.pkg.path)
+        if (!memberPaths.contains(memberPath)) {
+            continue
+        }
+        let memberType = getConfiguredCombinedOutputType(finalDep.tomlInfo, moduleName) ?? return None
+        if (let Some(previousType) <- outputType && previousType != memberType) {
+            eprintln("Error: selected workspace members must configure the same 'profile.build.combined' output type on iOS")
+            return None
+        }
+        outputType = memberType
+        memberPaths.remove(memberPath)
+    }
+    // Remaining paths identify selected members missing from the dependency graph.
+    if (!memberPaths.isEmpty() || outputType.isNone()) {
+        eprintln("Error: cannot resolve all selected workspace members for iOS lto-combine")
+        return None
+    }
+    outputType
+}
+
+func warnIosCombinedOutputType(pkgName: String, outputType: OutputType, combinedType: OutputType): Unit {
+    if (outputType != combinedType) {
+        println("Warning: output-type of combined root package '${pkgName}' is overridden by " +
+            "'profile.build.combined'; final output will be '${combinedType.toString()}'")
+    }
 }
 
 func validateCombinedRootHasSource(superPkgName: String): Bool {
@@ -191,21 +211,20 @@ func warnCombinedRootOutputTypeNotDynamic(superPkgName: String, configFilePath: 
         "final output will be dynamic library")
 }
 
-func isValidCombinedEntry(dm: DepModel, pkgName: String): Bool {
+func isValidCombinedEntry(dm: DepModel, pkgName: String, hasLto: Bool): Bool {
     if (!dm.packageDepMap.contains(pkgName)) {
         return false
     }
     if (dm.packageDepMap[pkgName].isMacroPackage) {
         return false
     }
-    let hasLto = isBuildLtoConfigured(dm)
     if (!supportModuleCombineForCurrentTarget(hasLto)) {
         return false
     }
     true
 }
 
-func reportInvalidCombinedEntry(dm: DepModel, pkgName: String): Unit {
+func reportInvalidCombinedEntry(dm: DepModel, pkgName: String, hasLto: Bool): Unit {
     if (!dm.packageDepMap.contains(pkgName)) {
         eprintln("Error: field 'profile.build.combined' is not supported for root package '${pkgName}' " +
             "which contain no source code for compilation")
@@ -215,7 +234,6 @@ func reportInvalidCombinedEntry(dm: DepModel, pkgName: String): Unit {
         eprintln("Error: field 'profile.build.combined' is not supported for macro root package '${pkgName}'")
         return
     }
-    let hasLto = isBuildLtoConfigured(dm)
     if (isIosTarget(getCompileTarget()) && !hasLto) {
         reportIosCombinedRequiresLto()
         return
@@ -242,11 +260,11 @@ func isCombinedEntryConfigured(dm: DepModel): Bool {
     true
 }
 
-func validateCombinedEntry(dm: DepModel): Bool {
+func validateCombinedEntry(dm: DepModel, hasLto: Bool): Bool {
     var entryValid = true
     if (!COMMON_INFO.inWorkspace) {
-        if (!isValidCombinedEntry(dm, dm.globalConfig.rootName)) {
-            reportInvalidCombinedEntry(dm, dm.globalConfig.rootName)
+        if (!isValidCombinedEntry(dm, dm.globalConfig.rootName, hasLto)) {
+            reportInvalidCombinedEntry(dm, dm.globalConfig.rootName, hasLto)
             entryValid = false
         }
     } else {
@@ -254,8 +272,8 @@ func validateCombinedEntry(dm: DepModel): Bool {
             let canonicalMemberPath = getCanonicalPath(memberPath)
             for ((moduleName, finalDep) in dm.depAnalysisEngine.finalDepMap) {
                 if (getCanonicalPath(finalDep.tomlInfo.pkg.path) == canonicalMemberPath &&
-                    !isValidCombinedEntry(dm, moduleName)) {
-                    reportInvalidCombinedEntry(dm, moduleName)
+                    !isValidCombinedEntry(dm, moduleName, hasLto)) {
+                    reportInvalidCombinedEntry(dm, moduleName, hasLto)
                     entryValid = false
                 }
             }
@@ -270,21 +288,14 @@ func shouldSkipModuleCombineOnPlatform(compileTarget: String, isProjectCombine: 
 
 // Returns modules that should be removed from superPkgMap (macro root or unsupported platform).
 func validateSuperPkgEntries(dm: DepModel, isProjectCombine: Bool, compileTarget: String,
-    configFilePath: String): (Bool, HashSet<String>) {
+    configFilePath: String, hasLto: Bool): (Bool, HashSet<String>) {
     let notSupportSet = HashSet<String>()
     var superPkgInValidFlag = false
-    let hasLto = isBuildLtoConfigured(dm)
     if (!dm.superPkgMap.isEmpty() && isIosTarget(compileTarget) && !isProjectCombine && !hasLto) {
         reportIosCombinedRequiresLto()
         return (false, notSupportSet)
     }
     for ((superPkgName, _) in dm.superPkgMap) {
-        if (isIosTarget(compileTarget) && dm.packageDepMap.contains(superPkgName) &&
-            !validateIosLtoCombineRootOutputType(superPkgName, dm.packageDepMap[superPkgName].outputType,
-                configFilePath, isProjectCombine)) {
-            superPkgInValidFlag = true
-            continue
-        }
         if (!dm.packageDepMap.contains(superPkgName)) {
             superPkgInValidFlag = true
             validateCombinedRootHasSource(superPkgName)

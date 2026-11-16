@@ -1801,7 +1801,8 @@ private func getCompilePackageDesc(compileTask: CompileTask): String {
 }
 
 private func callCompiler(compileTask: CompileTask, args: ArrayList<String>, envBuilder: EnvironmentBuilder, buildConfig: BuildConfig): Bool {
-    var execCmdFlag: Bool = true
+    // Treat launch/wait exceptions (None) as failures; only exit code 0 means success.
+    var execCmdFlag: Bool = false
 
     specifyCjcJobs(args, buildConfig.cjcJobs)
 

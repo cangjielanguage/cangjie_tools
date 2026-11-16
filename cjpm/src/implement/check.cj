@@ -11,7 +11,7 @@ import cjpm.config.*
 
 // Dependency resolve.
 func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false,
-    rootTomlDocument!: ?ModuleTomlDocument = None): (DepModel, Bool, Bool) {
+    rootTomlDocument!: ?ModuleTomlDocument = None, buildRootHasLto!: Bool = false): (DepModel, Bool, Bool) {
     var dm = DepModel(globalConfig)
 
     let (loadFlag, lockFile) = if (isScriptDep) {
@@ -45,7 +45,7 @@ func resolve(globalConfig: GlobalConfig, isScriptDep!: Bool = false,
     // combined is only used in cjpm build
     if (!dm.globalConfig.isPureBuild) {
         dm.superPkgMap.clear()
-    } else if (!applySuperPkgCombineState(dm, globalConfig.isProjectCombine)) {
+    } else if (!applySuperPkgCombineState(dm, globalConfig.isProjectCombine, buildRootHasLto)) {
         // Validate and apply profile.build.combined state (see lto_combine_state.cj).
         return (dm, false, mockUsed)
     }
