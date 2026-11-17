@@ -651,6 +651,18 @@ func getTypeCommand(compileTask: CompileTask, ignoreTestFlags!: Bool = false): A
     return res
 }
 
+// Select the bin-dependency table by the platform the compile task actually builds for:
+// a macro that is executed at compile time is built on the host and must only see host
+// dependencies, while a cross-compiled package must only see target dependencies.
+// There is no fallback across the two tables in either direction.
+func selectBinDepMap(compileTask: CompileTask, buildConfig: BuildConfig): HashMap<String, BinDeps> {
+    if (compileTask.isCrossCompile) {
+        buildConfig.crossBinDepMap
+    } else {
+        buildConfig.binDepMap
+    }
+}
+
 func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
     let res = ArrayList<String>()
     // Record dependent root packages
@@ -712,11 +724,10 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     }
 
     res.add(all: allOptions)
-    let (libPathOptions, binStdDeps) = getLinkOptionForBindep(buildConfig.binDepMap, linkSort, compileTask)
- 	let (crosslibPathOptions, crossbinStdDeps) = getLinkOptionForBindep(buildConfig.crossBinDepMap, linkSort, compileTask)
+    let (libPathOptions, binStdDeps) = getLinkOptionForBindep(selectBinDepMap(compileTask, buildConfig), linkSort,
+        compileTask)
     let binOptions = ArrayList<String>()
     binOptions.add(all: libPathOptions, at: 0)
-    binOptions.add(all: crosslibPathOptions, at: 0)
     res.add(all: binOptions)
     if (!isIosModuleLtoCombineRootCompileTask(compileTask)) {
         res.add(all: getMinimizedCLibLinkStr(getCLibLinkMap(compileTask, buildConfig), cLibNameList))
@@ -724,21 +735,17 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
 
     if (isLinkTask) {
         stdDeps.add(all: binStdDeps)
-        stdDeps.add(all: crossbinStdDeps)
         res.add(all: topoSort(stdDeps).iterator().map { std: String => "-lcangjie-std-${std.removePrefix("std.")}" } |> collectArray)
     }
 
     res
 }
 
-func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
-    let res = ArrayList<String>()
-    let cLibNameList = ArrayList<String>([compileTask.rootPkgName]) // Record dependent root packages
-    let linkSort: HashSet<String> = getDepSet(compileTask, buildConfig) // Record dependent package names
-
-    let allOptions = ArrayList<String>()
+// Collect forced link options of the sub packages that are not required by the main package,
+// and the bin-dependencies they introduce (see the comment on `binDepSet` in `getForcedLibArgs`).
+func collectForcedLibOptions(compileTask: CompileTask, buildConfig: BuildConfig, linkSort: HashSet<String>,
+    allOptions: ArrayList<String>, binDepSet: HashSet<String>): Unit {
     let libPathSet = HashSet<String>()
-    let binDepSet = HashSet<String>()
     let forcedLibSet: HashSet<String> = HashSet<String>(compileTask.subPkgSet)
     for (forcedLib in compileTask.subPkgSet) {
         forcedLibSet.add(all: getDepSet(forcedLib, buildConfig))
@@ -765,6 +772,16 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
         }
         binDepSet.add(all: getDepSet(depName, buildConfig))
     }
+}
+
+func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
+    let res = ArrayList<String>()
+    let cLibNameList = ArrayList<String>([compileTask.rootPkgName]) // Record dependent root packages
+    let linkSort: HashSet<String> = getDepSet(compileTask, buildConfig) // Record dependent package names
+
+    let allOptions = ArrayList<String>()
+    let binDepSet = HashSet<String>()
+    collectForcedLibOptions(compileTask, buildConfig, linkSort, allOptions, binDepSet)
 
     // If a binary artifact is depended by the main package directly or indirectly, it will be collected by `getBuildArgs`.
     // But if it's also depended by a child package which is not depended by the main package directly or indirectly,
@@ -772,8 +789,8 @@ func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): Array
     // So we should remove it from `binDepSet` because we only need link it once.
     binDepSet.remove(all: linkSort)
     if (isIosModuleLtoCombineRootCompileTask(compileTask)) {
-        allOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
-        allOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
+        allOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet, compileTask),
+            at: 0)
         addForcedLibArgs(res, allOptions, compileTask.target)
         return res
     }
@@ -804,15 +821,13 @@ func getForcedBinDep(compileTask: CompileTask, buildConfig: BuildConfig, binDepS
 func getForcedBinDepForLinuxOrWin(compileTask: CompileTask, buildConfig: BuildConfig,
     binDepSet: HashSet<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
-    binOptions.add(all: appendOptionForBindep(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
-    binOptions.add(all: appendOptionForBindep(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
+    binOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet, compileTask), at: 0)
     return binOptions
 }
 
 func getForcedBinDepForMac(compileTask: CompileTask, buildConfig: BuildConfig, binDepSet: HashSet<String>): ArrayList<String> {
     var binOptions = ArrayList<String>()
-    binOptions.add(all: getForcedBinDepPath(buildConfig.binDepMap, binDepSet, compileTask), at: 0)
-    binOptions.add(all: getForcedBinDepPath(buildConfig.crossBinDepMap, binDepSet, compileTask), at: 0)
+    binOptions.add(all: getForcedBinDepPath(selectBinDepMap(compileTask, buildConfig), binDepSet, compileTask), at: 0)
     return binOptions
 }
 
