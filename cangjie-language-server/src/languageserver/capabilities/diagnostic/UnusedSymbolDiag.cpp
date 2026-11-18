@@ -42,9 +42,10 @@ namespace {
 }
 
 namespace {
-bool MatchesRawUnusedDiagnostic(Ptr<const Decl> decl, const DiagnosticToken& diagnostic, const ArkAST& ast)
+bool MatchesUnusedVarOrRawDiagnostic(Ptr<const Decl> decl, const DiagnosticToken& diagnostic, const ArkAST& ast)
 {
-    if (!decl || !decl->identifier.IsRaw() || decl->curMacroCall || decl->isInMacroCall ||
+    if (!decl || (!decl->identifier.IsRaw() && decl->astKind != ASTKind::VAR_DECL) ||
+        decl->curMacroCall || decl->isInMacroCall ||
         decl->identifier.Begin().fileID != ast.fileID) {
         return false;
     }
@@ -59,7 +60,7 @@ bool MatchesRawUnusedDiagnostic(Ptr<const Decl> decl, const DiagnosticToken& dia
         diagnostic.message.find("'" + name + "'") != std::string::npos;
 }
 
-std::optional<int> GetRawUnusedDiagnosticLength(const DiagnosticToken& diagnostic, const ArkAST& ast)
+std::optional<int> GetUnusedVarOrRawNameLength(const DiagnosticToken& diagnostic, const ArkAST& ast)
 {
     if (!diagnostic.diagFix || !diagnostic.diagFix->removeUnusedSymbol || !ast.sourceManager || !ast.file) {
         return std::nullopt;
@@ -67,7 +68,7 @@ std::optional<int> GetRawUnusedDiagnosticLength(const DiagnosticToken& diagnosti
     std::optional<int> length;
     ConstWalker(ast.file, [&](Ptr<const Node> node) {
         auto decl = DynamicCast<const Decl*>(node);
-        if (!MatchesRawUnusedDiagnostic(decl, diagnostic, ast)) {
+        if (!MatchesUnusedVarOrRawDiagnostic(decl, diagnostic, ast)) {
             return VisitAction::WALK_CHILDREN;
         }
         const auto begin = decl->identifier.Begin();
@@ -77,7 +78,8 @@ std::optional<int> GetRawUnusedDiagnosticLength(const DiagnosticToken& diagnosti
             return VisitAction::WALK_CHILDREN;
         }
         const auto sourceName = ast.sourceManager->GetContentBetween(begin, end);
-        if (sourceName.empty() || sourceName.size() != static_cast<size_t>(end.column - begin.column)) {
+        if (sourceName.empty() || sourceName.size() != static_cast<size_t>(end.column - begin.column) ||
+            (!decl->identifier.IsRaw() && sourceName == decl->identifier.Val())) {
             return VisitAction::WALK_CHILDREN;
         }
         length = CountUnicodeCharacters(sourceName);
@@ -86,20 +88,23 @@ std::optional<int> GetRawUnusedDiagnosticLength(const DiagnosticToken& diagnosti
     return length;
 }
 
-void UpdateRawUnusedDiagnosticRanges(std::vector<DiagnosticToken>& diagnostics, const std::string& filePath)
+void UpdateUnusedVarOrRawNameRanges(std::vector<DiagnosticToken>& diagnostics, const std::string& filePath)
 {
     if (diagnostics.empty()) {
         return;
     }
     auto* project = CompilerCangjieProject::GetInstance();
     auto* ast = project ? project->GetArkAST(filePath) : nullptr;
-    if (!ast || !std::any_of(ast->tokens.begin(), ast->tokens.end(), [](const Token& token) {
-        return token.Value().find('`') != std::string::npos;
-    })) {
+    if (!ast) {
         return;
     }
     for (auto& diagnostic : diagnostics) {
-        if (auto length = GetRawUnusedDiagnosticLength(diagnostic, *ast)) {
+        if (std::all_of(diagnostic.message.begin(), diagnostic.message.end(), [](unsigned char ch) {
+            return ch < 0x80;
+        })) {
+            continue;
+        }
+        if (auto length = GetUnusedVarOrRawNameLength(diagnostic, *ast)) {
             // Use the source spelling for the length without changing the diagnostic start.
             diagnostic.range.end.column = diagnostic.range.start.column + *length;
         }
@@ -357,7 +362,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::Analyze(
         return true;
     });
 
-    UpdateRawUnusedDiagnosticRanges(diagnostics, filePath);
+    UpdateUnusedVarOrRawNameRanges(diagnostics, filePath);
     return diagnostics;
 }
 
@@ -784,7 +789,7 @@ std::vector<DiagnosticToken> UnusedSymbolDiag::AnalyzeLocalSymbols(
         };
 
     Walker(const_cast<File*>(&file), collector).Walk();
-    UpdateRawUnusedDiagnosticRanges(diagnostics, file.filePath);
+    UpdateUnusedVarOrRawNameRanges(diagnostics, file.filePath);
     return diagnostics;
 }
 
