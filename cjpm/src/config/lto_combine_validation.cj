@@ -32,10 +32,10 @@ public func verifyCombinedField(cfg: TomlInfo, path: String): Bool {
             continue
         }
         if (isIosTarget(compileTarget)) {
-            // iOS only supports module lto-combine (static root). LTO may live on the build root toml.
-            if (outputType != Static) {
+            // LTO may live on the build root toml.
+            if (outputType != Static && outputType != Dynamic) {
                 eprintln("Error: field 'profile.build.combined.${cfg.pkg.name}' in " +
-                    "${configFilePath} must be configured as 'static' on iOS")
+                    "${configFilePath} must be configured as 'static' or 'dynamic' on iOS")
                 flag = false
                 continue
             }

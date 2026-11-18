@@ -283,8 +283,9 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
     rootTomlDocument!: ?ModuleTomlDocument = None): Option<ModuleResolve> {
     buildConfig.globalConfig.customizedOption = buildConfig.customizedOption
     buildConfig.globalConfig.isForScript = isScriptDep
+    // Use the same build-root LTO setting for dependency validation and compiler configuration.
     let (dm, flag, _) = resolve(buildConfig.globalConfig, isScriptDep: isScriptDep,
-        rootTomlDocument: rootTomlDocument)
+        rootTomlDocument: rootTomlDocument, buildRootHasLto: isLtoConfiguredInToml(tomlInfo))
     if (!flag) {
         return Option<ModuleResolve>.None
     }
@@ -310,6 +311,8 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
     }
 
     let ltoCombineMode = resolveLtoCombineBuildMode(buildConfig)
+    // Resolve the entry root's output type once before assigning types to the project packages.
+    let projectOutputType = resolveProjectCombineOutputType(buildConfig, tomlInfo) ?? return None
     let resolves = ArrayList<ResolveItem>()
     let superPkgList = ArrayList<SuperPackageConfig>()
     for (k in dm.readyPkgs) {
@@ -322,9 +325,7 @@ func getResolveData(buildConfig: BuildConfig, tomlInfo: TomlInfo, isScriptDep: B
             if (!validateProjectCombineRootDependency(buildConfig, k, pkg.requires)) {
                 return Option<ModuleResolve>.None
             }
-            applyProjectCombinePackageOutputType(buildConfig, k, pkg)
-        } else if (ltoCombineMode.usesModuleLtoCombine) {
-            applyModuleLtoCombinePackageOutputType(buildConfig, k, pkg)
+            applyProjectCombinePackageOutputType(buildConfig, k, pkg, projectOutputType)
         }
         resolves.add(dm.packageDepMap[k])
     }
@@ -710,7 +711,7 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
             Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
         }
 
-        let linkArray: ArrayList<String> = linkPackage(depName, libPath, compileTask)
+        let linkArray: ArrayList<String> = linkSourcePackage(depName, libPath, compileTask, buildConfig)
         if (linkArray.size <= 1) {
             allOptions.add(all: linkArray)
             continue
@@ -729,7 +730,7 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     let binOptions = ArrayList<String>()
     binOptions.add(all: libPathOptions, at: 0)
     res.add(all: binOptions)
-    if (!isIosModuleLtoCombineRootCompileTask(compileTask)) {
+    if (!(isIosModuleLtoCombineRootCompileTask(compileTask) && compileTask.outputType == Static)) {
         res.add(all: getMinimizedCLibLinkStr(getCLibLinkMap(compileTask, buildConfig), cLibNameList))
     }
 
@@ -741,15 +742,19 @@ func getBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList
     res
 }
 
-// Collect forced link options of the sub packages that are not required by the main package,
-// and the bin-dependencies they introduce (see the comment on `binDepSet` in `getForcedLibArgs`).
-func collectForcedLibOptions(compileTask: CompileTask, buildConfig: BuildConfig, linkSort: HashSet<String>,
-    allOptions: ArrayList<String>, binDepSet: HashSet<String>): Unit {
+// Collect source link inputs and dependencies referenced only by forced-linked packages.
+// Returns (source link options, binary dependency names, modules whose native C libraries are needed).
+func collectForcedSourceLinkOptions(compileTask: CompileTask, buildConfig: BuildConfig,
+    linkSort: HashSet<String>): (ArrayList<String>, HashSet<String>, ArrayList<String>) {
+    let allOptions = ArrayList<String>()
     let libPathSet = HashSet<String>()
+    let binDepSet = HashSet<String>()
     let forcedLibSet: HashSet<String> = HashSet<String>(compileTask.subPkgSet)
+    // The root may not import every subpackage, so collect their dependencies explicitly.
     for (forcedLib in compileTask.subPkgSet) {
         forcedLibSet.add(all: getDepSet(forcedLib, buildConfig))
     }
+    let cLibNameList = ArrayList<String>([compileTask.rootPkgName]) // Record dependent root packages
     for (depName in forcedLibSet where !linkSort.contains(depName)) {
         if (buildConfig.superPkgMap.contains(compileTask.fullName) &&
             buildConfig.superPkgMap.contains(depName.split(".")[0]) &&
@@ -760,43 +765,52 @@ func collectForcedLibOptions(compileTask: CompileTask, buildConfig: BuildConfig,
         }
 
         let depRootName: String = getRootPkgName(depName)
+        if (isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic) {
+            // Include native C libraries referenced only by the packages merged into this dylib.
+            cLibNameList.add(depRootName)
+        }
         if (buildConfig.packageList.isMacro(depName) || buildConfig.packageList.isTest(depName)) {
             continue
         }
-        let libPath = Path(compileTask.targetDir).join(depRootName).toString()
+        // Organization-qualified roots use the same normalized directory as ordinary dependencies.
+        let libPath = Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
         let linkArray: ArrayList<String> = forcedLinkPackage(depName, libPath, compileTask)
         if (linkArray.size <= 1 || libPathSet.add(libPath)) {
             allOptions.add(all: linkArray)
         } else {
+            // Reuse an existing search directory, but retain the additional library name.
             allOptions.add(linkArray[linkArray.size - 1])
         }
         binDepSet.add(all: getDepSet(depName, buildConfig))
     }
+    return (allOptions, binDepSet, cLibNameList)
 }
 
 func getForcedLibArgs(compileTask: CompileTask, buildConfig: BuildConfig): ArrayList<String> {
     let res = ArrayList<String>()
-    let cLibNameList = ArrayList<String>([compileTask.rootPkgName]) // Record dependent root packages
-    let linkSort: HashSet<String> = getDepSet(compileTask, buildConfig) // Record dependent package names
-
-    let allOptions = ArrayList<String>()
-    let binDepSet = HashSet<String>()
-    collectForcedLibOptions(compileTask, buildConfig, linkSort, allOptions, binDepSet)
-
+    let linkSort = getDepSet(compileTask, buildConfig)
+    let (allOptions, binDepSet, cLibNameList) = collectForcedSourceLinkOptions(compileTask, buildConfig, linkSort)
     // If a binary artifact is depended by the main package directly or indirectly, it will be collected by `getBuildArgs`.
     // But if it's also depended by a child package which is not depended by the main package directly or indirectly,
     // it will be added into `binDepSet`.
     // So we should remove it from `binDepSet` because we only need link it once.
     binDepSet.remove(all: linkSort)
-    if (isIosModuleLtoCombineRootCompileTask(compileTask)) {
-        allOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet, compileTask),
-            at: 0)
+    if (isIosModuleLtoCombineRootCompileTask(compileTask) && compileTask.outputType == Static) {
+        // Native C libraries of a static iOS root are linked later by the application.
+        allOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet,
+            compileTask), at: 0)
         addForcedLibArgs(res, allOptions, compileTask.target)
         return res
     }
     allOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet))
     appendForcedCLibLinkOptions(allOptions, compileTask, buildConfig, cLibNameList)
-    addForcedLibArgs(res, allOptions, compileTask.target)
+    addForcedLibArgs(res, allOptions, compileTask.target,
+        iosDynamic: isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic)
+    if (isIosLtoCombineLinkTask(compileTask)) {
+        // cjc resolves iOS dylib std dependencies, including imports from merged bitcode.
+        // The runtime directory scan below uses library names unsuitable for this target.
+        return res
+    }
     if (let Some(stdLinks) <- addStdLibsLink(compileTask.target)) {
         res.add(all: stdLinks)
     } else {
@@ -851,37 +865,46 @@ func getForcedBinDepPath(binDepMap: HashMap<String, BinDeps>, binDepSet: HashSet
     return libPathSet
 }
 
-func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, compileTarget: String): Unit {
-    if (compileTarget.contains("darwin") || compileTarget.contains("apple")) {
-        var pathSet = HashSet<String>()
-        var linkArr = ArrayList<String>()
-        var index = 0
-        var optionsNameSet = HashSet<String>()
-        while (index < allOptions.size) {
-            if (allOptions[index] != "-L") {
-                res.add("--link-options=-force_load ${allOptions[index]}")
-                index += 1
-                continue
-            }
-            if (!pathSet.contains(allOptions[index + 1])) {
-                linkArr.add(allOptions[index])
-                linkArr.add(allOptions[index + 1])
-                pathSet.add(allOptions[index + 1])
-            }
-            if (!optionsNameSet.contains(allOptions[index + 2])) {
-                linkArr.add(allOptions[index + 2])
-                optionsNameSet.add(allOptions[index + 2])
-            }
-            index += 3
-        }
-        res.add(all: linkArr)
-    } else {
+func addForcedLibArgs(res: ArrayList<String>, allOptions: ArrayList<String>, compileTarget: String,
+    iosDynamic!: Bool = false): Unit {
+    if (!compileTarget.contains("darwin") && !compileTarget.contains("apple")) {
         if (!allOptions.isEmpty()) {
             res.add("--link-options=--whole-archive")
             res.add(all: allOptions)
             res.add("--link-options=--no-whole-archive")
         }
+        return
     }
+    // Apple inputs are file paths or triples of arguments: -L, directory, -l<library>.
+    var pathSet = HashSet<String>()
+    var linkArr = ArrayList<String>()
+    var index = 0
+    var optionsNameSet = HashSet<String>()
+    while (index < allOptions.size) {
+        if (allOptions[index] != "-L") {
+            // iOS dynamic roots consume bitcode directly; other file inputs keep force_load semantics.
+            if (iosDynamic && allOptions[index].endsWith(".bc")) {
+                res.add(allOptions[index])
+            } else {
+                // The singular option preserves each linker argument, including spaces in paths.
+                res.add("--link-option=-force_load")
+                res.add("--link-option=${allOptions[index]}")
+            }
+            index += 1
+            continue
+        }
+        if (!pathSet.contains(allOptions[index + 1])) {
+            linkArr.add(allOptions[index])
+            linkArr.add(allOptions[index + 1])
+            pathSet.add(allOptions[index + 1])
+        }
+        if (!optionsNameSet.contains(allOptions[index + 2])) {
+            linkArr.add(allOptions[index + 2])
+            optionsNameSet.add(allOptions[index + 2])
+        }
+        index += 3
+    }
+    res.add(all: linkArr)
 }
 
 // find dependent package names of a package if we need to know if it's combined

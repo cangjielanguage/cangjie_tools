@@ -292,7 +292,7 @@ public func verifyTestMembers(rootPath: String, testMembers: ArrayList<String>, 
     } else {
         for (mem in testMembers) {
             let memberPath = getPath(rootPath, mem)
-            if (!directoryExists(mem)) {
+            if (!directoryExists(memberPath)) {
                 eprintln("Error: the path '${mem}' of test-members field does not exist at ${tomlDir}")
                 return false
             }
