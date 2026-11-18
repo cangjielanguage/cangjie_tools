@@ -390,10 +390,7 @@ std::string HttpHandlers::handleDominanceTree(const HttpContext& ctx)
     result["cutoff_count"] = 0;
 
     if (!ctx.dominanceNodes) {
-        ctx.typeTreeJson = result.dump();
-        ctx.typeTreeChildrenByParentId.clear();
-        ctx.typeTreeBuilt = true;
-        return ctx.typeTreeJson;
+        return result.dump();
     }
 
     uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : K_MIN_HEAP_SIZE;
@@ -634,13 +631,20 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx)
 {
     LOG_DEBUG("Handling /api/dominance/tree-by-type");
 
+    std::unique_lock<std::mutex> lock(ctx.typeTreeMutex);
+    if (ctx.typeTreeBuilt) {
+        return ctx.typeTreeJson;
+    }
+
     json result;
     result["nodes"] = json::array();
     result["cutoff_count"] = 0;
     result["total_skipped"] = 0;
 
     if (!ctx.dominanceNodes) {
-        return result.dump();
+        ctx.typeTreeJson = result.dump();
+        ctx.typeTreeBuilt = true;
+        return ctx.typeTreeJson;
     }
 
     uint64_t usedHeap = ctx.snapshotInfo ? ctx.snapshotInfo->used_size : K_MIN_HEAP_SIZE;
@@ -904,15 +908,16 @@ std::string HttpHandlers::handleDominanceTreeByType(const HttpContext& ctx)
     // -------------------------------------------------------------------------
     // Step 5: Build shared cache for children-by-type.
     // -------------------------------------------------------------------------
-    ctx.typeTreeJson = result.dump();
-    ctx.typeTreeChildrenByParentId.clear();
+    std::unordered_map<std::string, std::vector<nlohmann::json>> childrenByParentId;
     for (const auto& node : result["nodes"]) {
         std::string parentId = node.value("parent_id", "");
-        ctx.typeTreeChildrenByParentId[parentId].push_back(node);
+        childrenByParentId[parentId].push_back(node);
     }
+    ctx.typeTreeJson = result.dump();
+    ctx.typeTreeChildrenByParentId = std::move(childrenByParentId);
     ctx.typeTreeBuilt = true;
 
-    return result.dump();
+    return ctx.typeTreeJson;
 }
 std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, const std::string& nodeId)
 {
@@ -929,9 +934,12 @@ std::string HttpHandlers::handleDominanceChildrenByType(const HttpContext& ctx, 
     // returns exactly the children declared by /dominance/tree-by-type.
     handleDominanceTreeByType(ctx);
 
-    auto it = ctx.typeTreeChildrenByParentId.find(nodeId);
-    if (it != ctx.typeTreeChildrenByParentId.end()) {
-        result["nodes"] = it->second;
+    {
+        std::lock_guard<std::mutex> lock(ctx.typeTreeMutex);
+        auto it = ctx.typeTreeChildrenByParentId.find(nodeId);
+        if (it != ctx.typeTreeChildrenByParentId.end()) {
+            result["nodes"] = it->second;
+        }
     }
 
     return result.dump();

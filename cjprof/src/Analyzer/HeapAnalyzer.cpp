@@ -64,6 +64,10 @@ bool HeapAnalyzer::SetData(const std::string &file)
 {
     auto t0 = std::chrono::steady_clock::now();
 
+    cjprof::SourceFingerprint fpBefore = {};
+    cjprof::SourceFingerprint fpAfter = {};
+    bool fpBeforeValid = cjprof::DatabaseCache::GetSourceFingerprint(file, fpBefore);
+
     std::ifstream ifs(file, std::ifstream::binary);
     if (ifs.fail()) {
         fprintf(stderr, "error: Open file '%s' failed.\n", file.c_str());
@@ -77,9 +81,15 @@ bool HeapAnalyzer::SetData(const std::string &file)
     size_t buf_size = static_cast<size_t>(size);
     std::vector<char> buf(buf_size);
     ifs.read(buf.data(), buf_size);
-    m_data = std::string(buf.data(), buf_size);
-    m_fileSize = buf_size;
+    std::streamsize bytesRead = ifs.gcount();
+    bool fpAfterValid = cjprof::DatabaseCache::GetSourceFingerprint(file, fpAfter);
+
+    m_data = std::string(buf.data(), static_cast<size_t>(bytesRead));
+    m_fileSize = static_cast<uint32_t>(bytesRead);
     m_filePath = file;
+    m_sourceFp = fpBefore;
+    m_sourceFpValid = fpBeforeValid && fpAfterValid && fpBefore == fpAfter &&
+        (bytesRead == static_cast<std::streamsize>(buf_size));
 
     auto t1 = std::chrono::steady_clock::now();
     auto setDataMs = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
@@ -965,10 +975,11 @@ bool HeapAnalyzer::StartReportServer(int port)
     LOG_INFO("[perf] StartReportServer init: {} ms", initMs);
     AddPhase("StartReportServer init", initMs);
 
-    if (DatabaseCache::isCacheValid(m_filePath)) {
+    if (m_sourceFpValid && DatabaseCache::isCacheValid(m_filePath)) {
         auto t1 = std::chrono::steady_clock::now();
         LOG_DEBUG("Cache found: {}.cjprof.db, loading...", m_filePath);
-        if (DatabaseCache::load(m_filePath, snapshotInfo, classInfos, heapObjects, gcRoots, dominanceNodes, stringTable)) {
+        if (DatabaseCache::load(m_filePath, m_sourceFp, snapshotInfo, classInfos, heapObjects, gcRoots,
+                                dominanceNodes, stringTable)) {
             cacheLoaded = true;
             auto t2 = std::chrono::steady_clock::now();
             LOG_DEBUG("Cache loaded successfully (objects={}, roots={}, dominance_nodes={})",
@@ -1254,8 +1265,9 @@ bool HeapAnalyzer::StartReportServer(int port)
     g_covServerPtr = &server;
 
     // Background cache save (does not block ready time)
-    if (!cacheLoaded) {
+    if (!cacheLoaded && m_sourceFpValid) {
         std::thread([filePath = m_filePath,
+                     sourceFp = m_sourceFp,
                      sharedSnapshotInfo,
                      sharedClassInfos,
                      sharedHeapObjects,
@@ -1264,6 +1276,7 @@ bool HeapAnalyzer::StartReportServer(int port)
             LOG_INFO("[perf] Background cache save started...");
             auto t0 = std::chrono::steady_clock::now();
             bool ok = DatabaseCache::save(filePath,
+                sourceFp,
                 *sharedSnapshotInfo,
                 *sharedClassInfos,
                 *sharedHeapObjects,

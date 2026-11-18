@@ -15,6 +15,7 @@
 #include <sys/syscall.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
+#include <csignal>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -38,6 +39,15 @@
 static constexpr uint64_t RBUF_SIZE = 256 * PAGE_SIZE;
 static const std::string TMP_SAMPLE_DATA_DIR = "./cjprof-logs";
 static const std::string TMP_SAMPLE_DATA_FILE_PREFIX = "./cjprof-logs/cjprof-cpu-sample-data-";
+
+static bool ContTracee(pid_t pid, int sig)
+{
+    if (ptrace(PTRACE_CONT, pid, nullptr, sig) == -1) {
+        fprintf(stderr, "error: ptrace(PTRACE_CONT) failed for pid %d (%d).\n", pid, errno);
+        return false;
+    }
+    return true;
+}
 
 bool LinuxRecorder::Start()
 {
@@ -70,13 +80,25 @@ bool LinuxRecorder::Start()
         }
         if (traceEventChecker(status, PTRACE_EVENT_CLONE)) {
             pid_t spid = 0;
-            ptrace(PTRACE_GETEVENTMSG, pid, nullptr, &spid);
-            ptrace(PTRACE_CONT, pid, nullptr, nullptr);
-            Start(spid);
+            if (ptrace(PTRACE_GETEVENTMSG, pid, nullptr, &spid) == -1) {
+                fprintf(stderr, "error: ptrace(PTRACE_GETEVENTMSG) failed for pid %d (%d).\n", pid, errno);
+            }
+            if (!ContTracee(pid, 0)) {
+                break;
+            }
+            if (spid != 0) {
+                Start(spid);
+            }
         } else if (traceEventChecker(status, PTRACE_EVENT_EXIT)) {
             Stop(pid);
         } else if (WIFSTOPPED((unsigned int)status)) {
-            ptrace(PTRACE_CONT, pid, nullptr, WSTOPSIG((unsigned int)status));
+            int sig = WSTOPSIG((unsigned int)status);
+            if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+                sig = 0;
+            }
+            if (!ContTracee(pid, sig)) {
+                break;
+            }
         }
     }
 
@@ -160,7 +182,7 @@ void LinuxRecorder::SampleThreadEntry(pid_t pid)
         auto rinfo = (const perf_event_mmap_page *)addr;
         std::string_view rbuf((const char *)addr + PAGE_SIZE, RBUF_SIZE);
         uint64_t last = 0;
-        while (!m_stopSampleThread[pid]) {
+        while (!IsSampleThreadStopRequested(pid)) {
             uint64_t head = rinfo->data_head % RBUF_SIZE;
             uint64_t tail = last;
             if (head >= tail) {
@@ -336,12 +358,24 @@ void LinuxRecorder::deleteDirIfExists(const std::string& dirPath)
 }
 
 
+bool LinuxRecorder::IsSampleThreadStopRequested(pid_t pid)
+{
+    std::lock_guard<std::mutex> lock(m_stopMutex);
+    auto it = m_stopSampleThread.find(pid);
+    return (it == m_stopSampleThread.end()) || it->second;
+}
+
 void LinuxRecorder::Start(pid_t pid)
 {
     m_pids.push_back(pid);
-    m_stopSampleThread[pid] = false;
+    {
+        std::lock_guard<std::mutex> lock(m_stopMutex);
+        m_stopSampleThread[pid] = false;
+    }
     m_sampleThreads[pid] = std::thread(&LinuxRecorder::SampleThreadEntry, this, pid);
-    ptrace(PTRACE_CONT, pid, nullptr, nullptr);
+    if (!ContTracee(pid, 0)) {
+        Stop(pid);
+    }
 }
 
 void LinuxRecorder::Stop(pid_t pid)
@@ -355,7 +389,10 @@ void LinuxRecorder::Stop(pid_t pid)
         HandleProcessMaps(pid);
     }
 
-    m_stopSampleThread[pid] = true;
+    {
+        std::lock_guard<std::mutex> lock(m_stopMutex);
+        m_stopSampleThread[pid] = true;
+    }
     if (it->second.joinable()) {
         it->second.join();
     }

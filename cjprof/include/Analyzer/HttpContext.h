@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 #include "Analyzer/Types.h"
 #include <nlohmann/json.hpp>
 
@@ -49,6 +50,7 @@ struct HttpContext
 
     // Lazily-built type tree cache, shared between /dominance/tree-by-type and
     // /dominance/children-by-type to guarantee Sunburst and Tree views see the same tree.
+    mutable std::mutex typeTreeMutex;
     mutable bool typeTreeBuilt = false;
     mutable std::string typeTreeJson;
     mutable std::unordered_map<std::string, std::vector<nlohmann::json>> typeTreeChildrenByParentId;

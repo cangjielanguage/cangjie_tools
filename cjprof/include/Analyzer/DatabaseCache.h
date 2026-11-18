@@ -13,13 +13,29 @@
 
 namespace cjprof {
 
+struct SourceFingerprint {
+    uint64_t size = 0;
+    uint64_t mtimeSec = 0;
+    uint64_t mtimeNsec = 0;
+    uint64_t inode = 0;
+
+    bool operator==(const SourceFingerprint& other) const
+    {
+        return (size == other.size) && (mtimeSec == other.mtimeSec) &&
+            (mtimeNsec == other.mtimeNsec) && (inode == other.inode);
+    }
+};
+
 class DatabaseCache {
 public:
+    static bool GetSourceFingerprint(const std::string& heapFilePath, SourceFingerprint& fp);
+
     // Check if cache file exists and is readable
     static bool isCacheValid(const std::string& heapFilePath);
 
     // Save all parsed data to .cjprof.db
     static bool save(const std::string& heapFilePath,
+                     const SourceFingerprint& sourceFp,
                      const SnapshotInfo& snapshot,
                      const std::vector<ClassInfo>& classes,
                      const std::vector<HeapObject>& objects,
@@ -28,6 +44,7 @@ public:
 
     // Load all data from .cjprof.db
     static bool load(const std::string& heapFilePath,
+                     const SourceFingerprint& sourceFp,
                      SnapshotInfo& snapshot,
                      std::vector<ClassInfo>& classes,
                      std::vector<HeapObject>& objects,

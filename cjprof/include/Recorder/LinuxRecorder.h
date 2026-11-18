@@ -59,6 +59,7 @@ private:
     void AnalyzeSampleData(Hprof &hprof, std::unique_ptr<char[]> data, size_t size);
     void Start(pid_t pid);
     void Stop(pid_t pid);
+    bool IsSampleThreadStopRequested(pid_t pid);
     void HandleProcessMaps(pid_t pid);
     std::vector<pid_t> TraceProcess();
     bool createDirIfNotExists(const std::string& dirPath);
@@ -67,6 +68,7 @@ private:
     std::atomic<bool> m_stop{false};
     std::vector<pid_t> m_pids;
     std::map<pid_t, std::thread> m_sampleThreads;
+    std::mutex m_stopMutex;
     std::map<pid_t, bool> m_stopSampleThread;
     std::vector<Mmap> m_mmaps;
     std::vector<Symbol> m_symbols;
