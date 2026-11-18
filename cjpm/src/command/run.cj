@@ -118,16 +118,15 @@ Available options:
         return (beforeRunArgs.toArray(), afterRunArgs)
     }
 
-    // Parse run-specific options into runConfig; returns false when any option is invalid.
     // Parses the run options, confirms the compat target and checks unknown arguments in
     // sequence; returns the run config when all steps pass.
     func prepareRunOptions(arguments: Array<String>): Option<RunConfig> {
         let beforeArgs = splitRunArgs(arguments)[0]
         let (argMap, unparseArgs) = getParseOption(beforeArgs, RUN_SHORT_OPTION, RUN_LONG_OPTION)
-        if (!handleCompatVersionOption(beforeArgs, RUN_SHORT_OPTION, RUN_LONG_OPTION, argMap)) {
+        if (!handleUnparseArgs(unparseArgs)) {
             return None
         }
-        if (!handleUnparseArgs(unparseArgs)) {
+        if (!handleCompatVersionOption(beforeArgs, RUN_SHORT_OPTION, RUN_LONG_OPTION, argMap)) {
             return None
         }
         let runConfig = RunConfig()
