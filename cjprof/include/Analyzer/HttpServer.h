@@ -13,6 +13,10 @@
 #include <atomic>
 #include "Analyzer/HttpContext.h"
 
+namespace httplib {
+class Server;
+}
+
 namespace cjprof {
 
 class HttpServer {
@@ -20,7 +24,7 @@ public:
     HttpServer(int port);
     ~HttpServer();
 
-    void start();
+    bool start();
     void stop();
 
     void setContext(std::shared_ptr<HttpContext> ctx);
@@ -33,7 +37,7 @@ private:
     std::thread serverThread_;
     std::atomic<bool> running_{false};
     std::shared_ptr<HttpContext> context_;
-    void* serverPtr_ = nullptr; // httplib::Server*
+    std::unique_ptr<httplib::Server> server_;
 
     static std::string getExeDir();
 };

@@ -8,6 +8,7 @@
 #include "Analyzer/Logger.h"
 #include <fstream>
 #include <cstring>
+#include <cstdint>
 #include <unordered_map>
 
 #ifdef _WIN32
@@ -314,10 +315,38 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         return false;
     }
 
+    file.seekg(0, std::ios::end);
+    const auto fileSize = file.tellg();
+    auto sectionFits = [fileSize](uint64_t offset, uint64_t count, uint64_t elemSize) -> bool {
+        if ((elemSize == 0) || (count > UINT64_MAX / elemSize)) {
+            return false;
+        }
+        uint64_t need = count * elemSize;
+        if (offset > static_cast<uint64_t>(fileSize)) {
+            return false;
+        }
+        return need <= static_cast<uint64_t>(fileSize) - offset;
+    };
+    if (!sectionFits(header.snapshot_offset, 1, sizeof(SnapshotEntry)) ||
+        !sectionFits(header.classes_offset, header.classes_count, sizeof(ClassEntry)) ||
+        !sectionFits(header.objects_offset, header.objects_count, sizeof(ObjectEntry)) ||
+        !sectionFits(header.refs_offset, header.refs_count, sizeof(uint64_t)) ||
+        !sectionFits(header.gcroots_offset, header.gcroots_count, sizeof(GcRootEntry)) ||
+        !sectionFits(header.dominance_offset, header.dominance_count, sizeof(DominanceEntry)) ||
+        !sectionFits(header.children_offset, header.children_count, sizeof(uint64_t)) ||
+        !sectionFits(header.strings_offset, header.strings_size, 1)) {
+        LOG_ERROR("Cache file corrupt: section table exceeds file size: {}", dbPath);
+        return false;
+    }
+
     // Read snapshot
     file.seekg(static_cast<std::streamoff>(header.snapshot_offset));
     SnapshotEntry snap;
     file.read(reinterpret_cast<char*>(&snap), sizeof(snap));
+    if (file.gcount() != sizeof(snap)) {
+        LOG_ERROR("Cache file corrupt: snapshot entry truncated: {}", dbPath);
+        return false;
+    }
     snapshot.heap_total_size = snap.heapTotalSize;
     snapshot.object_count = snap.objectCount;
     snapshot.gc_root_count = snap.gcRootCount;
@@ -331,6 +360,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         stringTableData.resize(header.strings_size);
         file.seekg(static_cast<std::streamoff>(header.strings_offset));
         file.read(stringTableData.data(), static_cast<std::streamsize>(header.strings_size));
+        if (static_cast<uint64_t>(file.gcount()) != header.strings_size) {
+            LOG_ERROR("Cache file corrupt: string table truncated: {}", dbPath);
+            return false;
+        }
     }
     auto getString = [&](uint32_t offset) -> const char* {
         return offset < stringTableData.size() ? stringTableData.data() + offset : "";
@@ -351,6 +384,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         for (uint64_t i = 0; i < header.classes_count; ++i) {
             ClassEntry e;
             file.read(reinterpret_cast<char*>(&e), sizeof(e));
+            if (file.gcount() != sizeof(e)) {
+                LOG_ERROR("Cache file corrupt: class entry {} truncated: {}", i, dbPath);
+                return false;
+            }
             ClassInfo cls;
             cls.class_id = e.class_id;
             cls.class_name = getString(e.name_offset);
@@ -368,6 +405,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         for (uint64_t i = 0; i < header.objects_count; ++i) {
             ObjectEntry e;
             file.read(reinterpret_cast<char*>(&e), sizeof(e));
+            if (file.gcount() != sizeof(e)) {
+                LOG_ERROR("Cache file corrupt: object entry {} truncated: {}", i, dbPath);
+                return false;
+            }
             HeapObject obj;
             obj.object_id = e.object_id;
             obj.class_id = e.class_id;
@@ -388,6 +429,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         file.seekg(static_cast<std::streamoff>(header.refs_offset));
         file.read(reinterpret_cast<char*>(flatRefs.data()),
             static_cast<std::streamsize>(header.refs_count * sizeof(uint64_t)));
+        if (static_cast<uint64_t>(file.gcount()) != header.refs_count * sizeof(uint64_t)) {
+            LOG_ERROR("Cache file corrupt: refs section truncated: {}", dbPath);
+            return false;
+        }
         for (size_t i = 0; i < objects.size(); ++i) {
             const auto& info = objectRefsInfos[i];
             if (info.refs_count <= 0) {
@@ -411,6 +456,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         for (uint64_t i = 0; i < header.gcroots_count; ++i) {
             GcRootEntry e;
             file.read(reinterpret_cast<char*>(&e), sizeof(e));
+            if (file.gcount() != sizeof(e)) {
+                LOG_ERROR("Cache file corrupt: gc root entry {} truncated: {}", i, dbPath);
+                return false;
+            }
             GcRoot root;
             root.type = static_cast<RootType>(e.type);
             root.object_id = e.object_id;
@@ -427,6 +476,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         for (uint64_t i = 0; i < header.dominance_count; ++i) {
             DominanceEntry e;
             file.read(reinterpret_cast<char*>(&e), sizeof(e));
+            if (file.gcount() != sizeof(e)) {
+                LOG_ERROR("Cache file corrupt: dominance entry {} truncated: {}", i, dbPath);
+                return false;
+            }
             DominanceNode node;
             node.object_id = e.object_id;
             node.parent_id = e.parent_id;
@@ -444,6 +497,10 @@ bool DatabaseCache::load(const std::string& heapFilePath,
         file.seekg(static_cast<std::streamoff>(header.children_offset));
         file.read(reinterpret_cast<char*>(flatChildren.data()),
             static_cast<std::streamsize>(header.children_count * sizeof(uint64_t)));
+        if (static_cast<uint64_t>(file.gcount()) != header.children_count * sizeof(uint64_t)) {
+            LOG_ERROR("Cache file corrupt: children section truncated: {}", dbPath);
+            return false;
+        }
         for (size_t i = 0; i < dominanceNodes.size(); ++i) {
             const auto& info = nodeChildrenInfos[i];
             if (info.children_count <= 0) {

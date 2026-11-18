@@ -47,6 +47,10 @@ bool Hprof::Parse(const std::string &data, bool verbose)
         m_parser = std::make_unique<HprofParserV2>(*m_data);
         // V2 format: ID size is dynamic, read from file header (4 or 8)
         m_data->idSize = HprofParserBase::SwapEndian(header->idSize);
+        if ((m_data->idSize != 4) && (m_data->idSize != 8)) {
+            fprintf(stderr, "error: Invalid id size (%u) in file header.\n", m_data->idSize);
+            return false;
+        }
     } else if (ident == m_headerFlagV1) {
         m_parser = std::make_unique<HprofParserV1>(*m_data);
         // V1 format: ID size is fixed to 8 bytes (set in HprofParserV1 constructor)
@@ -105,7 +109,7 @@ bool Hprof::Parse(const std::string &data, bool verbose)
         }
         m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u8));
         auto size = HprofParserBase::SwapEndian(*lengthRec);
-        if (m_parser->GetCurPos() + size > data.size()) {
+        if (size > data.size() - m_parser->GetCurPos()) {
             fprintf(stderr, "error: Record length is too long at offset 0x%zx\n", m_parser->GetCurPos());
             return false;
         }
@@ -133,6 +137,12 @@ void Hprof::ParseHeapDump(bool verbose)
     }
     m_parser->SetCurPos(m_parser->GetCurPos() + sizeof(u8));
     auto length = HprofParserBase::SwapEndian(*lengthRec);
+    if (length > m_parser->GetDataSize() - m_parser->GetCurPos()) {
+        fprintf(stderr, "error: Heap dump record length is too long at offset 0x%zx\n",
+            m_parser->GetCurPos() - sizeof(u8));
+        m_parser->SetCurPos(m_parser->GetDataSize());
+        return;
+    }
     auto endPos = m_parser->GetCurPos() + length;
 
     std::unordered_map<HeapDumpSubTag, std::function<void(bool)>> subRecordParsers = {

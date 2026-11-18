@@ -47,8 +47,7 @@ int Heap::Execute(int argc, char **argv)
     }
 
     if (m_cfg.dumpReport) {
-        analyzer.StartReportServer(m_cfg.reportPort);
-        return OK;
+        return analyzer.StartReportServer(m_cfg.reportPort) ? OK : ERR;
     }
 
     if (!m_cfg.showThread && !m_cfg.showReference) {
@@ -283,10 +282,19 @@ bool Heap::DumpHeap()
 
     std::vector<char> buf(size);
     ifs.read(buf.data(), size);
-    ofs.write(buf.data(), size);
-
+    bool readOk = (ifs.gcount() == static_cast<std::streamsize>(size)) && !ifs.bad();
     ifs.close();
+    if (!readOk) {
+        fprintf(stderr, "error: Cannot read dump file '%s'.\n", data.c_str());
+        return false;
+    }
+
+    ofs.write(buf.data(), size);
     ofs.close();
+    if (ofs.fail()) {
+        fprintf(stderr, "error: Cannot write all data to '%s'.\n", m_cfg.output.c_str());
+        return false;
+    }
 
     unlink(data.c_str());
 
