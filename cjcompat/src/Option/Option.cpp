@@ -15,7 +15,7 @@ namespace {
  * print cjcompat commit number
  * print dependent Cangjie version
  */
-static void PrintVersion()
+void PrintCjcompatVersion()
 {
 #ifndef CJCOMPAT_VERSION
     Errorln("Can not obtain cjcompat version");
@@ -174,7 +174,7 @@ int CjComplienceChecker::HandleOptions(int argc, char** argv, const char** envp,
     while (i < argc) {
         std::string arg = argv[i];
         if (arg == "-v") {
-            PrintVersion();
+            PrintCjcompatVersion();
             return END;
         }
         if (arg == "-h") {

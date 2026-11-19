@@ -14,6 +14,7 @@
 #include "CjoManager.h"
 #include "capabilities/diagnostic/InternalImportDiag.h"
 #include "capabilities/diagnostic/UnusedSymbolDiag.h"
+#include "cangjie/Basic/Version.h"
 #include "cangjie/Frontend/CompilerInstance.h"
 #include "cangjie/Option/Option.h"
 #include "cangjie/Utils/FileUtil.h"
@@ -162,6 +163,17 @@ PkgInfo::PkgInfo(const std::string &pkgPath,
                                                                GetConditionCompile(targetPackageName, moduleName);
         compilerInvocation->globalOptions.passedWhenCfgPaths = CompilerCangjieProject::GetInstance()->
                                                                GetConditionCompilePaths();
+        const auto &compatVersion = CompilerCangjieProject::GetInstance()->GetCompatVersion();
+        if (!compatVersion.empty()) {
+            // --compat-version accepts exactly "major.minor" (see ParseCompatVersion in the compiler).
+            const auto compatVersionInfo = ParseVersion(compatVersion, false, false);
+            if (compatVersionInfo.isValid) {
+                compilerInvocation->globalOptions.SetCompatVersion(compatVersionInfo);
+            } else {
+                Logger::Instance().LogMessage(MessageType::MSG_WARNING,
+                    "Invalid compatVersionOption \"" + compatVersion + "\" from initializationOptions, ignored.");
+            }
+        }
 #ifdef _WIN32
         compilerInvocation->globalOptions.target.os = Cangjie::Triple::OSType::WINDOWS;
 #elif __linux__
@@ -1946,6 +1958,10 @@ bool CompilerCangjieProject::Compiler(const std::string &moduleUri,
     modulesHome = ::ark::GetModulesHome(modulesHomeOption, environment.cangjieHome);
     stdLibPath = stdLibPathOption;
     cangjiePath = environment.cangjiePath;
+    // get compat version from initializationOptions, empty means the compiler default behavior
+    if (initializationOptions.contains(COMPAT_VERSION_OPTION())) {
+        compatVersion = initializationOptions.value(COMPAT_VERSION_OPTION(), "");
+    }
 
     // init moduleManger
     nlohmann::json multiModuleOption = nullptr;
@@ -2644,6 +2660,11 @@ std::vector<std::string> CompilerCangjieProject::GetMacroLibs() const
 std::string CompilerCangjieProject::GetCjc() const
 {
     return cjcPath;
+}
+
+std::string CompilerCangjieProject::GetCompatVersion() const
+{
+    return compatVersion;
 }
 
 std::unordered_map<std::string, std::string> CompilerCangjieProject::GetConditionCompile(

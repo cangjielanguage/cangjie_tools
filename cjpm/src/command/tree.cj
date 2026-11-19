@@ -12,9 +12,8 @@ import cjpm.implement.*
 import cjpm.config.*
 
 let TREE_LONG_OPTION: Array<String> = ["verbose", "depth=", "package=", "invert=", "target=", "no-tests",
-    "skip-script"]
+    "skip-script", "compat-version="]
 let TREE_SHORT_OPTION: String = "p:V"
-let TREE_VALUE_OPTIONS = ["-p", "--depth", "--package", "--invert", "--target"]
 let TREE_USAGE: String = """
 Display a tree visualization of a dependency graph
 
@@ -28,6 +27,7 @@ Available options:
   -p, --package <value>       package to be used as the root of the tree
   --invert <value>            invert the tree direction and focus on the given package
   --target <value>            display dependencies for the given target platform
+  --compat-version <value>    display dependencies for the specified compatibility version
   --no-tests                  exclude the test-dependencies
   --skip-script               disable script 'build.cj'."""
 
@@ -71,6 +71,9 @@ class TreeCommand <: Handle {
 
     public override func handleCommand(): Bool {
         let (argMap, unparseArgs) = getParseOption(this.arguments, TREE_SHORT_OPTION, TREE_LONG_OPTION)
+        if (!handleCompatVersionOption(this.arguments, TREE_SHORT_OPTION, TREE_LONG_OPTION, argMap)) {
+            return false
+        }
         let treeConfig = TreeConfig()
         treeConfig.isVerbose = getBoolOption(argMap, "-V", "--verbose")
         treeConfig.noTest = getBoolOption(argMap, "--no-tests")
@@ -84,7 +87,8 @@ class TreeCommand <: Handle {
         let _ = handleCrossTarget(argMap) ?? return false
 
         if (unparseArgs.size != 0) {
-            for (val in TREE_VALUE_OPTIONS) {
+            let treeValueOptions = ["-p", "--depth", "--package", "--invert", "--target", "--compat-version"]
+            for (val in treeValueOptions) {
                 if (unparseArgs.contains(val)) {
                     eprintln("Error: the '${val}' option needs a value")
                     return false

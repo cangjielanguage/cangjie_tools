@@ -750,6 +750,10 @@ class DepModel {
 
         let arguments = ArrayList<String>(["--scan-dependency", cjoPath])
 
+        if (!compatVersion.isEmpty()) {
+            arguments.add("--compat-version=${compatVersion}")
+        }
+
         if (isTest) {
             arguments.add("--test")
         }
@@ -1564,6 +1568,10 @@ func scanDependency(packagePath: Path, isTest!: Bool = false, compileOptions!: S
     let arguments = ArrayList<String>()
     arguments.add(all: ["-p", "${packagePath}"])
     arguments.add("--scan-dependency")
+
+    if (!compatVersion.isEmpty()) {
+        arguments.add("--compat-version=${compatVersion}")
+    }
 
     if (isTest) {
         arguments.add("--test")

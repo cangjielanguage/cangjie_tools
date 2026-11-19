@@ -705,6 +705,9 @@ func packageTest(pkgInfo: PkgTestInfo, testConfig: TestConfig, hasProdFiles: Boo
     if (testConfig.isCrossCompile) {
         cmdList.add("--target=${crossCompileTarget}")
     }
+    if (!compatVersion.isEmpty()) {
+        cmdList.add("--compat-version=${compatVersion}")
+    }
     if (testConfig.isDebug) {
         cmdList.add("-g")
     }
@@ -866,8 +869,15 @@ func compileAllTests(linkMap: HashMap<PackageFqName, Array<String>>, testPkgsMap
         loadTestIncremental(testConfig)
         let finalTestPkgsMap = HashMap<PackageFqName, PkgDescTest>()
         for ((pkgFqName, pkgDesc) in testPkgsMap) {
-            if (testConfig.rebuildList.contains(pkgDesc.fqname.value) || rebuildTestPkgs(testConfig, pkgDesc.fqname) ||
-                    rebuildPureTestPkgs(testConfig, pkgDesc.srcDir, pkgDesc.fqname)) {
+            var needRebuild = cachedCompatVersion(testConfig) != compatVersion ||
+                testConfig.rebuildList.contains(pkgDesc.fqname.value)
+            if (!needRebuild) {
+                needRebuild = rebuildTestPkgs(testConfig, pkgDesc.fqname)
+            }
+            if (!needRebuild) {
+                needRebuild = rebuildPureTestPkgs(testConfig, pkgDesc.srcDir, pkgDesc.fqname)
+            }
+            if (needRebuild) {
                 finalTestPkgsMap.add(pkgDesc.fqname, pkgDesc)
             }
         }
@@ -924,6 +934,19 @@ func rebuildPureTestPkgs(testConfig: TestConfig, pkgSrcDir: CJMPSource, pkgName:
     return false
 }
 
+// Read the compatibility version recorded in the test incremental cache.
+// Returns an empty string when the cache was produced before the compatibility mode was introduced.
+func cachedCompatVersion(testConfig: TestConfig): String {
+    if (!testConfig.incrementalCache.contains(".compat-version")) {
+        return ""
+    }
+    let info = testConfig.incrementalCache[".compat-version"]
+    if (!info.contains("version")) {
+        return ""
+    }
+    return info["version"]
+}
+
 // Load test incremental cache
 func loadTestIncremental(testConfig: TestConfig): Unit {
     let testCachePath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join(INCREMENTAL_CACHE)
@@ -947,6 +970,7 @@ func loadTestIncremental(testConfig: TestConfig): Unit {
 
 // Save test incremental cache
 func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<PackageFqName, PkgDescTest>): Bool {
+    testConfig.incrementalCache.add(".compat-version", HashMap<String, String>([("version", compatVersion)]))
     let testBinPath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN)
     testConfig.incrementalCache.add(".testrunner",
         HashMap<String, String>([
@@ -1138,6 +1162,9 @@ class DummyTestFile {
         if (testConfig.isCrossCompile) {
             cmdList.add("--target=${crossCompileTarget}")
         }
+        if (!compatVersion.isEmpty()) {
+            cmdList.add("--compat-version=${compatVersion}")
+        }
 
         let envBuilder = EnvironmentBuilder()
         envBuilder.prepend(LD_PATH, testConfig.globalConfig.ldPath)
@@ -1180,6 +1207,9 @@ main() { testRunnerEntryMain() }"""
             cmdList.add("--coverage")
         }
         cmdList.add(Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN).join("testrunner.cj").toString())
+        if (!compatVersion.isEmpty()) {
+            cmdList.add("--compat-version=${compatVersion}")
+        }
         cmdList.add(all: ["-o", getOutput(testConfig.globalConfig.targetDir, TestRunner.PKG_FULL_NAME, false)])
 
 
@@ -1224,6 +1254,9 @@ main() { testRunnerEntryMain() }"""
 
     private static func isIncremental(testConfig: TestConfig): Bool {
         try {
+            if (cachedCompatVersion(testConfig) != compatVersion) {
+                return false
+            }
             let binPath: Path = Path(testConfig.globalConfig.targetDir).join(UNITTEST_BIN)
             return (
                 FileInfo(binPath.join("testrunner.cj"))

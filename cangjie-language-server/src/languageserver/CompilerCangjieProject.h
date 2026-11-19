@@ -410,6 +410,9 @@ public:
 
     std::string GetCjc() const;
 
+    // Get compat version passed by plugins through initializationOptions, empty means unspecified
+    std::string GetCompatVersion() const;
+
     // Set condition compile to cangjie compiler
     std::unordered_map<std::string, std::string> GetConditionCompile(const std::string& packageName,
         const std::string &moduleName) const;
@@ -706,6 +709,7 @@ private:
     std::string stdLibPath;
     std::string cangjiePath;
     std::string cjcPath;
+    std::string compatVersion;
     std::string workspace;
     static CompilerCangjieProject *instance;
     Callbacks *callback = nullptr;

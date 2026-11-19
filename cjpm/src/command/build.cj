@@ -13,7 +13,8 @@ import cjpm.implement.*
 import cjpm.config.*
 
 let BUILD_LONG_OPTION: Array<String> = ["verbose", "coverage", "output=", "target=", "enable-features=",
-    "no-feature-deduce", "incremental", "target-dir=", "jobs=", "lint", "mock", "member=", "skip-script"]
+    "no-feature-deduce", "incremental", "target-dir=", "jobs=", "lint", "mock", "member=", "skip-script",
+    "compat-version="]
 let BUILD_SHORT_OPTION: String = "Vo:gij:lm:"
 let BUILD_USAGE: String = """
 Compile a local module and all of its dependencies.
@@ -33,6 +34,7 @@ Available options:
   --no-feature-deduce           disables auto-enabling of features, deduced from other options, machine properties, etc.
   -m, --member <value>          specify a member module of the workspace
   --target <value>              generate code for the given target platform
+  --compat-version <value>      generate artifacts according to the specified compatibility version
   --target-dir <value>          specify target directory
   -o, --output <value>          specify product name when compiling an executable file
   -l, --lint                    enable cjlint code check
@@ -96,7 +98,7 @@ class BuildCommand <: Handle {
             return false
         }
 
-        let options = ["-o", "--output", "--target", "--target-dir", "-m", "--member"]
+        let options = ["-o", "--output", "--target", "--target-dir", "-m", "--member", "--compat-version"]
         for (val in options) {
             if (unparseArgs.contains(val)) {
                 eprintln("Error: the '${val}' option needs a value")
@@ -119,16 +121,8 @@ class BuildCommand <: Handle {
         return true
     }
 
-    public override func handleCommand(): Bool {
-        if (this.arguments.size == 0) {
-            let buildConfig = BuildConfig()
-            buildConfig.globalConfig.resolveType = RESOLVE_BUILD
-            buildConfig.globalConfig.isPureBuild = true
-            return doTopLevelBuild(buildConfig)
-        }
-
-        let (argMap, unparseArgs) = getParseOption(this.arguments, BUILD_SHORT_OPTION, BUILD_LONG_OPTION)
-        let buildConfig = BuildConfig()
+    // Parse build-specific options into buildConfig; returns false when any option is invalid.
+    func handleBuildOptions(argMap: HashMap<String, String>, unparseArgs: Array<String>, buildConfig: BuildConfig): Bool {
         buildConfig.isVerbose = getBoolOption(argMap, "-V", "--verbose")
         buildConfig.isIncremental = getBoolOption(argMap, "-i", "--incremental")
         buildConfig.isCov = getBoolOption(argMap, "--coverage")
@@ -162,7 +156,23 @@ class BuildCommand <: Handle {
             return false
         }
 
-        if (!handleUnparseArgs(unparseArgs, buildConfig)) {
+        return handleUnparseArgs(unparseArgs, buildConfig)
+    }
+
+    public override func handleCommand(): Bool {
+        if (this.arguments.size == 0) {
+            let buildConfig = BuildConfig()
+            buildConfig.globalConfig.resolveType = RESOLVE_BUILD
+            buildConfig.globalConfig.isPureBuild = true
+            return doTopLevelBuild(buildConfig)
+        }
+
+        let (argMap, unparseArgs) = getParseOption(this.arguments, BUILD_SHORT_OPTION, BUILD_LONG_OPTION)
+        let buildConfig = BuildConfig()
+        if (!handleCompatVersionOption(this.arguments, BUILD_SHORT_OPTION, BUILD_LONG_OPTION, argMap)) {
+            return false
+        }
+        if (!handleBuildOptions(argMap, unparseArgs, buildConfig)) {
             return false
         }
 

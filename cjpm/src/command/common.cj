@@ -37,6 +37,97 @@ func getBoolOption(argMap: HashMap<String, String>, shortArg: String, longArg: S
     return (argMap.contains(shortArg) || argMap.contains(longArg))
 }
 
+func isCompatVersionValue(value: String): Bool {
+    Regex("^([0-9]+)[.]([0-9]+)$").find(value).isSome()
+}
+
+/*
+ * Probe parse without the compatibility option registered: every standalone '--compat-version'
+ * token lands in the probe's unparseArgs, while values of other options are still consumed
+ * with proper option boundaries — an argument meant for the application is never mistaken
+ * for a cjpm option. Returns all specified values in order; a missing value is reported by
+ * the caller from the real parse's unparseArgs.
+ */
+func collectCompatVersionValues(sysArgs: Array<String>, shortArg: String, longArgList: Array<String>,
+    option: String): ArrayList<String> {
+    let probeLongs = ArrayList<String>()
+    for (item in longArgList) {
+        if (item != option[2..] + "=") {
+            probeLongs.add(item)
+        }
+    }
+    var ao = ArgOpt(sysArgs, shortArg, probeLongs.toArray())
+    let unparseArgs = ao.getUnparseArgs()
+    let values = ArrayList<String>()
+    var index = 0
+    while (index < unparseArgs.size) {
+        let token = unparseArgs[index]
+        if (token == option) {
+            if (index + 1 < unparseArgs.size && !unparseArgs[index + 1].startsWith("-")) {
+                values.add(unparseArgs[index + 1])
+                index += 2
+                continue
+            }
+            index += 1
+            continue
+        }
+        if (token.startsWith(option + "=")) {
+            values.add(token[(option + "=").size..])
+        }
+        index += 1
+    }
+    return values
+}
+
+/*
+ * Confirm after `getParseOption` that '--compat-version' is not specified with conflicting
+ * values, validate every specified value and record the compatibility target for the build.
+ *
+ * Conflicting duplicates cannot be read from `argMap` (std.argopt silently keeps the last
+ * value of a duplicated option), so the probe parse collects all occurrences with proper
+ * option boundaries — an argument meant for the application is never mistaken for a cjpm
+ * option. Only the two-segment `major.minor` format is checked: the supported version
+ * whitelist is owned by cjc, cjpm forwards the value and lets the compiler report
+ * unsupported versions. A missing value is reported by the caller from the real parse's
+ * unparseArgs.
+ */
+public func handleCompatVersionOption(sysArgs: Array<String>, shortArg: String, longArgList: Array<String>,
+    argMap: HashMap<String, String>): Bool {
+    let option = "--compat-version"
+    let values = collectCompatVersionValues(sysArgs, shortArg, longArgList, option)
+    if (values.size == 0) {
+        // The probe attributed no standalone occurrence: either the option was not specified,
+        // or the real parse consumed a token that the probe could not attribute (e.g. a
+        // missing value followed by another option). Validate what the real parse extracted.
+        if (let (value, true) <- getArgValue(argMap, option)) {
+            if (!isCompatVersionValue(value)) {
+                eprintln("Error: invalid value '${value}' for '${option}', the example is '1.3'")
+                return false
+            }
+            compatVersion = value
+        }
+        return true
+    }
+
+    var version = ""
+    for (value in values) {
+        if (!isCompatVersionValue(value)) {
+            eprintln("Error: invalid value '${value}' for '${option}', the example is '1.3'")
+            return false
+        }
+        if (version != "" && version != value) {
+            eprintln("Error: the '${option}' option is specified with different values " +
+                "'${version}' and '${value}'")
+            return false
+        }
+        version = value
+    }
+    if (version != "") {
+        compatVersion = version
+    }
+    return true
+}
+
 public func getParseOption(sysArgs: Array<String>, shortArg: String, longArgList: Array<String>):
     (HashMap<String, String>, Array<String>) {
     var ao = ArgOpt(sysArgs, shortArg, longArgList)

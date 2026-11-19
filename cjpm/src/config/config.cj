@@ -44,6 +44,8 @@ public var maxParallelSize: Int64 = getCpus()
 public let CUR_PARALLEL_SIZE: AtomicInt64 = AtomicInt64(0)
 public var crossCompileTarget: String = ""
 public var targetConfigName: String = ""
+// Compatibility target version passed by `--compat-version`, empty means the current SDK version.
+public var compatVersion: String = ""
 
 public func getCompileTarget(): String {
     if (crossCompileTarget.isEmpty()) {

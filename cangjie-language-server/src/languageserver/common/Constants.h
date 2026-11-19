@@ -87,6 +87,11 @@ namespace CONSTANTS {
         static const std::string value = "singleFilePath";
         return value;
     }
+    inline const std::string& COMPAT_VERSION_OPTION()
+    {
+        static const std::string value = "compatVersionOption";
+        return value;
+    }
     inline const std::string& STD_LIB_PATH_OPTION()
     {
         static const std::string value = "stdLibPathOption";
