@@ -6,6 +6,8 @@
 
 #include "StructuralRuleGNAM01.h"
 
+#include <algorithm>
+
 namespace {
 std::string GetFullPackageName(const Cangjie::AST::PackageSpec& pkg)
 {
@@ -54,13 +56,15 @@ void StructuralRuleGNAM01::FileDeclHandler(const File &file)
         return;
     }
 
-    // Verify that package name hierarchy matches the directory structure
     auto pkgNameWithoutOrg = package.hasDoubleColon ? fullPkgName.substr(fullPkgName.find("::") + 2) : fullPkgName;
-    auto pkgsSegs = FileUtil::SplitStr(pkgNameWithoutOrg, '.');
+    auto subpackageSegs = FileUtil::SplitStr(pkgNameWithoutOrg, '.');
+    subpackageSegs.erase(subpackageSegs.begin());
     auto filePath = FileUtil::GetDirPath(file.filePath);
     auto pathSegs = FileUtil::SplitStr(filePath, PATH_SEPARATOR.at(0));
-    auto pkgMatchPath = std::search(pathSegs.rbegin(), pathSegs.rend(), pkgsSegs.rbegin(), pkgsSegs.rend());
-    if (pkgMatchPath == pathSegs.rend()) {
+    // Without a known source root, match only the directory suffix, not an ancestor.
+    const bool matches = pathSegs.size() >= subpackageSegs.size() &&
+        std::equal(subpackageSegs.rbegin(), subpackageSegs.rend(), pathSegs.rbegin());
+    if (!matches) {
         Diagnose(package.packageName.Begin(), package.packageName.End(),
             CodeCheckDiagKind::G_NAM_01_Package_name_should_match_path, fullPkgName);
         return;
