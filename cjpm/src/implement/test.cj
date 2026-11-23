@@ -15,7 +15,7 @@ import std.env.getVariables
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import cjpm.config.*
-import cjpm.util.{Result, PackageFqName}
+import cjpm.util.{Result, PackageFqName, unorderedHash}
 
 var dependencyMap: HashMap<String, HashSet<String>> = HashMap<String, HashSet<String>>()
 @When[os == "Windows"]
@@ -875,7 +875,7 @@ func compileAllTests(linkMap: HashMap<PackageFqName, Array<String>>, testPkgsMap
                 needRebuild = rebuildTestPkgs(testConfig, pkgDesc.fqname)
             }
             if (!needRebuild) {
-                needRebuild = rebuildPureTestPkgs(testConfig, pkgDesc.srcDir, pkgDesc.fqname)
+                needRebuild = rebuildTestSources(testConfig, pkgDesc.srcDir, pkgDesc.fqname)
             }
             if (needRebuild) {
                 finalTestPkgsMap.add(pkgDesc.fqname, pkgDesc)
@@ -911,18 +911,19 @@ func rebuildTestPkgs(testConfig: TestConfig, fqname: PackageFqName): Bool {
     }
 }
 
-// Check pure test packages: rebuild if source files are changed or depended packages are changed
-func rebuildPureTestPkgs(testConfig: TestConfig, pkgSrcDir: CJMPSource, pkgName: PackageFqName): Bool {
-    if (!testConfig.testPkgs.contains(pkgName.value)) {
-        return false
-    }
-
+// Check test sources for both mixed and pure test packages.
+func rebuildTestSources(testConfig: TestConfig, pkgSrcDir: CJMPSource, pkgName: PackageFqName): Bool {
     try {
-        if (getFileTimeStamp(pkgSrcDir) != testConfig.incrementalCache[pkgName.value]["fileTimeStamp"]) {
+        if (getTestSourceHash(pkgSrcDir) != testConfig.incrementalCache[pkgName.value]["sourceHash"]) {
             return true
         }
     } catch (e: Exception) {
         return true
+    }
+
+    // Pure test packages are absent from the production build's rebuild list.
+    if (!testConfig.testPkgs.contains(pkgName.value)) {
+        return false
     }
 
     for (require in testConfig.packageDepMap[pkgName.value].requires) {
@@ -955,7 +956,8 @@ func loadTestIncremental(testConfig: TestConfig): Unit {
     }
 
     // load json file
-    // format: pkgName -> (fileTimeStamp, binTimeStamp)
+    // Package entries contain sourceHash and binTimeStamp.
+    // The .testrunner entry contains fileTimeStamp and binTimeStamp.
     var buf: String = ""
     try {
         buf = String.fromUtf8(File.readFrom(testCachePath))
@@ -998,24 +1000,21 @@ func saveTestIncremental(testConfig: TestConfig, testPkgsMap: HashMap<PackageFqN
         } else {
             pkgCache.add("binTimeStamp", "")
         }
-        // collect file time stamp
-        pkgCache.add("fileTimeStamp", getFileTimeStamp(pkgDesc.srcDir))
+        pkgCache.add("sourceHash", getTestSourceHash(pkgDesc.srcDir))
         testConfig.incrementalCache.add(pkgDesc.fqname.value, pkgCache)
     }
     let cacheStr = testConfig.incrementalCache.serialize().toJson().toJsonString()
     return createAndWriteFile(testBinPath.join(INCREMENTAL_CACHE).toString(), cacheStr)
 }
 
-// Collect file timestamp for pure test packages
-func getFileTimeStamp(pkgSrcDir: CJMPSource): String {
-    var timeStamp: Int64 = Int64.Min
-    for (fileInfo in pkgSrcDir.files()) {
-        let fileName = fileInfo.path.toString()
-        if (fileName.endsWith("_test.cj")) {
-            timeStamp = max(timeStamp, fileInfo.lastModificationTime.toUnixTimeStamp().toSeconds())
-        }
-    }
-    return timeStamp.toString()
+// Hash the unordered collection of _test.cj modification times, as PackageSource.incHash does for production sources.
+// Include every file's modification time rather than only the maximum; precision depends on FileInfo.
+func getTestSourceHash(pkgSrcDir: CJMPSource): String {
+    let hash = pkgSrcDir.files()
+        .filter { it => it.path.toString().endsWith("_test.cj") }
+        .map { it => it.lastModificationTime } |>
+        unorderedHash
+    return hash.toString()
 }
 
 // Create a unittest directory to store middle files.
