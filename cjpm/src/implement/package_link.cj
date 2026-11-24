@@ -241,7 +241,6 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
     let res = ArrayList<String>()
     let cLibNameList = ArrayList<String>([compileTask.rootPkgName])
     let linkSort: HashSet<String> = getDepSet(compileTask, buildConfig)
-    let allOptions = ArrayList<String>()
     let libPathSet = HashSet<String>()
     let binDepSet = HashSet<String>()
     for (index in (buildConfig.packageList.all.size - 1)..=0 : -1) {
@@ -259,42 +258,31 @@ func getLtoCombineBuildArgs(compileTask: CompileTask, buildConfig: BuildConfig):
             continue
         }
 
-        var libPath = Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
-
+        let libPath = Path(compileTask.targetDir).join(swapOrgName(depRootName)).toString()
         let linkArray: ArrayList<String> = linkPackage(depName, libPath, compileTask)
         if (linkArray.size <= 1) {
-            allOptions.add(all: linkArray)
-            binDepSet.add(all: getDepSet(depName, buildConfig))
-            continue
-        }
-        if (libPathSet.contains(libPath)) {
-            allOptions.add(linkArray[linkArray.size - 1])
+            res.add(all: linkArray)
+        } else if (libPathSet.contains(libPath)) {
+            res.add(linkArray[linkArray.size - 1])
         } else {
-            allOptions.add(all: linkArray)
+            res.add(all: linkArray)
             libPathSet.add(libPath)
         }
         binDepSet.add(all: getDepSet(depName, buildConfig))
     }
-    res.add(all: allOptions)
 
-    let binOptions = ArrayList<String>()
-    binOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), linkSort, compileTask), at: 0)
-    res.add(all: binOptions)
-
-    let otherBinOptions = ArrayList<String>()
+    let binDepMap = selectBinDepMap(compileTask, buildConfig)
+    res.add(all: appendOptionForBindep(binDepMap, linkSort, compileTask))
     binDepSet.remove(all: linkSort)
-    let compileTarget = compileTask.target
     if (isIosProjectCombineCompileTask(compileTask) && compileTask.outputType == Static) {
-        otherBinOptions.add(all: appendOptionForBindep(selectBinDepMap(compileTask, buildConfig), binDepSet,
-            compileTask), at: 0)
-        res.add(all: otherBinOptions)
-    } else {
-        otherBinOptions.add(all: getForcedBinDep(compileTask, buildConfig, binDepSet))
-        appendForcedCLibLinkOptions(otherBinOptions, compileTask, buildConfig, cLibNameList)
-        addForcedLibArgs(res, otherBinOptions, compileTarget,
-            iosDynamic: isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic)
+        res.add(all: appendOptionForBindep(binDepMap, binDepSet, compileTask))
+        return res
     }
 
+    let otherBinOptions = getForcedBinDep(compileTask, buildConfig, binDepSet)
+    appendForcedCLibLinkOptions(otherBinOptions, compileTask, buildConfig, cLibNameList)
+    addForcedLibArgs(res, otherBinOptions, compileTask.target,
+        iosDynamic: isIosLtoCombineLinkTask(compileTask) && compileTask.outputType == Dynamic)
     return res
 }
 
