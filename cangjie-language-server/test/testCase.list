@@ -1329,3 +1329,5 @@
 
 {"completion":{"testFile":"LSP_Completion_Deprecated_Constructors.test","id":"9"}}
 {"completion":{"testFile":"LSP_Completion_Generic_Static_Implementation.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_InterpolationThis_Dot.test","id":"9"}}
+{"completion":{"testFile":"LSP_Completion_InterpolationThis_Static.test","id":"9"}}
