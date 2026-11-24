@@ -50,6 +50,18 @@ auto CollectImportIdMap(const Ptr<File> &file)
     }
     return idToFullIdMap;
 }
+
+bool IsInStaticScope(const ASTContext &context, std::string scope)
+{
+    while (!scope.empty() && scope != TOPLEVEL_SCOPE_NAME) {
+        auto symbol = ScopeManagerApi::GetScopeGate(context, ScopeManagerApi::GetScopeGateName(scope));
+        if (symbol && symbol->node && symbol->node->TestAttr(Attribute::STATIC)) {
+            return true;
+        }
+        scope = ScopeManagerApi::GetParentScopeName(scope);
+    }
+    return false;
+}
 }
 
 namespace ark {
@@ -130,7 +142,6 @@ void DotCompleterByParse::Complete(const ArkAST &input,
 void DotCompleterByParse::FuzzyDotComplete(const ArkAST &input, const Position &pos,
                                            const std::string &prefix, CompletionEnv &env)
 {
-    Ptr<Expr> expr;
     Ptr<Decl> topDecl = FindTopDecl(input, prefix, env, pos);
     inIfAvailable = CheckInIfAvailable(topDecl, pos);
     if (inIfAvailable) {
@@ -143,11 +154,24 @@ void DotCompleterByParse::FuzzyDotComplete(const ArkAST &input, const Position &
         env.OutputResult(result);
         return;
     }
-    OwnedPtr<Expr> invocationEx;
-    FindExprInTopDecl(topDecl, expr, input, pos, invocationEx);
+    auto receiver = FindDotReceiver(topDecl, input, pos);
+    auto expr = receiver.expr;
     if (!expr) {
         env.OutputResult(result);
         return;
+    }
+    // The parse-side scope walk can stop at the string literal. Resolve the scope at `this` in the semantic cache.
+    if (auto ref = receiver.inInterpolation ? DynamicCast<RefExpr *>(expr.get()) : nullptr; ref && ref->isThis) {
+        if (scopeName == TOPLEVEL_SCOPE_NAME) {
+            auto receiverScope = QueryByPos(expr, pos);
+            if (!receiverScope.empty()) {
+                scopeName = std::move(receiverScope);
+            }
+        }
+        if (IsInStaticScope(*context, scopeName)) {
+            env.OutputResult(result);
+            return;
+        }
     }
     if (expr->astKind == ASTKind::PRIMITIVE_TYPE_EXPR) {
         env.SetValue(FILTER::IS_STATIC, true);
@@ -1577,38 +1601,45 @@ bool DotCompleterByParse::CompleteEmptyPrefix(Ptr<Expr> expr, CompletionEnv &env
     return false;
 }
 
-void DotCompleterByParse::FindExprInTopDecl(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-    const Position &pos, OwnedPtr<Expr> &invocationEx)
+DotCompleterByParse::DotReceiver DotCompleterByParse::FindDotReceiver(Ptr<Decl> topDecl, const ArkAST &input,
+    const Position &pos)
 {
-    WalkForMemberAccess(topDecl, expr, input, pos, invocationEx);
-    if (inIfAvailable && !expr) {
-        WalkForIfAvailable(topDecl, expr, input, pos);
-    }
-}
-
-void DotCompleterByParse::WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                        const Position &pos, OwnedPtr<Expr> &invocationEx)
-{
-    Walker(topDecl, [&](auto node) {
-        if (auto ma = dynamic_cast<MemberAccess *>(node.get())) {
-            if (ma->dotPos.line == pos.line && ma->dotPos.column == pos.column - 1) {
-                expr = ma->baseExpr.get();
-                return VisitAction::STOP_NOW;
-            }
+    DotReceiver receiver;
+    unsigned interpolationDepth = 0;
+    auto matchDot = [&receiver, &interpolationDepth, &pos](const MemberAccess &access) {
+        if (access.dotPos.line != pos.line || access.dotPos.column != pos.column - 1) {
+            return false;
+        }
+        receiver.expr = access.baseExpr.get();
+        receiver.inInterpolation = interpolationDepth != 0;
+        return true;
+    };
+    Walker(topDecl, [&interpolationDepth, &matchDot, &input, &receiver](auto node) {
+        if (node->astKind == ASTKind::INTERPOLATION_EXPR) {
+            ++interpolationDepth;
+        }
+        if (auto ma = DynamicCast<MemberAccess *>(node.get()); ma && matchDot(*ma)) {
+            return VisitAction::STOP_NOW;
         }
         if (auto inv = node->GetInvocation()) {
             OwnedPtr<Expr> ex = Parser(inv->args, input.diag, *input.sourceManager).ParseExpr();
             AddCurFile(*ex, node->curFile);
-            if (auto ma = DynamicCast<MemberAccess *>(ex.get())) {
-                if (ma->dotPos.line == pos.line && ma->dotPos.column == pos.column - 1) {
-                    expr = ma->baseExpr.get();
-                    invocationEx = std::move(ex);
-                    return VisitAction::STOP_NOW;
-                }
+            if (auto ma = DynamicCast<MemberAccess *>(ex.get()); ma && matchDot(*ma)) {
+                receiver.parsedInvocation = std::move(ex);
+                return VisitAction::STOP_NOW;
             }
         }
         return VisitAction::WALK_CHILDREN;
+    }, [&interpolationDepth](auto node) {
+        if (node->astKind == ASTKind::INTERPOLATION_EXPR) {
+            --interpolationDepth;
+        }
+        return VisitAction::KEEP_DECISION;
     }).Walk();
+    if (inIfAvailable && !receiver.expr) {
+        WalkForIfAvailable(topDecl, receiver.expr, input, pos);
+    }
+    return receiver;
 }
 // LCOV_EXCL_START
 void DotCompleterByParse::WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,

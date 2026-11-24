@@ -218,11 +218,13 @@ private:
     bool CompleteEmptyPrefix(Ptr<Expr> expr, CompletionEnv &env, const std::string &prefix,
                                 const std::string &scopeName, const Position &pos);
 
-    void FindExprInTopDecl(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                            const Position &pos, OwnedPtr<Expr> &invocationEx);
+    struct DotReceiver {
+        Ptr<Expr> expr;
+        OwnedPtr<Expr> parsedInvocation;
+        bool inInterpolation = false;
+    };
 
-    void WalkForMemberAccess(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
-                            const Position &pos, OwnedPtr<Expr> &invocationEx);
+    DotReceiver FindDotReceiver(Ptr<Decl> topDecl, const ArkAST &input, const Position &pos);
 
     void WalkForIfAvailable(Ptr<Decl> topDecl, Ptr<Expr>& expr, const ArkAST &input,
                             const Position &pos);

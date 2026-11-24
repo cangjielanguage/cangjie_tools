@@ -96,6 +96,32 @@ bool InterpolationString(
     return false;
 }
 
+std::string GetInterpolationThisPrefix(const std::vector<Token> &tokens, size_t i, Position &pos)
+{
+    auto dotIndex = i + 1;
+    if (tokens[i].kind != TokenKind::THIS || dotIndex >= tokens.size() || tokens[dotIndex].kind != TokenKind::DOT) {
+        return {};
+    }
+    const auto &dot = tokens[dotIndex];
+    if (pos == dot.Begin() || pos == dot.End()) {
+        pos = {pos.fileID, dot.End().line, dot.End().column};
+        return "this.";
+    }
+    auto memberIndex = dotIndex + 1;
+    if (memberIndex >= tokens.size()) {
+        return {};
+    }
+    const auto &member = tokens[memberIndex];
+    if (member.kind != TokenKind::IDENTIFIER || member.Begin() != dot.End() || pos <= member.Begin() ||
+        pos > member.End()) {
+        return {};
+    }
+    if (pos == member.End() && memberIndex + 1 < tokens.size() && tokens[memberIndex + 1].kind == TokenKind::DOT) {
+        return {};
+    }
+    return "this." + member.Value().substr(0, static_cast<size_t>(pos.column - member.Begin().column));
+}
+
 std::string GetInterpolationPrefix(const ark::ArkAST &input, const StringPart &str, Position &pos)
 {
     std::string interpolation = "${";
@@ -106,7 +132,11 @@ std::string GetInterpolationPrefix(const ark::ArkAST &input, const StringPart &s
     auto newTokens = lexer.GetTokens();
     std::vector<Token> tokenV;
     for (size_t i = 0; i < newTokens.size(); i ++) {
-        auto nt = newTokens[i];
+        auto thisPrefix = GetInterpolationThisPrefix(newTokens, i, pos);
+        if (!thisPrefix.empty()) {
+            return thisPrefix;
+        }
+        const auto &nt = newTokens[i];
         bool isValidTy = nt.kind == TokenKind::IDENTIFIER || nt.kind == TokenKind::DOT;
         if (isValidTy) {
             tokenV.push_back(nt);
