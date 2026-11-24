@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdint>
 #include <unordered_map>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <process.h>
@@ -106,11 +107,55 @@ struct DominanceEntry
     uint64_t children_offset;
     uint32_t children_count;
 };
+
+struct SourceFingerprintTrailer
+{
+    char magic[8] = {'c', 'j', 'p', 'r', 'o', 'f', 's', 'f'};
+    uint32_t version = 1;
+    uint64_t sourceSize;
+    uint64_t sourceMtimeSec;
+    uint64_t sourceMtimeNsec;
+    uint64_t sourceInode;
+};
 #pragma pack(pop)
 
 static std::string getCachePath(const std::string& heapFilePath)
 {
     return heapFilePath + ".cjprof.db";
+}
+
+bool DatabaseCache::GetSourceFingerprint(const std::string& heapFilePath, SourceFingerprint& fp)
+{
+    struct stat st = {0};
+    if (stat(heapFilePath.c_str(), &st) != 0) {
+        return false;
+    }
+    fp.size = static_cast<uint64_t>(st.st_size);
+    fp.mtimeSec = static_cast<uint64_t>(st.st_mtime);
+    fp.mtimeNsec = 0;
+    fp.inode = 0;
+#if !defined(_WIN32)
+#if defined(__APPLE__)
+    fp.mtimeNsec = static_cast<uint64_t>(st.st_mtimespec.tv_nsec);
+#else
+    fp.mtimeNsec = static_cast<uint64_t>(st.st_mtim.tv_nsec);
+#endif
+    fp.inode = static_cast<uint64_t>(st.st_ino);
+#endif
+    return true;
+}
+
+static bool SourceFingerprintMatches(const SourceFingerprintTrailer& trailer, const SourceFingerprint& fp)
+{
+    if ((trailer.sourceSize != fp.size) || (trailer.sourceMtimeSec != fp.mtimeSec)) {
+        return false;
+    }
+#if !defined(_WIN32)
+    if ((trailer.sourceMtimeNsec != fp.mtimeNsec) || (trailer.sourceInode != fp.inode)) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 bool DatabaseCache::isCacheValid(const std::string& heapFilePath)
@@ -125,6 +170,7 @@ bool DatabaseCache::isCacheValid(const std::string& heapFilePath)
 }
 
 bool DatabaseCache::save(const std::string& heapFilePath,
+                         const SourceFingerprint& sourceFp,
                          const SnapshotInfo& snapshot,
                          const std::vector<ClassInfo>& classes,
                          const std::vector<HeapObject>& objects,
@@ -271,14 +317,36 @@ bool DatabaseCache::save(const std::string& heapFilePath,
         file.write(stringTableData.data(), stringTableData.size());
     }
 
-    file.close();
+    SourceFingerprintTrailer trailer;
+    trailer.sourceSize = sourceFp.size;
+    trailer.sourceMtimeSec = sourceFp.mtimeSec;
+    trailer.sourceMtimeNsec = sourceFp.mtimeNsec;
+    trailer.sourceInode = sourceFp.inode;
+    file.write(reinterpret_cast<const char*>(&trailer), sizeof(trailer));
 
-    // Atomic rename (POSIX rename replaces target atomically)
+    file.close();
+    if (file.fail()) {
+        LOG_ERROR("Failed to write cache file: {}", tmpPath);
+        std::remove(tmpPath.c_str());
+        return false;
+    }
+
+#if defined(_WIN32)
+    if (std::rename(tmpPath.c_str(), dbPath.c_str()) != 0) {
+        std::remove(dbPath.c_str());
+        if (std::rename(tmpPath.c_str(), dbPath.c_str()) != 0) {
+            LOG_ERROR("Failed to rename cache file from {} to {}", tmpPath, dbPath);
+            std::remove(tmpPath.c_str());
+            return false;
+        }
+    }
+#else
     if (std::rename(tmpPath.c_str(), dbPath.c_str()) != 0) {
         LOG_ERROR("Failed to rename cache file from {} to {}", tmpPath, dbPath);
         std::remove(tmpPath.c_str());
         return false;
     }
+#endif
 
     LOG_DEBUG("Binary cache saved: {} (objects={}, refs={}, children={})",
         dbPath, objects.size(), flatRefs.size(), flatChildren.size());
@@ -286,6 +354,7 @@ bool DatabaseCache::save(const std::string& heapFilePath,
 }
 
 bool DatabaseCache::load(const std::string& heapFilePath,
+                         const SourceFingerprint& sourceFp,
                          SnapshotInfo& snapshot,
                          std::vector<ClassInfo>& classes,
                          std::vector<HeapObject>& objects,
@@ -317,6 +386,23 @@ bool DatabaseCache::load(const std::string& heapFilePath,
 
     file.seekg(0, std::ios::end);
     const auto fileSize = file.tellg();
+
+    SourceFingerprintTrailer trailer;
+    bool trailerFound = false;
+    if (fileSize >= static_cast<std::streamoff>(sizeof(trailer))) {
+        file.seekg(static_cast<std::streamoff>(fileSize) - static_cast<std::streamoff>(sizeof(trailer)));
+        file.read(reinterpret_cast<char*>(&trailer), sizeof(trailer));
+        trailerFound = (file.gcount() == sizeof(trailer)) &&
+            (std::memcmp(trailer.magic, "cjprofsf", sizeof(trailer.magic)) == 0) && (trailer.version == 1);
+    }
+    if (!trailerFound) {
+        LOG_ERROR("Cache predates source dump binding, ignoring cache: {}", dbPath);
+        return false;
+    }
+    if (!SourceFingerprintMatches(trailer, sourceFp)) {
+        LOG_ERROR("Cache does not match source dump, ignoring cache: {}", dbPath);
+        return false;
+    }
     auto sectionFits = [fileSize](uint64_t offset, uint64_t count, uint64_t elemSize) -> bool {
         if ((elemSize == 0) || (count > UINT64_MAX / elemSize)) {
             return false;

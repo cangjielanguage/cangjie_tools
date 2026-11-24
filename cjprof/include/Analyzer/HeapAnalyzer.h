@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include "Utility/Singleton.h"
 #include "Data/Hprof.h"
+#include "Analyzer/DatabaseCache.h"
 
 /**
  * Information of RawHeapSnapshot
@@ -211,6 +212,8 @@ private:
     std::vector<Thread> m_threads;
     uint32_t m_fileSize;
     std::string m_filePath;
+    cjprof::SourceFingerprint m_sourceFp = {};
+    bool m_sourceFpValid = false;
     std::unordered_map<Hprof::ID, std::shared_ptr<HeapAnalyzer::Object>> objects_cache;
 };
 
