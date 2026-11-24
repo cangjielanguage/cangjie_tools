@@ -8,9 +8,9 @@ package interpolation_this_static
 
 class Sample {
     public let id: Int64 = 1
-    private static let staticOnly: Int64 = 3
+    private static let STATIC_ONLY: Int64 = 3
 
     static func describe(): String {
-        "${Sample.staticOnly}"
+        "${Sample.STATIC_ONLY}"
     }
 }

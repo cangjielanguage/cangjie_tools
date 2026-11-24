@@ -1606,7 +1606,7 @@ DotCompleterByParse::DotReceiver DotCompleterByParse::FindDotReceiver(Ptr<Decl> 
 {
     DotReceiver receiver;
     unsigned interpolationDepth = 0;
-    auto matchDot = [&](const MemberAccess &access) {
+    auto matchDot = [&receiver, &interpolationDepth, &pos](const MemberAccess &access) {
         if (access.dotPos.line != pos.line || access.dotPos.column != pos.column - 1) {
             return false;
         }
@@ -1614,7 +1614,7 @@ DotCompleterByParse::DotReceiver DotCompleterByParse::FindDotReceiver(Ptr<Decl> 
         receiver.inInterpolation = interpolationDepth != 0;
         return true;
     };
-    Walker(topDecl, [&](auto node) {
+    Walker(topDecl, [&interpolationDepth, &matchDot, &input, &receiver](auto node) {
         if (node->astKind == ASTKind::INTERPOLATION_EXPR) {
             ++interpolationDepth;
         }
@@ -1630,7 +1630,7 @@ DotCompleterByParse::DotReceiver DotCompleterByParse::FindDotReceiver(Ptr<Decl> 
             }
         }
         return VisitAction::WALK_CHILDREN;
-    }, [&](auto node) {
+    }, [&interpolationDepth](auto node) {
         if (node->astKind == ASTKind::INTERPOLATION_EXPR) {
             --interpolationDepth;
         }

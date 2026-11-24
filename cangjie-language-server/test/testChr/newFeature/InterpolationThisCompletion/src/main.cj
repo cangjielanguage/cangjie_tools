@@ -9,8 +9,8 @@ package interpolation_this
 class Sample {
     public let id: Int64 = 1
     private let label: String = "sample"
-    private var value: Int64 = 2
-    private static let staticOnly: Int64 = 3
+    private let value: Int64 = 2
+    private static let STATIC_ONLY: Int64 = 3
 
     func describe(): String {
         "${this.label}#${this.id}:${this.value}"
