@@ -528,27 +528,19 @@ func appendLinkOption(option: String): Array<String> {
 // across the two tables, mirroring the choice made for regular compile/link tasks.
 func appendBinOptionForTest(res: ModuleResolve, requires: HashSet<String>, isLto: Bool,
     isCrossCompile: Bool): ArrayList<String> {
+    let binDeps = if (isCrossCompile) { res.crossBinDeps } else { res.binDeps }
     let binOptions = ArrayList<String>()
-
-    func appendBinDeps(binDeps: HashMap<String, BinDeps>): Unit {
-        for ((_, eachModuleDepMap) in binDeps) {
-            for (depName in eachModuleDepMap.packageRequiresSort) {
-                if (!requires.contains(depName)) {
-                    continue
-                }
-                let info = eachModuleDepMap.packageRequires[depName]
-                if (info.isMacroPackage) {
-                    continue
-                }
-                binOptions.add(all: linkPackage(info.libName, info.libPath, isLto), at: 0)
+    for ((_, eachModuleDepMap) in binDeps) {
+        for (depName in eachModuleDepMap.packageRequiresSort) {
+            if (!requires.contains(depName)) {
+                continue
             }
+            let info = eachModuleDepMap.packageRequires[depName]
+            if (info.isMacroPackage) {
+                continue
+            }
+            binOptions.add(all: linkPackage(info.libName, info.libPath, isLto), at: 0)
         }
-    }
-
-    if (isCrossCompile) {
-        appendBinDeps(res.crossBinDeps)
-    } else {
-        appendBinDeps(res.binDeps)
     }
     return binOptions
 }

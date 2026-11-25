@@ -261,21 +261,23 @@ func isCombinedEntryConfigured(dm: DepModel): Bool {
 }
 
 func validateCombinedEntry(dm: DepModel, hasLto: Bool): Bool {
-    var entryValid = true
     if (!COMMON_INFO.inWorkspace) {
-        if (!isValidCombinedEntry(dm, dm.globalConfig.rootName, hasLto)) {
-            reportInvalidCombinedEntry(dm, dm.globalConfig.rootName, hasLto)
-            entryValid = false
+        let rootName = dm.globalConfig.rootName
+        if (isValidCombinedEntry(dm, rootName, hasLto)) {
+            return true
         }
-    } else {
-        for (memberPath in COMMON_INFO.currentMembers) {
-            let canonicalMemberPath = getCanonicalPath(memberPath)
-            for ((moduleName, finalDep) in dm.depAnalysisEngine.finalDepMap) {
-                if (getCanonicalPath(finalDep.tomlInfo.pkg.path) == canonicalMemberPath &&
-                    !isValidCombinedEntry(dm, moduleName, hasLto)) {
-                    reportInvalidCombinedEntry(dm, moduleName, hasLto)
-                    entryValid = false
-                }
+        reportInvalidCombinedEntry(dm, rootName, hasLto)
+        return false
+    }
+
+    var entryValid = true
+    for (memberPath in COMMON_INFO.currentMembers) {
+        let canonicalMemberPath = getCanonicalPath(memberPath)
+        for ((moduleName, finalDep) in dm.depAnalysisEngine.finalDepMap) {
+            if (getCanonicalPath(finalDep.tomlInfo.pkg.path) == canonicalMemberPath &&
+                !isValidCombinedEntry(dm, moduleName, hasLto)) {
+                reportInvalidCombinedEntry(dm, moduleName, hasLto)
+                entryValid = false
             }
         }
     }
